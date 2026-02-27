@@ -1,0 +1,55 @@
+import prisma from '@/lib/prisma';
+import { generateCode } from '@/lib/generateCode';
+import { NextResponse } from 'next/server';
+
+export async function GET(request) {
+    const { searchParams } = new URL(request.url);
+    const type = searchParams.get('type');
+    const warehouseId = searchParams.get('warehouseId');
+
+    const where = {};
+    if (type) where.type = type;
+    if (warehouseId) where.warehouseId = warehouseId;
+
+    const transactions = await prisma.inventoryTransaction.findMany({
+        where,
+        include: { product: { select: { name: true, unit: true } }, warehouse: { select: { name: true } }, project: { select: { name: true } } },
+        orderBy: { date: 'desc' },
+    });
+    const warehouses = await prisma.warehouse.findMany({ orderBy: { name: 'asc' } });
+    return NextResponse.json({ transactions, warehouses });
+}
+
+export async function POST(request) {
+    try {
+        const data = await request.json();
+        if (!data.productId) return NextResponse.json({ error: 'Sản phẩm bắt buộc' }, { status: 400 });
+        if (!data.warehouseId) return NextResponse.json({ error: 'Kho bắt buộc' }, { status: 400 });
+        const prefix = data.type === 'Nhập' ? 'PNK' : 'PXK';
+        const code = await generateCode('inventoryTransaction', prefix);
+        const qty = Number(data.quantity) || 0;
+
+        const tx = await prisma.inventoryTransaction.create({
+            data: {
+                code,
+                type: data.type || 'Nhập',
+                quantity: qty,
+                unit: data.unit || '',
+                note: data.note || '',
+                date: data.date ? new Date(data.date) : new Date(),
+                productId: data.productId,
+                warehouseId: data.warehouseId,
+                projectId: data.projectId || null,
+            },
+        });
+
+        // Update product stock
+        const delta = data.type === 'Nhập' ? qty : -qty;
+        await prisma.product.update({ where: { id: data.productId }, data: { stock: { increment: delta } } });
+
+        return NextResponse.json(tx, { status: 201 });
+    } catch (e) {
+        console.error('Create inventory tx error:', e);
+        return NextResponse.json({ error: e.message }, { status: 500 });
+    }
+}

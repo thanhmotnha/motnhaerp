@@ -1,0 +1,37 @@
+import prisma from '@/lib/prisma';
+import { NextResponse } from 'next/server';
+
+export async function POST(request, { params }) {
+    const { id } = await params;
+    const data = await request.json();
+    const payment = await prisma.contractPayment.create({
+        data: { contractId: id, ...data },
+    });
+    const total = await prisma.contractPayment.aggregate({ where: { contractId: id }, _sum: { paidAmount: true } });
+    await prisma.contract.update({ where: { id }, data: { paidAmount: total._sum.paidAmount || 0 } });
+    return NextResponse.json(payment);
+}
+
+// Batch replace all payment phases
+export async function PUT(request, { params }) {
+    const { id } = await params;
+    const { phases } = await request.json();
+    // Delete existing
+    await prisma.contractPayment.deleteMany({ where: { contractId: id } });
+    // Create new
+    if (phases?.length > 0) {
+        await prisma.contractPayment.createMany({
+            data: phases.map(p => ({
+                contractId: id,
+                phase: p.phase || '',
+                amount: Number(p.amount) || 0,
+                paidAmount: Number(p.paidAmount) || 0,
+                category: p.category || '',
+                status: p.status || 'Chưa thu',
+                notes: p.notes || '',
+            })),
+        });
+    }
+    const payments = await prisma.contractPayment.findMany({ where: { contractId: id }, orderBy: { createdAt: 'asc' } });
+    return NextResponse.json(payments);
+}

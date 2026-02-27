@@ -1,0 +1,545 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Customer {
+  id              String      @id @default(cuid())
+  code            String      @unique
+  name            String
+  phone           String
+  email           String      @default("")
+  address         String      @default("")
+  type            String      @default("Cá nhân")
+  status          String      @default("Lead")
+  taxCode         String      @default("")
+  representative  String      @default("")
+  birthday        DateTime?
+  source          String      @default("")
+  notes           String      @default("")
+  totalRevenue    Float       @default(0)
+  gender          String      @default("Nam")
+  projectAddress  String      @default("")
+  projectName     String      @default("")
+  salesPerson     String      @default("")
+  designer        String      @default("")
+  contactPerson2  String      @default("")
+  phone2          String      @default("")
+  pipelineStage   String      @default("Lead")
+  estimatedValue  Float       @default(0)
+  nextFollowUp    DateTime?
+  score           Int         @default(0)
+  lastContactAt   DateTime?
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+  projects        Project[]
+  quotations      Quotation[]
+  contracts       Contract[]
+  trackingLogs    TrackingLog[]
+  documents       ProjectDocument[]
+}
+
+model Project {
+  id              String      @id @default(cuid())
+  code            String      @unique
+  name            String
+  type            String
+  address         String      @default("")
+  description     String      @default("")
+  area            Float       @default(0)
+  floors          Int         @default(0)
+  budget          Float       @default(0)
+  spent           Float       @default(0)
+  contractValue   Float       @default(0)
+  paidAmount      Float       @default(0)
+  status          String      @default("Khảo sát")
+  phase           String      @default("")
+  progress        Int         @default(0)
+  startDate       DateTime?
+  endDate         DateTime?
+  manager         String      @default("")
+  notes           String      @default("")
+  customerId      String
+  customer        Customer    @relation(fields: [customerId], references: [id])
+  quotations      Quotation[]
+  inventoryTx     InventoryTransaction[]
+  transactions    Transaction[]
+  employees       ProjectEmployee[]
+  milestones      ProjectMilestone[]
+  budgets         ProjectBudget[]
+  contractorPays  ContractorPayment[]
+  contracts       Contract[]
+  workOrders      WorkOrder[]
+  materialPlans   MaterialPlan[]
+  purchaseOrders  PurchaseOrder[]
+  expenses        ProjectExpense[]
+  trackingLogs    TrackingLog[]
+  documents       ProjectDocument[]
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+}
+
+model Product {
+  id            String      @id @default(cuid())
+  code          String      @unique
+  name          String
+  category      String
+  unit          String
+  importPrice   Float       @default(0)
+  salePrice     Float       @default(0)
+  stock         Int         @default(0)
+  minStock      Int         @default(0)
+  supplier      String      @default("")
+  description   String      @default("")
+  dimensions    String      @default("")
+  weight        Float       @default(0)
+  color         String      @default("")
+  material      String      @default("")
+  origin        String      @default("")
+  warranty      String      @default("")
+  brand         String      @default("")
+  status        String      @default("Đang bán")
+  supplyType    String      @default("Sẵn kho")
+  leadTimeDays  Int         @default(0)
+  location      String      @default("")
+  image         String      @default("")
+  inventoryTx   InventoryTransaction[]
+  quotationItems QuotationItem[]
+  materialPlans MaterialPlan[]
+  purchaseItems PurchaseOrderItem[]
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+}
+
+model Quotation {
+  id                String          @id @default(cuid())
+  code              String          @unique
+  total             Float           @default(0)
+  discount          Float           @default(0)
+  vat               Float           @default(10)
+  grandTotal        Float           @default(0)
+  status            String          @default("Nháp")
+  validUntil        DateTime?
+  notes             String          @default("")
+  type              String          @default("Thi công")
+  directCost        Float           @default(0)
+  managementFeeRate Float           @default(5)
+  managementFee     Float           @default(0)
+  designFee         Float           @default(0)
+  otherFee          Float           @default(0)
+  adjustment        Float           @default(0)
+  adjustmentType    String          @default("amount")
+  adjustmentAmount  Float           @default(0)
+  customerId        String
+  customer          Customer        @relation(fields: [customerId], references: [id])
+  projectId         String?
+  project           Project?        @relation(fields: [projectId], references: [id])
+  items             QuotationItem[]
+  categories        QuotationCategory[]
+  contracts         Contract[]
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+}
+
+model QuotationCategory {
+  id            String          @id @default(cuid())
+  name          String
+  order         Int             @default(0)
+  subtotal      Float           @default(0)
+  quotationId   String
+  quotation     Quotation       @relation(fields: [quotationId], references: [id], onDelete: Cascade)
+  items         QuotationItem[]
+}
+
+model QuotationItem {
+  id           String              @id @default(cuid())
+  name         String
+  order        Int                 @default(0)
+  unit         String              @default("")
+  quantity     Float               @default(0)
+  mainMaterial Float               @default(0)
+  auxMaterial  Float               @default(0)
+  labor        Float               @default(0)
+  unitPrice    Float               @default(0)
+  amount       Float               @default(0)
+  description  String              @default("")
+  length       Float               @default(0)
+  width        Float               @default(0)
+  height       Float               @default(0)
+  image        String              @default("")
+  productId    String?
+  product      Product?            @relation(fields: [productId], references: [id])
+  quotationId  String
+  quotation    Quotation           @relation(fields: [quotationId], references: [id], onDelete: Cascade)
+  categoryId   String?
+  category     QuotationCategory?  @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+}
+
+model Warehouse {
+  id           String      @id @default(cuid())
+  code         String      @unique
+  name         String
+  address      String      @default("")
+  inventoryTx  InventoryTransaction[]
+  createdAt    DateTime    @default(now())
+}
+
+model InventoryTransaction {
+  id           String    @id @default(cuid())
+  code         String    @unique
+  type         String
+  quantity     Float
+  unit         String    @default("")
+  note         String    @default("")
+  date         DateTime  @default(now())
+  productId    String
+  product      Product   @relation(fields: [productId], references: [id])
+  warehouseId  String
+  warehouse    Warehouse @relation(fields: [warehouseId], references: [id])
+  projectId    String?
+  project      Project?  @relation(fields: [projectId], references: [id])
+  createdAt    DateTime  @default(now())
+}
+
+model Transaction {
+  id           String   @id @default(cuid())
+  code         String   @unique
+  type         String
+  description  String
+  amount       Float
+  category     String   @default("")
+  date         DateTime @default(now())
+  projectId    String?
+  project      Project? @relation(fields: [projectId], references: [id])
+  createdAt    DateTime @default(now())
+}
+
+model Department {
+  id           String     @id @default(cuid())
+  name         String     @unique
+  employees    Employee[]
+  createdAt    DateTime   @default(now())
+}
+
+model Employee {
+  id           String   @id @default(cuid())
+  code         String   @unique
+  name         String
+  position     String   @default("")
+  phone        String   @default("")
+  email        String   @default("")
+  salary       Float    @default(0)
+  status       String   @default("Đang làm")
+  joinDate     DateTime?
+  departmentId String
+  department   Department @relation(fields: [departmentId], references: [id])
+  projects     ProjectEmployee[]
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model ProjectEmployee {
+  projectId  String
+  employeeId String
+  project    Project  @relation(fields: [projectId], references: [id])
+  employee   Employee @relation(fields: [employeeId], references: [id])
+  @@id([projectId, employeeId])
+}
+
+model Contractor {
+  id          String   @id @default(cuid())
+  code        String   @unique
+  name        String
+  type        String
+  phone       String   @default("")
+  address     String   @default("")
+  taxCode     String   @default("")
+  bankAccount String   @default("")
+  bankName    String   @default("")
+  rating      Int      @default(3)
+  notes       String   @default("")
+  payments    ContractorPayment[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model ContractorPayment {
+  id              String   @id @default(cuid())
+  contractAmount  Float    @default(0)
+  paidAmount      Float    @default(0)
+  status          String   @default("Chưa TT")
+  description     String   @default("")
+  dueDate         DateTime?
+  contractorId    String
+  contractor      Contractor @relation(fields: [contractorId], references: [id])
+  projectId       String
+  project         Project    @relation(fields: [projectId], references: [id])
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+}
+
+model Supplier {
+  id          String   @id @default(cuid())
+  code        String   @unique
+  name        String
+  type        String   @default("Vật tư xây dựng")
+  contact     String   @default("")
+  phone       String   @default("")
+  email       String   @default("")
+  address     String   @default("")
+  taxCode     String   @default("")
+  bankAccount String   @default("")
+  bankName    String   @default("")
+  rating      Int      @default(3)
+  notes       String   @default("")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model ProjectMilestone {
+  id          String   @id @default(cuid())
+  name        String
+  progress    Int      @default(0)
+  startDate   DateTime?
+  endDate     DateTime?
+  status      String   @default("Chưa bắt đầu")
+  order       Int      @default(0)
+  projectId   String
+  project     Project  @relation(fields: [projectId], references: [id])
+  createdAt   DateTime @default(now())
+}
+
+model ProjectBudget {
+  id            String  @id @default(cuid())
+  category      String
+  budgetAmount  Float   @default(0)
+  actualAmount  Float   @default(0)
+  notes         String  @default("")
+  projectId     String
+  project       Project @relation(fields: [projectId], references: [id])
+}
+
+// ============ NEW MODELS ============
+
+model Contract {
+  id              String   @id @default(cuid())
+  code            String   @unique
+  name            String
+  type            String   @default("Thi công")
+  contractValue   Float    @default(0)
+  paidAmount      Float    @default(0)
+  variationAmount Float    @default(0)
+  status          String   @default("Nháp")
+  signDate        DateTime?
+  startDate       DateTime?
+  endDate         DateTime?
+  paymentTerms    String   @default("")
+  notes           String   @default("")
+  fileUrl         String   @default("")
+  customerId      String
+  customer        Customer   @relation(fields: [customerId], references: [id])
+  projectId       String
+  project         Project    @relation(fields: [projectId], references: [id])
+  quotationId     String?
+  quotation       Quotation? @relation(fields: [quotationId], references: [id])
+  payments        ContractPayment[]
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+model ContractPayment {
+  id          String   @id @default(cuid())
+  phase       String
+  amount      Float    @default(0)
+  paidAmount  Float    @default(0)
+  category    String   @default("Hợp đồng")
+  status      String   @default("Chưa thu")
+  dueDate     DateTime?
+  paidDate    DateTime?
+  notes       String   @default("")
+  proofUrl    String   @default("")
+  contractId  String
+  contract    Contract @relation(fields: [contractId], references: [id], onDelete: Cascade)
+  createdAt   DateTime @default(now())
+}
+
+model WorkOrder {
+  id          String   @id @default(cuid())
+  code        String   @unique
+  title       String
+  description String   @default("")
+  priority    String   @default("Trung bình")
+  status      String   @default("Chờ xử lý")
+  assignee    String   @default("")
+  dueDate     DateTime?
+  completedAt DateTime?
+  category    String   @default("")
+  projectId   String
+  project     Project  @relation(fields: [projectId], references: [id])
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model MaterialPlan {
+  id              String   @id @default(cuid())
+  quantity        Float    @default(0)
+  orderedQty      Float    @default(0)
+  receivedQty     Float    @default(0)
+  unitPrice       Float    @default(0)
+  totalAmount     Float    @default(0)
+  status          String   @default("Chưa đặt")
+  type            String   @default("Chính")
+  notes           String   @default("")
+  productId       String
+  product         Product  @relation(fields: [productId], references: [id])
+  projectId       String
+  project         Project  @relation(fields: [projectId], references: [id])
+  createdAt       DateTime @default(now())
+}
+
+model PurchaseOrder {
+  id              String   @id @default(cuid())
+  code            String   @unique
+  supplier        String
+  totalAmount     Float    @default(0)
+  paidAmount      Float    @default(0)
+  status          String   @default("Nháp")
+  orderDate       DateTime @default(now())
+  deliveryDate    DateTime?
+  receivedDate    DateTime?
+  notes           String   @default("")
+  projectId       String
+  project         Project  @relation(fields: [projectId], references: [id])
+  items           PurchaseOrderItem[]
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+model PurchaseOrderItem {
+  id              String   @id @default(cuid())
+  productName     String
+  unit            String   @default("")
+  quantity        Float    @default(0)
+  unitPrice       Float    @default(0)
+  amount          Float    @default(0)
+  receivedQty     Float    @default(0)
+  notes           String   @default("")
+  productId       String?
+  product         Product?  @relation(fields: [productId], references: [id])
+  purchaseOrderId String
+  purchaseOrder   PurchaseOrder @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
+}
+
+model ProjectExpense {
+  id            String   @id @default(cuid())
+  code          String   @unique
+  expenseType   String   @default("Dự án")
+  description   String
+  amount        Float    @default(0)
+  paidAmount    Float    @default(0)
+  category      String   @default("Khác")
+  status        String   @default("Chờ duyệt")
+  submittedBy   String   @default("")
+  approvedBy    String   @default("")
+  proofUrl      String   @default("")
+  recipientType String   @default("")
+  recipientId   String   @default("")
+  recipientName String   @default("")
+  date          DateTime @default(now())
+  notes         String   @default("")
+  projectId     String?
+  project       Project? @relation(fields: [projectId], references: [id])
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+model TrackingLog {
+  id          String   @id @default(cuid())
+  content     String
+  type        String   @default("Ghi chú")
+  contactMethod String @default("")
+  nextFollowUp DateTime?
+  createdBy   String   @default("")
+  customerId  String?
+  customer    Customer? @relation(fields: [customerId], references: [id])
+  projectId   String?
+  project     Project?  @relation(fields: [projectId], references: [id])
+  createdAt   DateTime @default(now())
+}
+
+model ProjectDocument {
+  id          String   @id @default(cuid())
+  name        String
+  fileName    String   @default("")
+  category    String   @default("Khác")
+  fileSize    Int      @default(0)
+  uploadedBy  String   @default("")
+  notes       String   @default("")
+  customerId  String?
+  customer    Customer? @relation(fields: [customerId], references: [id])
+  projectId   String?
+  project     Project?  @relation(fields: [projectId], references: [id])
+  createdAt   DateTime @default(now())
+}
+
+// ============ THƯ VIỆN HẠNG MỤC THI CÔNG ============
+
+model WorkItemLibrary {
+  id            String   @id @default(cuid())
+  name          String
+  category      String   @default("Phần thô")
+  subcategory   String   @default("")
+  unit          String   @default("m²")
+  mainMaterial  Float    @default(0)
+  auxMaterial   Float    @default(0)
+  labor         Float    @default(0)
+  unitPrice     Float    @default(0)
+  description   String   @default("")
+  image         String   @default("")
+  createdAt     DateTime @default(now())
+}
+
+// ============ BÁO GIÁ MẪU (TEMPLATE) ============
+
+model QuotationTemplate {
+  id          String   @id @default(cuid())
+  name        String
+  type        String   @default("Thi công thô")
+  description String   @default("")
+  managementFeeRate Float @default(5)
+  designFee   Float    @default(0)
+  vat         Float    @default(10)
+  discount    Float    @default(0)
+  categories  QuotationTemplateCategory[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model QuotationTemplateCategory {
+  id          String   @id @default(cuid())
+  name        String
+  order       Int      @default(0)
+  templateId  String
+  template    QuotationTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  items       QuotationTemplateItem[]
+}
+
+model QuotationTemplateItem {
+  id            String   @id @default(cuid())
+  name          String
+  order         Int      @default(0)
+  unit          String   @default("")
+  quantity      Float    @default(0)
+  mainMaterial  Float    @default(0)
+  auxMaterial   Float    @default(0)
+  labor         Float    @default(0)
+  unitPrice     Float    @default(0)
+  description   String   @default("")
+  categoryId    String
+  category      QuotationTemplateCategory @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+}
+

@@ -1,0 +1,79 @@
+﻿node.exe : warn The 
+configuration 
+property `package.jso
+n#prisma` is 
+deprecated and will 
+be removed in Prisma 
+7. Please migrate to 
+a Prisma config file 
+(e.g., 
+`prisma.config.ts`).
+At line:1 char:1
++ & "C:\Program Files
+\nodejs/node.exe" 
+"C:\Program 
+Files\nodejs/node_mo 
+...
++ ~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~
+    + CategoryInfo   
+           : 
+NotSpecified    : 
+(warn The config.    
+..ma.config.ts`).:S  
+  tring) [], 
+RemoteEx    ception
+    + 
+FullyQualifiedErr    
+orId : NativeComman  
+  dError
+ 
+For more 
+information, see: htt
+ps://pris.ly/prisma-c
+onfig
+
+Environment 
+variables loaded 
+from .env
+Prisma schema loaded from prisma\schema.prisma
+Datasource "db": SQLite database "dev.db" at "file:./dev.db"
+
+Applying migration `20260217182412_init`
+Applying migration `20260217185441_enhance_all`
+
+Database reset successful
+
+The following migration(s) have been applied:
+
+migrations/
+  鈹斺攢 20260217182412_init/
+    鈹斺攢 migration.sql
+  鈹斺攢 20260217185441_enhance_all/
+    鈹斺攢 migration.sql
+
+Running generate... (Use --skip-generate to skip the generators)
+[2K[1A[2K[GRunning generate... - Prisma Client
+[2K[1A[2K[G鉁?Generated Prisma Client (v6.19.2) to .\node_modules\@prisma\client in 176ms
+
+Running seed command `node prisma/seed.js` ...
+馃尡 Seeding database...
+鉁?Departments
+鉁?Employees
+鉁?Customers
+鉁?Projects
+鉁?Contractors
+鉁?ContractorPayments
+鉁?ProjectMilestones
+鉁?ProjectBudgets
+鉁?Products (30)
+鉁?Warehouses
+鉁?Quotations
+鉁?Transactions
+鉁?Assignments
+馃帀 Database seeded!
+
+The seed command has been executed.
+
