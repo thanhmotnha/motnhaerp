@@ -1,5 +1,6 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
@@ -10,7 +11,7 @@ import {
 } from 'lucide-react';
 import { useRole, ROLES } from '@/contexts/RoleContext';
 
-const menuItems = [
+const menuConfig = [
     {
         section: 'Tổng quan', items: [
             { href: '/', icon: LayoutDashboard, label: 'Dashboard' },
@@ -19,8 +20,8 @@ const menuItems = [
     },
     {
         section: 'Quản lý', items: [
-            { href: '/customers', icon: Users, label: 'Khách hàng', badge: 3, roles: ['giam_doc', 'pho_gd', 'ke_toan'] },
-            { href: '/projects', icon: Building2, label: 'Dự án', badge: 4 },
+            { href: '/customers', icon: Users, label: 'Khách hàng', badgeKey: 'customers', roles: ['giam_doc', 'pho_gd', 'ke_toan'] },
+            { href: '/projects', icon: Building2, label: 'Dự án', badgeKey: 'projects' },
             { href: '/contracts', icon: FileText, label: 'Hợp đồng', roles: ['giam_doc', 'pho_gd', 'ke_toan'] },
             { href: '/products', icon: Package, label: 'Sản phẩm & Vật tư' },
             { href: '/quotations', icon: ClipboardList, label: 'Báo giá', roles: ['giam_doc', 'pho_gd', 'ke_toan'] },
@@ -48,6 +49,16 @@ const menuItems = [
 export default function Sidebar() {
     const pathname = usePathname();
     const { role, roleInfo, switchRole } = useRole();
+    const [counts, setCounts] = useState({});
+
+    useEffect(() => {
+        fetch('/api/dashboard')
+            .then(r => r.json())
+            .then(d => {
+                if (d.stats) setCounts({ customers: d.stats.customers, projects: d.stats.projects });
+            })
+            .catch(() => { });
+    }, [pathname]);
 
     return (
         <aside className="sidebar">
@@ -59,7 +70,7 @@ export default function Sidebar() {
                 </div>
             </div>
             <nav className="sidebar-nav">
-                {menuItems.map((section) => {
+                {menuConfig.map((section) => {
                     const visibleItems = section.items.filter(item => !item.roles || item.roles.includes(role));
                     if (visibleItems.length === 0) return null;
                     return (
@@ -68,6 +79,7 @@ export default function Sidebar() {
                             {visibleItems.map((item) => {
                                 const Icon = item.icon;
                                 const isActive = item.href === '/' ? pathname === '/' : pathname.startsWith(item.href);
+                                const badge = item.badgeKey ? counts[item.badgeKey] : null;
                                 return (
                                     <Link
                                         key={item.href}
@@ -78,7 +90,7 @@ export default function Sidebar() {
                                             <Icon size={18} strokeWidth={isActive ? 2 : 1.5} />
                                         </span>
                                         <span>{item.label}</span>
-                                        {item.badge && <span className="nav-badge">{item.badge}</span>}
+                                        {badge > 0 && <span className="nav-badge">{badge}</span>}
                                         {isActive && <ChevronRight size={14} className="nav-arrow" />}
                                     </Link>
                                 );
