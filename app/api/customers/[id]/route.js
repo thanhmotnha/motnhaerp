@@ -1,7 +1,9 @@
+import { withAuth } from '@/lib/apiHandler';
 import prisma from '@/lib/prisma';
 import { NextResponse } from 'next/server';
+import { customerUpdateSchema } from '@/lib/validations/customer';
 
-export async function GET(request, { params }) {
+export const GET = withAuth(async (request, { params }) => {
     const { id } = await params;
     const customer = await prisma.customer.findUnique({
         where: { id },
@@ -53,55 +55,57 @@ export async function GET(request, { params }) {
         transactions,
         stats: { totalContractValue, totalPaid, totalDebt, projectCount: customer.projects.length, contractCount: customer.contracts.length },
     });
-}
+});
 
-export async function PUT(request, { params }) {
+export const PUT = withAuth(async (request, { params }) => {
     const { id } = await params;
-    const data = await request.json();
+    const body = await request.json();
+    const data = customerUpdateSchema.parse(body);
+
     const customer = await prisma.customer.update({ where: { id }, data });
     return NextResponse.json(customer);
-}
+});
 
-export async function DELETE(request, { params }) {
-    try {
-        const { id } = await params;
-        const projects = await prisma.project.findMany({ where: { customerId: id }, select: { id: true } });
+export const DELETE = withAuth(async (request, { params }) => {
+    const { id } = await params;
+
+    await prisma.$transaction(async (tx) => {
+        const projects = await tx.project.findMany({ where: { customerId: id }, select: { id: true } });
         const projectIds = projects.map(p => p.id);
 
         if (projectIds.length > 0) {
             // Delete all project child records
-            await prisma.contractPayment.deleteMany({ where: { contract: { projectId: { in: projectIds } } } });
-            await prisma.contract.deleteMany({ where: { projectId: { in: projectIds } } });
-            await prisma.workOrder.deleteMany({ where: { projectId: { in: projectIds } } });
-            await prisma.materialPlan.deleteMany({ where: { projectId: { in: projectIds } } });
-            await prisma.purchaseOrderItem.deleteMany({ where: { purchaseOrder: { projectId: { in: projectIds } } } });
-            await prisma.purchaseOrder.deleteMany({ where: { projectId: { in: projectIds } } });
-            await prisma.projectExpense.deleteMany({ where: { projectId: { in: projectIds } } });
-            await prisma.trackingLog.deleteMany({ where: { projectId: { in: projectIds } } });
-            await prisma.projectDocument.deleteMany({ where: { projectId: { in: projectIds } } });
-            await prisma.projectMilestone.deleteMany({ where: { projectId: { in: projectIds } } });
-            await prisma.projectBudget.deleteMany({ where: { projectId: { in: projectIds } } });
-            await prisma.contractorPayment.deleteMany({ where: { projectId: { in: projectIds } } });
-            await prisma.projectEmployee.deleteMany({ where: { projectId: { in: projectIds } } });
-            await prisma.inventoryTransaction.deleteMany({ where: { projectId: { in: projectIds } } });
-            await prisma.transaction.deleteMany({ where: { projectId: { in: projectIds } } });
-            await prisma.quotationItem.deleteMany({ where: { quotation: { projectId: { in: projectIds } } } });
-            await prisma.quotation.deleteMany({ where: { projectId: { in: projectIds } } });
-            await prisma.project.deleteMany({ where: { customerId: id } });
+            await tx.contractPayment.deleteMany({ where: { contract: { projectId: { in: projectIds } } } });
+            await tx.contract.deleteMany({ where: { projectId: { in: projectIds } } });
+            await tx.workOrder.deleteMany({ where: { projectId: { in: projectIds } } });
+            await tx.materialPlan.deleteMany({ where: { projectId: { in: projectIds } } });
+            await tx.purchaseOrderItem.deleteMany({ where: { purchaseOrder: { projectId: { in: projectIds } } } });
+            await tx.purchaseOrder.deleteMany({ where: { projectId: { in: projectIds } } });
+            await tx.projectExpense.deleteMany({ where: { projectId: { in: projectIds } } });
+            await tx.trackingLog.deleteMany({ where: { projectId: { in: projectIds } } });
+            await tx.projectDocument.deleteMany({ where: { projectId: { in: projectIds } } });
+            await tx.projectMilestone.deleteMany({ where: { projectId: { in: projectIds } } });
+            await tx.projectBudget.deleteMany({ where: { projectId: { in: projectIds } } });
+            await tx.contractorPayment.deleteMany({ where: { projectId: { in: projectIds } } });
+            await tx.projectEmployee.deleteMany({ where: { projectId: { in: projectIds } } });
+            await tx.inventoryTransaction.deleteMany({ where: { projectId: { in: projectIds } } });
+            await tx.transaction.deleteMany({ where: { projectId: { in: projectIds } } });
+            await tx.quotationItem.deleteMany({ where: { quotation: { projectId: { in: projectIds } } } });
+            await tx.quotation.deleteMany({ where: { projectId: { in: projectIds } } });
+            await tx.project.deleteMany({ where: { customerId: id } });
         }
+
         // Delete customer-level quotations (not linked to project)
-        await prisma.quotationItem.deleteMany({ where: { quotation: { customerId: id } } });
-        await prisma.quotation.deleteMany({ where: { customerId: id } });
+        await tx.quotationItem.deleteMany({ where: { quotation: { customerId: id } } });
+        await tx.quotation.deleteMany({ where: { customerId: id } });
         // Delete customer-level contracts
-        await prisma.contractPayment.deleteMany({ where: { contract: { customerId: id } } });
-        await prisma.contract.deleteMany({ where: { customerId: id } });
+        await tx.contractPayment.deleteMany({ where: { contract: { customerId: id } } });
+        await tx.contract.deleteMany({ where: { customerId: id } });
         // Delete customer-level tracking logs & documents
-        await prisma.trackingLog.deleteMany({ where: { customerId: id } });
-        await prisma.projectDocument.deleteMany({ where: { customerId: id } });
-        await prisma.customer.delete({ where: { id } });
-        return NextResponse.json({ success: true });
-    } catch (e) {
-        console.error('Delete customer error:', e);
-        return NextResponse.json({ error: e.message }, { status: 500 });
-    }
-}
+        await tx.trackingLog.deleteMany({ where: { customerId: id } });
+        await tx.projectDocument.deleteMany({ where: { customerId: id } });
+        await tx.customer.delete({ where: { id } });
+    });
+
+    return NextResponse.json({ success: true });
+});

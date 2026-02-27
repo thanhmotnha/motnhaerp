@@ -1,7 +1,8 @@
+import { withAuth } from '@/lib/apiHandler';
 import prisma from '@/lib/prisma';
 import { NextResponse } from 'next/server';
 
-export async function GET() {
+export const GET = withAuth(async (request) => {
     const [customerCount, projectCount, productCount, quotationCount, contractCount, workOrderCount] = await Promise.all([
         prisma.customer.count(),
         prisma.project.count(),
@@ -44,4 +45,4 @@ export async function GET() {
         recentProjects,
         projectsByStatus,
     });
-}
+});

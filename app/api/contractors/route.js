@@ -1,35 +1,35 @@
+import { withAuth } from '@/lib/apiHandler';
+import { parsePagination, paginatedResponse } from '@/lib/pagination';
 import prisma from '@/lib/prisma';
 import { generateCode } from '@/lib/generateCode';
 import { NextResponse } from 'next/server';
+import { contractorCreateSchema } from '@/lib/validations/contractor';
 
-export async function GET() {
-    const contractors = await prisma.contractor.findMany({
-        include: { payments: { select: { contractAmount: true, paidAmount: true, status: true } } },
-        orderBy: { createdAt: 'desc' },
+export const GET = withAuth(async (request) => {
+    const { searchParams } = new URL(request.url);
+    const { page, limit, skip } = parsePagination(searchParams);
+
+    const where = {};
+
+    const [data, total] = await Promise.all([
+        prisma.contractor.findMany({
+            where,
+            include: { payments: { select: { contractAmount: true, paidAmount: true, status: true } } },
+            skip,
+            take: limit,
+            orderBy: { createdAt: 'desc' },
+        }),
+        prisma.contractor.count({ where }),
+    ]);
+    return NextResponse.json(paginatedResponse(data, total, { page, limit }));
+});
+
+export const POST = withAuth(async (request) => {
+    const body = await request.json();
+    const data = contractorCreateSchema.parse(body);
+    const code = await generateCode('contractor', 'TT');
+    const contractor = await prisma.contractor.create({
+        data: { code, ...data },
     });
-    return NextResponse.json(contractors);
-}
-
-export async function POST(request) {
-    try {
-        const data = await request.json();
-        if (!data.name?.trim()) return NextResponse.json({ error: 'Tên thầu phụ bắt buộc' }, { status: 400 });
-        const code = await generateCode('contractor', 'TT');
-        const contractor = await prisma.contractor.create({
-            data: {
-                code,
-                name: data.name.trim(),
-                type: data.type || 'Thầu xây dựng',
-                phone: data.phone || '',
-                address: data.address || '',
-                bankAccount: data.bankAccount || '',
-                bankName: data.bankName || '',
-                rating: Number(data.rating) || 3,
-            },
-        });
-        return NextResponse.json(contractor, { status: 201 });
-    } catch (e) {
-        console.error('Create contractor error:', e);
-        return NextResponse.json({ error: e.message }, { status: 500 });
-    }
-}
+    return NextResponse.json(contractor, { status: 201 });
+});

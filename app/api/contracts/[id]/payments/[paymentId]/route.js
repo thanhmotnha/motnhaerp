@@ -1,8 +1,9 @@
+import { withAuth } from '@/lib/apiHandler';
 import prisma from '@/lib/prisma';
 import { NextResponse } from 'next/server';
 
 // Update a single payment phase
-export async function PUT(request, { params }) {
+export const PUT = withAuth(async (request, { params }) => {
     const { id, paymentId } = await params;
     const data = await request.json();
 
@@ -39,4 +40,4 @@ export async function PUT(request, { params }) {
     });
 
     return NextResponse.json(updated);
-}
+});

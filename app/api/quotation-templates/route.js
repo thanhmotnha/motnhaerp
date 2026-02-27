@@ -1,15 +1,33 @@
+import { withAuth } from '@/lib/apiHandler';
 import prisma from '@/lib/prisma';
+import { parsePagination, paginatedResponse } from '@/lib/pagination';
 import { NextResponse } from 'next/server';
 
-export async function GET() {
-    const templates = await prisma.quotationTemplate.findMany({
-        include: { categories: { include: { items: true }, orderBy: { order: 'asc' } } },
-        orderBy: { createdAt: 'desc' },
-    });
-    return NextResponse.json(templates);
-}
+export const GET = withAuth(async (request) => {
+    const { searchParams } = new URL(request.url);
+    const { page, limit, skip } = parsePagination(searchParams);
+    const search = searchParams.get('search') || '';
 
-export async function POST(request) {
+    const where = {};
+    if (search) {
+        where.name = { contains: search, mode: 'insensitive' };
+    }
+
+    const [templates, total] = await Promise.all([
+        prisma.quotationTemplate.findMany({
+            where,
+            include: { categories: { include: { items: true }, orderBy: { order: 'asc' } } },
+            orderBy: { createdAt: 'desc' },
+            skip,
+            take: limit,
+        }),
+        prisma.quotationTemplate.count({ where }),
+    ]);
+
+    return NextResponse.json(paginatedResponse(templates, total, { page, limit }));
+});
+
+export const POST = withAuth(async (request) => {
     const { categories, ...data } = await request.json();
 
     const template = await prisma.quotationTemplate.create({
@@ -38,4 +56,4 @@ export async function POST(request) {
         include: { categories: { include: { items: true }, orderBy: { order: 'asc' } } },
     });
     return NextResponse.json(template, { status: 201 });
-}
+});

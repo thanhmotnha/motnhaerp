@@ -1,20 +1,29 @@
+import { withAuth } from '@/lib/apiHandler';
+import { parsePagination, paginatedResponse } from '@/lib/pagination';
 import prisma from '@/lib/prisma';
 import { NextResponse } from 'next/server';
 
-export async function GET(request) {
+export const GET = withAuth(async (request) => {
     const { searchParams } = new URL(request.url);
+    const { page, limit, skip } = parsePagination(searchParams);
     const category = searchParams.get('category');
+
     const where = {};
     if (category) where.category = category;
 
-    const items = await prisma.workItemLibrary.findMany({
-        where,
-        orderBy: [{ category: 'asc' }, { subcategory: 'asc' }, { name: 'asc' }],
-    });
-    return NextResponse.json(items);
-}
+    const [data, total] = await Promise.all([
+        prisma.workItemLibrary.findMany({
+            where,
+            skip,
+            take: limit,
+            orderBy: [{ category: 'asc' }, { subcategory: 'asc' }, { name: 'asc' }],
+        }),
+        prisma.workItemLibrary.count({ where }),
+    ]);
+    return NextResponse.json(paginatedResponse(data, total, { page, limit }));
+});
 
-export async function POST(request) {
+export const POST = withAuth(async (request) => {
     const data = await request.json();
 
     // Bulk create support
@@ -25,17 +34,17 @@ export async function POST(request) {
 
     const item = await prisma.workItemLibrary.create({ data });
     return NextResponse.json(item, { status: 201 });
-}
+});
 
 // PATCH: rename category
-export async function PATCH(request) {
+export const PATCH = withAuth(async (request) => {
     const { oldCategory, newCategory } = await request.json();
-    if (!oldCategory || !newCategory || oldCategory === newCategory)
+    if (!oldCategory || !newCategory || oldCategory === newCategory) {
         return NextResponse.json({ error: 'Invalid' }, { status: 400 });
+    }
     await prisma.workItemLibrary.updateMany({
         where: { category: oldCategory },
         data: { category: newCategory },
     });
     return NextResponse.json({ ok: true });
-}
-
+});

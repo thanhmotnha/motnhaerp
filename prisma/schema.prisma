@@ -3,8 +3,19 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  name          String
+  password      String
+  role          String    @default("ky_thuat")
+  active        Boolean   @default(true)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
 }
 
 model Customer {
@@ -13,17 +24,17 @@ model Customer {
   name            String
   phone           String
   email           String      @default("")
-  address         String      @default("")
+  address         String      @default("") @db.Text
   type            String      @default("Cá nhân")
   status          String      @default("Lead")
   taxCode         String      @default("")
   representative  String      @default("")
   birthday        DateTime?
   source          String      @default("")
-  notes           String      @default("")
+  notes           String      @default("") @db.Text
   totalRevenue    Float       @default(0)
   gender          String      @default("Nam")
-  projectAddress  String      @default("")
+  projectAddress  String      @default("") @db.Text
   projectName     String      @default("")
   salesPerson     String      @default("")
   designer        String      @default("")
@@ -34,6 +45,7 @@ model Customer {
   nextFollowUp    DateTime?
   score           Int         @default(0)
   lastContactAt   DateTime?
+  deletedAt       DateTime?
   createdAt       DateTime    @default(now())
   updatedAt       DateTime    @updatedAt
   projects        Project[]
@@ -48,8 +60,8 @@ model Project {
   code            String      @unique
   name            String
   type            String
-  address         String      @default("")
-  description     String      @default("")
+  address         String      @default("") @db.Text
+  description     String      @default("") @db.Text
   area            Float       @default(0)
   floors          Int         @default(0)
   budget          Float       @default(0)
@@ -62,7 +74,7 @@ model Project {
   startDate       DateTime?
   endDate         DateTime?
   manager         String      @default("")
-  notes           String      @default("")
+  notes           String      @default("") @db.Text
   customerId      String
   customer        Customer    @relation(fields: [customerId], references: [id])
   quotations      Quotation[]
@@ -79,6 +91,7 @@ model Project {
   expenses        ProjectExpense[]
   trackingLogs    TrackingLog[]
   documents       ProjectDocument[]
+  deletedAt       DateTime?
   createdAt       DateTime    @default(now())
   updatedAt       DateTime    @updatedAt
 }
@@ -94,7 +107,7 @@ model Product {
   stock         Int         @default(0)
   minStock      Int         @default(0)
   supplier      String      @default("")
-  description   String      @default("")
+  description   String      @default("") @db.Text
   dimensions    String      @default("")
   weight        Float       @default(0)
   color         String      @default("")
@@ -111,6 +124,7 @@ model Product {
   quotationItems QuotationItem[]
   materialPlans MaterialPlan[]
   purchaseItems PurchaseOrderItem[]
+  deletedAt     DateTime?
   createdAt     DateTime    @default(now())
   updatedAt     DateTime    @updatedAt
 }
@@ -124,7 +138,7 @@ model Quotation {
   grandTotal        Float           @default(0)
   status            String          @default("Nháp")
   validUntil        DateTime?
-  notes             String          @default("")
+  notes             String          @default("") @db.Text
   type              String          @default("Thi công")
   directCost        Float           @default(0)
   managementFeeRate Float           @default(5)
@@ -141,6 +155,7 @@ model Quotation {
   items             QuotationItem[]
   categories        QuotationCategory[]
   contracts         Contract[]
+  deletedAt         DateTime?
   createdAt         DateTime        @default(now())
   updatedAt         DateTime        @updatedAt
 }
@@ -238,6 +253,7 @@ model Employee {
   departmentId String
   department   Department @relation(fields: [departmentId], references: [id])
   projects     ProjectEmployee[]
+  deletedAt    DateTime?
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 }
@@ -256,13 +272,14 @@ model Contractor {
   name        String
   type        String
   phone       String   @default("")
-  address     String   @default("")
+  address     String   @default("") @db.Text
   taxCode     String   @default("")
   bankAccount String   @default("")
   bankName    String   @default("")
   rating      Int      @default(3)
-  notes       String   @default("")
+  notes       String   @default("") @db.Text
   payments    ContractorPayment[]
+  deletedAt   DateTime?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 }
@@ -290,12 +307,13 @@ model Supplier {
   contact     String   @default("")
   phone       String   @default("")
   email       String   @default("")
-  address     String   @default("")
+  address     String   @default("") @db.Text
   taxCode     String   @default("")
   bankAccount String   @default("")
   bankName    String   @default("")
   rating      Int      @default(3)
-  notes       String   @default("")
+  notes       String   @default("") @db.Text
+  deletedAt   DateTime?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 }
@@ -337,8 +355,8 @@ model Contract {
   signDate        DateTime?
   startDate       DateTime?
   endDate         DateTime?
-  paymentTerms    String   @default("")
-  notes           String   @default("")
+  paymentTerms    String   @default("") @db.Text
+  notes           String   @default("") @db.Text
   fileUrl         String   @default("")
   customerId      String
   customer        Customer   @relation(fields: [customerId], references: [id])
@@ -347,6 +365,7 @@ model Contract {
   quotationId     String?
   quotation       Quotation? @relation(fields: [quotationId], references: [id])
   payments        ContractPayment[]
+  deletedAt       DateTime?
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 }
@@ -371,7 +390,7 @@ model WorkOrder {
   id          String   @id @default(cuid())
   code        String   @unique
   title       String
-  description String   @default("")
+  description String   @default("") @db.Text
   priority    String   @default("Trung bình")
   status      String   @default("Chờ xử lý")
   assignee    String   @default("")
@@ -380,6 +399,7 @@ model WorkOrder {
   category    String   @default("")
   projectId   String
   project     Project  @relation(fields: [projectId], references: [id])
+  deletedAt   DateTime?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 }
@@ -438,7 +458,7 @@ model ProjectExpense {
   id            String   @id @default(cuid())
   code          String   @unique
   expenseType   String   @default("Dự án")
-  description   String
+  description   String   @db.Text
   amount        Float    @default(0)
   paidAmount    Float    @default(0)
   category      String   @default("Khác")
@@ -450,9 +470,10 @@ model ProjectExpense {
   recipientId   String   @default("")
   recipientName String   @default("")
   date          DateTime @default(now())
-  notes         String   @default("")
+  notes         String   @default("") @db.Text
   projectId     String?
   project       Project? @relation(fields: [projectId], references: [id])
+  deletedAt     DateTime?
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 }

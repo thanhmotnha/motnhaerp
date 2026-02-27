@@ -1,36 +1,119 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# HomeERP - Mot Nha
 
-## Getting Started
+ERP system for Vietnamese furniture & construction company management.
 
-First, run the development server:
+## Tech Stack
+
+- **Framework:** Next.js 16 (App Router)
+- **Database:** PostgreSQL + Prisma ORM
+- **Auth:** NextAuth.js (Credentials)
+- **Validation:** Zod
+- **State:** React Query + Context API
+- **UI:** Lucide React icons
+- **Testing:** Vitest + Testing Library
+- **Language:** JavaScript (TypeScript-ready with `strict: true`, `allowJs: true`)
+
+## Quick Start
+
+### Prerequisites
+- Node.js 18+
+- PostgreSQL 14+ (or Docker)
+
+### Setup
 
 ```bash
+# 1. Clone
+git clone https://github.com/sherlock-126/motnha.git
+cd motnha/motnhaerp
+
+# 2. Install dependencies
+npm install
+
+# 3. Setup environment
+cp .env.example .env
+# Edit .env with your PostgreSQL connection string
+
+# 4. Start PostgreSQL (with Docker)
+docker compose up -d
+
+# 5. Run migrations & seed
+npm run db:migrate
+npm run db:seed
+
+# 6. Start dev server
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open http://localhost:3000
 
-You can start editing the page by modifying `app/page.js`. The page auto-updates as you edit the file.
+### Default Login
+- **Email:** admin@motnha.vn
+- **Password:** admin123
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Scripts
 
-## Learn More
+| Command | Description |
+|---------|-------------|
+| `npm run dev` | Start dev server |
+| `npm run build` | Production build |
+| `npm test` | Run tests |
+| `npm run type-check` | TypeScript check |
+| `npm run db:migrate` | Run Prisma migrations |
+| `npm run db:seed` | Seed database |
+| `npm run db:studio` | Open Prisma Studio |
+| `npm run db:reset` | Reset database |
 
-To learn more about Next.js, take a look at the following resources:
+## Features
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+- Customer relationship management with pipeline
+- Project management with budgets and milestones
+- Contract and quotation management (PDF export)
+- Financial tracking (revenue, expenses, receivables)
+- Inventory and warehouse management
+- Supplier and contractor management
+- Work order assignment and tracking
+- Material planning and purchase orders
+- 4-tier role-based access control
+- Light/Dark theme
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Architecture
 
-## Deploy on Vercel
+```
+app/
+  api/          # REST API routes (withAuth + Zod validation)
+  login/        # Authentication page
+  [pages]/      # Frontend pages
+components/
+  ui/           # Shared UI components (Modal, DataTable, Toast, etc.)
+  AppShell.js   # Layout wrapper
+  Header.js     # Top header with session
+  Sidebar.js    # Navigation with role-based menu
+lib/
+  auth.js       # NextAuth config
+  apiHandler.js # withAuth wrapper (auth + error handling + rate limit)
+  pagination.js # Server-side pagination utilities
+  validations/  # Zod schemas for all entities
+  softDelete.js # Prisma middleware for soft delete
+  prisma.js     # Prisma singleton + soft delete
+  format.js     # Formatting utilities
+  fetchClient.js # Frontend fetch wrapper
+contexts/
+  RoleContext.js # Role-based permissions (from session)
+types/
+  models.ts     # TypeScript interfaces
+  api.ts        # API response types
+prisma/
+  schema.prisma # PostgreSQL schema (28 models + User)
+  seed.js       # Seed data
+```
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Security
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- NextAuth.js session-based authentication
+- bcrypt password hashing
+- Zod input validation on all POST/PUT endpoints
+- Rate limiting (60 req/min per user)
+- withAuth wrapper prevents error message leaks
+- MIME type + file size validation for uploads
+- Soft delete (data preservation)
+- Transaction-wrapped cascade deletes

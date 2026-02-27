@@ -1,7 +1,9 @@
+import { withAuth } from '@/lib/apiHandler';
 import prisma from '@/lib/prisma';
 import { NextResponse } from 'next/server';
+import { contractUpdateSchema } from '@/lib/validations/contract';
 
-export async function GET(request, { params }) {
+export const GET = withAuth(async (request, { params }) => {
     const { id } = await params;
     const contract = await prisma.contract.findUnique({
         where: { id },
@@ -9,18 +11,27 @@ export async function GET(request, { params }) {
     });
     if (!contract) return NextResponse.json({ error: 'Not found' }, { status: 404 });
     return NextResponse.json(contract);
-}
+});
 
-export async function PUT(request, { params }) {
+export const PUT = withAuth(async (request, { params }) => {
     const { id } = await params;
-    const data = await request.json();
-    const contract = await prisma.contract.update({ where: { id }, data });
+    const body = await request.json();
+    const data = contractUpdateSchema.parse(body);
+
+    // Remove paymentPhases from the update data since it's not a direct contract field
+    const { paymentPhases, ...contractData } = data;
+
+    const contract = await prisma.contract.update({ where: { id }, data: contractData });
     return NextResponse.json(contract);
-}
+});
 
-export async function DELETE(request, { params }) {
+export const DELETE = withAuth(async (request, { params }) => {
     const { id } = await params;
-    await prisma.contractPayment.deleteMany({ where: { contractId: id } });
-    await prisma.contract.delete({ where: { id } });
+
+    await prisma.$transaction(async (tx) => {
+        await tx.contractPayment.deleteMany({ where: { contractId: id } });
+        await tx.contract.delete({ where: { id } });
+    });
+
     return NextResponse.json({ success: true });
-}
+});

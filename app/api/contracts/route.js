@@ -1,19 +1,9 @@
+import { withAuth } from '@/lib/apiHandler';
+import { parsePagination, paginatedResponse } from '@/lib/pagination';
 import prisma from '@/lib/prisma';
 import { generateCode } from '@/lib/generateCode';
 import { NextResponse } from 'next/server';
-
-export async function GET() {
-    const contracts = await prisma.contract.findMany({
-        include: {
-            customer: { select: { name: true, code: true } },
-            project: { select: { name: true, code: true, status: true } },
-            quotation: { select: { code: true } },
-            payments: { orderBy: { createdAt: 'asc' } },
-        },
-        orderBy: { createdAt: 'desc' },
-    });
-    return NextResponse.json(contracts);
-}
+import { contractCreateSchema } from '@/lib/validations/contract';
 
 // Preset payment phases per contract type
 const PAYMENT_TEMPLATES = {
@@ -40,63 +30,81 @@ const PAYMENT_TEMPLATES = {
     ],
 };
 
-export async function POST(request) {
-    try {
-        const data = await request.json();
-        if (!data.name?.trim()) return NextResponse.json({ error: 'Tên HĐ bắt buộc' }, { status: 400 });
-        if (!data.projectId) return NextResponse.json({ error: 'Dự án bắt buộc' }, { status: 400 });
-        if (!data.customerId) return NextResponse.json({ error: 'Khách hàng bắt buộc' }, { status: 400 });
+export const GET = withAuth(async (request) => {
+    const { searchParams } = new URL(request.url);
+    const { page, limit, skip } = parsePagination(searchParams);
 
-        const code = await generateCode('contract', 'HD');
-        const contractValue = Number(data.contractValue) || 0;
+    const where = {};
 
-        const contract = await prisma.contract.create({
-            data: {
-                code,
-                name: data.name.trim(),
-                type: data.type || 'Thi công thô',
-                contractValue,
-                status: data.signDate ? 'Đã ký' : 'Nháp',
-                signDate: data.signDate ? new Date(data.signDate) : null,
-                startDate: data.startDate ? new Date(data.startDate) : null,
-                endDate: data.endDate ? new Date(data.endDate) : null,
-                paymentTerms: data.paymentTerms || '',
-                notes: data.notes || '',
-                customerId: data.customerId,
-                projectId: data.projectId,
-                quotationId: data.quotationId || null,
+    const [contracts, total] = await Promise.all([
+        prisma.contract.findMany({
+            where,
+            include: {
+                customer: { select: { name: true, code: true } },
+                project: { select: { name: true, code: true, status: true } },
+                quotation: { select: { code: true } },
+                payments: { orderBy: { createdAt: 'asc' } },
             },
-        });
+            orderBy: { createdAt: 'desc' },
+            skip,
+            take: limit,
+        }),
+        prisma.contract.count({ where }),
+    ]);
 
-        // Create payment phases: use client-sent phases if available, else fall back to template
-        const phases = data.paymentPhases?.length > 0
-            ? data.paymentPhases
-            : (PAYMENT_TEMPLATES[data.type] || []).map(t => ({
-                phase: t.phase, pct: t.pct, category: t.category,
-                amount: Math.round(contractValue * t.pct / 100),
-            }));
+    return NextResponse.json(paginatedResponse(contracts, total, { page, limit }));
+});
 
-        if (phases.length > 0) {
-            const paymentData = phases.map(t => ({
-                contractId: contract.id,
-                phase: t.phase,
-                amount: Number(t.amount) || Math.round(contractValue * Number(t.pct || 0) / 100),
-                paidAmount: 0,
-                category: t.category || data.type || 'Hợp đồng',
-                status: 'Chưa thu',
-            }));
-            await prisma.contractPayment.createMany({ data: paymentData });
-        }
+export const POST = withAuth(async (request) => {
+    const body = await request.json();
+    const { paymentPhases, ...validated } = contractCreateSchema.parse(body);
 
-        // Return with payments included
-        const result = await prisma.contract.findUnique({
-            where: { id: contract.id },
-            include: { payments: true },
-        });
+    const code = await generateCode('contract', 'HD');
+    const contractValue = Number(validated.contractValue) || 0;
 
-        return NextResponse.json(result, { status: 201 });
-    } catch (e) {
-        console.error('Create contract error:', e);
-        return NextResponse.json({ error: e.message }, { status: 500 });
+    const contract = await prisma.contract.create({
+        data: {
+            code,
+            name: validated.name,
+            type: validated.type || 'Thi công thô',
+            contractValue,
+            status: validated.signDate ? 'Đã ký' : 'Nháp',
+            signDate: validated.signDate || null,
+            startDate: validated.startDate || null,
+            endDate: validated.endDate || null,
+            paymentTerms: validated.paymentTerms || '',
+            notes: validated.notes || '',
+            customerId: validated.customerId,
+            projectId: validated.projectId,
+            quotationId: validated.quotationId || null,
+        },
+    });
+
+    // Create payment phases: use client-sent phases if available, else fall back to template
+    const phases = paymentPhases?.length > 0
+        ? paymentPhases
+        : (PAYMENT_TEMPLATES[validated.type] || []).map(t => ({
+            phase: t.phase, pct: t.pct, category: t.category,
+            amount: Math.round(contractValue * t.pct / 100),
+        }));
+
+    if (phases.length > 0) {
+        const paymentData = phases.map(t => ({
+            contractId: contract.id,
+            phase: t.phase,
+            amount: Number(t.amount) || Math.round(contractValue * Number(t.pct || 0) / 100),
+            paidAmount: 0,
+            category: t.category || validated.type || 'Hợp đồng',
+            status: 'Chưa thu',
+        }));
+        await prisma.contractPayment.createMany({ data: paymentData });
     }
-}
+
+    // Return with payments included
+    const result = await prisma.contract.findUnique({
+        where: { id: contract.id },
+        include: { payments: true },
+    });
+
+    return NextResponse.json(result, { status: 201 });
+});

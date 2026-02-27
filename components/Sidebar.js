@@ -5,8 +5,8 @@ import { usePathname } from 'next/navigation';
 import {
     LayoutDashboard, GitBranch, Users, Building2, FileText,
     Package, ClipboardList, Wrench, CreditCard, Receipt,
-    ShoppingCart, HardHat, Warehouse, Wallet, UserCog,
-    BarChart3, ChevronRight, Truck, Shield
+    ShoppingCart, Truck, Warehouse, Wallet, UserCog,
+    BarChart3, ChevronRight, Shield
 } from 'lucide-react';
 import { useRole, ROLES } from '@/contexts/RoleContext';
 
@@ -47,10 +47,10 @@ const menuItems = [
 
 export default function Sidebar() {
     const pathname = usePathname();
-    const { role, roleInfo, switchRole } = useRole();
+    const { role, roleInfo } = useRole();
 
     return (
-        <aside className="sidebar">
+        <aside className="sidebar" role="navigation" aria-label="Menu chính">
             <div className="sidebar-brand">
                 <div className="brand-icon">H</div>
                 <div className="brand-text">
@@ -73,6 +73,7 @@ export default function Sidebar() {
                                         key={item.href}
                                         href={item.href}
                                         className={`nav-item ${isActive ? 'active' : ''}`}
+                                        aria-current={isActive ? 'page' : undefined}
                                     >
                                         <span className="nav-icon">
                                             <Icon size={18} strokeWidth={isActive ? 2 : 1.5} />
@@ -88,23 +89,17 @@ export default function Sidebar() {
                 })}
             </nav>
 
-            {/* Role Switcher */}
             <div style={{ padding: '12px 16px', borderTop: '1px solid var(--border)', marginTop: 'auto' }}>
                 <div style={{ fontSize: 10, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 6, display: 'flex', alignItems: 'center', gap: 4 }}>
                     <Shield size={12} /> Vai trò
                 </div>
-                <select
-                    value={role}
-                    onChange={e => switchRole(e.target.value)}
-                    style={{
-                        width: '100%', padding: '8px 10px', borderRadius: 8,
-                        border: '1px solid var(--border)', background: 'var(--bg-secondary)',
-                        color: roleInfo.color, fontWeight: 600, fontSize: 12,
-                        cursor: 'pointer', outline: 'none',
-                    }}
-                >
-                    {ROLES.map(r => <option key={r.key} value={r.key}>{r.icon} {r.label}</option>)}
-                </select>
+                <div style={{
+                    padding: '8px 10px', borderRadius: 8,
+                    background: 'var(--bg-secondary)',
+                    color: roleInfo.color, fontWeight: 600, fontSize: 12,
+                }}>
+                    {roleInfo.icon} {roleInfo.label}
+                </div>
             </div>
         </aside>
     );

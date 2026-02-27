@@ -1,24 +1,23 @@
+import { withAuth } from '@/lib/apiHandler';
 import prisma from '@/lib/prisma';
 import { NextResponse } from 'next/server';
+import { productUpdateSchema } from '@/lib/validations/product';
 
-export async function PUT(request, { params }) {
+export const PUT = withAuth(async (request, { params }) => {
     const { id } = await params;
-    const data = await request.json();
+    const body = await request.json();
+    const data = productUpdateSchema.parse(body);
     const product = await prisma.product.update({ where: { id }, data });
     return NextResponse.json(product);
-}
+});
 
-export async function DELETE(request, { params }) {
-    try {
-        const { id } = await params;
-        // Xóa tất cả FK references trước
-        await prisma.inventoryTransaction.deleteMany({ where: { productId: id } });
-        await prisma.materialPlan.deleteMany({ where: { productId: id } });
-        await prisma.quotationItem.updateMany({ where: { productId: id }, data: { productId: null } });
-        await prisma.product.delete({ where: { id } });
-        return NextResponse.json({ success: true });
-    } catch (e) {
-        console.error('Delete product error:', e);
-        return NextResponse.json({ error: e.message }, { status: 500 });
-    }
-}
+export const DELETE = withAuth(async (request, { params }) => {
+    const { id } = await params;
+    await prisma.$transaction([
+        prisma.inventoryTransaction.deleteMany({ where: { productId: id } }),
+        prisma.materialPlan.deleteMany({ where: { productId: id } }),
+        prisma.quotationItem.updateMany({ where: { productId: id }, data: { productId: null } }),
+        prisma.product.delete({ where: { id } }),
+    ]);
+    return NextResponse.json({ success: true });
+});
