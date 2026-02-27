@@ -1,0 +1,41 @@
+name: Build and Deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Setup Tailscale
+        uses: tailscale/github-action@v2
+        with:
+          authkey: ${{ secrets.TAILSCALE_AUTHKEY }}
+
+      - name: Deploy via Tailscale SSH
+        run: |
+          ssh -o StrictHostKeyChecking=no -o ConnectTimeout=30 jason@100.111.242.16 << 'DEPLOY_SCRIPT'
+          set -e
+
+          echo "==> Pulling latest code..."
+          cd ~/motnha
+          git pull origin main
+
+          echo "==> Building Docker image..."
+          docker compose -f docker-compose.prod.yml build app
+
+          echo "==> Restarting services..."
+          docker compose -f docker-compose.prod.yml up -d
+
+          echo "==> Cleaning up old images..."
+          docker image prune -f
+
+          echo "==> Waiting for health check..."
+          sleep 15
+
+          echo "==> Container status:"
+          docker ps --filter "name=motnha" --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
+          DEPLOY_SCRIPT
