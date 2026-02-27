@@ -7,28 +7,27 @@ on:
 
 jobs:
   deploy:
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
 
     steps:
-      - name: Setup Tailscale
-        uses: tailscale/github-action@v2
-        with:
-          authkey: ${{ secrets.TAILSCALE_AUTHKEY }}
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-      - name: Deploy via Tailscale SSH
+      - name: Create environment file
         run: |
-          ssh -o StrictHostKeyChecking=no -o ConnectTimeout=30 jason@100.111.242.16 << 'DEPLOY_SCRIPT'
-          set -e
+          cat > .env << EOF
+          POSTGRES_PASSWORD=${{ secrets.POSTGRES_PASSWORD }}
+          NEXTAUTH_SECRET=${{ secrets.NEXTAUTH_SECRET }}
+          NEXTAUTH_URL=${{ secrets.NEXTAUTH_URL }}
+          EOF
 
-          echo "==> Pulling latest code..."
-          cd ~/motnha
-          git pull origin main
-
+      - name: Build and deploy
+        run: |
           echo "==> Building Docker image..."
-          docker compose -f docker-compose.prod.yml build app
+          docker compose -p motnha -f docker-compose.prod.yml build app
 
-          echo "==> Restarting services..."
-          docker compose -f docker-compose.prod.yml up -d
+          echo "==> Starting services..."
+          docker compose -p motnha -f docker-compose.prod.yml up -d
 
           echo "==> Cleaning up old images..."
           docker image prune -f
@@ -38,4 +37,3 @@ jobs:
 
           echo "==> Container status:"
           docker ps --filter "name=motnha" --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
-          DEPLOY_SCRIPT
