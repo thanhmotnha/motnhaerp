@@ -120,6 +120,34 @@ export default function ProjectDetailPage() {
         setModal(null); setDocForm({ name: '', category: 'Khác', fileName: '', uploadedBy: '', notes: '' }); fetchData();
     };
 
+    // PO from materials
+    const [poForm, setPoForm] = useState({ supplier: '', deliveryDate: '', notes: '' });
+    const [poItems, setPoItems] = useState([]);
+    const openPOModal = () => {
+        const unordered = (data?.materialPlans || []).filter(m => m.status === 'Chưa đặt' || m.status === 'Đặt một phần');
+        setPoItems(unordered.map(m => ({ productName: m.product?.name || '', unit: m.product?.unit || '', quantity: m.quantity - m.orderedQty, unitPrice: m.unitPrice, amount: (m.quantity - m.orderedQty) * m.unitPrice, productId: m.productId, _mpId: m.id })));
+        setPoForm({ supplier: '', deliveryDate: '', notes: '' });
+        setModal('po');
+    };
+    const updatePOItem = (idx, field, value) => {
+        setPoItems(prev => { const u = [...prev]; u[idx] = { ...u[idx], [field]: value }; if (field === 'quantity' || field === 'unitPrice') u[idx].amount = (Number(u[idx].quantity) || 0) * (Number(u[idx].unitPrice) || 0); return u; });
+    };
+    const removePOItem = (idx) => setPoItems(prev => prev.filter((_, i) => i !== idx));
+    const createPO = async () => {
+        if (!poForm.supplier.trim()) return alert('Vui lòng nhập tên nhà cung cấp');
+        if (poItems.length === 0) return alert('Không có vật tư nào để đặt');
+        const totalAmount = poItems.reduce((s, i) => s + (Number(i.amount) || 0), 0);
+        const res = await fetch('/api/purchase-orders', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...poForm, projectId: id, totalAmount, items: poItems.map(({ _mpId, ...rest }) => ({ ...rest, quantity: Number(rest.quantity), unitPrice: Number(rest.unitPrice), amount: Number(rest.amount) })) }) });
+        if (!res.ok) { const err = await res.json(); return alert(err.error || 'Lỗi tạo PO'); }
+        // Update material plan statuses
+        for (const item of poItems) {
+            if (item._mpId) {
+                await fetch(`/api/material-plans/${item._mpId}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ orderedQty: Number(item.quantity), status: 'Đã đặt đủ' }) }).catch(() => { });
+            }
+        }
+        setModal(null); setPoItems([]); fetchData(); setTab('purchase');
+    };
+
     if (loading) return <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-muted)' }}>Đang tải...</div>;
     const p = data;
     const pnl = p.pnl;
@@ -525,6 +553,11 @@ export default function ProjectDetailPage() {
                         <div className="stat-card"><div style={{ fontSize: 20, fontWeight: 700, color: 'var(--status-warning)' }}>{p.materialPlans.filter(m => m.status === 'Chưa đặt').length}</div><div style={{ fontSize: 12, color: 'var(--text-muted)' }}>Chưa đặt</div></div>
                     </div>
                     <div className="card">
+                        <div style={{ display: 'flex', justifyContent: 'flex-end', padding: '12px 16px 0', gap: 8 }}>
+                            {p.materialPlans.filter(m => m.status === 'Chưa đặt' || m.status === 'Đặt một phần').length > 0 && (
+                                <button className="btn btn-primary btn-sm" onClick={openPOModal}>🛒 Tạo PO từ vật tư chưa đặt ({p.materialPlans.filter(m => m.status === 'Chưa đặt' || m.status === 'Đặt một phần').length})</button>
+                            )}
+                        </div>
                         <div className="table-container"><table className="data-table">
                             <thead><tr><th>Mã</th><th>Vật tư</th><th>Loại</th><th>SL cần</th><th>Đã đặt</th><th>Đã nhận</th><th>Còn thiếu</th><th>Đơn giá</th><th>Tổng</th><th>TT</th></tr></thead>
                             <tbody>{p.materialPlans.map(m => {
@@ -760,6 +793,39 @@ export default function ProjectDetailPage() {
                             <div className="form-group"><label className="form-label">Ghi chú</label><textarea className="form-input" rows={2} value={docForm.notes} onChange={e => setDocForm({ ...docForm, notes: e.target.value })} /></div>
                         </div>
                         <div className="modal-footer"><button className="btn btn-ghost" onClick={() => setModal(null)}>Hủy</button><button className="btn btn-primary" onClick={createDocument}>Lưu</button></div>
+                    </div>
+                </div>
+            )}
+            {modal === 'po' && (
+                <div className="modal-overlay" onClick={() => setModal(null)}>
+                    <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 800 }}>
+                        <div className="modal-header"><h3>🛒 Tạo đơn mua hàng từ vật tư</h3><button className="modal-close" onClick={() => setModal(null)}>×</button></div>
+                        <div className="modal-body">
+                            <div className="form-row">
+                                <div className="form-group"><label className="form-label">Nhà cung cấp *</label><input className="form-input" value={poForm.supplier} onChange={e => setPoForm({ ...poForm, supplier: e.target.value })} placeholder="Tên NCC" /></div>
+                                <div className="form-group"><label className="form-label">Ngày giao dự kiến</label><input type="date" className="form-input" value={poForm.deliveryDate} onChange={e => setPoForm({ ...poForm, deliveryDate: e.target.value })} /></div>
+                            </div>
+                            <div className="form-group"><label className="form-label">Ghi chú</label><textarea className="form-input" rows={2} value={poForm.notes} onChange={e => setPoForm({ ...poForm, notes: e.target.value })} /></div>
+                            <div style={{ marginTop: 16 }}>
+                                <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 8 }}>📦 Danh sách vật tư ({poItems.length} mục)</div>
+                                <div className="table-container"><table className="data-table">
+                                    <thead><tr><th>Sản phẩm</th><th>ĐVT</th><th>SL đặt</th><th>Đơn giá</th><th>Thành tiền</th><th></th></tr></thead>
+                                    <tbody>{poItems.map((item, idx) => (
+                                        <tr key={idx}>
+                                            <td className="primary">{item.productName}</td>
+                                            <td>{item.unit}</td>
+                                            <td><input type="number" className="form-input" style={{ width: 80, padding: '4px 8px' }} value={item.quantity} onChange={e => updatePOItem(idx, 'quantity', e.target.value)} /></td>
+                                            <td><input type="number" className="form-input" style={{ width: 110, padding: '4px 8px' }} value={item.unitPrice} onChange={e => updatePOItem(idx, 'unitPrice', e.target.value)} /></td>
+                                            <td className="amount">{fmt(item.amount)}</td>
+                                            <td><button className="btn btn-ghost btn-sm" onClick={() => removePOItem(idx)} style={{ color: 'var(--status-danger)' }}>✕</button></td>
+                                        </tr>
+                                    ))}</tbody>
+                                    <tfoot><tr><td colSpan={4} style={{ textAlign: 'right', fontWeight: 700 }}>Tổng cộng:</td><td className="amount" style={{ fontWeight: 700, color: 'var(--accent-primary)' }}>{fmt(poItems.reduce((s, i) => s + (Number(i.amount) || 0), 0))}</td><td></td></tr></tfoot>
+                                </table></div>
+                                {poItems.length === 0 && <div style={{ color: 'var(--text-muted)', padding: 16, textAlign: 'center' }}>Không có vật tư nào cần đặt</div>}
+                            </div>
+                        </div>
+                        <div className="modal-footer"><button className="btn btn-ghost" onClick={() => setModal(null)}>Hủy</button><button className="btn btn-primary" onClick={createPO}>🛒 Tạo đơn mua hàng</button></div>
                     </div>
                 </div>
             )}
