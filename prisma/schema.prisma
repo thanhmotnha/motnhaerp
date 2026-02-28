@@ -74,6 +74,8 @@ model Project {
   startDate       DateTime?
   endDate         DateTime?
   manager         String      @default("")
+  designer        String      @default("")
+  supervisor      String      @default("")
   notes           String      @default("") @db.Text
   customerId      String
   customer        Customer    @relation(fields: [customerId], references: [id])
