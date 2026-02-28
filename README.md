@@ -480,6 +480,203 @@ git push origin main
 
 ---
 
+## Production Server & Database
+
+### Server Access
+
+```
+Host: 100.111.242.16 (Tailscale IP)
+User: root (or any user with sudo)
+OS: Ubuntu 24.04
+App URL: https://admin.tiktak.vn
+```
+
+```bash
+# SSH into server
+ssh root@100.111.242.16
+```
+
+### Docker Containers
+
+```bash
+# Check running containers
+docker ps --filter "name=motnha"
+
+# Expected containers:
+# motnha-app      (Next.js app, port 3000)
+# motnha-postgres (PostgreSQL 16, port 5432 localhost only)
+```
+
+### Connect to Production Database
+
+The database runs inside Docker and is only accessible from the server itself (bound to `127.0.0.1`).
+
+#### Option 1: psql via Docker (recommended)
+
+```bash
+# Open psql shell inside the PostgreSQL container
+docker exec -it motnha-postgres psql -U postgres -d motnhaerp
+```
+
+Once inside `psql`:
+
+```sql
+-- List all tables
+\dt
+
+-- View table structure
+\d "Customer"
+\d "Project"
+
+-- Count records
+SELECT COUNT(*) FROM "Customer";
+SELECT COUNT(*) FROM "Project";
+
+-- Query data (table/column names are PascalCase, must use double quotes)
+SELECT id, code, name, phone, status FROM "Customer" LIMIT 10;
+SELECT id, code, name, budget, progress, status FROM "Project" LIMIT 10;
+
+-- Search
+SELECT * FROM "Customer" WHERE name ILIKE '%nguyen%';
+
+-- Insert
+INSERT INTO "Customer" (id, code, name, phone, status, "pipelineStage", "createdAt", "updatedAt")
+VALUES (gen_random_uuid(), 'KH-999', 'Test Customer', '0901234567', 'Lead', 'Lead', NOW(), NOW());
+
+-- Update
+UPDATE "Customer" SET phone = '0909999999', "updatedAt" = NOW() WHERE code = 'KH-999';
+
+-- Soft delete (do NOT use DELETE, set deletedAt instead)
+UPDATE "Customer" SET "deletedAt" = NOW() WHERE code = 'KH-999';
+
+-- Hard delete (use with caution, only for test data)
+DELETE FROM "Customer" WHERE code = 'KH-999';
+
+-- Exit psql
+\q
+```
+
+#### Option 2: Prisma Studio (GUI, temporary)
+
+```bash
+# Go to project directory on server
+cd ~/actions-runner/_work/motnha/motnha/motnhaerp
+
+# Get DATABASE_URL from the .env file
+source .env
+export DATABASE_URL="postgresql://postgres:${POSTGRES_PASSWORD}@localhost:5432/motnhaerp?schema=public"
+
+# Open Prisma Studio (browser GUI on port 5555)
+npx prisma studio --port 5555
+```
+
+Then open `http://100.111.242.16:5555` in browser (Tailscale access only).
+Press `Ctrl+C` to stop when done.
+
+#### Option 3: Run raw SQL file
+
+```bash
+# Create a SQL file
+cat > /tmp/fix.sql << 'EOF'
+UPDATE "Customer" SET status = 'Active' WHERE code = 'KH-001';
+UPDATE "Project" SET progress = 50 WHERE code = 'DA-001';
+EOF
+
+# Execute it
+docker exec -i motnha-postgres psql -U postgres -d motnhaerp < /tmp/fix.sql
+```
+
+### Database Tables Reference
+
+All table/column names use **PascalCase** (Prisma convention). Must use double quotes in SQL.
+
+**Main tables:**
+| Table | Description | Has Soft Delete |
+|-------|-------------|:---:|
+| `"User"` | Login accounts & roles | - |
+| `"Customer"` | Customers/leads | Yes |
+| `"Project"` | Construction/furniture projects | Yes |
+| `"Product"` | Product catalog | Yes |
+| `"Quotation"` | Price quotations | Yes |
+| `"QuotationCategory"` | Quotation sections | - |
+| `"QuotationItem"` | Quotation line items | - |
+| `"Contract"` | Contracts | Yes |
+| `"ContractPayment"` | Payment phases per contract | - |
+| `"WorkOrder"` | Work orders/tasks | Yes |
+| `"Employee"` | Staff | Yes |
+| `"Department"` | Departments | - |
+| `"Contractor"` | Subcontractors | Yes |
+| `"ContractorPayment"` | Contractor payments | - |
+| `"Supplier"` | Material suppliers | Yes |
+| `"Transaction"` | Revenue/expense records | - |
+| `"Warehouse"` | Warehouses | - |
+| `"InventoryTransaction"` | Stock in/out | - |
+| `"PurchaseOrder"` | Purchase orders | - |
+| `"PurchaseOrderItem"` | PO line items | - |
+| `"MaterialPlan"` | Material requirements | - |
+| `"ProjectMilestone"` | Project milestones | - |
+| `"ProjectBudget"` | Budget tracking | - |
+| `"ProjectExpense"` | Project expenses | Yes |
+| `"ProjectDocument"` | Attached documents | - |
+| `"ProjectEmployee"` | Staff assignments | - |
+| `"TrackingLog"` | CRM activity logs | - |
+| `"WorkItemLibrary"` | Work item templates | - |
+| `"QuotationTemplate"` | Quotation templates | - |
+| `"QuotationTemplateCategory"` | Template sections | - |
+| `"QuotationTemplateItem"` | Template line items | - |
+
+**Soft Delete = "Yes"** means: records are NOT actually deleted. The app sets `"deletedAt"` timestamp instead. When modifying data manually, follow the same pattern: `UPDATE "Table" SET "deletedAt" = NOW() WHERE ...` instead of `DELETE`.
+
+### Schema Changes on Production
+
+If you change `prisma/schema.prisma` and push to `main`, the CI/CD pipeline automatically runs `prisma db push` which applies schema changes to production. **No manual action needed.**
+
+If you need to manually sync schema:
+
+```bash
+# On the server
+cd ~/actions-runner/_work/motnha/motnha/motnhaerp
+source .env
+export DATABASE_URL="postgresql://postgres:${POSTGRES_PASSWORD}@localhost:5432/motnhaerp?schema=public"
+npx prisma db push
+```
+
+### Database Backup & Restore
+
+```bash
+# Backup (creates a SQL dump file)
+docker exec motnha-postgres pg_dump -U postgres motnhaerp > ~/backup_$(date +%Y%m%d_%H%M%S).sql
+
+# Restore from backup (WARNING: overwrites all data)
+docker exec -i motnha-postgres psql -U postgres -d motnhaerp < ~/backup_20260228_120000.sql
+```
+
+### Re-seed Production (WARNING: resets all data)
+
+Only use this to reset to sample data. **All existing data will be lost.**
+
+```bash
+cd ~/actions-runner/_work/motnha/motnha/motnhaerp
+source .env
+export DATABASE_URL="postgresql://postgres:${POSTGRES_PASSWORD}@localhost:5432/motnhaerp?schema=public"
+node prisma/seed.js
+```
+
+### View App Logs
+
+```bash
+# App logs (Next.js)
+docker logs motnha-app --tail 100 -f
+
+# Database logs
+docker logs motnha-postgres --tail 50 -f
+
+# Restart app (after manual config changes)
+docker restart motnha-app
+```
+
+---
+
 ## Adding a New Feature (Step-by-Step)
 
 ### Example: Add a new "Suppliers" CRUD
