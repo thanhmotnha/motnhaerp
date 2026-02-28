@@ -10,8 +10,15 @@ export const GET = withAuth(async (request) => {
     const { page, limit, skip } = parsePagination(searchParams);
 
     const status = searchParams.get('status');
+    const search = searchParams.get('search');
     const where = {};
     if (status) where.status = status;
+    if (search) {
+        where.OR = [
+            { code: { contains: search, mode: 'insensitive' } },
+            { customer: { name: { contains: search, mode: 'insensitive' } } },
+        ];
+    }
 
     const [quotations, total] = await Promise.all([
         prisma.quotation.findMany({

@@ -1,6 +1,7 @@
 'use client';
 import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
+import { apiFetch } from '@/lib/fetchClient';
 
 const fmt = (n) => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(Math.round(n || 0));
 const fmtNum = (n) => new Intl.NumberFormat('vi-VN').format(n || 0);
@@ -132,7 +133,15 @@ const QUOTE_TEMPLATES = {
     },
 };
 
-const getTemplate = (type) => QUOTE_TEMPLATES[type] || QUOTE_TEMPLATES['Nội thất'];
+// Map 5 quotation types → 4 templates
+const TYPE_TEMPLATE_MAP = {
+    'Thiết kế kiến trúc': 'Thiết kế',
+    'Thiết kế nội thất': 'Thiết kế',
+    'Thi công thô': 'Thi công thô',
+    'Thi công hoàn thiện': 'Thi công hoàn thiện',
+    'Thi công nội thất': 'Nội thất',
+};
+const getTemplate = (type) => QUOTE_TEMPLATES[TYPE_TEMPLATE_MAP[type] || type] || QUOTE_TEMPLATES['Nội thất'];
 
 function PromoHeader({ template }) {
     const { badge, headline, features, tag } = template.promoHeader;
@@ -202,7 +211,16 @@ export default function QuotationPDFPage() {
     const [data, setData] = useState(null);
     const [copied, setCopied] = useState(false);
 
-    useEffect(() => { fetch(`/api/quotations/${id}`).then(r => r.json()).then(setData); }, [id]);
+    useEffect(() => {
+        apiFetch(`/api/quotations/${id}`).then(d => {
+            setData(d);
+            // Set meaningful document title for PDF filename
+            const code = d.code || '';
+            const cust = d.customer?.name || '';
+            const type = d.type || '';
+            document.title = [code, cust, type].filter(Boolean).join('_');
+        });
+    }, [id]);
 
     const copyLink = () => {
         navigator.clipboard.writeText(window.location.href);

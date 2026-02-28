@@ -2375,3 +2375,194 @@ select.form-input-compact {
     border-radius: 12px;
   }
 }
+
+/* ========================================
+   QUOTATION PAGES - LAYOUT & RESPONSIVE
+   ======================================== */
+
+/* 2-pane layout */
+.quotation-layout {
+  display: flex;
+  gap: 16px;
+  min-height: calc(100vh - 80px);
+  position: relative;
+}
+
+.quotation-page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+/* Tree sidebar desktop */
+.quotation-tree-wrapper {
+  width: 300px;
+  min-width: 300px;
+  max-height: calc(100vh - 80px);
+  position: sticky;
+  top: 12px;
+}
+
+.quotation-tree-wrapper .quotation-tree-sidebar {
+  height: 100%;
+  max-height: calc(100vh - 80px);
+}
+
+/* Tree toggle button (hidden on desktop) */
+.quotation-tree-toggle {
+  display: none;
+}
+
+/* Tree overlay (hidden on desktop) */
+.quotation-tree-overlay {
+  display: none;
+}
+
+/* Close button in tree (hidden on desktop) */
+.quotation-tree-close {
+  display: none !important;
+}
+
+/* Category tabs */
+.quotation-category-tabs {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+/* List page: desktop table visible, mobile cards hidden */
+.quotation-list-desktop {
+  display: block;
+}
+.quotation-list-mobile {
+  display: none;
+}
+
+/* Mobile card style */
+.quotation-mobile-card {
+  padding: 14px;
+  border-bottom: 1px solid var(--border-color);
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.quotation-mobile-card:hover {
+  background: var(--bg-card-hover);
+}
+.quotation-mobile-card:last-child {
+  border-bottom: none;
+}
+
+/* ======= QUOTATION RESPONSIVE: Tablet ======= */
+@media (max-width: 768px) {
+  .quotation-layout {
+    flex-direction: column;
+    gap: 0;
+  }
+
+  /* Tree sidebar becomes a slide-in drawer */
+  .quotation-tree-wrapper {
+    position: fixed;
+    left: -320px;
+    top: 0;
+    width: 300px;
+    min-width: 300px;
+    height: 100vh;
+    max-height: 100vh;
+    z-index: 1001;
+    transition: left 0.3s ease;
+  }
+  .quotation-tree-wrapper.open {
+    left: 0;
+  }
+  .quotation-tree-wrapper .quotation-tree-sidebar {
+    height: 100vh;
+    max-height: 100vh;
+    border-radius: 0;
+  }
+
+  /* Show toggle button */
+  .quotation-tree-toggle {
+    display: inline-flex;
+    position: fixed;
+    bottom: 16px;
+    left: 16px;
+    z-index: 100;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.25);
+    border-radius: 50px;
+    padding: 10px 18px;
+    font-size: 13px;
+  }
+
+  /* Show overlay */
+  .quotation-tree-overlay {
+    display: block;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.4);
+    z-index: 1000;
+  }
+
+  /* Show close button */
+  .quotation-tree-close {
+    display: inline-flex !important;
+  }
+
+  /* List: hide table, show cards */
+  .quotation-list-desktop {
+    display: none;
+  }
+  .quotation-list-mobile {
+    display: block;
+  }
+
+  /* Detail table horizontal scroll */
+  .quotation-detail-table {
+    min-width: 800px;
+  }
+
+  /* Summary full width */
+  .quotation-summary-grid {
+    max-width: 100% !important;
+  }
+
+  /* Category tabs: horizontal scroll */
+  .quotation-category-tabs {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: 4px;
+    gap: 6px;
+  }
+  .quotation-category-tabs .btn {
+    white-space: nowrap;
+    flex-shrink: 0;
+    padding: 8px 14px;
+  }
+}
+
+/* ======= QUOTATION RESPONSIVE: Small mobile ======= */
+@media (max-width: 480px) {
+  .quotation-page-header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .quotation-page-header > div {
+    justify-content: flex-end;
+  }
+
+  .stats-grid {
+    grid-template-columns: 1fr 1fr !important;
+    gap: 8px;
+  }
+  .stat-card {
+    padding: 14px;
+  }
+  .stat-card .stat-value {
+    font-size: 18px;
+  }
+}
