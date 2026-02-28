@@ -44,16 +44,6 @@ COPY --from=builder /app/.next/standalone ./
 COPY --from=builder /app/.next/static ./.next/static
 COPY --from=builder /app/public ./public
 
-# Copy Prisma schema + migrations (for migrate deploy)
-COPY --from=builder /app/prisma ./prisma
-
-# Copy Prisma client
-COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
-COPY --from=builder /app/node_modules/@prisma ./node_modules/@prisma
-
-# Copy Prisma CLI (for running migrations in entrypoint)
-COPY --from=builder /app/node_modules/prisma ./node_modules/prisma
-
 # Copy entrypoint
 COPY scripts/entrypoint.sh ./entrypoint.sh
 RUN chmod +x ./entrypoint.sh

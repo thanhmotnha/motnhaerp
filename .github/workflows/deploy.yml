@@ -21,19 +21,28 @@ jobs:
           NEXTAUTH_URL=${{ secrets.NEXTAUTH_URL }}
           EOF
 
-      - name: Build and deploy
+      - name: Ensure PostgreSQL is running
         run: |
-          echo "==> Building Docker image..."
-          docker compose -p motnha -f docker-compose.prod.yml build app
+          docker compose -p motnha -f docker-compose.prod.yml up -d postgres
+          sleep 5
 
-          echo "==> Starting services..."
+      - name: Run database migrations
+        env:
+          DATABASE_URL: postgresql://postgres:${{ secrets.POSTGRES_PASSWORD }}@localhost:5432/motnhaerp?schema=public
+        run: |
+          npx prisma generate
+          npx prisma migrate deploy
+
+      - name: Build and deploy app
+        run: |
+          docker compose -p motnha -f docker-compose.prod.yml build app
           docker compose -p motnha -f docker-compose.prod.yml up -d
 
           echo "==> Cleaning up old images..."
           docker image prune -f
 
           echo "==> Waiting for health check..."
-          sleep 15
+          sleep 10
 
           echo "==> Container status:"
           docker ps --filter "name=motnha" --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
