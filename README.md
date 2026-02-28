@@ -2,7 +2,7 @@
 
 ERP system for Vietnamese furniture & construction company. Built with Next.js 16, PostgreSQL, Prisma ORM.
 
-**Live:** http://100.111.242.16:3000 (Tailscale)
+**Live:** https://admin.tiktak.vn
 **Repo:** https://github.com/sherlock-126/motnha
 
 ---
@@ -468,7 +468,7 @@ git push origin main
 7. Cleans up old images
 
 **Deploy time:** ~2-3 minutes
-**Server:** http://100.111.242.16:3000
+**Server:** https://admin.tiktak.vn
 
 ### If Deploy Fails
 
