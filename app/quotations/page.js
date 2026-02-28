@@ -12,7 +12,7 @@ export default function QuotationsPage() {
 
     const fetchData = () => {
         setLoading(true);
-        fetch('/api/quotations').then(r => r.json()).then(d => { setQuotations(d); setLoading(false); });
+        fetch('/api/quotations?limit=1000').then(r => r.json()).then(d => { setQuotations(d.data || []); setLoading(false); });
     };
     useEffect(fetchData, []);
 

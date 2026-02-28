@@ -15,7 +15,7 @@ export default function ContractorsPage() {
     const [search, setSearch] = useState('');
     const [filterType, setFilterType] = useState('');
 
-    const fetchData = () => { setLoading(true); fetch('/api/contractors').then(r => r.json()).then(d => { setContractors(d); setLoading(false); }); };
+    const fetchData = () => { setLoading(true); fetch('/api/contractors?limit=1000').then(r => r.json()).then(d => { setContractors(d.data || []); setLoading(false); }); };
     useEffect(fetchData, []);
 
     const openCreate = () => { setEditing(null); setForm(emptyForm); setShowModal(true); };

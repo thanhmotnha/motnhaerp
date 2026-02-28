@@ -11,7 +11,7 @@ export default function PurchasingPage() {
     const [loading, setLoading] = useState(true);
     const [filterStatus, setFilterStatus] = useState('');
 
-    useEffect(() => { fetch('/api/purchase-orders').then(r => r.json()).then(d => { setOrders(d); setLoading(false); }); }, []);
+    useEffect(() => { fetch('/api/purchase-orders?limit=1000').then(r => r.json()).then(d => { setOrders(d.data || []); setLoading(false); }); }, []);
 
     const totalValue = orders.reduce((s, o) => s + o.totalAmount, 0);
     const totalPaid = orders.reduce((s, o) => s + o.paidAmount, 0);

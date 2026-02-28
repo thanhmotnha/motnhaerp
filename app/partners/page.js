@@ -24,8 +24,8 @@ export default function PartnersPage() {
     const fetchData = async () => {
         setLoading(true);
         const [s, c] = await Promise.all([
-            fetch('/api/suppliers').then(r => r.json()).catch(() => []),
-            fetch('/api/contractors').then(r => r.json()).catch(() => []),
+            fetch('/api/suppliers?limit=1000').then(r => r.json()).then(d => d.data || []).catch(() => []),
+            fetch('/api/contractors?limit=1000').then(r => r.json()).then(d => d.data || []).catch(() => []),
         ]);
         setSuppliers(s); setContractors(c); setLoading(false);
     };

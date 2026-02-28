@@ -14,7 +14,7 @@ export default function SuppliersPage() {
     const [search, setSearch] = useState('');
     const [filterType, setFilterType] = useState('');
 
-    const fetchData = () => { setLoading(true); fetch('/api/suppliers').then(r => r.json()).then(d => { setSuppliers(d); setLoading(false); }); };
+    const fetchData = () => { setLoading(true); fetch('/api/suppliers?limit=1000').then(r => r.json()).then(d => { setSuppliers(d.data || []); setLoading(false); }); };
     useEffect(fetchData, []);
 
     const openCreate = () => { setEditing(null); setForm(emptyForm); setShowModal(true); };

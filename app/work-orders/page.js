@@ -11,7 +11,7 @@ export default function WorkOrdersPage() {
     const [filterPriority, setFilterPriority] = useState('');
     const router = useRouter();
 
-    const fetchOrders = () => { fetch('/api/work-orders').then(r => r.json()).then(d => { setOrders(d); setLoading(false); }); };
+    const fetchOrders = () => { fetch('/api/work-orders?limit=1000').then(r => r.json()).then(d => { setOrders(d.data || []); setLoading(false); }); };
     useEffect(fetchOrders, []);
 
     const updateStatus = async (id, status) => {

@@ -12,10 +12,10 @@ export default function HRPage() {
         setLoading(true);
         const p = new URLSearchParams();
         if (filterDept) p.set('departmentId', filterDept);
-        const res = await fetch(`/api/employees?${p}`);
+        const res = await fetch(`/api/employees?${p}&limit=1000`);
         const d = await res.json();
-        setData(d); setLoading(false);
-        if (!form.departmentId && d.departments.length) setForm(f => ({ ...f, departmentId: d.departments[0].id }));
+        setData({ employees: d.data || [], departments: d.departments || [] }); setLoading(false);
+        if (!form.departmentId && d.departments?.length) setForm(f => ({ ...f, departmentId: d.departments[0].id }));
     };
     useEffect(() => { fetchData(); }, [filterDept]);
     const handleSubmit = async () => {

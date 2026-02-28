@@ -40,10 +40,10 @@ export default function EditQuotationPage() {
     const [categories, setCategories] = useState([emptyCategory()]);
 
     useEffect(() => {
-        fetch('/api/customers').then(r => r.json()).then(setCustomers);
-        fetch('/api/projects').then(r => r.json()).then(setProjects);
-        fetch('/api/work-item-library').then(r => r.json()).then(setLibrary);
-        fetch('/api/products').then(r => r.json()).then(setProducts);
+        fetch('/api/customers?limit=1000').then(r => r.json()).then(d => setCustomers(d.data || []));
+        fetch('/api/projects?limit=1000').then(r => r.json()).then(d => setProjects(d.data || []));
+        fetch('/api/work-item-library?limit=1000').then(r => r.json()).then(d => setLibrary(d.data || []));
+        fetch('/api/products?limit=1000').then(r => r.json()).then(d => setProducts(d.data || []));
 
         fetch(`/api/quotations/${params.id}`).then(r => r.json()).then(q => {
             setForm({
@@ -205,7 +205,7 @@ export default function EditQuotationPage() {
             method: 'PUT', headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ name: editingLibItem.name }),
         });
-        fetch('/api/work-item-library').then(r => r.json()).then(setLibrary);
+        fetch('/api/work-item-library?limit=1000').then(r => r.json()).then(d => setLibrary(d.data || []));
         setEditingLibItem(null);
     };
     const saveProdCategory = async () => {
@@ -214,7 +214,7 @@ export default function EditQuotationPage() {
             method: 'PATCH', headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ oldCategory: editingProdCat.old, newCategory: editingProdCat.name }),
         });
-        fetch('/api/products').then(r => r.json()).then(setProducts);
+        fetch('/api/products?limit=1000').then(r => r.json()).then(d => setProducts(d.data || []));
         setEditingProdCat(null);
     };
 

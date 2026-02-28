@@ -40,7 +40,7 @@ export default function CustomersPage() {
     const isDragging = useRef(false);
     const router = useRouter();
 
-    const fetchCustomers = async () => { setLoading(true); const r = await fetch('/api/customers'); setCustomers(await r.json()); setLoading(false); };
+    const fetchCustomers = async () => { setLoading(true); const r = await fetch('/api/customers?limit=1000'); const d = await r.json(); setCustomers(d.data || []); setLoading(false); };
     useEffect(() => { fetchCustomers(); }, []);
 
     const filtered = customers.filter(c => {

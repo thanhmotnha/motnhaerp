@@ -50,8 +50,8 @@ export default function ProductsPage() {
     const imgUpRef = useRef(null);      // hidden input for product image
     const imgUpTarget = useRef(null);   // 'new' | {id}
 
-    const fetchProducts = () => { setLoadingP(true); fetch('/api/products').then(r => r.json()).then(d => { setProducts(d); setLoadingP(false); }); };
-    const fetchLibrary = () => { setLoadingL(true); fetch('/api/work-item-library').then(r => r.json()).then(d => { setLibrary(d); setLoadingL(false); }); };
+    const fetchProducts = () => { setLoadingP(true); fetch('/api/products?limit=1000').then(r => r.json()).then(d => { setProducts(d.data || []); setLoadingP(false); }); };
+    const fetchLibrary = () => { setLoadingL(true); fetch('/api/work-item-library?limit=1000').then(r => r.json()).then(d => { setLibrary(d.data || []); setLoadingL(false); }); };
     useEffect(() => { fetchProducts(); fetchLibrary(); }, []);
 
     // Global paste listener: click ô ảnh → paste ảnh từ clipboard

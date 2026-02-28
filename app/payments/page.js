@@ -23,7 +23,7 @@ export default function PaymentsPage() {
     const fetchAll = async () => {
         setLoading(true);
         const [cRes, rRes] = await Promise.all([
-            fetch('/api/contracts').then(r => r.json()),
+            fetch('/api/contracts?limit=1000').then(r => r.json()).then(d => d.data || []),
             fetch('/api/finance/receivables').then(r => r.json()),
         ]);
         setContracts(cRes);

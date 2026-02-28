@@ -39,11 +39,11 @@ export default function CreateQuotationPage() {
     const [categories, setCategories] = useState([emptyCategory()]);
 
     useEffect(() => {
-        fetch('/api/customers').then(r => r.json()).then(setCustomers);
-        fetch('/api/projects').then(r => r.json()).then(setProjects);
-        fetch('/api/work-item-library').then(r => r.json()).then(setLibrary);
-        fetch('/api/quotation-templates').then(r => r.json()).then(setTemplates);
-        fetch('/api/products').then(r => r.json()).then(setProducts);
+        fetch('/api/customers?limit=1000').then(r => r.json()).then(d => setCustomers(d.data || []));
+        fetch('/api/projects?limit=1000').then(r => r.json()).then(d => setProjects(d.data || []));
+        fetch('/api/work-item-library?limit=1000').then(r => r.json()).then(d => setLibrary(d.data || []));
+        fetch('/api/quotation-templates?limit=1000').then(r => r.json()).then(d => setTemplates(d.data || []));
+        fetch('/api/products?limit=1000').then(r => r.json()).then(d => setProducts(d.data || []));
     }, []);
 
     const filteredProjects = useMemo(() => {
@@ -136,7 +136,7 @@ export default function CreateQuotationPage() {
             method: 'PUT', headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ name: editingLibItem.name }),
         });
-        fetch('/api/work-item-library').then(r => r.json()).then(setLibrary);
+        fetch('/api/work-item-library?limit=1000').then(r => r.json()).then(d => setLibrary(d.data || []));
         setEditingLibItem(null);
     };
 
@@ -147,7 +147,7 @@ export default function CreateQuotationPage() {
             method: 'PATCH', headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ oldCategory: editingProdCat.old, newCategory: editingProdCat.name }),
         });
-        fetch('/api/products').then(r => r.json()).then(setProducts);
+        fetch('/api/products?limit=1000').then(r => r.json()).then(d => setProducts(d.data || []));
         setEditingProdCat(null);
     };
 
@@ -188,7 +188,7 @@ export default function CreateQuotationPage() {
             body: JSON.stringify({ name: templateName, type: form.type, managementFeeRate: form.managementFeeRate, designFee: form.designFee, vat: form.vat, discount: form.discount, categories: categories.map(cat => ({ name: cat.name, items: cat.items.map(({ _key, ...item }) => item) })) }),
         });
         setShowTemplateSave(false); setTemplateName('');
-        fetch('/api/quotation-templates').then(r => r.json()).then(setTemplates);
+        fetch('/api/quotation-templates?limit=1000').then(r => r.json()).then(d => setTemplates(d.data || []));
         alert('Đã lưu mẫu!');
     };
 

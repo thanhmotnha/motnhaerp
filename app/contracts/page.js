@@ -15,7 +15,7 @@ export default function ContractsPage() {
     const [filterType, setFilterType] = useState('');
     const router = useRouter();
 
-    useEffect(() => { fetch('/api/contracts').then(r => r.json()).then(d => { setContracts(d); setLoading(false); }); }, []);
+    useEffect(() => { fetch('/api/contracts?limit=1000').then(r => r.json()).then(d => { setContracts(d.data || []); setLoading(false); }); }, []);
 
     const filtered = contracts.filter(c => {
         if (filterStatus && c.status !== filterStatus) return false;

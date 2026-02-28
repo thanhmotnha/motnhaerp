@@ -14,9 +14,9 @@ export default function InventoryPage() {
         const params = new URLSearchParams();
         if (filterType) params.set('type', filterType);
         if (activeWarehouse) params.set('warehouseId', activeWarehouse);
-        const res = await fetch(`/api/inventory?${params}`);
+        const res = await fetch(`/api/inventory?${params}&limit=1000`);
         const d = await res.json();
-        setData(d);
+        setData({ transactions: d.data || [], warehouses: d.warehouses || [] });
         setLoading(false);
     };
     useEffect(() => { fetchData(); }, [filterType, activeWarehouse]);
