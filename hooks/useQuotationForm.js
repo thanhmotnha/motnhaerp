@@ -240,22 +240,22 @@ export default function useQuotationForm() {
     // ========================================
     // Tree add handlers (single)
     // ========================================
+    // Library item → add as SUBCATEGORY (level 2)
     const addFromLibrary = (libItem) => {
         const mi = activeMainIdx;
-        const si = activeSubIdx;
         const mcs = [...mainCategories];
-        const sub = mcs[mi].subcategories[si];
-        const existing = sub.items.filter(i => i.name.trim() !== '');
-        if (!sub.name) sub.name = libItem.category || libItem.name;
-        mcs[mi] = {
-            ...mcs[mi],
-            subcategories: mcs[mi].subcategories.map((s, i) =>
-                i === si ? { ...s, name: sub.name, items: [...existing, libItemToQuotationItem(libItem)] } : s
-            ),
+        const newSub = {
+            _key: Date.now() + Math.random(),
+            name: libItem.name,
+            items: [emptyItem()],
+            subtotal: 0,
         };
-        setMainCategories(recalc(mcs));
+        mcs[mi] = { ...mcs[mi], subcategories: [...mcs[mi].subcategories, newSub] };
+        setMainCategories(mcs);
+        setActiveSubIdx(mcs[mi].subcategories.length - 1);
     };
 
+    // Product → add as LINE ITEM (level 3) — unchanged
     const addFromProduct = (prod) => {
         const mi = activeMainIdx;
         const si = activeSubIdx;
@@ -274,22 +274,20 @@ export default function useQuotationForm() {
     // ========================================
     // Tree add handlers (bulk)
     // ========================================
+    // Library bulk → create one subcategory per item
     const addBulkFromLibrary = (libItems) => {
         if (!libItems.length) return;
         const mi = activeMainIdx;
-        const si = activeSubIdx;
         const mcs = [...mainCategories];
-        const sub = mcs[mi].subcategories[si];
-        const existing = sub.items.filter(i => i.name.trim() !== '');
-        const newItems = libItems.map(libItemToQuotationItem);
-        if (!sub.name && libItems[0].category) sub.name = libItems[0].category;
-        mcs[mi] = {
-            ...mcs[mi],
-            subcategories: mcs[mi].subcategories.map((s, i) =>
-                i === si ? { ...s, name: sub.name || s.name, items: [...existing, ...newItems] } : s
-            ),
-        };
-        setMainCategories(recalc(mcs));
+        const newSubs = libItems.map(libItem => ({
+            _key: Date.now() + Math.random(),
+            name: libItem.name,
+            items: [emptyItem()],
+            subtotal: 0,
+        }));
+        mcs[mi] = { ...mcs[mi], subcategories: [...mcs[mi].subcategories, ...newSubs] };
+        setMainCategories(mcs);
+        setActiveSubIdx(mcs[mi].subcategories.length - 1);
     };
 
     const addBulkFromProducts = (prods) => {
@@ -309,19 +307,20 @@ export default function useQuotationForm() {
         setMainCategories(recalc(mcs));
     };
 
-    // Add entire tree category as a new subcategory
+    // Add entire tree category as subcategories
     const addCategoryFromLibrary = (catName, libItems) => {
         if (!libItems.length) return;
         const mi = activeMainIdx;
         const mcs = [...mainCategories];
-        const newSub = {
+        // Each library item becomes its own subcategory
+        const newSubs = libItems.map(libItem => ({
             _key: Date.now() + Math.random(),
-            name: catName,
-            items: libItems.map(libItemToQuotationItem),
+            name: libItem.name,
+            items: [emptyItem()],
             subtotal: 0,
-        };
-        mcs[mi] = { ...mcs[mi], subcategories: [...mcs[mi].subcategories, newSub] };
-        setMainCategories(recalc(mcs));
+        }));
+        mcs[mi] = { ...mcs[mi], subcategories: [...mcs[mi].subcategories, ...newSubs] };
+        setMainCategories(mcs);
         setActiveSubIdx(mcs[mi].subcategories.length - 1);
     };
 
