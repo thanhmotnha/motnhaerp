@@ -1,6 +1,7 @@
 import { withAuth } from '@/lib/apiHandler';
 import { parsePagination, paginatedResponse } from '@/lib/pagination';
 import prisma from '@/lib/prisma';
+import { generateCode } from '@/lib/generateCode';
 import { NextResponse } from 'next/server';
 import { quotationCreateSchema } from '@/lib/validations/quotation';
 
@@ -36,10 +37,7 @@ export const POST = withAuth(async (request) => {
     const body = await request.json();
     const { categories, ...validated } = quotationCreateSchema.parse(body);
 
-    // Generate code
-    const last = await prisma.quotation.findFirst({ orderBy: { code: 'desc' } });
-    const lastNum = last ? parseInt(last.code.replace(/\D/g, ''), 10) || 0 : 0;
-    const code = `BG${String(lastNum + 1).padStart(3, '0')}`;
+    const code = await generateCode('quotation', 'BG');
 
     const data = {
         code,

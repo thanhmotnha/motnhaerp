@@ -1,6 +1,8 @@
 'use client';
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { useRouter, useParams } from 'next/navigation';
+import { useToast } from '@/components/ui/Toast';
+import { apiFetch } from '@/lib/fetchClient';
 
 const fmt = (n) => new Intl.NumberFormat('vi-VN').format(Math.round(n || 0));
 
@@ -18,6 +20,7 @@ const emptyCategory = () => ({
 export default function EditQuotationPage() {
     const router = useRouter();
     const params = useParams();
+    const toast = useToast();
     const [customers, setCustomers] = useState([]);
     const [projects, setProjects] = useState([]);
     const [library, setLibrary] = useState([]);
@@ -40,12 +43,12 @@ export default function EditQuotationPage() {
     const [categories, setCategories] = useState([emptyCategory()]);
 
     useEffect(() => {
-        fetch('/api/customers?limit=1000').then(r => r.json()).then(d => setCustomers(d.data || []));
-        fetch('/api/projects?limit=1000').then(r => r.json()).then(d => setProjects(d.data || []));
-        fetch('/api/work-item-library?limit=1000').then(r => r.json()).then(d => setLibrary(d.data || []));
-        fetch('/api/products?limit=1000').then(r => r.json()).then(d => setProducts(d.data || []));
+        apiFetch('/api/customers?limit=1000').then(d => setCustomers(d.data || []));
+        apiFetch('/api/projects?limit=1000').then(d => setProjects(d.data || []));
+        apiFetch('/api/work-item-library?limit=1000').then(d => setLibrary(d.data || []));
+        apiFetch('/api/products?limit=1000').then(d => setProducts(d.data || []));
 
-        fetch(`/api/quotations/${params.id}`).then(r => r.json()).then(q => {
+        apiFetch(`/api/quotations/${params.id}`).then(q => {
             setForm({
                 customerId: q.customerId || '',
                 projectId: q.projectId || '',
@@ -137,9 +140,11 @@ export default function EditQuotationPage() {
     const directCost = categories.reduce((s, c) => s + c.subtotal, 0);
     const managementFee = directCost * (form.managementFeeRate || 0) / 100;
     const adjustmentAmount = form.adjustmentType === 'percent' ? directCost * (form.adjustment || 0) / 100 : (form.adjustment || 0);
-    const total = directCost + (form.otherFee || 0) + adjustmentAmount;
+    const total = directCost + managementFee + (form.designFee || 0) + (form.otherFee || 0) + adjustmentAmount;
     const discountAmount = total * ((form.discount || 0) / 100);
-    const grandTotal = total - discountAmount;
+    const afterDiscount = total - discountAmount;
+    const vatAmount = afterDiscount * ((form.vat || 0) / 100);
+    const grandTotal = afterDiscount + vatAmount;
 
     // === Handlers ===
     const addCategory = () => { setCategories([...categories, emptyCategory()]); setActiveCategoryIdx(categories.length); };
@@ -201,20 +206,18 @@ export default function EditQuotationPage() {
 
     const saveLibItem = async () => {
         if (!editingLibItem) return;
-        await fetch(`/api/work-item-library/${editingLibItem.id}`, {
-            method: 'PUT', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ name: editingLibItem.name }),
+        await apiFetch(`/api/work-item-library/${editingLibItem.id}`, {
+            method: 'PUT', body: JSON.stringify({ name: editingLibItem.name }),
         });
-        fetch('/api/work-item-library?limit=1000').then(r => r.json()).then(d => setLibrary(d.data || []));
+        apiFetch('/api/work-item-library?limit=1000').then(d => setLibrary(d.data || []));
         setEditingLibItem(null);
     };
     const saveProdCategory = async () => {
         if (!editingProdCat || !editingProdCat.name.trim()) { setEditingProdCat(null); return; }
-        await fetch('/api/products', {
-            method: 'PATCH', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ oldCategory: editingProdCat.old, newCategory: editingProdCat.name }),
+        await apiFetch('/api/products', {
+            method: 'PATCH', body: JSON.stringify({ oldCategory: editingProdCat.old, newCategory: editingProdCat.name }),
         });
-        fetch('/api/products?limit=1000').then(r => r.json()).then(d => setProducts(d.data || []));
+        apiFetch('/api/products?limit=1000').then(d => setProducts(d.data || []));
         setEditingProdCat(null);
     };
 
@@ -229,15 +232,11 @@ export default function EditQuotationPage() {
                     items: cat.items.map(({ _key, ...item }) => item),
                 })),
             };
-            const res = await fetch(`/api/quotations/${params.id}`, {
-                method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
+            await apiFetch(`/api/quotations/${params.id}`, {
+                method: 'PUT', body: JSON.stringify(body),
             });
-            if (res.ok) alert('Đã cập nhật báo giá thành công!');
-            else {
-                const err = await res.json().catch(() => ({}));
-                alert('Lỗi: ' + (err.error || res.status));
-            }
-        } catch (e) { alert('Lỗi: ' + e.message); }
+            toast.success('Đã cập nhật báo giá thành công!');
+        } catch (e) { toast.error(e.message); }
         setSaving(false);
     };
 
@@ -482,7 +481,14 @@ export default function EditQuotationPage() {
                     <div className="card-body">
                         <div className="quotation-summary-grid">
                             <div className="quotation-summary-row"><span>Chi phí trực tiếp</span><span className="quotation-summary-value">{fmt(directCost)} đ</span></div>
-
+                            <div className="quotation-summary-row">
+                                <span>Phí quản lý <input className="form-input form-input-compact" type="number" value={form.managementFeeRate || ''} onChange={e => setForm({ ...form, managementFeeRate: parseFloat(e.target.value) || 0 })} style={{ width: 50, display: 'inline-block', margin: '0 4px' }} />%</span>
+                                <span className="quotation-summary-value">{fmt(managementFee)} đ</span>
+                            </div>
+                            <div className="quotation-summary-row">
+                                <span>Phí thiết kế <input className="form-input form-input-compact" type="number" value={form.designFee || ''} onChange={e => setForm({ ...form, designFee: parseFloat(e.target.value) || 0 })} style={{ width: 90, display: 'inline-block', marginLeft: 6 }} /></span>
+                                <span className="quotation-summary-value">{fmt(form.designFee)} đ</span>
+                            </div>
                             <div className="quotation-summary-row">
                                 <span>Chi phí khác <input className="form-input form-input-compact" type="number" value={form.otherFee || ''} onChange={e => setForm({ ...form, otherFee: parseFloat(e.target.value) || 0 })} style={{ width: 90, display: 'inline-block', marginLeft: 6 }} /></span>
                                 <span className="quotation-summary-value">{fmt(form.otherFee)} đ</span>
@@ -498,13 +504,15 @@ export default function EditQuotationPage() {
                                 </span>
                                 <span className="quotation-summary-value" style={{ color: adjustmentAmount > 0 ? 'var(--status-success)' : adjustmentAmount < 0 ? 'var(--status-danger)' : '' }}>{adjustmentAmount >= 0 ? '+' : ''}{fmt(adjustmentAmount)} đ</span>
                             </div>
-                            <div className="quotation-summary-row quotation-summary-subtotal"><span>Tổng trước thuế</span><span className="quotation-summary-value">{fmt(total)} đ</span></div>
+                            <div className="quotation-summary-row quotation-summary-subtotal"><span>Tổng cộng</span><span className="quotation-summary-value">{fmt(total)} đ</span></div>
                             <div className="quotation-summary-row">
                                 <span>Chiết khấu <input className="form-input form-input-compact" type="number" value={form.discount || ''} onChange={e => setForm({ ...form, discount: parseFloat(e.target.value) || 0 })} style={{ width: 50, display: 'inline-block', margin: '0 4px' }} />%</span>
                                 <span className="quotation-summary-value" style={{ color: 'var(--status-danger)' }}>-{fmt(discountAmount)} đ</span>
                             </div>
-
-
+                            <div className="quotation-summary-row">
+                                <span>VAT <input className="form-input form-input-compact" type="number" value={form.vat || ''} onChange={e => setForm({ ...form, vat: parseFloat(e.target.value) || 0 })} style={{ width: 50, display: 'inline-block', margin: '0 4px' }} />%</span>
+                                <span className="quotation-summary-value">{fmt(vatAmount)} đ</span>
+                            </div>
                             <div className="quotation-summary-row quotation-summary-grand"><span>TỔNG GIÁ TRỊ BÁO GIÁ</span><span className="quotation-summary-value">{fmt(grandTotal)} đ</span></div>
                         </div>
                     </div>
