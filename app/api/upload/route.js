@@ -55,5 +55,3 @@ export const POST = withAuth(async (request) => {
     const url = `/uploads/${type}/${filename}`;
     return NextResponse.json({ url });
 });
-
-export const config = { api: { bodyParser: false } };
