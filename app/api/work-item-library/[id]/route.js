@@ -1,11 +1,13 @@
 import { withAuth } from '@/lib/apiHandler';
 import prisma from '@/lib/prisma';
 import { NextResponse } from 'next/server';
+import { workItemLibraryUpdateSchema } from '@/lib/validations/workItemLibrary';
 
 export const PUT = withAuth(async (request, { params }) => {
     const { id } = await params;
-    const data = await request.json();
-    const item = await prisma.workItemLibrary.update({ where: { id }, data });
+    const body = await request.json();
+    const validated = workItemLibraryUpdateSchema.parse(body);
+    const item = await prisma.workItemLibrary.update({ where: { id }, data: validated });
     return NextResponse.json(item);
 });
 

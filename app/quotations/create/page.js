@@ -33,6 +33,7 @@ export default function CreateQuotationPage() {
     const [activeCategoryIdx, setActiveCategoryIdx] = useState(0);
     const [treeTab, setTreeTab] = useState('library'); // 'library' | 'products'
     const [editingLibItem, setEditingLibItem] = useState(null); // { id, name }
+    const [editingLibCat, setEditingLibCat] = useState(null); // { old, name }
     const [editingProdCat, setEditingProdCat] = useState(null); // { old, name }
 
     const [form, setForm] = useState({
@@ -54,15 +55,19 @@ export default function CreateQuotationPage() {
         return projects.filter(p => p.customerId === form.customerId);
     }, [form.customerId, projects]);
 
-    // === Build LIBRARY tree ===
+    // === Build LIBRARY tree (category → subcategory → items) ===
     const libTree = useMemo(() => {
         const map = {};
         const search = treeSearch.toLowerCase();
         library.forEach(item => {
-            if (search && !item.name.toLowerCase().includes(search) && !item.category.toLowerCase().includes(search)) return;
-            const sub = item.category || 'Khác';
-            if (!map[sub]) map[sub] = [];
-            map[sub].push(item);
+            if (search && !item.name.toLowerCase().includes(search)
+                && !(item.category || '').toLowerCase().includes(search)
+                && !(item.subcategory || '').toLowerCase().includes(search)) return;
+            const cat = item.category || 'Khác';
+            if (!map[cat]) map[cat] = {};
+            const sub = item.subcategory || '';
+            if (!map[cat][sub]) map[cat][sub] = [];
+            map[cat][sub].push(item);
         });
         return map;
     }, [library, treeSearch]);
@@ -83,10 +88,16 @@ export default function CreateQuotationPage() {
     // Auto expand
     useEffect(() => {
         const nodes = {};
-        const tree = treeTab === 'library' ? libTree : prodTree;
-        Object.keys(tree).forEach(k => { nodes[k] = true; });
+        if (treeTab === 'library') {
+            Object.entries(libTree).forEach(([cat, subs]) => {
+                nodes[`lib:${cat}`] = true;
+                Object.keys(subs).forEach(sub => { if (sub) nodes[`lib:${cat}:${sub}`] = true; });
+            });
+        } else {
+            Object.keys(prodTree).forEach(k => { nodes[k] = true; });
+        }
         setExpandedNodes(nodes);
-    }, [library, products, treeTab]);
+    }, [libTree, prodTree, treeTab]);
 
     const toggleNode = (key) => setExpandedNodes(prev => ({ ...prev, [key]: !prev[key] }));
 
@@ -132,9 +143,23 @@ export default function CreateQuotationPage() {
         setCategories(recalc(c));
     };
 
-    // === Add from library: set category name thay vì thêm dòng ===
+    // === Add from library: add item row + set category name if empty ===
     const addFromLibrary = (libItem) => {
-        updateCategoryName(activeCategoryIdx, libItem.name);
+        const ci = activeCategoryIdx;
+        const c = [...categories];
+        // Set category name from library's category if current is empty
+        if (!c[ci].name) c[ci] = { ...c[ci], name: libItem.category || libItem.name };
+        const newItem = {
+            _key: Date.now() + Math.random(),
+            name: libItem.name, unit: libItem.unit || 'm²', quantity: 0,
+            mainMaterial: libItem.mainMaterial || 0, auxMaterial: libItem.auxMaterial || 0,
+            labor: libItem.labor || 0, unitPrice: libItem.unitPrice || 0, amount: 0,
+            description: libItem.description || '', image: libItem.image || '',
+            length: 0, width: 0, height: 0,
+        };
+        const existing = c[ci].items.filter(i => i.name.trim() !== '');
+        c[ci] = { ...c[ci], items: [...existing, newItem] };
+        setCategories(recalc(c));
     };
 
     // === Inline edit tên hạng mục ===
@@ -145,6 +170,16 @@ export default function CreateQuotationPage() {
         });
         apiFetch('/api/work-item-library?limit=1000').then(d => setLibrary(d.data || []));
         setEditingLibItem(null);
+    };
+
+    // === Inline edit tên danh mục hạng mục ===
+    const saveLibCategory = async () => {
+        if (!editingLibCat || !editingLibCat.name.trim() || editingLibCat.old === editingLibCat.name) { setEditingLibCat(null); return; }
+        await apiFetch('/api/work-item-library', {
+            method: 'PATCH', body: JSON.stringify({ oldCategory: editingLibCat.old, newCategory: editingLibCat.name }),
+        });
+        apiFetch('/api/work-item-library?limit=1000').then(d => setLibrary(d.data || []));
+        setEditingLibCat(null);
     };
 
     // === Inline edit tên danh mục sản phẩm ===
@@ -219,13 +254,15 @@ export default function CreateQuotationPage() {
         const isEditingThis = editingLibItem?.id === item.id;
 
         if (type === 'library') {
-            // Hạng mục: click → set tên category, double-click → edit tên
             return (
                 <div key={item.id} className="tree-node tree-leaf"
-                    style={{ display: 'flex', alignItems: 'center', gap: 4, cursor: 'pointer' }}
                     onClick={() => !isEditingThis && onClick(item)}
-                    title="Click để đặt tên hạng mục · Double-click để đổi tên">
-                    <span className="tree-icon" style={{ fontSize: 14, color: 'var(--text-muted)' }}>+</span>
+                    title={`${item.description || item.name}\nĐG: ${fmt(price)}đ/${item.unit}`}>
+                    {img ? (
+                        <img src={img} alt="" className="tree-thumb" />
+                    ) : (
+                        <span className="tree-icon">➕</span>
+                    )}
                     {isEditingThis ? (
                         <input
                             autoFocus
@@ -241,6 +278,7 @@ export default function CreateQuotationPage() {
                             {item.name}
                         </span>
                     )}
+                    {price > 0 && <span className="tree-price">{fmt(price)}</span>}
                 </div>
             );
         }
@@ -281,18 +319,47 @@ export default function CreateQuotationPage() {
                 </div>
                 <div style={{ overflow: 'auto', flex: 1, padding: '4px 0' }}>
                     {treeTab === 'library' ? (
-                        /* Library tree */
-                        Object.entries(libTree).map(([sub, items]) => (
-                            <div key={sub}>
-                                <div className="tree-node tree-sub" onClick={() => toggleNode(sub)}>
-                                    <span className="tree-arrow">{expandedNodes[sub] ? '▾' : '▸'}</span>
-                                    <span className="tree-icon">🔨</span>
-                                    <span className="tree-label">{sub}</span>
-                                    <span className="tree-count">{items.length}</span>
+                        /* Library tree: category → subcategory → items */
+                        Object.entries(libTree).map(([cat, subs]) => {
+                            const totalItems = Object.values(subs).reduce((s, arr) => s + arr.length, 0);
+                            const hasSubcats = Object.keys(subs).some(k => k !== '');
+                            return (
+                                <div key={cat}>
+                                    <div className="tree-node tree-sub" onClick={() => editingLibCat?.old !== cat && toggleNode(`lib:${cat}`)}
+                                        title="Double-click để đổi tên danh mục">
+                                        <span className="tree-arrow">{expandedNodes[`lib:${cat}`] ? '▾' : '▸'}</span>
+                                        <span className="tree-icon">🔨</span>
+                                        {editingLibCat?.old === cat ? (
+                                            <input autoFocus value={editingLibCat.name}
+                                                onChange={e => setEditingLibCat(p => ({ ...p, name: e.target.value }))}
+                                                onBlur={saveLibCategory}
+                                                onKeyDown={e => { if (e.key === 'Enter') saveLibCategory(); if (e.key === 'Escape') setEditingLibCat(null); }}
+                                                onClick={e => e.stopPropagation()}
+                                                style={{ flex: 1, fontSize: 12, padding: '1px 4px', border: '1px solid var(--primary)', borderRadius: 3 }} />
+                                        ) : (
+                                            <span className="tree-label" onDoubleClick={e => { e.stopPropagation(); setEditingLibCat({ old: cat, name: cat }); }}>{cat}</span>
+                                        )}
+                                        <span className="tree-count">{totalItems}</span>
+                                    </div>
+                                    {expandedNodes[`lib:${cat}`] && (hasSubcats ? (
+                                        Object.entries(subs).map(([sub, items]) => sub === '' ? (
+                                            items.map(item => renderTreeLeaf(item, addFromLibrary, 'library'))
+                                        ) : (
+                                            <div key={sub} style={{ paddingLeft: 12 }}>
+                                                <div className="tree-node tree-sub" onClick={() => toggleNode(`lib:${cat}:${sub}`)} style={{ fontSize: 12 }}>
+                                                    <span className="tree-arrow">{expandedNodes[`lib:${cat}:${sub}`] ? '▾' : '▸'}</span>
+                                                    <span className="tree-label" style={{ opacity: 0.7 }}>{sub}</span>
+                                                    <span className="tree-count">{items.length}</span>
+                                                </div>
+                                                {expandedNodes[`lib:${cat}:${sub}`] && items.map(item => renderTreeLeaf(item, addFromLibrary, 'library'))}
+                                            </div>
+                                        ))
+                                    ) : (
+                                        Object.values(subs).flat().map(item => renderTreeLeaf(item, addFromLibrary, 'library'))
+                                    ))}
                                 </div>
-                                {expandedNodes[sub] && items.map(item => renderTreeLeaf(item, addFromLibrary, 'library'))}
-                            </div>
-                        ))
+                            );
+                        })
                     ) : (
                         /* Products tree */
                         Object.entries(prodTree).map(([cat, items]) => (
