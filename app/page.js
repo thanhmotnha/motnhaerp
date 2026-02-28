@@ -9,6 +9,7 @@ export default function Dashboard() {
   }, []);
   if (loading) return <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 400, color: 'var(--text-muted)' }}>Đang tải dữ liệu...</div>;
   const s = data.stats;
+  const collectionRate = s.totalContractValue > 0 ? Math.round(s.totalPaid / s.totalContractValue * 100) : 0;
   return (
     <div>
       <div className="stats-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))' }}>
@@ -19,7 +20,7 @@ export default function Dashboard() {
         <div className="stat-card"><div className="stat-icon">🔧</div><div><div className="stat-value">{s.workOrders}</div><div className="stat-label">Phiếu CV</div><div style={{ fontSize: 10, color: 'var(--status-warning)' }}>{s.pendingWorkOrders} chờ xử lý</div></div></div>
         <div className="stat-card"><div className="stat-icon">📦</div><div><div className="stat-value">{s.products}</div><div className="stat-label">Sản phẩm</div></div></div>
       </div>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24, marginTop: 24 }}>
+      <div className="dashboard-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24, marginTop: 24 }}>
         <div className="card">
           <div className="card-header"><h3>Tổng quan tài chính</h3></div>
           <div style={{ padding: 20 }}>
@@ -30,8 +31,8 @@ export default function Dashboard() {
             <hr style={{ border: '1px solid var(--border-subtle)', marginBottom: 12 }} />
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}><span style={{ fontSize: 13 }}>Tổng giá trị HĐ</span><span style={{ fontWeight: 600 }}>{fmt(s.totalContractValue)}</span></div>
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}><span style={{ fontSize: 13 }}>Đã thu</span><span style={{ fontWeight: 600, color: 'var(--status-success)' }}>{fmt(s.totalPaid)}</span></div>
-            <div className="progress-bar" style={{ marginTop: 8 }}><div className="progress-fill" style={{ width: `${s.totalContractValue > 0 ? Math.round(s.totalPaid / s.totalContractValue * 100) : 0}%` }}></div></div>
-            <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4, textAlign: 'right' }}>Tỷ lệ thu: {s.totalContractValue > 0 ? Math.round(s.totalPaid / s.totalContractValue * 100) : 0}%</div>
+            <div className="progress-bar" style={{ marginTop: 8 }}><div className="progress-fill" style={{ width: `${collectionRate}%` }}></div></div>
+            <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4, textAlign: 'right' }}>Tỷ lệ thu: {collectionRate}%</div>
           </div>
         </div>
         <div className="card">
@@ -47,21 +48,23 @@ export default function Dashboard() {
       </div>
       <div className="card" style={{ marginTop: 24 }}>
         <div className="card-header"><h3>Dự án gần đây</h3></div>
-        <table className="data-table">
-          <thead><tr><th>Mã DA</th><th>Tên dự án</th><th>Khách hàng</th><th>Ngân sách</th><th>Tiến độ</th><th>Trạng thái</th></tr></thead>
-          <tbody>
-            {data.recentProjects.map(p => (
-              <tr key={p.id} onClick={() => window.location.href = `/projects/${p.id}`} style={{ cursor: 'pointer' }}>
-                <td className="accent">{p.code}</td>
-                <td className="primary">{p.name}</td>
-                <td>{p.customer?.name}</td>
-                <td>{fmt(p.budget)}</td>
-                <td><div className="progress-bar"><div className="progress-fill" style={{ width: `${p.progress}%` }}></div></div><span style={{ fontSize: 11 }}>{p.progress}%</span></td>
-                <td><span className="badge badge-info">{p.status}</span></td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        <div className="table-container">
+          <table className="data-table">
+            <thead><tr><th>Mã DA</th><th>Tên dự án</th><th>Khách hàng</th><th>Ngân sách</th><th>Tiến độ</th><th>Trạng thái</th></tr></thead>
+            <tbody>
+              {data.recentProjects.map(p => (
+                <tr key={p.id} onClick={() => window.location.href = `/projects/${p.id}`} style={{ cursor: 'pointer' }}>
+                  <td className="accent">{p.code}</td>
+                  <td className="primary">{p.name}</td>
+                  <td>{p.customer?.name}</td>
+                  <td>{fmt(p.budget)}</td>
+                  <td><div className="progress-bar"><div className="progress-fill" style={{ width: `${p.progress}%` }}></div></div><span style={{ fontSize: 11 }}>{p.progress}%</span></td>
+                  <td><span className="badge badge-info">{p.status}</span></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   );

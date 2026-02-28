@@ -49,7 +49,7 @@ export default function ProjectsPage() {
                     <select className="form-select" value={filterStatus} onChange={e => setFilterStatus(e.target.value)}><option value="">Tất cả TT</option><option>Khảo sát</option><option>Thiết kế</option><option>Thi công</option><option>Nghiệm thu</option><option>Bàn giao</option></select>
                 </div>
                 {loading ? <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-muted)' }}>Đang tải...</div> : (
-                    <table className="data-table">
+                    <div className="table-container"><table className="data-table">
                         <thead><tr><th>Mã</th><th>Dự án</th><th>Khách hàng</th><th>Loại</th><th>Giá trị HĐ</th><th>Đã thu</th><th>Tiến độ</th><th>TT</th><th></th></tr></thead>
                         <tbody>{filtered.map(p => (
                             <tr key={p.id} onClick={() => router.push(`/projects/${p.id}`)} style={{ cursor: 'pointer' }}>
@@ -64,7 +64,7 @@ export default function ProjectsPage() {
                                 <td><button className="btn btn-ghost" onClick={(e) => handleDelete(p.id, e)}>🗑️</button></td>
                             </tr>
                         ))}</tbody>
-                    </table>
+                    </table></div>
                 )}
             </div>
 

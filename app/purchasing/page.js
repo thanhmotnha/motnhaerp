@@ -42,7 +42,7 @@ export default function PurchasingPage() {
                     </div>
                 </div>
                 {loading ? <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-muted)' }}>Đang tải...</div> : (
-                    <table className="data-table">
+                    <div className="table-container"><table className="data-table">
                         <thead><tr><th>Mã PO</th><th>NCC</th><th>Dự án</th><th>Tổng tiền</th><th>Đã TT</th><th>Số SP</th><th>Ngày đặt</th><th>Giao hàng</th><th>Trạng thái</th></tr></thead>
                         <tbody>{filtered.map(o => {
                             const rate = pct(o.paidAmount, o.totalAmount);
@@ -65,7 +65,7 @@ export default function PurchasingPage() {
                                 </tr>
                             );
                         })}</tbody>
-                    </table>
+                    </table></div>
                 )}
                 {!loading && filtered.length === 0 && <div style={{ color: 'var(--text-muted)', padding: 24, textAlign: 'center' }}>Không có dữ liệu</div>}
             </div>

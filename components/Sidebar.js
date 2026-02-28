@@ -6,7 +6,7 @@ import {
     LayoutDashboard, GitBranch, Users, Building2, FileText,
     Package, ClipboardList, Wrench, CreditCard, Receipt,
     ShoppingCart, Truck, Warehouse, Wallet, UserCog,
-    BarChart3, ChevronRight, Shield
+    BarChart3, ChevronRight, Shield, X
 } from 'lucide-react';
 import { useRole, ROLES } from '@/contexts/RoleContext';
 
@@ -45,18 +45,33 @@ const menuItems = [
     },
 ];
 
-export default function Sidebar() {
+export default function Sidebar({ isOpen, onClose }) {
     const pathname = usePathname();
     const { role, roleInfo } = useRole();
 
+    const handleNavClick = () => {
+        // Close sidebar on mobile after navigating
+        if (window.innerWidth <= 768) {
+            onClose();
+        }
+    };
+
     return (
-        <aside className="sidebar" role="navigation" aria-label="Menu chính">
+        <aside className={`sidebar ${isOpen ? 'open' : ''}`} role="navigation" aria-label="Menu chính">
             <div className="sidebar-brand">
                 <div className="brand-icon">H</div>
                 <div className="brand-text">
                     <span className="brand-name">HomeERP</span>
                     <span className="brand-sub">Nội thất & Xây dựng</span>
                 </div>
+                <button
+                    className="mobile-menu-btn"
+                    onClick={onClose}
+                    aria-label="Đóng menu"
+                    style={{ marginLeft: 'auto', color: 'rgba(255,255,255,0.7)' }}
+                >
+                    <X size={20} />
+                </button>
             </div>
             <nav className="sidebar-nav">
                 {menuItems.map((section) => {
@@ -74,6 +89,7 @@ export default function Sidebar() {
                                         href={item.href}
                                         className={`nav-item ${isActive ? 'active' : ''}`}
                                         aria-current={isActive ? 'page' : undefined}
+                                        onClick={handleNavClick}
                                     >
                                         <span className="nav-icon">
                                             <Icon size={18} strokeWidth={isActive ? 2 : 1.5} />
@@ -89,13 +105,13 @@ export default function Sidebar() {
                 })}
             </nav>
 
-            <div style={{ padding: '12px 16px', borderTop: '1px solid var(--border)', marginTop: 'auto' }}>
-                <div style={{ fontSize: 10, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 6, display: 'flex', alignItems: 'center', gap: 4 }}>
+            <div style={{ padding: '12px 16px', borderTop: '1px solid rgba(255,255,255,0.08)', marginTop: 'auto' }}>
+                <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.5)', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 6, display: 'flex', alignItems: 'center', gap: 4 }}>
                     <Shield size={12} /> Vai trò
                 </div>
                 <div style={{
                     padding: '8px 10px', borderRadius: 8,
-                    background: 'var(--bg-secondary)',
+                    background: 'rgba(255,255,255,0.06)',
                     color: roleInfo.color, fontWeight: 600, fontSize: 12,
                 }}>
                     {roleInfo.icon} {roleInfo.label}

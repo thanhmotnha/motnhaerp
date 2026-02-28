@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react';
 import { usePathname } from 'next/navigation';
 import { useSession, signOut } from 'next-auth/react';
-import { Sun, Moon, Bell, Settings, LogOut, Search } from 'lucide-react';
+import { Sun, Moon, Bell, Settings, LogOut, Search, Menu } from 'lucide-react';
 
 const pageTitles = {
     '/': 'Dashboard',
@@ -18,9 +18,12 @@ const pageTitles = {
     '/payments': 'Thu tiền',
     '/expenses': 'Chi phí',
     '/purchasing': 'Mua sắm vật tư',
+    '/contracts': 'Hợp đồng',
+    '/work-orders': 'Phiếu công việc',
+    '/partners': 'Đối tác',
 };
 
-export default function Header() {
+export default function Header({ onMenuToggle }) {
     const pathname = usePathname();
     const { data: session } = useSession();
     const title = pageTitles[pathname] || 'HomeERP';
@@ -52,6 +55,9 @@ export default function Header() {
     return (
         <header className="header">
             <div className="header-left">
+                <button className="mobile-menu-btn" onClick={onMenuToggle} aria-label="Mở menu">
+                    <Menu size={22} />
+                </button>
                 <h2 className="header-title">{title}</h2>
                 <div className="header-search">
                     <span className="search-icon"><Search size={16} /></span>

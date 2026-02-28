@@ -226,7 +226,7 @@ export default function ProjectDetailPage() {
 
             {/* TAB: Tổng quan */}
             {tab === 'overview' && (
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24 }}>
+                <div className="dashboard-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24 }}>
                     <div className="card">
                         <div className="card-header"><span className="card-title">👥 Nhân sự</span></div>
                         {p.employees.map(e => (
@@ -296,7 +296,7 @@ export default function ProjectDetailPage() {
                         <div className="stat-card"><div className="stat-card-header"><span className="stat-card-icon projects">✅</span></div><div style={{ fontSize: 20, fontWeight: 700 }}>{fmt(p.contracts.reduce((s, c) => s + c.paidAmount, 0))}</div><div style={{ fontSize: 12, color: 'var(--text-muted)' }}>Đã thu</div></div>
                     </div>
                     <div className="card">
-                        <table className="data-table">
+                        <div className="table-container"><table className="data-table">
                             <thead><tr><th>Mã HĐ</th><th>Tên</th><th>Loại</th><th>Giá trị</th><th>Biến động</th><th>Đã thu</th><th>Tỷ lệ</th><th>Trạng thái</th></tr></thead>
                             <tbody>{p.contracts.map(c => {
                                 const rate = pct(c.paidAmount, c.contractValue + c.variationAmount);
@@ -313,7 +313,7 @@ export default function ProjectDetailPage() {
                                     </tr>
                                 );
                             })}</tbody>
-                        </table>
+                        </table></div>
                         {p.contracts.length === 0 && <div style={{ color: 'var(--text-muted)', padding: 24, textAlign: 'center' }}>Chưa có hợp đồng</div>}
                     </div>
                 </div>
@@ -332,7 +332,7 @@ export default function ProjectDetailPage() {
                                     <span className="badge danger">Còn: {fmt(c.contractValue + c.variationAmount - c.paidAmount)}</span>
                                 </div>
                             </div>
-                            <table className="data-table">
+                            <div className="table-container"><table className="data-table">
                                 <thead><tr><th>Đợt</th><th>Hạng mục</th><th>Kế hoạch</th><th>Đã thu</th><th>Còn lại</th><th>Trạng thái</th></tr></thead>
                                 <tbody>{c.payments.map(pay => (
                                     <tr key={pay.id}>
@@ -344,7 +344,7 @@ export default function ProjectDetailPage() {
                                         <td><span className={`badge ${pay.status === 'Đã thu' ? 'success' : pay.status === 'Thu một phần' ? 'warning' : 'danger'}`}>{pay.status}</span></td>
                                     </tr>
                                 ))}</tbody>
-                            </table>
+                            </table></div>
                             {c.payments.length === 0 && <div style={{ color: 'var(--text-muted)', padding: 16, textAlign: 'center', fontSize: 13 }}>Chưa có đợt thu</div>}
                         </div>
                     ))}
@@ -364,7 +364,7 @@ export default function ProjectDetailPage() {
                             <button className="btn btn-primary btn-sm" onClick={() => setModal('workorder')}>+ Thêm phiếu</button>
                         </div>
                     </div>
-                    <table className="data-table">
+                    <div className="table-container"><table className="data-table">
                         <thead><tr><th>Mã</th><th>Tiêu đề</th><th>Loại</th><th>Ưu tiên</th><th>Người thực hiện</th><th>Hạn</th><th>Trạng thái</th><th></th></tr></thead>
                         <tbody>{p.workOrders.map(wo => (
                             <tr key={wo.id}>
@@ -381,7 +381,7 @@ export default function ProjectDetailPage() {
                                 </td>
                             </tr>
                         ))}</tbody>
-                    </table>
+                    </table></div>
                     {p.workOrders.length === 0 && <div style={{ color: 'var(--text-muted)', padding: 24, textAlign: 'center' }}>Chưa có phiếu công việc</div>}
                 </div>
             )}
@@ -395,7 +395,7 @@ export default function ProjectDetailPage() {
                         <div className="stat-card"><div style={{ fontSize: 20, fontWeight: 700, color: 'var(--status-warning)' }}>{p.materialPlans.filter(m => m.status === 'Chưa đặt').length}</div><div style={{ fontSize: 12, color: 'var(--text-muted)' }}>Chưa đặt</div></div>
                     </div>
                     <div className="card">
-                        <table className="data-table">
+                        <div className="table-container"><table className="data-table">
                             <thead><tr><th>Mã</th><th>Vật tư</th><th>Loại</th><th>SL cần</th><th>Đã đặt</th><th>Đã nhận</th><th>Còn thiếu</th><th>Đơn giá</th><th>Tổng</th><th>TT</th></tr></thead>
                             <tbody>{p.materialPlans.map(m => {
                                 const missing = m.quantity - m.receivedQty;
@@ -414,7 +414,7 @@ export default function ProjectDetailPage() {
                                     </tr>
                                 );
                             })}</tbody>
-                        </table>
+                        </table></div>
                         {p.materialPlans.length === 0 && <div style={{ color: 'var(--text-muted)', padding: 24, textAlign: 'center' }}>Chưa có kế hoạch vật tư</div>}
                     </div>
                 </div>
@@ -435,7 +435,7 @@ export default function ProjectDetailPage() {
                                     <span className="badge purple">{fmt(po.totalAmount)}</span>
                                 </div>
                             </div>
-                            <table className="data-table">
+                            <div className="table-container"><table className="data-table">
                                 <thead><tr><th>Sản phẩm</th><th>ĐVT</th><th>SL đặt</th><th>Đơn giá</th><th>Thành tiền</th><th>Đã nhận</th></tr></thead>
                                 <tbody>{po.items.map(item => (
                                     <tr key={item.id}>
@@ -447,7 +447,7 @@ export default function ProjectDetailPage() {
                                         <td style={{ color: item.receivedQty >= item.quantity ? 'var(--status-success)' : 'var(--status-warning)', fontWeight: 600 }}>{item.receivedQty}/{item.quantity}</td>
                                     </tr>
                                 ))}</tbody>
-                            </table>
+                            </table></div>
                             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 16, marginTop: 12, fontSize: 13 }}>
                                 <span>Tổng: <strong>{fmt(po.totalAmount)}</strong></span>
                                 <span>Đã TT: <strong style={{ color: 'var(--status-success)' }}>{fmt(po.paidAmount)}</strong></span>
@@ -469,7 +469,7 @@ export default function ProjectDetailPage() {
                         <div className="stat-card"><div style={{ fontSize: 20, fontWeight: 700, color: 'var(--status-warning)' }}>{p.expenses.filter(e => e.status === 'Chờ duyệt').length}</div><div style={{ fontSize: 12, color: 'var(--text-muted)' }}>Chờ duyệt</div></div>
                     </div>
                     <div className="card">
-                        <table className="data-table">
+                        <div className="table-container"><table className="data-table">
                             <thead><tr><th>Mã</th><th>Mô tả</th><th>Hạng mục</th><th>Số tiền</th><th>Đã TT</th><th>Người nộp</th><th>Ngày</th><th>Trạng thái</th></tr></thead>
                             <tbody>{p.expenses.map(e => (
                                 <tr key={e.id}>
@@ -483,7 +483,7 @@ export default function ProjectDetailPage() {
                                     <td><span className={`badge ${e.status === 'Đã thanh toán' ? 'success' : e.status === 'Đã duyệt' ? 'info' : 'warning'}`}>{e.status}</span></td>
                                 </tr>
                             ))}</tbody>
-                        </table>
+                        </table></div>
                         {p.expenses.length === 0 && <div style={{ color: 'var(--text-muted)', padding: 24, textAlign: 'center' }}>Chưa có chi phí phát sinh</div>}
                     </div>
                 </div>
@@ -493,7 +493,7 @@ export default function ProjectDetailPage() {
             {tab === 'contractors' && (
                 <div className="card">
                     <div className="card-header"><span className="card-title">👷 Thầu phụ & Công nợ</span><span className="badge warning">Tổng nợ thầu: {fmt(pnl.debtToContractors)}</span></div>
-                    <table className="data-table">
+                    <div className="table-container"><table className="data-table">
                         <thead><tr><th>Thầu phụ</th><th>Loại</th><th>Mô tả</th><th>HĐ thầu</th><th>Đã TT</th><th>Còn nợ</th><th>TT</th></tr></thead>
                         <tbody>{p.contractorPays.map(cp => (
                             <tr key={cp.id}>
@@ -506,7 +506,7 @@ export default function ProjectDetailPage() {
                                 <td><span className={`badge ${cp.status === 'Đã TT' ? 'success' : 'warning'}`}>{cp.status}</span></td>
                             </tr>
                         ))}</tbody>
-                    </table>
+                    </table></div>
                     {p.contractorPays.length === 0 && <div style={{ color: 'var(--text-muted)', padding: 24, textAlign: 'center' }}>Chưa có thầu phụ</div>}
                 </div>
             )}
@@ -515,7 +515,7 @@ export default function ProjectDetailPage() {
             {tab === 'documents' && (
                 <div className="card">
                     <div className="card-header"><span className="card-title">📁 Tài liệu dự án</span><button className="btn btn-primary btn-sm" onClick={() => setModal('document')}>+ Thêm tài liệu</button></div>
-                    <table className="data-table">
+                    <div className="table-container"><table className="data-table">
                         <thead><tr><th>Tên</th><th>Danh mục</th><th>File</th><th>Kích thước</th><th>Người upload</th><th>Ngày</th></tr></thead>
                         <tbody>{p.documents.map(doc => (
                             <tr key={doc.id}>
@@ -527,7 +527,7 @@ export default function ProjectDetailPage() {
                                 <td style={{ fontSize: 12 }}>{fmtDate(doc.createdAt)}</td>
                             </tr>
                         ))}</tbody>
-                    </table>
+                    </table></div>
                     {p.documents.length === 0 && <div style={{ color: 'var(--text-muted)', padding: 24, textAlign: 'center' }}>Chưa có tài liệu</div>}
                 </div>
             )}
@@ -564,7 +564,7 @@ export default function ProjectDetailPage() {
                     {/* Budget table */}
                     <div className="card" style={{ padding: 24 }}>
                         <div className="card-header"><span className="card-title">📊 Định mức chi phí</span></div>
-                        <table className="data-table">
+                        <div className="table-container"><table className="data-table">
                             <thead><tr><th>Hạng mục</th><th>Định mức</th><th>Thực tế</th><th>Chênh lệch</th><th>%</th></tr></thead>
                             <tbody>{p.budgets.map(b => {
                                 const diff = b.budgetAmount - b.actualAmount;
@@ -579,7 +579,7 @@ export default function ProjectDetailPage() {
                                     </tr>
                                 );
                             })}</tbody>
-                        </table>
+                        </table></div>
                         {p.budgets.length === 0 && <div style={{ color: 'var(--text-muted)', padding: 20, textAlign: 'center' }}>Chưa có định mức</div>}
                     </div>
                 </div>

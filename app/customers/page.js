@@ -119,7 +119,7 @@ export default function CustomersPage() {
 
             {loading ? <div style={{ padding: 60, textAlign: 'center', color: 'var(--text-muted)' }}>Đang tải...</div> : view === 'kanban' ? (
                 /* ========= KANBAN VIEW ========= */
-                <div style={{ display: 'flex', gap: 6, paddingBottom: 20, minHeight: 500 }}>
+                <div style={{ display: 'flex', gap: 6, paddingBottom: 20, minHeight: 500, overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
                     {PIPELINE.map(stage => {
                         const cards = filtered.filter(c => (c.pipelineStage || c.status || 'Lead') === stage.key);
                         const stageValue = cards.reduce((s, c) => s + (c.estimatedValue || 0), 0);
@@ -169,7 +169,7 @@ export default function CustomersPage() {
             ) : (
                 /* ========= TABLE VIEW ========= */
                 <div className="card">
-                    <table className="data-table">
+                    <div className="table-container"><table className="data-table">
                         <thead><tr><th>Mã</th><th>Tên KH</th><th>SĐT</th><th>Pipeline</th><th>Nguồn</th><th>Giá trị deal</th><th>Doanh thu</th><th>DA</th><th>Follow-up</th><th></th></tr></thead>
                         <tbody>{filtered.map(c => {
                             const stage = PIPELINE.find(p => p.key === (c.pipelineStage || 'Lead')) || PIPELINE[0];
@@ -188,7 +188,7 @@ export default function CustomersPage() {
                                 </tr>
                             );
                         })}</tbody>
-                    </table>
+                    </table></div>
                     {filtered.length === 0 && <div style={{ color: 'var(--text-muted)', padding: 24, textAlign: 'center' }}>Không có dữ liệu</div>}
                 </div>
             )}

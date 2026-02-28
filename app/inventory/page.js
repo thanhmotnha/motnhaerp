@@ -41,7 +41,7 @@ export default function InventoryPage() {
                     </select>
                 </div>
                 {loading ? <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-muted)' }}>Đang tải...</div> : (
-                    <table className="data-table">
+                    <div className="table-container"><table className="data-table">
                         <thead><tr><th>Mã PK</th><th>Loại</th><th>Sản phẩm</th><th>SL</th><th>Kho</th><th>Dự án</th><th>Ghi chú</th><th>Ngày</th></tr></thead>
                         <tbody>
                             {data.transactions.map(t => (
@@ -57,7 +57,7 @@ export default function InventoryPage() {
                                 </tr>
                             ))}
                         </tbody>
-                    </table>
+                    </table></div>
                 )}
             </div>
         </div>

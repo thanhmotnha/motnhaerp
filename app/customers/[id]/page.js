@@ -184,7 +184,7 @@ export default function CustomerDetailPage() {
 
             {/* TAB: Tổng quan */}
             {tab === 'overview' && (
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24 }}>
+                <div className="dashboard-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24 }}>
                     <div className="card">
                         <div className="card-header"><span className="card-title">🏗️ Dự án gần đây</span></div>
                         {(c.projects || []).slice(0, 5).map(p => (
@@ -222,7 +222,7 @@ export default function CustomerDetailPage() {
             {/* TAB: Dự án */}
             {tab === 'projects' && (
                 <div className="card">
-                    <table className="data-table">
+                    <div className="table-container"><table className="data-table">
                         <thead><tr><th>Mã</th><th>Tên</th><th>Giá trị HĐ</th><th>Đã thu</th><th>Tiến độ</th><th>Trạng thái</th><th>HĐ</th><th>CV</th></tr></thead>
                         <tbody>{(c.projects || []).map(p => (
                             <tr key={p.id} onClick={() => router.push(`/projects/${p.id}`)} style={{ cursor: 'pointer' }}>
@@ -236,7 +236,7 @@ export default function CustomerDetailPage() {
                                 <td>{p._count?.workOrders || 0}</td>
                             </tr>
                         ))}</tbody>
-                    </table>
+                    </table></div>
                     {(!c.projects || c.projects.length === 0) && <div style={{ color: 'var(--text-muted)', padding: 24, textAlign: 'center' }}>Chưa có dự án</div>}
                 </div>
             )}
@@ -251,7 +251,7 @@ export default function CustomerDetailPage() {
                         <div className="stat-card"><div style={{ fontSize: 20, fontWeight: 700, color: s.totalDebt > 0 ? 'var(--status-danger)' : 'var(--status-success)' }}>{fmt(s.totalDebt)}</div><div style={{ fontSize: 12, color: 'var(--text-muted)' }}>Công nợ</div></div>
                     </div>
                     <div className="card">
-                        <table className="data-table">
+                        <div className="table-container"><table className="data-table">
                             <thead><tr><th>Mã HĐ</th><th>Tên</th><th>Dự án</th><th>Giá trị</th><th>Đã thu</th><th>Tỷ lệ</th><th>Trạng thái</th></tr></thead>
                             <tbody>{(c.contracts || []).map(ct => {
                                 const rate = pct(ct.paidAmount, ct.contractValue);
@@ -267,7 +267,7 @@ export default function CustomerDetailPage() {
                                     </tr>
                                 );
                             })}</tbody>
-                        </table>
+                        </table></div>
                         {(!c.contracts || c.contracts.length === 0) && <div style={{ color: 'var(--text-muted)', padding: 24, textAlign: 'center' }}>Chưa có hợp đồng</div>}
                     </div>
                 </div>
@@ -276,7 +276,7 @@ export default function CustomerDetailPage() {
             {/* TAB: Báo giá */}
             {tab === 'quotations' && (
                 <div className="card">
-                    <table className="data-table">
+                    <div className="table-container"><table className="data-table">
                         <thead><tr><th>Mã</th><th>Tên</th><th>Tổng tiền</th><th>Trạng thái</th><th>Ngày tạo</th><th>HĐ lực</th></tr></thead>
                         <tbody>{(c.quotations || []).map(q => (
                             <tr key={q.id}>
@@ -288,7 +288,7 @@ export default function CustomerDetailPage() {
                                 <td style={{ fontSize: 12 }}>{fmtDate(q.validUntil)}</td>
                             </tr>
                         ))}</tbody>
-                    </table>
+                    </table></div>
                     {(!c.quotations || c.quotations.length === 0) && <div style={{ color: 'var(--text-muted)', padding: 24, textAlign: 'center' }}>Chưa có báo giá</div>}
                 </div>
             )}
@@ -326,7 +326,7 @@ export default function CustomerDetailPage() {
             {tab === 'transactions' && (
                 <div className="card">
                     <div className="card-header"><span className="card-title">💰 Lịch sử giao dịch</span></div>
-                    <table className="data-table">
+                    <div className="table-container"><table className="data-table">
                         <thead><tr><th>Ngày</th><th>Mô tả</th><th>Dự án</th><th>Loại</th><th>Số tiền</th></tr></thead>
                         <tbody>{(c.transactions || []).map(t => (
                             <tr key={t.id}>
@@ -337,7 +337,7 @@ export default function CustomerDetailPage() {
                                 <td style={{ fontWeight: 700, color: t.type === 'Thu' ? 'var(--status-success)' : 'var(--status-danger)' }}>{t.type === 'Thu' ? '+' : '-'}{fmt(t.amount)}</td>
                             </tr>
                         ))}</tbody>
-                    </table>
+                    </table></div>
                     {(!c.transactions || c.transactions.length === 0) && <div style={{ color: 'var(--text-muted)', padding: 24, textAlign: 'center' }}>Chưa có giao dịch</div>}
                 </div>
             )}

@@ -1,5 +1,6 @@
 'use client';
 
+import { useState, useCallback } from 'react';
 import { usePathname } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import Sidebar from '@/components/Sidebar';
@@ -8,6 +9,10 @@ import Header from '@/components/Header';
 export default function AppShell({ children }) {
     const pathname = usePathname();
     const { status } = useSession();
+    const [sidebarOpen, setSidebarOpen] = useState(false);
+
+    const toggleSidebar = useCallback(() => setSidebarOpen(prev => !prev), []);
+    const closeSidebar = useCallback(() => setSidebarOpen(false), []);
 
     // Login page and public pages: no shell
     const noShellPaths = ['/login'];
@@ -31,9 +36,10 @@ export default function AppShell({ children }) {
 
     return (
         <div className="app-layout">
-            <Sidebar />
+            <Sidebar isOpen={sidebarOpen} onClose={closeSidebar} />
+            <div className={`sidebar-overlay ${sidebarOpen ? 'visible' : ''}`} onClick={closeSidebar} />
             <div className="main-content">
-                <Header />
+                <Header onMenuToggle={toggleSidebar} />
                 <main className="page-content">
                     {children}
                 </main>
