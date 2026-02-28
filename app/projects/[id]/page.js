@@ -23,6 +23,7 @@ export default function ProjectDetailPage() {
     const [tab, setTab] = useState('overview');
     const [loading, setLoading] = useState(true);
     const [modal, setModal] = useState(null);
+    const [financeSubTab, setFinanceSubTab] = useState('payments');
     const [contractForm, setContractForm] = useState({ name: '', type: 'Thi công thô', contractValue: '', signDate: '', startDate: '', endDate: '', paymentTerms: '', notes: '' });
     const [paymentPhases, setPaymentPhases] = useState([]);
 
@@ -130,14 +131,12 @@ export default function ProjectDetailPage() {
         { key: 'logs', label: 'Nhật ký', icon: '📒', count: p.trackingLogs?.length },
         { key: 'milestones', label: 'Tiến độ', icon: '📊', count: p.milestones?.length },
         { key: 'contracts', label: 'Hợp đồng', icon: '📝', count: p.contracts?.length },
-        { key: 'payments', label: 'Thu tiền', icon: '💵' },
         { key: 'workorders', label: 'Phiếu CV', icon: '📋', count: p.workOrders?.length },
         { key: 'materials', label: 'Vật tư', icon: '🧱', count: p.materialPlans?.length },
         { key: 'purchase', label: 'Mua hàng', icon: '🛒', count: p.purchaseOrders?.length },
-        { key: 'expenses', label: 'Chi phí', icon: '💸', count: p.expenses?.length },
         { key: 'contractors', label: 'Thầu phụ', icon: '👷', count: p.contractorPays?.length },
+        { key: 'finance', label: 'Tài chính', icon: '💰' },
         { key: 'documents', label: 'Tài liệu', icon: '📁', count: p.documents?.length },
-        { key: 'settlement', label: 'Quyết toán', icon: '🧮' },
     ];
 
     return (
@@ -148,14 +147,48 @@ export default function ProjectDetailPage() {
             <div className="card" style={{ marginBottom: 24, padding: 24 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16 }}>
                     <div>
-                        <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 8 }}>
+                        <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 8, flexWrap: 'wrap' }}>
                             <span style={{ color: 'var(--text-accent)', fontSize: 14, fontWeight: 600 }}>{p.code}</span>
                             <span className={`badge ${p.status === 'Hoàn thành' ? 'success' : p.status === 'Đang thi công' ? 'warning' : 'info'}`}>{p.status}</span>
                             {p.phase && <span className="badge muted">{p.phase}</span>}
+                            {/* Project Health Badge */}
+                            {(() => {
+                                const now = new Date();
+                                const end = p.endDate ? new Date(p.endDate) : null;
+                                const overdueDays = end ? Math.ceil((now - end) / 86400000) : 0;
+                                const budgetRate = p.budget > 0 ? (p.spent / p.budget) * 100 : 0;
+                                const isDone = p.status === 'Hoàn thành';
+                                let health = 'success', healthLabel = '🟢 Bình thường', healthTitle = 'Dự án đang đúng tiến độ & ngân sách';
+                                if (!isDone && (overdueDays > 30 || budgetRate > 100)) {
+                                    health = 'danger'; healthLabel = '🔴 Rủi ro cao'; healthTitle = overdueDays > 30 ? `Trễ ${overdueDays} ngày` : `Chi phí vượt ${Math.round(budgetRate)}% ngân sách`;
+                                } else if (!isDone && (overdueDays > 0 || budgetRate > 80)) {
+                                    health = 'warning'; healthLabel = '🟡 Cần theo dõi'; healthTitle = overdueDays > 0 ? `Trễ ${overdueDays} ngày` : `Chi phí đạt ${Math.round(budgetRate)}% ngân sách`;
+                                }
+                                return <span className={`badge ${health}`} title={healthTitle}>{healthLabel}</span>;
+                            })()}
                             {pnl.profit >= 0 ? <span className="badge success">📈 Lãi {fmt(pnl.profit)}</span> : <span className="badge danger">📉 Lỗ {fmt(Math.abs(pnl.profit))}</span>}
                         </div>
                         <h2 style={{ margin: 0, fontSize: 22, fontWeight: 700 }}>{p.name}</h2>
                         <div style={{ color: 'var(--text-muted)', marginTop: 4, fontSize: 13 }}>{p.customer?.name} • {p.address}</div>
+                        {/* PM + Team */}
+                        <div style={{ display: 'flex', gap: 12, marginTop: 6, fontSize: 12, color: 'var(--text-secondary)', flexWrap: 'wrap' }}>
+                            {p.manager && <span title="Quản lý dự án">👤 PM: <strong>{p.manager}</strong></span>}
+                            {p.designer && <span title="Thiết kế">🎨 TK: {p.designer}</span>}
+                            {p.supervisor && <span title="Giám sát">🔧 GS: {p.supervisor}</span>}
+                        </div>
+                        {/* Timeline */}
+                        {(p.startDate || p.endDate) && (() => {
+                            const now = new Date();
+                            const end = p.endDate ? new Date(p.endDate) : null;
+                            const overdue = end && now > end && p.status !== 'Hoàn thành';
+                            const overdueDays = overdue ? Math.ceil((now - end) / 86400000) : 0;
+                            return (
+                                <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginTop: 6, fontSize: 12 }}>
+                                    <span style={{ color: 'var(--text-muted)' }}>📅 {fmtDate(p.startDate)} → {fmtDate(p.endDate)}</span>
+                                    {overdue && <span className="badge danger" style={{ fontSize: 11, animation: 'pulse 2s infinite' }}>⚠ Trễ {overdueDays} ngày</span>}
+                                </div>
+                            );
+                        })()}
                     </div>
                     <div style={{ textAlign: 'right' }}>
                         <div style={{ fontSize: 32, fontWeight: 700 }}>{p.progress}%</div>
@@ -248,8 +281,8 @@ export default function ProjectDetailPage() {
                         {p.transactions.length === 0 && <div style={{ color: 'var(--text-muted)', padding: 20, textAlign: 'center', fontSize: 13 }}>Chưa có giao dịch</div>}
                     </div>
                     <div className="card" style={{ gridColumn: '1 / -1' }}>
-                        <div className="card-header"><span className="card-title">📝 Nhật ký theo dõi</span><button className="btn btn-primary btn-sm" onClick={() => setModal('log')}>+ Ghi chú</button></div>
-                        {p.trackingLogs.map(log => (
+                        <div className="card-header"><span className="card-title">📝 Nhật ký theo dõi</span>{p.trackingLogs.length > 5 && <button className="btn btn-ghost btn-sm" onClick={() => setTab('logs')} style={{ fontSize: 12 }}>Xem tất cả ({p.trackingLogs.length}) →</button>}</div>
+                        {p.trackingLogs.slice(0, 5).map(log => (
                             <div key={log.id} style={{ display: 'flex', gap: 12, padding: '10px 0', borderBottom: '1px solid var(--border-light)' }}>
                                 <div style={{ width: 36, height: 36, borderRadius: 10, background: 'var(--bg-primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, flexShrink: 0 }}>
                                     {log.type === 'Điện thoại' ? '📞' : log.type === 'Gặp mặt' ? '🤝' : log.type === 'Email' ? '📧' : '💬'}
@@ -319,36 +352,133 @@ export default function ProjectDetailPage() {
                 </div>
             )}
 
-            {/* TAB: Thu tiền */}
-            {tab === 'payments' && (
+            {/* TAB: Tài chính (gộp Thu/Chi/Quyết toán) */}
+            {tab === 'finance' && (
                 <div>
-                    {p.contracts.map(c => (
-                        <div key={c.id} className="card" style={{ marginBottom: 20, padding: 24 }}>
-                            <div className="card-header">
-                                <span className="card-title">💵 {c.code} — {c.name}</span>
-                                <div style={{ display: 'flex', gap: 8 }}>
-                                    <span className="badge info">HĐ: {fmt(c.contractValue)}</span>
-                                    <span className="badge success">Đã thu: {fmt(c.paidAmount)}</span>
-                                    <span className="badge danger">Còn: {fmt(c.contractValue + c.variationAmount - c.paidAmount)}</span>
+                    {/* Finance Sub-tabs */}
+                    <div style={{ display: 'flex', gap: 4, marginBottom: 20, borderBottom: '2px solid var(--border-light)', paddingBottom: 0 }}>
+                        {[{ key: 'payments', label: '💵 Thu tiền' }, { key: 'expenses', label: '💸 Chi phí' }, { key: 'settlement', label: '🧮 Lãi / Lỗ' }].map(st2 => (
+                            <button key={st2.key} onClick={() => setFinanceSubTab(st2.key)}
+                                style={{ padding: '10px 20px', fontSize: 13, fontWeight: 600, border: 'none', cursor: 'pointer', borderRadius: '8px 8px 0 0', background: financeSubTab === st2.key ? 'var(--bg-card)' : 'transparent', color: financeSubTab === st2.key ? 'var(--accent-primary)' : 'var(--text-muted)', borderBottom: financeSubTab === st2.key ? '2px solid var(--accent-primary)' : '2px solid transparent', marginBottom: -2, transition: 'all 0.2s' }}>
+                                {st2.label}
+                            </button>
+                        ))}
+                    </div>
+
+                    {/* Sub-tab: Thu tiền */}
+                    {financeSubTab === 'payments' && (
+                        <div>
+                            {p.contracts.map(c => (
+                                <div key={c.id} className="card" style={{ marginBottom: 20, padding: 24 }}>
+                                    <div className="card-header">
+                                        <span className="card-title">💵 {c.code} — {c.name}</span>
+                                        <div style={{ display: 'flex', gap: 8 }}>
+                                            <span className="badge info">HĐ: {fmt(c.contractValue)}</span>
+                                            <span className="badge success">Đã thu: {fmt(c.paidAmount)}</span>
+                                            <span className="badge danger">Còn: {fmt(c.contractValue + c.variationAmount - c.paidAmount)}</span>
+                                        </div>
+                                    </div>
+                                    <div className="table-container"><table className="data-table">
+                                        <thead><tr><th>Đợt</th><th>Hạng mục</th><th>Kế hoạch</th><th>Đã thu</th><th>Còn lại</th><th>Trạng thái</th></tr></thead>
+                                        <tbody>{c.payments.map(pay => (
+                                            <tr key={pay.id}>
+                                                <td className="primary">{pay.phase}</td>
+                                                <td><span className="badge muted">{pay.category}</span></td>
+                                                <td className="amount">{fmt(pay.amount)}</td>
+                                                <td style={{ color: 'var(--status-success)', fontWeight: 600 }}>{fmt(pay.paidAmount)}</td>
+                                                <td style={{ color: pay.amount - pay.paidAmount > 0 ? 'var(--status-danger)' : 'var(--status-success)', fontWeight: 600 }}>{fmt(pay.amount - pay.paidAmount)}</td>
+                                                <td><span className={`badge ${pay.status === 'Đã thu' ? 'success' : pay.status === 'Thu một phần' ? 'warning' : 'danger'}`}>{pay.status}</span></td>
+                                            </tr>
+                                        ))}</tbody>
+                                    </table></div>
+                                    {c.payments.length === 0 && <div style={{ color: 'var(--text-muted)', padding: 16, textAlign: 'center', fontSize: 13 }}>Chưa có đợt thu</div>}
+                                </div>
+                            ))}
+                            {p.contracts.length === 0 && <div className="card" style={{ padding: 24, textAlign: 'center', color: 'var(--text-muted)' }}>Chưa có hợp đồng để thu tiền</div>}
+                        </div>
+                    )}
+
+                    {/* Sub-tab: Chi phí */}
+                    {financeSubTab === 'expenses' && (
+                        <div>
+                            <div className="stats-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', marginBottom: 24 }}>
+                                <div className="stat-card"><div style={{ fontSize: 20, fontWeight: 700 }}>{p.expenses.length}</div><div style={{ fontSize: 12, color: 'var(--text-muted)' }}>Tổng phiếu</div></div>
+                                <div className="stat-card"><div style={{ fontSize: 20, fontWeight: 700, color: 'var(--status-danger)' }}>{fmt(p.expenses.reduce((s, e) => s + e.amount, 0))}</div><div style={{ fontSize: 12, color: 'var(--text-muted)' }}>Tổng CP</div></div>
+                                <div className="stat-card"><div style={{ fontSize: 20, fontWeight: 700, color: 'var(--status-success)' }}>{fmt(p.expenses.reduce((s, e) => s + e.paidAmount, 0))}</div><div style={{ fontSize: 12, color: 'var(--text-muted)' }}>Đã TT</div></div>
+                                <div className="stat-card"><div style={{ fontSize: 20, fontWeight: 700, color: 'var(--status-warning)' }}>{p.expenses.filter(e => e.status === 'Chờ duyệt').length}</div><div style={{ fontSize: 12, color: 'var(--text-muted)' }}>Chờ duyệt</div></div>
+                            </div>
+                            <div className="card">
+                                <div style={{ display: 'flex', justifyContent: 'flex-end', padding: '12px 16px 0' }}><button className="btn btn-primary btn-sm" onClick={() => setModal('expense')}>+ Thêm chi phí</button></div>
+                                <div className="table-container"><table className="data-table">
+                                    <thead><tr><th>Mã</th><th>Mô tả</th><th>Hạng mục</th><th>Số tiền</th><th>Đã TT</th><th>Người nộp</th><th>Ngày</th><th>Trạng thái</th></tr></thead>
+                                    <tbody>{p.expenses.map(e => (
+                                        <tr key={e.id}>
+                                            <td className="accent">{e.code}</td>
+                                            <td className="primary">{e.description}</td>
+                                            <td><span className="badge muted">{e.category}</span></td>
+                                            <td className="amount">{fmt(e.amount)}</td>
+                                            <td style={{ color: 'var(--status-success)', fontWeight: 600 }}>{fmt(e.paidAmount)}</td>
+                                            <td style={{ fontSize: 12 }}>{e.submittedBy || '—'}</td>
+                                            <td style={{ fontSize: 12 }}>{fmtDate(e.date)}</td>
+                                            <td><span className={`badge ${e.status === 'Đã thanh toán' ? 'success' : e.status === 'Đã duyệt' ? 'info' : 'warning'}`}>{e.status}</span></td>
+                                        </tr>
+                                    ))}</tbody>
+                                </table></div>
+                                {p.expenses.length === 0 && <div style={{ color: 'var(--text-muted)', padding: 24, textAlign: 'center' }}>Chưa có chi phí phát sinh</div>}
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Sub-tab: Lãi / Lỗ (Quyết toán) */}
+                    {financeSubTab === 'settlement' && (
+                        <div>
+                            <div className="settlement-profit" style={{ marginBottom: 24 }}>
+                                <div className="profit-value" style={{ color: st.profit >= 0 ? 'var(--status-success)' : 'var(--status-danger)' }}>{st.profit >= 0 ? '📈' : '📉'} {fmt(st.profit)}</div>
+                                <div className="profit-label">{st.profit >= 0 ? 'Lợi nhuận dự án' : 'Lỗ dự án'}</div>
+                                <div className="profit-rate" style={{ background: st.profit >= 0 ? 'rgba(52,211,153,0.12)' : 'rgba(248,113,113,0.12)', color: st.profit >= 0 ? 'var(--status-success)' : 'var(--status-danger)' }}>Tỷ lệ: {st.profitRate}%</div>
+                            </div>
+                            <div className="settlement-grid">
+                                <div className="settlement-card side-a">
+                                    <h3>🏠 Bên A — Doanh thu (Khách hàng)</h3>
+                                    <div className="settlement-row"><span className="label">Giá trị hợp đồng</span><span className="value">{fmt(st.sideA.contractValue)}</span></div>
+                                    <div className="settlement-row"><span className="label">Phát sinh / Biến động</span><span className="value" style={{ color: st.sideA.variation > 0 ? 'var(--status-warning)' : '' }}>{st.sideA.variation > 0 ? '+' : ''}{fmt(st.sideA.variation)}</span></div>
+                                    <div className="settlement-row total"><span className="label">Tổng doanh thu</span><span className="value">{fmt(st.sideA.total)}</span></div>
+                                    <div className="settlement-row"><span className="label">Đã thu</span><span className="value" style={{ color: 'var(--status-success)' }}>{fmt(st.sideA.collected)}</span></div>
+                                    <div className="settlement-row"><span className="label">Còn phải thu</span><span className="value" style={{ color: st.sideA.remaining > 0 ? 'var(--status-danger)' : '' }}>{fmt(st.sideA.remaining)}</span></div>
+                                    <div className="settlement-row"><span className="label">Tỷ lệ thu</span><span className="value">{st.sideA.rate}%</span></div>
+                                </div>
+                                <div className="settlement-card side-b">
+                                    <h3>🏗️ Bên B — Chi phí</h3>
+                                    <div className="settlement-row"><span className="label">Mua sắm vật tư</span><span className="value">{fmt(st.sideB.purchase)}</span></div>
+                                    <div className="settlement-row"><span className="label">Chi phí phát sinh</span><span className="value">{fmt(st.sideB.expenses)}</span></div>
+                                    <div className="settlement-row"><span className="label">Thầu phụ</span><span className="value">{fmt(st.sideB.contractor)}</span></div>
+                                    <div className="settlement-row total"><span className="label">Tổng chi phí</span><span className="value" style={{ color: 'var(--status-danger)' }}>{fmt(st.sideB.total)}</span></div>
+                                    <div className="settlement-row"><span className="label">Đã thanh toán</span><span className="value">{fmt(st.sideB.paid)}</span></div>
+                                    <div className="settlement-row"><span className="label">Còn phải trả</span><span className="value" style={{ color: st.sideB.remaining > 0 ? 'var(--status-warning)' : '' }}>{fmt(st.sideB.remaining)}</span></div>
                                 </div>
                             </div>
-                            <div className="table-container"><table className="data-table">
-                                <thead><tr><th>Đợt</th><th>Hạng mục</th><th>Kế hoạch</th><th>Đã thu</th><th>Còn lại</th><th>Trạng thái</th></tr></thead>
-                                <tbody>{c.payments.map(pay => (
-                                    <tr key={pay.id}>
-                                        <td className="primary">{pay.phase}</td>
-                                        <td><span className="badge muted">{pay.category}</span></td>
-                                        <td className="amount">{fmt(pay.amount)}</td>
-                                        <td style={{ color: 'var(--status-success)', fontWeight: 600 }}>{fmt(pay.paidAmount)}</td>
-                                        <td style={{ color: pay.amount - pay.paidAmount > 0 ? 'var(--status-danger)' : 'var(--status-success)', fontWeight: 600 }}>{fmt(pay.amount - pay.paidAmount)}</td>
-                                        <td><span className={`badge ${pay.status === 'Đã thu' ? 'success' : pay.status === 'Thu một phần' ? 'warning' : 'danger'}`}>{pay.status}</span></td>
-                                    </tr>
-                                ))}</tbody>
-                            </table></div>
-                            {c.payments.length === 0 && <div style={{ color: 'var(--text-muted)', padding: 16, textAlign: 'center', fontSize: 13 }}>Chưa có đợt thu</div>}
+                            <div className="card" style={{ padding: 24 }}>
+                                <div className="card-header"><span className="card-title">📊 Định mức chi phí</span></div>
+                                <div className="table-container"><table className="data-table">
+                                    <thead><tr><th>Hạng mục</th><th>Định mức</th><th>Thực tế</th><th>Chênh lệch</th><th>%</th></tr></thead>
+                                    <tbody>{p.budgets.map(b => {
+                                        const diff = b.budgetAmount - b.actualAmount;
+                                        const rate = pct(b.actualAmount, b.budgetAmount);
+                                        return (
+                                            <tr key={b.id}>
+                                                <td className="primary">{b.category}</td>
+                                                <td>{fmt(b.budgetAmount)}</td>
+                                                <td>{fmt(b.actualAmount)}</td>
+                                                <td style={{ color: diff >= 0 ? 'var(--status-success)' : 'var(--status-danger)', fontWeight: 600 }}>{diff >= 0 ? '+' : ''}{fmt(diff)}</td>
+                                                <td><div style={{ display: 'flex', alignItems: 'center', gap: 6 }}><div className="progress-bar" style={{ flex: 1, maxWidth: 80 }}><div className={`progress-fill ${rate > 100 ? '' : 'success'}`} style={{ width: `${Math.min(rate, 100)}%`, background: rate > 100 ? 'var(--status-danger)' : '' }}></div></div><span style={{ fontSize: 12 }}>{rate}%</span></div></td>
+                                            </tr>
+                                        );
+                                    })}</tbody>
+                                </table></div>
+                                {p.budgets.length === 0 && <div style={{ color: 'var(--text-muted)', padding: 20, textAlign: 'center' }}>Chưa có định mức</div>}
+                            </div>
                         </div>
-                    ))}
-                    {p.contracts.length === 0 && <div className="card" style={{ padding: 24, textAlign: 'center', color: 'var(--text-muted)' }}>Chưa có hợp đồng để thu tiền</div>}
+                    )}
                 </div>
             )}
 
@@ -459,35 +589,6 @@ export default function ProjectDetailPage() {
                 </div>
             )}
 
-            {/* TAB: Chi phí phát sinh */}
-            {tab === 'expenses' && (
-                <div>
-                    <div className="stats-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', marginBottom: 24 }}>
-                        <div className="stat-card"><div style={{ fontSize: 20, fontWeight: 700 }}>{p.expenses.length}</div><div style={{ fontSize: 12, color: 'var(--text-muted)' }}>Tổng phiếu</div></div>
-                        <div className="stat-card"><div style={{ fontSize: 20, fontWeight: 700, color: 'var(--status-danger)' }}>{fmt(p.expenses.reduce((s, e) => s + e.amount, 0))}</div><div style={{ fontSize: 12, color: 'var(--text-muted)' }}>Tổng CP</div></div>
-                        <div className="stat-card"><div style={{ fontSize: 20, fontWeight: 700, color: 'var(--status-success)' }}>{fmt(p.expenses.reduce((s, e) => s + e.paidAmount, 0))}</div><div style={{ fontSize: 12, color: 'var(--text-muted)' }}>Đã TT</div></div>
-                        <div className="stat-card"><div style={{ fontSize: 20, fontWeight: 700, color: 'var(--status-warning)' }}>{p.expenses.filter(e => e.status === 'Chờ duyệt').length}</div><div style={{ fontSize: 12, color: 'var(--text-muted)' }}>Chờ duyệt</div></div>
-                    </div>
-                    <div className="card">
-                        <div className="table-container"><table className="data-table">
-                            <thead><tr><th>Mã</th><th>Mô tả</th><th>Hạng mục</th><th>Số tiền</th><th>Đã TT</th><th>Người nộp</th><th>Ngày</th><th>Trạng thái</th></tr></thead>
-                            <tbody>{p.expenses.map(e => (
-                                <tr key={e.id}>
-                                    <td className="accent">{e.code}</td>
-                                    <td className="primary">{e.description}</td>
-                                    <td><span className="badge muted">{e.category}</span></td>
-                                    <td className="amount">{fmt(e.amount)}</td>
-                                    <td style={{ color: 'var(--status-success)', fontWeight: 600 }}>{fmt(e.paidAmount)}</td>
-                                    <td style={{ fontSize: 12 }}>{e.submittedBy || '—'}</td>
-                                    <td style={{ fontSize: 12 }}>{fmtDate(e.date)}</td>
-                                    <td><span className={`badge ${e.status === 'Đã thanh toán' ? 'success' : e.status === 'Đã duyệt' ? 'info' : 'warning'}`}>{e.status}</span></td>
-                                </tr>
-                            ))}</tbody>
-                        </table></div>
-                        {p.expenses.length === 0 && <div style={{ color: 'var(--text-muted)', padding: 24, textAlign: 'center' }}>Chưa có chi phí phát sinh</div>}
-                    </div>
-                </div>
-            )}
 
             {/* TAB: Thầu phụ */}
             {tab === 'contractors' && (
@@ -532,58 +633,6 @@ export default function ProjectDetailPage() {
                 </div>
             )}
 
-            {/* TAB: Quyết toán */}
-            {tab === 'settlement' && (
-                <div>
-                    <div className="settlement-profit" style={{ marginBottom: 24 }}>
-                        <div className="profit-value" style={{ color: st.profit >= 0 ? 'var(--status-success)' : 'var(--status-danger)' }}>{st.profit >= 0 ? '📈' : '📉'} {fmt(st.profit)}</div>
-                        <div className="profit-label">{st.profit >= 0 ? 'Lợi nhuận dự án' : 'Lỗ dự án'}</div>
-                        <div className="profit-rate" style={{ background: st.profit >= 0 ? 'rgba(52,211,153,0.12)' : 'rgba(248,113,113,0.12)', color: st.profit >= 0 ? 'var(--status-success)' : 'var(--status-danger)' }}>Tỷ lệ: {st.profitRate}%</div>
-                    </div>
-                    <div className="settlement-grid">
-                        <div className="settlement-card side-a">
-                            <h3>🏠 Bên A — Doanh thu (Khách hàng)</h3>
-                            <div className="settlement-row"><span className="label">Giá trị hợp đồng</span><span className="value">{fmt(st.sideA.contractValue)}</span></div>
-                            <div className="settlement-row"><span className="label">Phát sinh / Biến động</span><span className="value" style={{ color: st.sideA.variation > 0 ? 'var(--status-warning)' : '' }}>{st.sideA.variation > 0 ? '+' : ''}{fmt(st.sideA.variation)}</span></div>
-                            <div className="settlement-row total"><span className="label">Tổng doanh thu</span><span className="value">{fmt(st.sideA.total)}</span></div>
-                            <div className="settlement-row"><span className="label">Đã thu</span><span className="value" style={{ color: 'var(--status-success)' }}>{fmt(st.sideA.collected)}</span></div>
-                            <div className="settlement-row"><span className="label">Còn phải thu</span><span className="value" style={{ color: st.sideA.remaining > 0 ? 'var(--status-danger)' : '' }}>{fmt(st.sideA.remaining)}</span></div>
-                            <div className="settlement-row"><span className="label">Tỷ lệ thu</span><span className="value">{st.sideA.rate}%</span></div>
-                        </div>
-                        <div className="settlement-card side-b">
-                            <h3>🏗️ Bên B — Chi phí</h3>
-                            <div className="settlement-row"><span className="label">Mua sắm vật tư</span><span className="value">{fmt(st.sideB.purchase)}</span></div>
-                            <div className="settlement-row"><span className="label">Chi phí phát sinh</span><span className="value">{fmt(st.sideB.expenses)}</span></div>
-                            <div className="settlement-row"><span className="label">Thầu phụ</span><span className="value">{fmt(st.sideB.contractor)}</span></div>
-                            <div className="settlement-row total"><span className="label">Tổng chi phí</span><span className="value" style={{ color: 'var(--status-danger)' }}>{fmt(st.sideB.total)}</span></div>
-                            <div className="settlement-row"><span className="label">Đã thanh toán</span><span className="value">{fmt(st.sideB.paid)}</span></div>
-                            <div className="settlement-row"><span className="label">Còn phải trả</span><span className="value" style={{ color: st.sideB.remaining > 0 ? 'var(--status-warning)' : '' }}>{fmt(st.sideB.remaining)}</span></div>
-                        </div>
-                    </div>
-
-                    {/* Budget table */}
-                    <div className="card" style={{ padding: 24 }}>
-                        <div className="card-header"><span className="card-title">📊 Định mức chi phí</span></div>
-                        <div className="table-container"><table className="data-table">
-                            <thead><tr><th>Hạng mục</th><th>Định mức</th><th>Thực tế</th><th>Chênh lệch</th><th>%</th></tr></thead>
-                            <tbody>{p.budgets.map(b => {
-                                const diff = b.budgetAmount - b.actualAmount;
-                                const rate = pct(b.actualAmount, b.budgetAmount);
-                                return (
-                                    <tr key={b.id}>
-                                        <td className="primary">{b.category}</td>
-                                        <td>{fmt(b.budgetAmount)}</td>
-                                        <td>{fmt(b.actualAmount)}</td>
-                                        <td style={{ color: diff >= 0 ? 'var(--status-success)' : 'var(--status-danger)', fontWeight: 600 }}>{diff >= 0 ? '+' : ''}{fmt(diff)}</td>
-                                        <td><div style={{ display: 'flex', alignItems: 'center', gap: 6 }}><div className="progress-bar" style={{ flex: 1, maxWidth: 80 }}><div className={`progress-fill ${rate > 100 ? '' : 'success'}`} style={{ width: `${Math.min(rate, 100)}%`, background: rate > 100 ? 'var(--status-danger)' : '' }}></div></div><span style={{ fontSize: 12 }}>{rate}%</span></div></td>
-                                    </tr>
-                                );
-                            })}</tbody>
-                        </table></div>
-                        {p.budgets.length === 0 && <div style={{ color: 'var(--text-muted)', padding: 20, textAlign: 'center' }}>Chưa có định mức</div>}
-                    </div>
-                </div>
-            )}
             {/* MODALS */}
             {modal === 'contract' && (
                 <div className="modal-overlay" onClick={() => setModal(null)}>
