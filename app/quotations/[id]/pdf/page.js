@@ -1,7 +1,6 @@
 'use client';
 import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
-import { apiFetch } from '@/lib/fetchClient';
 
 /* =============================================
    BRAND COLORS - MỘT NHÀ
@@ -104,13 +103,16 @@ export default function QuotationPDFPage() {
     const [copied, setCopied] = useState(false);
 
     useEffect(() => {
-        apiFetch(`/api/quotations/${id}`).then(d => {
-            setData(d);
-            const code = d.code || '';
-            const cust = d.customer?.name || '';
-            const type = d.type || '';
-            document.title = [code, cust, type].filter(Boolean).join('_');
-        });
+        fetch(`/api/public/quotations/${id}`)
+            .then(r => { if (!r.ok) throw new Error('Not found'); return r.json(); })
+            .then(d => {
+                setData(d);
+                const code = d.code || '';
+                const cust = d.customer?.name || '';
+                const type = d.type || '';
+                document.title = [code, cust, type].filter(Boolean).join('_');
+            })
+            .catch(() => setData({ error: true }));
     }, [id]);
 
     const copyLink = () => {
@@ -124,6 +126,14 @@ export default function QuotationPDFPage() {
             <div style={{ width: 40, height: 40, border: `3px solid ${BRAND.blue}`, borderTopColor: 'transparent', borderRadius: '50%', margin: '0 auto 16px', animation: 'spin 1s linear infinite' }} />
             Đang tải báo giá...
             <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+        </div>
+    );
+
+    if (data.error) return (
+        <div style={{ padding: 60, textAlign: 'center', fontFamily: 'Montserrat, sans-serif', color: '#dc2626' }}>
+            <div style={{ fontSize: 48, marginBottom: 16 }}>⚠️</div>
+            <div style={{ fontSize: 18, fontWeight: 700, marginBottom: 8 }}>Báo giá không tồn tại</div>
+            <div style={{ fontSize: 13, color: BRAND.textMid }}>Link không hợp lệ hoặc báo giá đã bị xóa.</div>
         </div>
     );
 
