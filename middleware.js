@@ -9,6 +9,9 @@ export async function middleware(request) {
     const isPublic = publicPaths.some(p => pathname.startsWith(p));
     if (isPublic) return NextResponse.next();
 
+    // Public PDF pages: /quotations/[id]/pdf
+    if (/^\/quotations\/[^/]+\/pdf/.test(pathname)) return NextResponse.next();
+
     // Static files
     if (
         pathname.startsWith('/_next') ||
