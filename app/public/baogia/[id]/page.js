@@ -110,17 +110,11 @@ export default function PublicQuotationPage() {
                 }
                 .pdf-page { max-width: 1100px; margin: 20px auto 40px; background: #fff; box-shadow: 0 4px 40px rgba(0,0,0,0.12); border-radius: 4px; position: relative; overflow: hidden; }
                 .watermark { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%) rotate(-30deg); font-size: 120px; font-weight: 900; color: ${BRAND.blue}; opacity: 0.025; pointer-events: none; white-space: nowrap; letter-spacing: 20px; z-index: 0; }
-                .mn-header { display: flex; justify-content: space-between; align-items: flex-start; padding: 28px 36px 20px; border-bottom: 3px solid ${BRAND.blue}; position: relative; z-index: 1; }
-                .mn-header::after { content: ''; position: absolute; bottom: -6px; left: 0; right: 0; height: 3px; background: ${BRAND.gold}; }
-                .mn-logo-area { display: flex; align-items: flex-start; gap: 14px; }
-                .mn-brand-name { font-size: 22px; font-weight: 900; color: ${BRAND.blue}; letter-spacing: 3px; line-height: 1; margin-bottom: 2px; }
-                .mn-slogan { font-size: 9px; font-weight: 600; color: ${BRAND.gold}; letter-spacing: 1.5px; text-transform: uppercase; margin-bottom: 10px; }
-                .mn-contact { font-size: 9px; font-weight: 400; color: ${BRAND.textMid}; line-height: 1.9; }
-                .mn-contact strong { font-weight: 600; color: ${BRAND.textDark}; }
-                .mn-doc-right { text-align: right; }
-                .mn-doc-title { font-size: 20px; font-weight: 900; color: ${BRAND.blue}; letter-spacing: 2px; margin-bottom: 6px; }
-                .mn-doc-code { font-size: 14px; font-weight: 700; color: ${BRAND.gold}; margin-bottom: 4px; }
-                .mn-doc-meta { font-size: 10px; font-weight: 400; color: ${BRAND.textMid}; line-height: 1.9; }
+                .mn-header-img { width: 100%; display: block; position: relative; z-index: 1; }
+                .mn-header-img img { width: 100%; height: auto; display: block; }
+                .mn-doc-bar { display: flex; justify-content: space-between; align-items: center; padding: 8px 36px; background: ${BRAND.blue}; color: #fff; font-size: 11px; position: relative; z-index: 1; }
+                .mn-doc-bar .code { font-weight: 800; font-size: 13px; color: ${BRAND.gold}; letter-spacing: 1px; }
+                .mn-doc-bar .meta { font-weight: 400; font-size: 10px; opacity: 0.85; }
                 .mn-content { padding: 0 36px 28px; position: relative; z-index: 1; }
                 .mn-info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin: 20px 0; }
                 .mn-info-box { padding: 14px 16px; border: 1px solid ${BRAND.grey}; border-left: 3px solid ${BRAND.gold}; background: #fafbfc; }
@@ -164,8 +158,7 @@ export default function PublicQuotationPage() {
             {/* Print toolbar - chỉ hiện cho khách */}
             <div className="no-print" style={{ background: BRAND.blue, padding: '12px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'sticky', top: 0, zIndex: 100, boxShadow: '0 2px 12px rgba(0,0,0,.3)' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                    <MNLogo size={28} />
-                    <span style={{ color: '#fff', fontSize: 14, fontWeight: 700, fontFamily: 'Montserrat', letterSpacing: 2 }}>MỘT NHÀ</span>
+                    <img src="/motnha-header.png" alt="Một Nhà" style={{ height: 28, width: 'auto' }} />
                     <span style={{ color: BRAND.gold, fontSize: 11, fontWeight: 500, fontFamily: 'Montserrat' }}>— Báo giá {q.code}</span>
                 </div>
                 <button onClick={() => window.print()} style={{ padding: '8px 24px', background: BRAND.gold, color: BRAND.blue, border: 'none', borderRadius: 6, fontSize: 13, fontWeight: 800, cursor: 'pointer', fontFamily: 'Montserrat' }}>
@@ -177,29 +170,15 @@ export default function PublicQuotationPage() {
                 <div className="watermark">MỘT NHÀ</div>
 
                 {/* HEADER */}
-                <div className="mn-header">
-                    <div className="mn-logo-area">
-                        <MNLogo size={52} />
-                        <div>
-                            <div className="mn-brand-name">MỘT NHÀ</div>
-                            <div className="mn-slogan">Nhà ở trọn gói / Nội thất thông minh</div>
-                            <div className="mn-contact">
-                                <strong>Trụ sở:</strong> R6 Royal City, Thanh Xuân, Hà Nội<br />
-                                <strong>Nhà máy SX:</strong> Km16, Đại lộ Thăng Long, Hà Nội<br />
-                                <strong>CN Sơn La:</strong> 105C Đường Tô Hiệu, TP Sơn La<br />
-                                <strong>Hotline:</strong> (+84) 948 869 89 / (+84) 961 122 869<br />
-                                <strong>Website:</strong> www.motnha.vn
-                            </div>
-                        </div>
-                    </div>
-                    <div className="mn-doc-right">
-                        <div className="mn-doc-title">{docTitle}</div>
-                        <div className="mn-doc-code">{q.code}</div>
-                        <div className="mn-doc-meta">
-                            Ngày lập: <strong>{dateStr}</strong>
-                            {validStr && <><br />Hiệu lực đến: <strong>{validStr}</strong></>}
-                        </div>
-                    </div>
+                <div className="mn-header-img">
+                    <img src="/motnha-header.png" alt="Một Nhà - Bảng Báo Giá" />
+                </div>
+                <div className="mn-doc-bar">
+                    <span className="code">{q.code}</span>
+                    <span className="meta">
+                        Ngày lập: <strong>{dateStr}</strong>
+                        {validStr && <> &nbsp;|&nbsp; Hiệu lực đến: <strong>{validStr}</strong></>}
+                    </span>
                 </div>
 
                 <div className="mn-content">

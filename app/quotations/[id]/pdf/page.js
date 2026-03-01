@@ -194,70 +194,31 @@ export default function QuotationPDFPage() {
                     z-index: 0;
                 }
 
-                /* ====== HEADER ====== */
-                .mn-header {
-                    display: flex;
-                    justify-content: space-between;
-                    align-items: flex-start;
-                    padding: 28px 36px 20px;
-                    border-bottom: 3px solid ${BRAND.blue};
+                /* ====== HEADER IMAGE ====== */
+                .mn-header-img {
+                    width: 100%;
+                    display: block;
                     position: relative;
                     z-index: 1;
                 }
-                .mn-header::after {
-                    content: '';
-                    position: absolute;
-                    bottom: -6px;
-                    left: 0;
-                    right: 0;
-                    height: 3px;
-                    background: ${BRAND.gold};
+                .mn-header-img img {
+                    width: 100%;
+                    height: auto;
+                    display: block;
                 }
-                .mn-logo-area { display: flex; align-items: flex-start; gap: 14px; }
-                .mn-brand-text { }
-                .mn-brand-name {
-                    font-size: 22px;
-                    font-weight: 900;
-                    color: ${BRAND.blue};
-                    letter-spacing: 3px;
-                    line-height: 1;
-                    margin-bottom: 2px;
+                .mn-doc-bar {
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                    padding: 8px 36px;
+                    background: ${BRAND.blue};
+                    color: #fff;
+                    font-size: 11px;
+                    position: relative;
+                    z-index: 1;
                 }
-                .mn-slogan {
-                    font-size: 9px;
-                    font-weight: 600;
-                    color: ${BRAND.gold};
-                    letter-spacing: 1.5px;
-                    text-transform: uppercase;
-                    margin-bottom: 10px;
-                }
-                .mn-contact {
-                    font-size: 9px;
-                    font-weight: 400;
-                    color: ${BRAND.textMid};
-                    line-height: 1.9;
-                }
-                .mn-contact strong { font-weight: 600; color: ${BRAND.textDark}; }
-                .mn-doc-right { text-align: right; }
-                .mn-doc-title {
-                    font-size: 20px;
-                    font-weight: 900;
-                    color: ${BRAND.blue};
-                    letter-spacing: 2px;
-                    margin-bottom: 6px;
-                }
-                .mn-doc-code {
-                    font-size: 14px;
-                    font-weight: 700;
-                    color: ${BRAND.gold};
-                    margin-bottom: 4px;
-                }
-                .mn-doc-meta {
-                    font-size: 10px;
-                    font-weight: 400;
-                    color: ${BRAND.textMid};
-                    line-height: 1.9;
-                }
+                .mn-doc-bar .code { font-weight: 800; font-size: 13px; color: ${BRAND.gold}; letter-spacing: 1px; }
+                .mn-doc-bar .meta { font-weight: 400; font-size: 10px; opacity: 0.85; }
 
                 /* ====== CONTENT AREA ====== */
                 .mn-content { padding: 0 36px 28px; position: relative; z-index: 1; }
@@ -545,30 +506,16 @@ export default function QuotationPDFPage() {
                 {/* WATERMARK */}
                 <div className="watermark">MỘT NHÀ</div>
 
-                {/* ====== HEADER ====== */}
-                <div className="mn-header">
-                    <div className="mn-logo-area">
-                        <MNLogo size={52} />
-                        <div className="mn-brand-text">
-                            <div className="mn-brand-name">MỘT NHÀ</div>
-                            <div className="mn-slogan">Nhà ở trọn gói / Nội thất thông minh</div>
-                            <div className="mn-contact">
-                                <strong>Trụ sở:</strong> R6 Royal City, Thanh Xuân, Hà Nội<br />
-                                <strong>Nhà máy SX:</strong> Km16, Đại lộ Thăng Long, Hà Nội<br />
-                                <strong>CN Sơn La:</strong> 105C Đường Tô Hiệu, TP Sơn La<br />
-                                <strong>Hotline:</strong> (+84) 948 869 89 / (+84) 961 122 869<br />
-                                <strong>Website:</strong> www.motnha.vn
-                            </div>
-                        </div>
-                    </div>
-                    <div className="mn-doc-right">
-                        <div className="mn-doc-title">{docTitle}</div>
-                        <div className="mn-doc-code">{q.code}</div>
-                        <div className="mn-doc-meta">
-                            Ngày lập: <strong>{dateStr}</strong>
-                            {validStr && <><br />Hiệu lực đến: <strong>{validStr}</strong></>}
-                        </div>
-                    </div>
+                {/* ====== HEADER IMAGE ====== */}
+                <div className="mn-header-img">
+                    <img src="/motnha-header.png" alt="Một Nhà - Bảng Báo Giá" />
+                </div>
+                <div className="mn-doc-bar">
+                    <span className="code">{q.code}</span>
+                    <span className="meta">
+                        Ngày lập: <strong>{dateStr}</strong>
+                        {validStr && <> &nbsp;|&nbsp; Hiệu lực đến: <strong>{validStr}</strong></>}
+                    </span>
                 </div>
 
                 <div className="mn-content">
