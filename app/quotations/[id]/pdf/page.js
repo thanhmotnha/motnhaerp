@@ -356,18 +356,17 @@ export default function QuotationPDFPage() {
                     font-size: 12px;
                     display: flex;
                     justify-content: space-between;
+                    align-items: center;
                     letter-spacing: 0.5px;
                 }
-                /* Sub-category header */
-                .mn-cat-sub {
-                    background: ${BRAND.blue}0D;
-                    color: ${BRAND.blue};
-                    padding: 7px 14px;
-                    font-weight: 700;
+                .mn-cat-main .mn-space-name {
+                    background: rgba(255,255,255,0.2);
+                    border: 1.5px solid #fff;
+                    padding: 3px 14px;
+                    font-weight: 800;
                     font-size: 11px;
-                    display: flex;
-                    justify-content: space-between;
-                    border-left: 3px solid ${BRAND.gold};
+                    font-style: italic;
+                    letter-spacing: 1px;
                 }
                 .mn-sub-total td {
                     background: ${BRAND.blue}08;
@@ -588,16 +587,12 @@ export default function QuotationPDFPage() {
                             const groupTotal = subs.reduce((s, c) => s + (c.subtotal || 0), 0);
                             return (
                                 <div key={gi}>
-                                    {/* Main category header - Gold background */}
-                                    <div className="mn-cat-main" style={{ marginTop: gi > 0 ? 18 : 0 }}>
-                                        <span>#{gi + 1} {groupName}</span>
-                                        <span>{fmt(groupTotal)}</span>
-                                    </div>
                                     {subs.map((cat, ci) => (
                                         <div key={cat.id || ci}>
-                                            {/* Sub-category header */}
-                                            <div className="mn-cat-sub">
-                                                <span>{cat.name || `Khu vực ${ci + 1}`}</span>
+                                            {/* Main category + space name merged */}
+                                            <div className="mn-cat-main" style={{ marginTop: (gi > 0 || ci > 0) ? 18 : 0 }}>
+                                                <span>#{gi + 1}.{ci + 1} {groupName}</span>
+                                                <span className="mn-space-name">{cat.name || `Khu vực ${ci + 1}`}</span>
                                                 <span>{fmt(cat.subtotal)}</span>
                                             </div>
                                             <div className={cat.image ? 'mn-sub-layout' : ''}>

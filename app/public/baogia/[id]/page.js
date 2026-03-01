@@ -131,8 +131,8 @@ export default function PublicQuotationPage() {
                 .mn-table .amt { font-weight: 700; color: ${BRAND.blue}; }
                 .mn-table .item-img { width: 32px; height: 32px; object-fit: cover; border-radius: 3px; border: 1px solid ${BRAND.grey}; display: block; }
                 .mn-table .no-img { width: 32px; height: 32px; border-radius: 3px; border: 1px dashed ${BRAND.grey}; display: flex; align-items: center; justify-content: center; font-size: 12px; opacity: 0.3; }
-                .mn-cat-main { background: ${BRAND.gold}; color: #fff; padding: 9px 14px; font-weight: 800; font-size: 12px; display: flex; justify-content: space-between; letter-spacing: 0.5px; }
-                .mn-cat-sub { background: ${BRAND.blue}0D; color: ${BRAND.blue}; padding: 7px 14px; font-weight: 700; font-size: 11px; display: flex; justify-content: space-between; border-left: 3px solid ${BRAND.gold}; }
+                .mn-cat-main { background: ${BRAND.gold}; color: #fff; padding: 9px 14px; font-weight: 800; font-size: 12px; display: flex; justify-content: space-between; align-items: center; letter-spacing: 0.5px; }
+                .mn-cat-main .mn-space-name { background: rgba(255,255,255,0.2); border: 1.5px solid #fff; padding: 3px 14px; font-weight: 800; font-size: 11px; font-style: italic; letter-spacing: 1px; }
                 .mn-sub-total td { background: ${BRAND.blue}08; font-weight: 700; font-size: 11px; color: ${BRAND.blue}; border-top: 2px solid ${BRAND.gold}; }
                 .mn-desc { font-size: 9.5px; color: ${BRAND.textMid}; font-style: italic; }
                 .mn-notes { margin: 16px 0; border: 1px solid ${BRAND.gold}66; border-left: 3px solid ${BRAND.gold}; padding: 10px 14px; font-size: 11px; color: ${BRAND.textMid}; background: ${BRAND.gold}08; }
@@ -246,13 +246,12 @@ export default function PublicQuotationPage() {
                             const groupTotal = subs.reduce((s, c) => s + (c.subtotal || 0), 0);
                             return (
                                 <div key={gi}>
-                                    <div className="mn-cat-main" style={{ marginTop: gi > 0 ? 18 : 0 }}>
-                                        <span>#{gi + 1} {groupName}</span><span>{fmt(groupTotal)}</span>
-                                    </div>
                                     {subs.map((cat, ci) => (
                                         <div key={cat.id || ci}>
-                                            <div className="mn-cat-sub">
-                                                <span>{cat.name || `Khu vực ${ci + 1}`}</span><span>{fmt(cat.subtotal)}</span>
+                                            <div className="mn-cat-main" style={{ marginTop: (gi > 0 || ci > 0) ? 18 : 0 }}>
+                                                <span>#{gi + 1}.{ci + 1} {groupName}</span>
+                                                <span className="mn-space-name">{cat.name || `Khu vực ${ci + 1}`}</span>
+                                                <span>{fmt(cat.subtotal)}</span>
                                             </div>
                                             <table className="mn-table">
                                                 <thead><tr>
@@ -345,7 +344,7 @@ export default function PublicQuotationPage() {
                     </div>
                     <div className="mn-strip-right">{q.code} — {dateStr}</div>
                 </div>
-            </div>
+            </div >
         </>
     );
 }
