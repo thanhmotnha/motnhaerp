@@ -68,7 +68,14 @@ export const POST = withAuth(async (request, context, session) => {
             where: { id: data.parentDocumentId },
         });
         if (parent) {
-            data.version = parent.version + 1;
+            const rootId = parent.parentDocumentId || parent.id;
+            // Find max version in the chain
+            const maxVersion = await prisma.projectDocument.aggregate({
+                where: { OR: [{ id: rootId }, { parentDocumentId: rootId }] },
+                _max: { version: true },
+            });
+            data.version = (maxVersion._max.version || 1) + 1;
+            data.parentDocumentId = rootId; // Always point to root
             // Inherit folder from parent if not specified
             if (!data.folderId) data.folderId = parent.folderId;
         }

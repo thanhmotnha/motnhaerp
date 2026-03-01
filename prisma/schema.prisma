@@ -504,15 +504,16 @@ model ProjectDocument {
   category    String   @default("Khác")
   fileSize    Int      @default(0)
   fileUrl     String   @default("")
+  mimeType    String   @default("")
   uploadedBy  String   @default("")
   notes       String   @default("")
   version     Int      @default(1)
-  status      String   @default("Bản Nháp")
+  status      String   @default("Nháp")
   accessLevel String   @default("internal")
   folderId    String?
   folder      DocumentFolder? @relation(fields: [folderId], references: [id])
-  parentDocId String?
-  parentDoc   ProjectDocument? @relation("DocVersions", fields: [parentDocId], references: [id])
+  parentDocumentId String?
+  parentDoc   ProjectDocument? @relation("DocVersions", fields: [parentDocumentId], references: [id])
   versions    ProjectDocument[] @relation("DocVersions")
   customerId  String?
   customer    Customer? @relation(fields: [customerId], references: [id])
