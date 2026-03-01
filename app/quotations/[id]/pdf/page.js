@@ -336,14 +336,43 @@ export default function QuotationPDFPage() {
                 .mn-table .c { text-align: center; }
                 .mn-table .amt { font-weight: 700; color: ${BRAND.blue}; }
                 .mn-table .item-img {
-                    width: 32px; height: 32px; object-fit: cover;
+                    width: 44px; height: 44px; object-fit: cover;
                     border-radius: 3px; border: 1px solid ${BRAND.grey}; display: block;
                 }
                 .mn-table .no-img {
-                    width: 32px; height: 32px; border-radius: 3px;
+                    width: 44px; height: 44px; border-radius: 3px;
                     border: 1px dashed ${BRAND.grey}; display: flex;
                     align-items: center; justify-content: center;
                     font-size: 12px; opacity: 0.3;
+                }
+
+                /* Room image layout */
+                .mn-sub-layout {
+                    display: flex;
+                    gap: 12px;
+                }
+                .mn-sub-layout .mn-sub-table-area {
+                    flex: 1;
+                    min-width: 0;
+                }
+                .mn-sub-layout .mn-room-image-area {
+                    width: 260px;
+                    min-width: 260px;
+                    display: flex;
+                    flex-direction: column;
+                    gap: 8px;
+                }
+                .mn-room-img {
+                    width: 100%;
+                    border-radius: 4px;
+                    border: 2px solid ${BRAND.blue}20;
+                    object-fit: cover;
+                }
+                .mn-room-caption {
+                    font-size: 8px;
+                    color: ${BRAND.textMid};
+                    text-align: center;
+                    font-style: italic;
                 }
 
                 /* Category header (main group) */
@@ -613,44 +642,54 @@ export default function QuotationPDFPage() {
                                                 <span>{cat.name || `Khu vực ${ci + 1}`}</span>
                                                 <span>{fmt(cat.subtotal)}</span>
                                             </div>
-                                            <table className="mn-table">
-                                                <thead><tr>
-                                                    <th className="c" style={{ width: 28 }}>STT</th>
-                                                    <th className="c" style={{ width: 38 }}>Ảnh</th>
-                                                    <th>Hạng mục / Sản phẩm</th>
-                                                    <th>Diễn giải</th>
-                                                    <th className="c" style={{ width: 38 }}>ĐVT</th>
-                                                    <th className="r" style={{ width: 40 }}>Dài</th>
-                                                    <th className="r" style={{ width: 40 }}>Rộng</th>
-                                                    <th className="r" style={{ width: 40 }}>Cao</th>
-                                                    <th className="r" style={{ width: 40 }}>SL</th>
-                                                    <th className="r" style={{ width: 80 }}>Đơn giá</th>
-                                                    <th className="r" style={{ width: 88 }}>Thành tiền</th>
-                                                </tr></thead>
-                                                <tbody>
-                                                    {(cat.items || []).map((item, ii) => (
-                                                        <tr key={item.id || ii} style={{ background: ii % 2 === 1 ? '#fafbfc' : '#fff' }}>
-                                                            <td className="c" style={{ color: BRAND.textLight, fontSize: 9 }}>{ii + 1}</td>
-                                                            <td className="c">
-                                                                {item.image ? <img src={item.image} className="item-img" alt="" /> : <div className="no-img">—</div>}
-                                                            </td>
-                                                            <td style={{ fontWeight: 600, fontSize: 11 }}>{item.name}</td>
-                                                            <td><span className="mn-desc">{item.description || ''}</span></td>
-                                                            <td className="c">{item.unit}</td>
-                                                            <td className="r">{item.length ? fmtNum(item.length) : ''}</td>
-                                                            <td className="r">{item.width ? fmtNum(item.width) : ''}</td>
-                                                            <td className="r">{item.height ? fmtNum(item.height) : ''}</td>
-                                                            <td className="r">{fmtNum(item.quantity)}</td>
-                                                            <td className="r">{fmt(item.unitPrice)}</td>
-                                                            <td className="r amt">{fmt(item.amount)}</td>
-                                                        </tr>
-                                                    ))}
-                                                    <tr className="mn-sub-total">
-                                                        <td colSpan={10} className="r" style={{ paddingRight: 10 }}>Tổng {cat.name || `khu vực #${ci + 1}`}</td>
-                                                        <td className="r">{fmt(cat.subtotal)}</td>
-                                                    </tr>
-                                                </tbody>
-                                            </table>
+                                            <div className={cat.image ? 'mn-sub-layout' : ''}>
+                                                <div className="mn-sub-table-area">
+                                                    <table className="mn-table">
+                                                        <thead><tr>
+                                                            <th className="c" style={{ width: 28 }}>STT</th>
+                                                            <th className="c" style={{ width: 38 }}>Ảnh</th>
+                                                            <th>Hạng mục / Sản phẩm</th>
+                                                            <th>Diễn giải</th>
+                                                            <th className="c" style={{ width: 38 }}>ĐVT</th>
+                                                            <th className="r" style={{ width: 40 }}>Dài</th>
+                                                            <th className="r" style={{ width: 40 }}>Rộng</th>
+                                                            <th className="r" style={{ width: 40 }}>Cao</th>
+                                                            <th className="r" style={{ width: 40 }}>SL</th>
+                                                            <th className="r" style={{ width: 80 }}>Đơn giá</th>
+                                                            <th className="r" style={{ width: 88 }}>Thành tiền</th>
+                                                        </tr></thead>
+                                                        <tbody>
+                                                            {(cat.items || []).map((item, ii) => (
+                                                                <tr key={item.id || ii} style={{ background: ii % 2 === 1 ? '#fafbfc' : '#fff' }}>
+                                                                    <td className="c" style={{ color: BRAND.textLight, fontSize: 9 }}>{ii + 1}</td>
+                                                                    <td className="c">
+                                                                        {item.image ? <img src={item.image} className="item-img" alt="" /> : <div className="no-img">—</div>}
+                                                                    </td>
+                                                                    <td style={{ fontWeight: 600, fontSize: 11 }}>{item.name}</td>
+                                                                    <td><span className="mn-desc">{item.description || ''}</span></td>
+                                                                    <td className="c">{item.unit}</td>
+                                                                    <td className="r">{item.length ? fmtNum(item.length) : ''}</td>
+                                                                    <td className="r">{item.width ? fmtNum(item.width) : ''}</td>
+                                                                    <td className="r">{item.height ? fmtNum(item.height) : ''}</td>
+                                                                    <td className="r">{fmtNum(item.quantity)}</td>
+                                                                    <td className="r">{fmt(item.unitPrice)}</td>
+                                                                    <td className="r amt">{fmt(item.amount)}</td>
+                                                                </tr>
+                                                            ))}
+                                                            <tr className="mn-sub-total">
+                                                                <td colSpan={10} className="r" style={{ paddingRight: 10 }}>Tổng {cat.name || `khu vực #${ci + 1}`}</td>
+                                                                <td className="r">{fmt(cat.subtotal)}</td>
+                                                            </tr>
+                                                        </tbody>
+                                                    </table>
+                                                </div>
+                                                {cat.image && (
+                                                    <div className="mn-room-image-area">
+                                                        <img src={cat.image} className="mn-room-img" alt={cat.name || ''} />
+                                                        <div className="mn-room-caption">{cat.name || 'Hình ảnh phòng'}</div>
+                                                    </div>
+                                                )}
+                                            </div>
                                         </div>
                                     ))}
                                 </div>
