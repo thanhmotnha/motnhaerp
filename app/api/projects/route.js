@@ -4,6 +4,7 @@ import prisma from '@/lib/prisma';
 import { generateCode } from '@/lib/generateCode';
 import { NextResponse } from 'next/server';
 import { projectCreateSchema } from '@/lib/validations/project';
+import { createDefaultFolders } from '@/lib/defaultFolders';
 
 export const GET = withAuth(async (request) => {
     const { searchParams } = new URL(request.url);
@@ -37,11 +38,13 @@ export const POST = withAuth(async (request) => {
     const data = projectCreateSchema.parse(body);
 
     const code = await generateCode('project', 'DA');
-    const project = await prisma.project.create({
-        data: {
-            code,
-            ...data,
-        },
+
+    const project = await prisma.$transaction(async (tx) => {
+        const proj = await tx.project.create({
+            data: { code, ...data },
+        });
+        await createDefaultFolders(tx, proj.id);
+        return proj;
     });
 
     return NextResponse.json(project, { status: 201 });

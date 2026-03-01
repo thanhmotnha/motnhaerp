@@ -10,11 +10,27 @@ const ALLOWED_MIME_TYPES = [
     'image/webp',
     'image/gif',
     'application/pdf',
+    'application/msword',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    'application/vnd.ms-excel',
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    'image/svg+xml',
+    'application/zip',
+    'application/x-rar-compressed',
+    'application/vnd.rar',
+    'application/octet-stream', // for .dwg, .dxf
+];
+
+const ALLOWED_EXTENSIONS = [
+    '.jpg', '.jpeg', '.png', '.webp', '.gif', '.pdf',
+    '.doc', '.docx', '.xls', '.xlsx', '.svg',
+    '.zip', '.rar', '.dwg', '.dxf',
 ];
 
 const ALLOWED_UPLOAD_TYPES = ['products', 'library', 'proofs', 'documents'];
 
-const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
+const MAX_FILE_SIZE_DEFAULT = 5 * 1024 * 1024; // 5MB
+const MAX_FILE_SIZE_DOCUMENTS = 20 * 1024 * 1024; // 20MB
 
 export const POST = withAuth(async (request) => {
     const formData = await request.formData();
@@ -28,23 +44,26 @@ export const POST = withAuth(async (request) => {
         return NextResponse.json({ error: `Loại upload không hợp lệ. Cho phép: ${ALLOWED_UPLOAD_TYPES.join(', ')}` }, { status: 400 });
     }
 
-    // Validate MIME type
-    if (!ALLOWED_MIME_TYPES.includes(file.type)) {
-        return NextResponse.json({ error: 'Loại file không được hỗ trợ. Chỉ chấp nhận: JPEG, PNG, WebP, GIF, PDF' }, { status: 400 });
+    // Validate MIME type and extension
+    const ext = path.extname(file.name).toLowerCase();
+    if (!ALLOWED_MIME_TYPES.includes(file.type) && !ALLOWED_EXTENSIONS.includes(ext)) {
+        return NextResponse.json({ error: 'Loại file không được hỗ trợ' }, { status: 400 });
     }
 
-    // Validate file size
+    // Validate file size (documents allow 20MB, others 5MB)
+    const maxSize = type === 'documents' ? MAX_FILE_SIZE_DOCUMENTS : MAX_FILE_SIZE_DEFAULT;
+    const maxLabel = type === 'documents' ? '20MB' : '5MB';
     const bytes = await file.arrayBuffer();
-    if (bytes.byteLength > MAX_FILE_SIZE) {
-        return NextResponse.json({ error: 'File quá lớn (tối đa 5MB)' }, { status: 400 });
+    if (bytes.byteLength > maxSize) {
+        return NextResponse.json({ error: `File quá lớn (tối đa ${maxLabel})` }, { status: 400 });
     }
 
     const buffer = Buffer.from(bytes);
 
     // Sanitize filename
-    const ext = path.extname(file.name) || '.jpg';
-    const base = path.basename(file.name, ext).replace(/[^a-zA-Z0-9_-]/g, '_');
-    const filename = `${base}_${Date.now()}${ext}`;
+    const fileExt = ext || '.jpg';
+    const base = path.basename(file.name, fileExt).replace(/[^a-zA-Z0-9_-]/g, '_');
+    const filename = `${base}_${Date.now()}${fileExt}`;
 
     // Upload to R2 if configured, otherwise local filesystem
     if (isR2Configured) {

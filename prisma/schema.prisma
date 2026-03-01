@@ -93,6 +93,7 @@ model Project {
   expenses        ProjectExpense[]
   trackingLogs    TrackingLog[]
   documents       ProjectDocument[]
+  folders         DocumentFolder[]
   deletedAt       DateTime?
   createdAt       DateTime    @default(now())
   updatedAt       DateTime    @updatedAt
@@ -496,19 +497,44 @@ model TrackingLog {
   createdAt   DateTime @default(now())
 }
 
+model DocumentFolder {
+  id         String   @id @default(cuid())
+  name       String
+  order      Int      @default(0)
+  visibility String   @default("internal")
+  parentId   String?
+  parent     DocumentFolder?  @relation("FolderTree", fields: [parentId], references: [id])
+  children   DocumentFolder[] @relation("FolderTree")
+  projectId  String
+  project    Project  @relation(fields: [projectId], references: [id])
+  documents  ProjectDocument[]
+  createdAt  DateTime @default(now())
+}
+
 model ProjectDocument {
-  id          String   @id @default(cuid())
-  name        String
-  fileName    String   @default("")
-  category    String   @default("Khác")
-  fileSize    Int      @default(0)
-  uploadedBy  String   @default("")
-  notes       String   @default("")
-  customerId  String?
-  customer    Customer? @relation(fields: [customerId], references: [id])
-  projectId   String?
-  project     Project?  @relation(fields: [projectId], references: [id])
-  createdAt   DateTime @default(now())
+  id               String   @id @default(cuid())
+  name             String
+  fileName         String   @default("")
+  fileUrl          String   @default("")
+  mimeType         String   @default("")
+  category         String   @default("Khác")
+  fileSize         Int      @default(0)
+  status           String   @default("Nháp")
+  version          Int      @default(1)
+  uploadedBy       String   @default("")
+  notes            String   @default("")
+  parentDocumentId String?
+  parentDocument   ProjectDocument?  @relation("DocVersions", fields: [parentDocumentId], references: [id])
+  versions         ProjectDocument[] @relation("DocVersions")
+  folderId         String?
+  folder           DocumentFolder?   @relation(fields: [folderId], references: [id])
+  customerId       String?
+  customer         Customer? @relation(fields: [customerId], references: [id])
+  projectId        String?
+  project          Project?  @relation(fields: [projectId], references: [id])
+  deletedAt        DateTime?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
 }
 
 // ============ THƯ VIỆN HẠNG MỤC THI CÔNG ============

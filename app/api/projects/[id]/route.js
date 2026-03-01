@@ -21,7 +21,8 @@ export const GET = withAuth(async (request, { params }) => {
             purchaseOrders: { include: { items: true }, orderBy: { createdAt: 'desc' } },
             expenses: { orderBy: { date: 'desc' } },
             trackingLogs: { orderBy: { createdAt: 'desc' } },
-            documents: { orderBy: { createdAt: 'desc' } },
+            documents: { where: { parentDocumentId: null, deletedAt: null }, orderBy: { createdAt: 'desc' }, include: { folder: { select: { name: true } }, _count: { select: { versions: true } } } },
+            folders: { where: { parentId: null }, orderBy: { order: 'asc' }, include: { _count: { select: { documents: true } }, children: { orderBy: { order: 'asc' }, include: { _count: { select: { documents: true } } } } } },
         },
     });
     if (!project) return NextResponse.json({ error: 'Not found' }, { status: 404 });
@@ -82,6 +83,8 @@ export const DELETE = withAuth(async (request, { params }) => {
         await tx.projectExpense.deleteMany({ where: { projectId: id } });
         await tx.trackingLog.deleteMany({ where: { projectId: id } });
         await tx.projectDocument.deleteMany({ where: { projectId: id } });
+        await tx.documentFolder.deleteMany({ where: { parentId: { not: null }, projectId: id } });
+        await tx.documentFolder.deleteMany({ where: { projectId: id } });
         await tx.projectMilestone.deleteMany({ where: { projectId: id } });
         await tx.projectBudget.deleteMany({ where: { projectId: id } });
         await tx.contractorPayment.deleteMany({ where: { projectId: id } });

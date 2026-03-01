@@ -2,21 +2,35 @@ import { withAuth } from '@/lib/apiHandler';
 import prisma from '@/lib/prisma';
 import { parsePagination, paginatedResponse } from '@/lib/pagination';
 import { NextResponse } from 'next/server';
+import { documentCreateSchema } from '@/lib/validations/document';
 
 export const GET = withAuth(async (request) => {
     const { searchParams } = new URL(request.url);
     const { page, limit, skip } = parsePagination(searchParams);
     const projectId = searchParams.get('projectId');
     const customerId = searchParams.get('customerId');
+    const folderId = searchParams.get('folderId');
+    const status = searchParams.get('status');
     const search = searchParams.get('search') || '';
 
-    const where = {};
+    const where = {
+        parentDocumentId: null, // Only show latest (root) documents
+    };
     if (projectId) where.projectId = projectId;
     if (customerId) where.customerId = customerId;
+    if (status) where.status = status;
+
+    // folderId=null means unsorted, folderId=<id> means specific folder
+    if (folderId === 'null' || folderId === 'unsorted') {
+        where.folderId = null;
+    } else if (folderId) {
+        where.folderId = folderId;
+    }
+
     if (search) {
         where.OR = [
             { name: { contains: search, mode: 'insensitive' } },
-            { project: { name: { contains: search, mode: 'insensitive' } } },
+            { fileName: { contains: search, mode: 'insensitive' } },
         ];
     }
 
@@ -26,6 +40,8 @@ export const GET = withAuth(async (request) => {
             include: {
                 project: { select: { name: true, code: true } },
                 customer: { select: { name: true, code: true } },
+                folder: { select: { name: true } },
+                _count: { select: { versions: true } },
             },
             orderBy: { createdAt: 'desc' },
             skip,
@@ -37,16 +53,27 @@ export const GET = withAuth(async (request) => {
     return NextResponse.json(paginatedResponse(docs, total, { page, limit }));
 });
 
-export const POST = withAuth(async (request) => {
-    const data = await request.json();
-    const doc = await prisma.projectDocument.create({ data });
-    return NextResponse.json(doc);
-});
+export const POST = withAuth(async (request, context, session) => {
+    const body = await request.json();
+    const data = documentCreateSchema.parse(body);
 
-export const DELETE = withAuth(async (request) => {
-    const { searchParams } = new URL(request.url);
-    const id = searchParams.get('id');
-    if (!id) return NextResponse.json({ error: 'Missing id' }, { status: 400 });
-    await prisma.projectDocument.delete({ where: { id } });
-    return NextResponse.json({ success: true });
+    // Auto-fill uploadedBy from session
+    if (session?.user?.name) {
+        data.uploadedBy = session.user.name;
+    }
+
+    // If this is a new version of an existing document
+    if (data.parentDocumentId) {
+        const parent = await prisma.projectDocument.findUnique({
+            where: { id: data.parentDocumentId },
+        });
+        if (parent) {
+            data.version = parent.version + 1;
+            // Inherit folder from parent if not specified
+            if (!data.folderId) data.folderId = parent.folderId;
+        }
+    }
+
+    const doc = await prisma.projectDocument.create({ data });
+    return NextResponse.json(doc, { status: 201 });
 });

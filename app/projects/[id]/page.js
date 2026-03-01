@@ -1,6 +1,7 @@
 'use client';
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
+import DocumentManager from '@/components/documents/DocumentManager';
 const fmt = (n) => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(n);
 const fmtDate = (d) => d ? new Date(d).toLocaleDateString('vi-VN') : '—';
 const pct = (a, b) => b > 0 ? Math.round((a / b) * 100) : 0;
@@ -82,7 +83,6 @@ export default function ProjectDetailPage() {
     const [woForm, setWoForm] = useState({ title: '', category: 'Thi công', priority: 'Trung bình', assignee: '', dueDate: '', description: '' });
     const [expenseForm, setExpenseForm] = useState({ description: '', category: 'Vận chuyển', amount: '', submittedBy: '' });
     const [logForm, setLogForm] = useState({ type: 'Điện thoại', content: '', createdBy: '' });
-    const [docForm, setDocForm] = useState({ name: '', category: 'Khác', fileName: '', uploadedBy: '', notes: '' });
     const fetchData = () => { fetch(`/api/projects/${id}`).then(r => r.json()).then(d => { setData(d); setLoading(false); }); };
     useEffect(fetchData, [id]);
 
@@ -114,10 +114,6 @@ export default function ProjectDetailPage() {
     const createTrackingLog = async () => {
         await fetch('/api/tracking-logs', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...logForm, projectId: id }) });
         setModal(null); setLogForm({ type: 'Điện thoại', content: '', createdBy: '' }); fetchData();
-    };
-    const createDocument = async () => {
-        await fetch('/api/project-documents', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...docForm, projectId: id }) });
-        setModal(null); setDocForm({ name: '', category: 'Khác', fileName: '', uploadedBy: '', notes: '' }); fetchData();
     };
 
     // PO from materials
@@ -646,25 +642,7 @@ export default function ProjectDetailPage() {
             )}
 
             {/* TAB: Tài liệu */}
-            {tab === 'documents' && (
-                <div className="card">
-                    <div className="card-header"><span className="card-title">📁 Tài liệu dự án</span><button className="btn btn-primary btn-sm" onClick={() => setModal('document')}>+ Thêm tài liệu</button></div>
-                    <div className="table-container"><table className="data-table">
-                        <thead><tr><th>Tên</th><th>Danh mục</th><th>File</th><th>Kích thước</th><th>Người upload</th><th>Ngày</th></tr></thead>
-                        <tbody>{p.documents.map(doc => (
-                            <tr key={doc.id}>
-                                <td className="primary">{doc.name}</td>
-                                <td><span className={`badge ${doc.category === 'Bản vẽ' ? 'info' : doc.category === 'Hợp đồng' ? 'purple' : doc.category === 'Ảnh thi công' ? 'success' : 'muted'}`}>{doc.category}</span></td>
-                                <td style={{ fontSize: 12, color: 'var(--text-accent)' }}>{doc.fileName || '—'}</td>
-                                <td style={{ fontSize: 12 }}>{doc.fileSize > 0 ? `${(doc.fileSize / 1024 / 1024).toFixed(1)} MB` : '—'}</td>
-                                <td style={{ fontSize: 12 }}>{doc.uploadedBy || '—'}</td>
-                                <td style={{ fontSize: 12 }}>{fmtDate(doc.createdAt)}</td>
-                            </tr>
-                        ))}</tbody>
-                    </table></div>
-                    {p.documents.length === 0 && <div style={{ color: 'var(--text-muted)', padding: 24, textAlign: 'center' }}>Chưa có tài liệu</div>}
-                </div>
-            )}
+            {tab === 'documents' && <DocumentManager projectId={id} onRefresh={fetchData} />}
 
             {/* MODALS */}
             {modal === 'contract' && (
@@ -774,25 +752,6 @@ export default function ProjectDetailPage() {
                             <div className="form-group"><label className="form-label">Người ghi</label><input className="form-input" value={logForm.createdBy} onChange={e => setLogForm({ ...logForm, createdBy: e.target.value })} /></div>
                         </div>
                         <div className="modal-footer"><button className="btn btn-ghost" onClick={() => setModal(null)}>Hủy</button><button className="btn btn-primary" onClick={createTrackingLog}>Lưu</button></div>
-                    </div>
-                </div>
-            )}
-            {modal === 'document' && (
-                <div className="modal-overlay" onClick={() => setModal(null)}>
-                    <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 500 }}>
-                        <div className="modal-header"><h3>Thêm tài liệu</h3><button className="modal-close" onClick={() => setModal(null)}>×</button></div>
-                        <div className="modal-body">
-                            <div className="form-group"><label className="form-label">Tên tài liệu *</label><input className="form-input" value={docForm.name} onChange={e => setDocForm({ ...docForm, name: e.target.value })} /></div>
-                            <div className="form-row">
-                                <div className="form-group"><label className="form-label">Danh mục</label><select className="form-select" value={docForm.category} onChange={e => setDocForm({ ...docForm, category: e.target.value })}><option>Bản vẽ</option><option>Hợp đồng</option><option>Ảnh thi công</option><option>Nghiệm thu</option><option>Bảo hành</option><option>Khác</option></select></div>
-                                <div className="form-group"><label className="form-label">Tên file</label><input className="form-input" value={docForm.fileName} onChange={e => setDocForm({ ...docForm, fileName: e.target.value })} placeholder="vd: ban-ve-v2.pdf" /></div>
-                            </div>
-                            <div className="form-row">
-                                <div className="form-group"><label className="form-label">Người upload</label><input className="form-input" value={docForm.uploadedBy} onChange={e => setDocForm({ ...docForm, uploadedBy: e.target.value })} /></div>
-                            </div>
-                            <div className="form-group"><label className="form-label">Ghi chú</label><textarea className="form-input" rows={2} value={docForm.notes} onChange={e => setDocForm({ ...docForm, notes: e.target.value })} /></div>
-                        </div>
-                        <div className="modal-footer"><button className="btn btn-ghost" onClick={() => setModal(null)}>Hủy</button><button className="btn btn-primary" onClick={createDocument}>Lưu</button></div>
                     </div>
                 </div>
             )}
