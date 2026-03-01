@@ -114,7 +114,8 @@ export default function QuotationPDFPage() {
     }, [id]);
 
     const copyLink = () => {
-        navigator.clipboard.writeText(window.location.href);
+        const publicUrl = `${window.location.origin}/public/baogia/${id}`;
+        navigator.clipboard.writeText(publicUrl);
         setCopied(true);
         setTimeout(() => setCopied(false), 2000);
     };
