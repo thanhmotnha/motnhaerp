@@ -1,36 +1,57 @@
+import { withAuth } from '@/lib/apiHandler';
 import { NextResponse } from 'next/server';
 import { writeFile, mkdir } from 'fs/promises';
 import path from 'path';
 
-export async function POST(request) {
-    try {
-        const formData = await request.formData();
-        const file = formData.get('file');
-        const type = formData.get('type') || 'products'; // 'products' | 'library'
+const ALLOWED_MIME_TYPES = [
+    'image/jpeg',
+    'image/png',
+    'image/webp',
+    'image/gif',
+    'application/pdf',
+];
 
-        if (!file) return NextResponse.json({ error: 'No file' }, { status: 400 });
+const ALLOWED_UPLOAD_TYPES = ['products', 'library', 'proofs', 'documents'];
 
-        const bytes = await file.arrayBuffer();
-        const buffer = Buffer.from(bytes);
+const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
 
-        // Ensure upload dir exists
-        const uploadDir = path.join(process.cwd(), 'public', 'uploads', type);
-        await mkdir(uploadDir, { recursive: true });
+export const POST = withAuth(async (request) => {
+    const formData = await request.formData();
+    const file = formData.get('file');
+    const type = formData.get('type') || 'products';
 
-        // Sanitize filename
-        const ext = path.extname(file.name) || '.jpg';
-        const base = path.basename(file.name, ext).replace(/[^a-zA-Z0-9_-]/g, '_');
-        const filename = `${base}_${Date.now()}${ext}`;
-        const filepath = path.join(uploadDir, filename);
+    if (!file) return NextResponse.json({ error: 'No file' }, { status: 400 });
 
-        await writeFile(filepath, buffer);
-
-        const url = `/uploads/${type}/${filename}`;
-        return NextResponse.json({ url });
-    } catch (e) {
-        console.error('Upload error:', e);
-        return NextResponse.json({ error: e.message }, { status: 500 });
+    // Validate upload type
+    if (!ALLOWED_UPLOAD_TYPES.includes(type)) {
+        return NextResponse.json({ error: `Loại upload không hợp lệ. Cho phép: ${ALLOWED_UPLOAD_TYPES.join(', ')}` }, { status: 400 });
     }
-}
 
-export const config = { api: { bodyParser: false } };
+    // Validate MIME type
+    if (!ALLOWED_MIME_TYPES.includes(file.type)) {
+        return NextResponse.json({ error: 'Loại file không được hỗ trợ. Chỉ chấp nhận: JPEG, PNG, WebP, GIF, PDF' }, { status: 400 });
+    }
+
+    // Validate file size
+    const bytes = await file.arrayBuffer();
+    if (bytes.byteLength > MAX_FILE_SIZE) {
+        return NextResponse.json({ error: 'File quá lớn (tối đa 5MB)' }, { status: 400 });
+    }
+
+    const buffer = Buffer.from(bytes);
+
+    // Ensure upload dir exists
+    const uploadDir = path.join(process.cwd(), 'public', 'uploads', type);
+    await mkdir(uploadDir, { recursive: true });
+
+    // Sanitize filename
+    const ext = path.extname(file.name) || '.jpg';
+    const base = path.basename(file.name, ext).replace(/[^a-zA-Z0-9_-]/g, '_');
+    const filename = `${base}_${Date.now()}${ext}`;
+    const filepath = path.join(uploadDir, filename);
+
+    await writeFile(filepath, buffer);
+
+    const url = `/uploads/${type}/${filename}`;
+    return NextResponse.json({ url });
+});

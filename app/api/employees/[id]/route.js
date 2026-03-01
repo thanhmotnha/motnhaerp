@@ -1,21 +1,21 @@
+import { withAuth } from '@/lib/apiHandler';
 import prisma from '@/lib/prisma';
 import { NextResponse } from 'next/server';
+import { employeeUpdateSchema } from '@/lib/validations/employee';
 
-export async function PUT(request, { params }) {
+export const PUT = withAuth(async (request, { params }) => {
     const { id } = await params;
-    const data = await request.json();
+    const body = await request.json();
+    const data = employeeUpdateSchema.parse(body);
     const employee = await prisma.employee.update({ where: { id }, data });
     return NextResponse.json(employee);
-}
+});
 
-export async function DELETE(request, { params }) {
-    try {
-        const { id } = await params;
-        await prisma.projectEmployee.deleteMany({ where: { employeeId: id } });
-        await prisma.employee.delete({ where: { id } });
-        return NextResponse.json({ success: true });
-    } catch (e) {
-        console.error('Delete employee error:', e);
-        return NextResponse.json({ error: e.message }, { status: 500 });
-    }
-}
+export const DELETE = withAuth(async (request, { params }) => {
+    const { id } = await params;
+    await prisma.$transaction([
+        prisma.projectEmployee.deleteMany({ where: { employeeId: id } }),
+        prisma.employee.delete({ where: { id } }),
+    ]);
+    return NextResponse.json({ success: true });
+});

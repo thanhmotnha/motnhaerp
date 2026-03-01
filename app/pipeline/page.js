@@ -18,7 +18,7 @@ export default function PipelinePage() {
     const [loading, setLoading] = useState(true);
     const [selectedStage, setSelectedStage] = useState(null);
 
-    useEffect(() => { fetch('/api/projects').then(r => r.json()).then(d => { setProjects(d); setLoading(false); }); }, []);
+    useEffect(() => { fetch('/api/projects?limit=1000').then(r => r.json()).then(d => { setProjects(d.data || []); setLoading(false); }); }, []);
 
     const stageCounts = PIPELINE_STAGES.map(stage => ({
         ...stage,

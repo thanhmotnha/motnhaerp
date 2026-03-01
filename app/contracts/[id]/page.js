@@ -191,7 +191,7 @@ export default function ContractDetailPage() {
                 </span>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 340px', gap: 20 }}>
+            <div className="dashboard-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 340px', gap: 20 }}>
                 {/* LEFT */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
                     {/* Thông tin chung */}

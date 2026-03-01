@@ -1,7 +1,8 @@
+import { withAuth } from '@/lib/apiHandler';
 import prisma from '@/lib/prisma';
 import { NextResponse } from 'next/server';
 
-export async function GET(request, { params }) {
+export const GET = withAuth(async (request, { params }) => {
     const { code } = await params;
     const project = await prisma.project.findUnique({
         where: { code },
@@ -12,4 +13,4 @@ export async function GET(request, { params }) {
     });
     if (!project) return NextResponse.json({ error: 'Not found' }, { status: 404 });
     return NextResponse.json(project);
-}
+}, { public: true });

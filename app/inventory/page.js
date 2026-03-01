@@ -14,9 +14,9 @@ export default function InventoryPage() {
         const params = new URLSearchParams();
         if (filterType) params.set('type', filterType);
         if (activeWarehouse) params.set('warehouseId', activeWarehouse);
-        const res = await fetch(`/api/inventory?${params}`);
+        const res = await fetch(`/api/inventory?${params}&limit=1000`);
         const d = await res.json();
-        setData(d);
+        setData({ transactions: d.data || [], warehouses: d.warehouses || [] });
         setLoading(false);
     };
     useEffect(() => { fetchData(); }, [filterType, activeWarehouse]);
@@ -41,7 +41,7 @@ export default function InventoryPage() {
                     </select>
                 </div>
                 {loading ? <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-muted)' }}>Đang tải...</div> : (
-                    <table className="data-table">
+                    <div className="table-container"><table className="data-table">
                         <thead><tr><th>Mã PK</th><th>Loại</th><th>Sản phẩm</th><th>SL</th><th>Kho</th><th>Dự án</th><th>Ghi chú</th><th>Ngày</th></tr></thead>
                         <tbody>
                             {data.transactions.map(t => (
@@ -57,7 +57,7 @@ export default function InventoryPage() {
                                 </tr>
                             ))}
                         </tbody>
-                    </table>
+                    </table></div>
                 )}
             </div>
         </div>

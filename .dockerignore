@@ -1,0 +1,16 @@
+node_modules
+.next
+.git
+.env*
+!.env.example
+*.md
+.vscode
+coverage
+*.db
+*.db-journal
+public/uploads/
+.gitignore
+.eslintrc*
+tsconfig.json
+vitest.config.*
+__tests__

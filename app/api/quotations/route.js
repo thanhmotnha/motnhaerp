@@ -1,69 +1,87 @@
+import { withAuth } from '@/lib/apiHandler';
+import { parsePagination, paginatedResponse } from '@/lib/pagination';
 import prisma from '@/lib/prisma';
+import { generateCode } from '@/lib/generateCode';
 import { NextResponse } from 'next/server';
+import { quotationCreateSchema } from '@/lib/validations/quotation';
 
-export async function GET(request) {
+export const GET = withAuth(async (request) => {
     const { searchParams } = new URL(request.url);
+    const { page, limit, skip } = parsePagination(searchParams);
+
     const status = searchParams.get('status');
+    const search = searchParams.get('search');
     const where = {};
     if (status) where.status = status;
+    if (search) {
+        where.OR = [
+            { code: { contains: search, mode: 'insensitive' } },
+            { customer: { name: { contains: search, mode: 'insensitive' } } },
+        ];
+    }
 
-    const quotations = await prisma.quotation.findMany({
-        where,
-        include: {
-            customer: { select: { name: true } },
-            project: { select: { name: true } },
-            categories: { include: { items: true }, orderBy: { order: 'asc' } },
-            items: true,
-            _count: { select: { contracts: true } },
-        },
-        orderBy: { createdAt: 'desc' },
-    });
-    return NextResponse.json(quotations);
-}
+    const [quotations, total] = await Promise.all([
+        prisma.quotation.findMany({
+            where,
+            include: {
+                customer: { select: { name: true } },
+                project: { select: { name: true } },
+                categories: { include: { items: true }, orderBy: { order: 'asc' } },
+                items: true,
+                _count: { select: { contracts: true } },
+            },
+            orderBy: { createdAt: 'desc' },
+            skip,
+            take: limit,
+        }),
+        prisma.quotation.count({ where }),
+    ]);
 
-export async function POST(request) {
-    try {
-        const { categories, ...rawData } = await request.json();
-        const last = await prisma.quotation.findFirst({ orderBy: { code: 'desc' } });
-        const lastNum = last ? parseInt(last.code.replace(/\D/g, ''), 10) || 0 : 0;
-        const code = `BG${String(lastNum + 1).padStart(3, '0')}`;
+    return NextResponse.json(paginatedResponse(quotations, total, { page, limit }));
+});
 
-        // Whitelist + ép kiểu để tránh "Invalid invocation"
-        const data = {
-            code,
-            customerId: rawData.customerId,
-            projectId: rawData.projectId || null,
-            type: rawData.type || 'Thi công thô',
-            notes: rawData.notes || '',
-            status: rawData.status || 'Nháp',
-            vat: Number(rawData.vat) || 10,
-            discount: Number(rawData.discount) || 0,
-            managementFeeRate: Number(rawData.managementFeeRate) || 5,
-            managementFee: Number(rawData.managementFee) || 0,
-            designFee: Number(rawData.designFee) || 0,
-            otherFee: Number(rawData.otherFee) || 0,
-            directCost: Number(rawData.directCost) || 0,
-            total: Number(rawData.total) || 0,
-            grandTotal: Number(rawData.grandTotal) || 0,
-        };
+export const POST = withAuth(async (request) => {
+    const body = await request.json();
+    const { categories, ...validated } = quotationCreateSchema.parse(body);
 
-        // Step 1: Create quotation without nested items
-        const quotation = await prisma.quotation.create({ data });
+    const code = await generateCode('quotation', 'BG');
 
-        // Step 2: Create categories + items with explicit quotationId
+    const data = {
+        code,
+        customerId: validated.customerId,
+        projectId: validated.projectId || null,
+        type: validated.type || 'Thi công thô',
+        notes: validated.notes || '',
+        status: validated.status || 'Nháp',
+        vat: Number(validated.vat) || 10,
+        discount: Number(validated.discount) || 0,
+        managementFeeRate: Number(validated.managementFeeRate) || 5,
+        managementFee: Number(validated.managementFee) || 0,
+        designFee: Number(validated.designFee) || 0,
+        otherFee: Number(validated.otherFee) || 0,
+        directCost: Number(validated.directCost) || 0,
+        total: Number(validated.total) || 0,
+        grandTotal: Number(validated.grandTotal) || 0,
+    };
+
+    // Wrap in transaction to ensure atomicity
+    const result = await prisma.$transaction(async (tx) => {
+        const quotation = await tx.quotation.create({ data });
+
         if (categories && categories.length > 0) {
             for (let ci = 0; ci < categories.length; ci++) {
                 const cat = categories[ci];
-                const createdCat = await prisma.quotationCategory.create({
+                const createdCat = await tx.quotationCategory.create({
                     data: {
                         name: cat.name || '',
+                        group: cat.group || '',
                         order: ci,
                         subtotal: cat.subtotal || 0,
                         quotationId: quotation.id,
                     },
                 });
                 if (cat.items && cat.items.length > 0) {
-                    await prisma.quotationItem.createMany({
+                    await tx.quotationItem.createMany({
                         data: cat.items.map((item, ii) => ({
                             name: item.name || '',
                             order: ii,
@@ -88,16 +106,14 @@ export async function POST(request) {
             }
         }
 
-        const result = await prisma.quotation.findUnique({
+        return await tx.quotation.findUnique({
             where: { id: quotation.id },
             include: {
                 categories: { include: { items: true }, orderBy: { order: 'asc' } },
                 items: true,
             },
         });
-        return NextResponse.json(result, { status: 201 });
-    } catch (e) {
-        console.error('POST /api/quotations error:', e);
-        return NextResponse.json({ error: e.message }, { status: 500 });
-    }
-}
+    });
+
+    return NextResponse.json(result, { status: 201 });
+});

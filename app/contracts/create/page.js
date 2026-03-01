@@ -50,9 +50,9 @@ export default function CreateContractPage() {
     });
 
     useEffect(() => {
-        fetch('/api/customers').then(r => r.json()).then(setCustomers);
-        fetch('/api/projects').then(r => r.json()).then(setProjects);
-        fetch('/api/quotations').then(r => r.json()).then(setQuotations);
+        fetch('/api/customers?limit=1000').then(r => r.json()).then(d => setCustomers(d.data || []));
+        fetch('/api/projects?limit=1000').then(r => r.json()).then(d => setProjects(d.data || []));
+        fetch('/api/quotations?limit=1000').then(r => r.json()).then(d => setQuotations(d.data || []));
     }, []);
 
     // Auto-load template when type changes

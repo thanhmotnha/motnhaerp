@@ -23,7 +23,7 @@ export default function PaymentsPage() {
     const fetchAll = async () => {
         setLoading(true);
         const [cRes, rRes] = await Promise.all([
-            fetch('/api/contracts').then(r => r.json()),
+            fetch('/api/contracts?limit=1000').then(r => r.json()).then(d => d.data || []),
             fetch('/api/finance/receivables').then(r => r.json()),
         ]);
         setContracts(cRes);
@@ -226,7 +226,7 @@ ${[1, 2].map(copy => `
                             <div style={{ marginLeft: 'auto', fontSize: 12, color: 'var(--text-muted)' }}>{filteredContracts.length} hợp đồng</div>
                         </div>
                         {loading ? <div style={{ padding: 40, textAlign: 'center' }}>Đang tải...</div> : (
-                            <table className="data-table" style={{ margin: 0 }}>
+                            <div className="table-container"><table className="data-table" style={{ margin: 0 }}>
                                 <thead><tr><th>Mã HĐ</th><th>Tên</th><th>Khách hàng</th><th>Dự án</th><th>Loại</th><th>Giá trị</th><th>Đã thu</th><th>Còn nợ</th><th>Tỷ lệ</th></tr></thead>
                                 <tbody>{filteredContracts.map(c => {
                                     const rate = pct(c.paidAmount, c.contractValue);
@@ -250,7 +250,7 @@ ${[1, 2].map(copy => `
                                         </tr>
                                     );
                                 })}</tbody>
-                            </table>
+                            </table></div>
                         )}
                     </>
                 )}

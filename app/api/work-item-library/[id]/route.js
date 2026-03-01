@@ -1,25 +1,18 @@
+import { withAuth } from '@/lib/apiHandler';
 import prisma from '@/lib/prisma';
 import { NextResponse } from 'next/server';
+import { workItemLibraryUpdateSchema } from '@/lib/validations/workItemLibrary';
 
-export async function PUT(request, { params }) {
-    try {
-        const { id } = await params;
-        const data = await request.json();
-        const item = await prisma.workItemLibrary.update({ where: { id }, data });
-        return NextResponse.json(item);
-    } catch (e) {
-        console.error('WorkItemLibrary PUT error:', e);
-        return NextResponse.json({ error: e.message }, { status: 500 });
-    }
-}
+export const PUT = withAuth(async (request, { params }) => {
+    const { id } = await params;
+    const body = await request.json();
+    const validated = workItemLibraryUpdateSchema.parse(body);
+    const item = await prisma.workItemLibrary.update({ where: { id }, data: validated });
+    return NextResponse.json(item);
+});
 
-export async function DELETE(request, { params }) {
-    try {
-        const { id } = await params;
-        await prisma.workItemLibrary.delete({ where: { id } });
-        return NextResponse.json({ success: true });
-    } catch (e) {
-        console.error('WorkItemLibrary DELETE error:', e);
-        return NextResponse.json({ error: e.message }, { status: 500 });
-    }
-}
+export const DELETE = withAuth(async (request, { params }) => {
+    const { id } = await params;
+    await prisma.workItemLibrary.delete({ where: { id } });
+    return NextResponse.json({ success: true });
+});

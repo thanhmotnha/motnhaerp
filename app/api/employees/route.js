@@ -1,50 +1,46 @@
+import { withAuth } from '@/lib/apiHandler';
+import { parsePagination, paginatedResponse } from '@/lib/pagination';
 import prisma from '@/lib/prisma';
 import { generateCode } from '@/lib/generateCode';
 import { NextResponse } from 'next/server';
+import { employeeCreateSchema } from '@/lib/validations/employee';
 
-export async function GET(request) {
+export const GET = withAuth(async (request) => {
     const { searchParams } = new URL(request.url);
+    const { page, limit, skip } = parsePagination(searchParams);
     const departmentId = searchParams.get('departmentId');
     const search = searchParams.get('search');
 
     const where = {};
     if (departmentId) where.departmentId = departmentId;
-    if (search) where.name = { contains: search };
+    if (search) where.name = { contains: search, mode: 'insensitive' };
 
-    const employees = await prisma.employee.findMany({
-        where,
-        include: { department: { select: { name: true } } },
-        orderBy: { createdAt: 'desc' },
+    const [data, total, departments] = await Promise.all([
+        prisma.employee.findMany({
+            where,
+            include: { department: { select: { name: true } } },
+            skip,
+            take: limit,
+            orderBy: { createdAt: 'desc' },
+        }),
+        prisma.employee.count({ where }),
+        prisma.department.findMany({
+            include: { _count: { select: { employees: true } } },
+            orderBy: { name: 'asc' },
+        }),
+    ]);
+    return NextResponse.json({
+        ...paginatedResponse(data, total, { page, limit }),
+        departments,
     });
-    const departments = await prisma.department.findMany({
-        include: { _count: { select: { employees: true } } },
-        orderBy: { name: 'asc' },
-    });
-    return NextResponse.json({ employees, departments });
-}
+});
 
-export async function POST(request) {
-    try {
-        const data = await request.json();
-        if (!data.name?.trim()) return NextResponse.json({ error: 'Tên NV bắt buộc' }, { status: 400 });
-        if (!data.departmentId) return NextResponse.json({ error: 'Phòng ban bắt buộc' }, { status: 400 });
-        const code = await generateCode('employee', 'NV');
-        const employee = await prisma.employee.create({
-            data: {
-                code,
-                name: data.name.trim(),
-                position: data.position || '',
-                phone: data.phone || '',
-                email: data.email || '',
-                salary: Number(data.salary) || 0,
-                status: data.status || 'Đang làm',
-                joinDate: data.joinDate ? new Date(data.joinDate) : null,
-                departmentId: data.departmentId,
-            },
-        });
-        return NextResponse.json(employee, { status: 201 });
-    } catch (e) {
-        console.error('Create employee error:', e);
-        return NextResponse.json({ error: e.message }, { status: 500 });
-    }
-}
+export const POST = withAuth(async (request) => {
+    const body = await request.json();
+    const data = employeeCreateSchema.parse(body);
+    const code = await generateCode('employee', 'NV');
+    const employee = await prisma.employee.create({
+        data: { code, ...data },
+    });
+    return NextResponse.json(employee, { status: 201 });
+});

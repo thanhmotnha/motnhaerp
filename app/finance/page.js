@@ -1,11 +1,15 @@
 'use client';
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 
 const fmt = (n) => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(n || 0);
 const fmtDate = (d) => d ? new Date(d).toLocaleDateString('vi-VN') : '—';
 
 export default function FinancePage() {
+    return <Suspense><FinanceContent /></Suspense>;
+}
+
+function FinanceContent() {
     const searchParams = useSearchParams();
     const [activeTab, setActiveTab] = useState(searchParams.get('tab') || 'overview');
     const [summary, setSummary] = useState({});
@@ -266,7 +270,7 @@ ${[1, 2].map(copy => `
                 {/* TAB: Tổng quan */}
                 {activeTab === 'overview' && (
                     <div className="card-body">
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
+                        <div className="dashboard-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
                             {/* Phải thu */}
                             <div className="card" style={{ border: '1px solid var(--border)' }}>
                                 <div className="card-header"><h3>📈 Công nợ phải thu</h3></div>
@@ -323,7 +327,7 @@ ${[1, 2].map(copy => `
                             </div>
                         </div>
                         {/* Thu chi khác */}
-                        <div style={{ marginTop: 20, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
+                        <div className="dashboard-grid" style={{ marginTop: 20, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
                             <div style={{ display: 'flex', justifyContent: 'space-between', padding: 14, background: 'var(--bg-secondary)', borderRadius: 8 }}>
                                 <span>Thu khác</span><span style={{ fontWeight: 700, color: 'var(--status-success)' }}>{fmt(summary.manualIncome)}</span>
                             </div>
@@ -416,7 +420,7 @@ ${[1, 2].map(copy => `
                 {/* TAB: Công nợ phải trả */}
                 {activeTab === 'payables' && (
                     <div className="card-body">
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
+                        <div className="dashboard-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
                             {/* Công nợ nhà thầu */}
                             <div className="card" style={{ border: '1px solid var(--border)' }}>
                                 <div className="card-header"><h3>👷 Công nợ nhà thầu</h3></div>
@@ -473,7 +477,7 @@ ${[1, 2].map(copy => `
                         {loading ? (
                             <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-muted)' }}>Đang tải...</div>
                         ) : (
-                            <table className="data-table" style={{ margin: 0 }}>
+                            <div className="table-container"><table className="data-table" style={{ margin: 0 }}>
                                 <thead><tr>
                                     <th>Mã GD</th><th>Loại</th><th>Mô tả</th><th>Số tiền</th><th>Danh mục</th><th>Dự án</th><th>Ngày</th>
                                 </tr></thead>
@@ -494,7 +498,7 @@ ${[1, 2].map(copy => `
                                             </tr>
                                         ))}
                                 </tbody>
-                            </table>
+                            </table></div>
                         )}
                     </>
                 )}

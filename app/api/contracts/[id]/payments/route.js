@@ -1,7 +1,8 @@
+import { withAuth } from '@/lib/apiHandler';
 import prisma from '@/lib/prisma';
 import { NextResponse } from 'next/server';
 
-export async function POST(request, { params }) {
+export const POST = withAuth(async (request, { params }) => {
     const { id } = await params;
     const data = await request.json();
     const payment = await prisma.contractPayment.create({
@@ -10,10 +11,10 @@ export async function POST(request, { params }) {
     const total = await prisma.contractPayment.aggregate({ where: { contractId: id }, _sum: { paidAmount: true } });
     await prisma.contract.update({ where: { id }, data: { paidAmount: total._sum.paidAmount || 0 } });
     return NextResponse.json(payment);
-}
+});
 
 // Batch replace all payment phases
-export async function PUT(request, { params }) {
+export const PUT = withAuth(async (request, { params }) => {
     const { id } = await params;
     const { phases } = await request.json();
     // Delete existing
@@ -34,4 +35,4 @@ export async function PUT(request, { params }) {
     }
     const payments = await prisma.contractPayment.findMany({ where: { contractId: id }, orderBy: { createdAt: 'asc' } });
     return NextResponse.json(payments);
-}
+});

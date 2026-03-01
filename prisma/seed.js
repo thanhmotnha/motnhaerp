@@ -1,10 +1,12 @@
 const { PrismaClient } = require('@prisma/client');
+const { hashSync } = require('bcryptjs');
 const prisma = new PrismaClient();
 
 async function main() {
-    console.log('🌱 Seeding database...');
+    console.log('Seeding database...');
 
     // Clean all tables
+    await prisma.user.deleteMany();
     await prisma.contractPayment.deleteMany();
     await prisma.contract.deleteMany();
     await prisma.workOrder.deleteMany();
@@ -29,6 +31,16 @@ async function main() {
     await prisma.contractor.deleteMany();
     await prisma.employee.deleteMany();
     await prisma.department.deleteMany();
+
+    // Users
+    const hashedPassword = hashSync('admin123', 10);
+    await Promise.all([
+        prisma.user.create({ data: { email: 'admin@motnha.vn', name: 'Admin', password: hashedPassword, role: 'giam_doc' } }),
+        prisma.user.create({ data: { email: 'pho@motnha.vn', name: 'Phó Giám đốc', password: hashedPassword, role: 'pho_gd' } }),
+        prisma.user.create({ data: { email: 'ketoan@motnha.vn', name: 'Kế toán', password: hashedPassword, role: 'ke_toan' } }),
+        prisma.user.create({ data: { email: 'kythuat@motnha.vn', name: 'Kỹ thuật', password: hashedPassword, role: 'ky_thuat' } }),
+    ]);
+    console.log('Users created');
 
     // Departments
     const deps = await Promise.all([

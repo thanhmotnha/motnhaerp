@@ -11,7 +11,7 @@ export default function PurchasingPage() {
     const [loading, setLoading] = useState(true);
     const [filterStatus, setFilterStatus] = useState('');
 
-    useEffect(() => { fetch('/api/purchase-orders').then(r => r.json()).then(d => { setOrders(d); setLoading(false); }); }, []);
+    useEffect(() => { fetch('/api/purchase-orders?limit=1000').then(r => r.json()).then(d => { setOrders(d.data || []); setLoading(false); }); }, []);
 
     const totalValue = orders.reduce((s, o) => s + o.totalAmount, 0);
     const totalPaid = orders.reduce((s, o) => s + o.paidAmount, 0);
@@ -42,7 +42,7 @@ export default function PurchasingPage() {
                     </div>
                 </div>
                 {loading ? <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-muted)' }}>Đang tải...</div> : (
-                    <table className="data-table">
+                    <div className="table-container"><table className="data-table">
                         <thead><tr><th>Mã PO</th><th>NCC</th><th>Dự án</th><th>Tổng tiền</th><th>Đã TT</th><th>Số SP</th><th>Ngày đặt</th><th>Giao hàng</th><th>Trạng thái</th></tr></thead>
                         <tbody>{filtered.map(o => {
                             const rate = pct(o.paidAmount, o.totalAmount);
@@ -65,7 +65,7 @@ export default function PurchasingPage() {
                                 </tr>
                             );
                         })}</tbody>
-                    </table>
+                    </table></div>
                 )}
                 {!loading && filtered.length === 0 && <div style={{ color: 'var(--text-muted)', padding: 24, textAlign: 'center' }}>Không có dữ liệu</div>}
             </div>

@@ -1,8 +1,9 @@
+import { withAuth } from '@/lib/apiHandler';
 import prisma from '@/lib/prisma';
 import { NextResponse } from 'next/server';
 
 // List all payment phases from all contracts (for finance receivables tab)
-export async function GET() {
+export const GET = withAuth(async (request) => {
     const payments = await prisma.contractPayment.findMany({
         include: {
             contract: {
@@ -25,4 +26,4 @@ export async function GET() {
         payments,
         summary: { totalReceivable, totalReceived, outstanding },
     });
-}
+});

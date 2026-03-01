@@ -12,8 +12,8 @@ export default function ProjectsPage() {
     const [customers, setCustomers] = useState([]);
     const [form, setForm] = useState({ name: '', type: 'Thiết kế kiến trúc', status: 'Khảo sát', address: '', area: '', floors: '', budget: '', customerId: '', designer: '', supervisor: '' });
     const router = useRouter();
-    const fetchProjects = () => { setLoading(true); fetch('/api/projects').then(r => r.json()).then(d => { setProjects(d); setLoading(false); }); };
-    useEffect(() => { fetchProjects(); fetch('/api/customers').then(r => r.json()).then(setCustomers); }, []);
+    const fetchProjects = () => { setLoading(true); fetch('/api/projects?limit=1000').then(r => r.json()).then(d => { setProjects(d.data || []); setLoading(false); }); };
+    useEffect(() => { fetchProjects(); fetch('/api/customers?limit=1000').then(r => r.json()).then(d => setCustomers(d.data || [])); }, []);
     const filtered = projects.filter(p => {
         if (filterStatus && p.status !== filterStatus) return false;
         if (filterType && p.type !== filterType) return false;
@@ -49,7 +49,7 @@ export default function ProjectsPage() {
                     <select className="form-select" value={filterStatus} onChange={e => setFilterStatus(e.target.value)}><option value="">Tất cả TT</option><option>Khảo sát</option><option>Thiết kế</option><option>Thi công</option><option>Nghiệm thu</option><option>Bàn giao</option></select>
                 </div>
                 {loading ? <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-muted)' }}>Đang tải...</div> : (
-                    <table className="data-table">
+                    <div className="table-container"><table className="data-table">
                         <thead><tr><th>Mã</th><th>Dự án</th><th>Khách hàng</th><th>Loại</th><th>Giá trị HĐ</th><th>Đã thu</th><th>Tiến độ</th><th>TT</th><th></th></tr></thead>
                         <tbody>{filtered.map(p => (
                             <tr key={p.id} onClick={() => router.push(`/projects/${p.id}`)} style={{ cursor: 'pointer' }}>
@@ -64,7 +64,7 @@ export default function ProjectsPage() {
                                 <td><button className="btn btn-ghost" onClick={(e) => handleDelete(p.id, e)}>🗑️</button></td>
                             </tr>
                         ))}</tbody>
-                    </table>
+                    </table></div>
                 )}
             </div>
 

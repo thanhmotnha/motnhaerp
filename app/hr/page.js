@@ -12,10 +12,10 @@ export default function HRPage() {
         setLoading(true);
         const p = new URLSearchParams();
         if (filterDept) p.set('departmentId', filterDept);
-        const res = await fetch(`/api/employees?${p}`);
+        const res = await fetch(`/api/employees?${p}&limit=1000`);
         const d = await res.json();
-        setData(d); setLoading(false);
-        if (!form.departmentId && d.departments.length) setForm(f => ({ ...f, departmentId: d.departments[0].id }));
+        setData({ employees: d.data || [], departments: d.departments || [] }); setLoading(false);
+        if (!form.departmentId && d.departments?.length) setForm(f => ({ ...f, departmentId: d.departments[0].id }));
     };
     useEffect(() => { fetchData(); }, [filterDept]);
     const handleSubmit = async () => {
@@ -39,12 +39,12 @@ export default function HRPage() {
                 <div className="card-header"><h3>Nhân viên</h3><button className="btn btn-primary" onClick={() => setShowModal(true)}>+ Thêm NV</button></div>
                 <div className="filter-bar"><input type="text" className="form-input" placeholder="Tìm kiếm..." value={search} onChange={e => setSearch(e.target.value)} style={{ maxWidth: 250 }} /></div>
                 {loading ? <div style={{ padding: 40, textAlign: 'center' }}>Đang tải...</div> : (
-                    <table className="data-table">
+                    <div className="table-container"><table className="data-table">
                         <thead><tr><th>Mã</th><th>Họ tên</th><th>Chức vụ</th><th>Phòng ban</th><th>SĐT</th><th>Lương</th><th>TT</th><th></th></tr></thead>
                         <tbody>{filtered.map(e => (
                             <tr key={e.id}><td className="accent">{e.code}</td><td className="primary">{e.name}</td><td>{e.position}</td><td><span className="badge badge-info">{e.department?.name}</span></td><td>{e.phone}</td><td>{fmt(e.salary)}</td><td><span className={`badge ${e.status === 'Đang làm' ? 'badge-success' : 'badge-default'}`}>{e.status}</span></td><td><button className="btn btn-ghost" onClick={() => handleDelete(e.id)}>🗑️</button></td></tr>
                         ))}</tbody>
-                    </table>
+                    </table></div>
                 )}
             </div>
             {showModal && (

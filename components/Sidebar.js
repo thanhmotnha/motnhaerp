@@ -1,17 +1,16 @@
 'use client';
 
-import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
     LayoutDashboard, GitBranch, Users, Building2, FileText,
     Package, ClipboardList, Wrench, CreditCard, Receipt,
-    ShoppingCart, HardHat, Warehouse, Wallet, UserCog,
-    BarChart3, ChevronRight, Truck, Shield
+    ShoppingCart, Truck, Warehouse, Wallet, UserCog,
+    BarChart3, ChevronRight, Shield, X
 } from 'lucide-react';
 import { useRole, ROLES } from '@/contexts/RoleContext';
 
-const menuConfig = [
+const menuItems = [
     {
         section: 'Tổng quan', items: [
             { href: '/', icon: LayoutDashboard, label: 'Dashboard' },
@@ -20,8 +19,8 @@ const menuConfig = [
     },
     {
         section: 'Quản lý', items: [
-            { href: '/customers', icon: Users, label: 'Khách hàng', badgeKey: 'customers', roles: ['giam_doc', 'pho_gd', 'ke_toan'] },
-            { href: '/projects', icon: Building2, label: 'Dự án', badgeKey: 'projects' },
+            { href: '/customers', icon: Users, label: 'Khách hàng', badge: 3, roles: ['giam_doc', 'pho_gd', 'ke_toan'] },
+            { href: '/projects', icon: Building2, label: 'Dự án', badge: 4 },
             { href: '/contracts', icon: FileText, label: 'Hợp đồng', roles: ['giam_doc', 'pho_gd', 'ke_toan'] },
             { href: '/products', icon: Package, label: 'Sản phẩm & Vật tư' },
             { href: '/quotations', icon: ClipboardList, label: 'Báo giá', roles: ['giam_doc', 'pho_gd', 'ke_toan'] },
@@ -46,31 +45,36 @@ const menuConfig = [
     },
 ];
 
-export default function Sidebar() {
+export default function Sidebar({ isOpen, onClose }) {
     const pathname = usePathname();
-    const { role, roleInfo, switchRole } = useRole();
-    const [counts, setCounts] = useState({});
+    const { role, roleInfo } = useRole();
 
-    useEffect(() => {
-        fetch('/api/dashboard')
-            .then(r => r.json())
-            .then(d => {
-                if (d.stats) setCounts({ customers: d.stats.customers, projects: d.stats.projects });
-            })
-            .catch(() => { });
-    }, [pathname]);
+    const handleNavClick = () => {
+        // Close sidebar on mobile after navigating
+        if (window.innerWidth <= 768) {
+            onClose();
+        }
+    };
 
     return (
-        <aside className="sidebar">
+        <aside className={`sidebar ${isOpen ? 'open' : ''}`} role="navigation" aria-label="Menu chính">
             <div className="sidebar-brand">
                 <div className="brand-icon">H</div>
                 <div className="brand-text">
                     <span className="brand-name">HomeERP</span>
                     <span className="brand-sub">Nội thất & Xây dựng</span>
                 </div>
+                <button
+                    className="mobile-menu-btn"
+                    onClick={onClose}
+                    aria-label="Đóng menu"
+                    style={{ marginLeft: 'auto', color: 'rgba(255,255,255,0.7)' }}
+                >
+                    <X size={20} />
+                </button>
             </div>
             <nav className="sidebar-nav">
-                {menuConfig.map((section) => {
+                {menuItems.map((section) => {
                     const visibleItems = section.items.filter(item => !item.roles || item.roles.includes(role));
                     if (visibleItems.length === 0) return null;
                     return (
@@ -79,18 +83,19 @@ export default function Sidebar() {
                             {visibleItems.map((item) => {
                                 const Icon = item.icon;
                                 const isActive = item.href === '/' ? pathname === '/' : pathname.startsWith(item.href);
-                                const badge = item.badgeKey ? counts[item.badgeKey] : null;
                                 return (
                                     <Link
                                         key={item.href}
                                         href={item.href}
                                         className={`nav-item ${isActive ? 'active' : ''}`}
+                                        aria-current={isActive ? 'page' : undefined}
+                                        onClick={handleNavClick}
                                     >
                                         <span className="nav-icon">
                                             <Icon size={18} strokeWidth={isActive ? 2 : 1.5} />
                                         </span>
                                         <span>{item.label}</span>
-                                        {badge > 0 && <span className="nav-badge">{badge}</span>}
+                                        {item.badge && <span className="nav-badge">{item.badge}</span>}
                                         {isActive && <ChevronRight size={14} className="nav-arrow" />}
                                     </Link>
                                 );
@@ -100,23 +105,17 @@ export default function Sidebar() {
                 })}
             </nav>
 
-            {/* Role Switcher */}
-            <div style={{ padding: '12px 16px', borderTop: '1px solid var(--border)', marginTop: 'auto' }}>
-                <div style={{ fontSize: 10, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 6, display: 'flex', alignItems: 'center', gap: 4 }}>
+            <div style={{ padding: '12px 16px', borderTop: '1px solid rgba(255,255,255,0.08)', marginTop: 'auto' }}>
+                <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.5)', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 6, display: 'flex', alignItems: 'center', gap: 4 }}>
                     <Shield size={12} /> Vai trò
                 </div>
-                <select
-                    value={role}
-                    onChange={e => switchRole(e.target.value)}
-                    style={{
-                        width: '100%', padding: '8px 10px', borderRadius: 8,
-                        border: '1px solid var(--border)', background: 'var(--bg-secondary)',
-                        color: roleInfo.color, fontWeight: 600, fontSize: 12,
-                        cursor: 'pointer', outline: 'none',
-                    }}
-                >
-                    {ROLES.map(r => <option key={r.key} value={r.key}>{r.icon} {r.label}</option>)}
-                </select>
+                <div style={{
+                    padding: '8px 10px', borderRadius: 8,
+                    background: 'rgba(255,255,255,0.06)',
+                    color: roleInfo.color, fontWeight: 600, fontSize: 12,
+                }}>
+                    {roleInfo.icon} {roleInfo.label}
+                </div>
             </div>
         </aside>
     );

@@ -50,8 +50,8 @@ export default function ProductsPage() {
     const imgUpRef = useRef(null);      // hidden input for product image
     const imgUpTarget = useRef(null);   // 'new' | {id}
 
-    const fetchProducts = () => { setLoadingP(true); fetch('/api/products').then(r => r.json()).then(d => { setProducts(d); setLoadingP(false); }); };
-    const fetchLibrary = () => { setLoadingL(true); fetch('/api/work-item-library').then(r => r.json()).then(d => { setLibrary(d); setLoadingL(false); }); };
+    const fetchProducts = () => { setLoadingP(true); fetch('/api/products?limit=1000').then(r => r.json()).then(d => { setProducts(d.data || []); setLoadingP(false); }); };
+    const fetchLibrary = () => { setLoadingL(true); fetch('/api/work-item-library?limit=1000').then(r => r.json()).then(d => { setLibrary(d.data || []); setLoadingL(false); }); };
     useEffect(() => { fetchProducts(); fetchLibrary(); }, []);
 
     // Global paste listener: click ô ảnh → paste ảnh từ clipboard
@@ -274,7 +274,7 @@ export default function ProductsPage() {
             {/* ===== PRODUCTS ===== */}
             {tab === 'products' && (
                 <div>
-                    <div className="stats-grid" style={{ gridTemplateColumns: 'repeat(4, 1fr)', marginBottom: 16 }}>
+                    <div className="stats-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', marginBottom: 16 }}>
                         <div className="stat-card"><div className="stat-icon">📦</div><div><div className="stat-value">{products.length}</div><div className="stat-label">Tổng SP</div></div></div>
                         <div className="stat-card"><div className="stat-icon">📂</div><div><div className="stat-value">{pCats.length}</div><div className="stat-label">Danh mục</div></div></div>
                         <div className="stat-card"><div className="stat-icon">⚠️</div><div><div className="stat-value" style={{ color: lowStock > 0 ? 'var(--status-danger)' : '' }}>{lowStock}</div><div className="stat-label">Sắp hết</div></div></div>

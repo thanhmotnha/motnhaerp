@@ -1,7 +1,9 @@
+import { withAuth } from '@/lib/apiHandler';
 import prisma from '@/lib/prisma';
 import { NextResponse } from 'next/server';
+import { quotationUpdateSchema } from '@/lib/validations/quotation';
 
-export async function GET(request, { params }) {
+export const GET = withAuth(async (request, { params }) => {
     const { id } = await params;
     const quotation = await prisma.quotation.findUnique({
         where: { id },
@@ -17,48 +19,51 @@ export async function GET(request, { params }) {
     });
     if (!quotation) return NextResponse.json({ error: 'Not found' }, { status: 404 });
     return NextResponse.json(quotation);
-}
+});
 
-export async function PUT(request, { params }) {
-    try {
-        const { id } = await params;
-        const { categories, ...rawData } = await request.json();
+export const PUT = withAuth(async (request, { params }) => {
+    const { id } = await params;
+    const body = await request.json();
+    const { categories, ...validated } = quotationUpdateSchema.parse(body);
 
-        // Sanitize: chỉ lấy các field hợp lệ của Quotation, tránh Prisma error
-        const ALLOWED = ['customerId', 'projectId', 'type', 'notes', 'status', 'validUntil',
-            'vat', 'discount', 'managementFeeRate', 'managementFee', 'designFee', 'otherFee',
-            'adjustment', 'adjustmentType', 'adjustmentAmount',
-            'directCost', 'total', 'grandTotal'];
-        const data = {};
-        for (const key of ALLOWED) {
-            if (key in rawData) data[key] = rawData[key];
-        }
-        // projectId: "" → null để tránh FK error
-        if (!data.projectId) data.projectId = null;
+    // Sanitize: only take valid Quotation fields, avoid Prisma error
+    const ALLOWED = ['customerId', 'projectId', 'type', 'notes', 'status', 'validUntil',
+        'vat', 'discount', 'managementFeeRate', 'managementFee', 'designFee', 'otherFee',
+        'adjustment', 'adjustmentType', 'adjustmentAmount',
+        'directCost', 'total', 'grandTotal'];
+    const data = {};
+    for (const key of ALLOWED) {
+        if (key in validated) data[key] = validated[key];
+    }
+    // projectId: "" -> null to avoid FK error
+    if (!data.projectId) data.projectId = null;
 
+    // Wrap delete+recreate in a transaction
+    await prisma.$transaction(async (tx) => {
         // Delete old categories & items if rebuilding
         if (categories !== undefined) {
-            await prisma.quotationItem.deleteMany({ where: { quotationId: id } });
-            await prisma.quotationCategory.deleteMany({ where: { quotationId: id } });
+            await tx.quotationItem.deleteMany({ where: { quotationId: id } });
+            await tx.quotationCategory.deleteMany({ where: { quotationId: id } });
         }
 
         // Update quotation fields
-        await prisma.quotation.update({ where: { id }, data });
+        await tx.quotation.update({ where: { id }, data });
 
         // Recreate categories + items
         if (categories) {
             for (let ci = 0; ci < categories.length; ci++) {
                 const cat = categories[ci];
-                const created = await prisma.quotationCategory.create({
+                const created = await tx.quotationCategory.create({
                     data: {
                         name: cat.name || '',
+                        group: cat.group || '',
                         order: ci,
                         subtotal: cat.subtotal || 0,
                         quotationId: id,
                     },
                 });
                 if (cat.items && cat.items.length > 0) {
-                    await prisma.quotationItem.createMany({
+                    await tx.quotationItem.createMany({
                         data: cat.items.map((item, ii) => ({
                             name: item.name || '',
                             order: item.order ?? ii,
@@ -82,31 +87,29 @@ export async function PUT(request, { params }) {
                 }
             }
         }
+    });
 
-        const result = await prisma.quotation.findUnique({
-            where: { id },
-            include: {
-                customer: true,
-                project: true,
-                categories: { include: { items: true }, orderBy: { order: 'asc' } },
-                items: true,
-            },
-        });
-        return NextResponse.json(result);
-    } catch (e) {
-        console.error('PUT /api/quotations/[id] error:', e.message, e);
-        return NextResponse.json({ error: e.message }, { status: 500 });
-    }
-}
+    const result = await prisma.quotation.findUnique({
+        where: { id },
+        include: {
+            customer: true,
+            project: true,
+            categories: { include: { items: true }, orderBy: { order: 'asc' } },
+            items: true,
+        },
+    });
 
-export async function DELETE(request, { params }) {
-    try {
-        const { id } = await params;
-        await prisma.quotationItem.deleteMany({ where: { quotationId: id } });
-        await prisma.quotationCategory.deleteMany({ where: { quotationId: id } });
-        await prisma.quotation.delete({ where: { id } });
-        return NextResponse.json({ success: true });
-    } catch (e) {
-        return NextResponse.json({ error: e.message }, { status: 500 });
-    }
-}
+    return NextResponse.json(result);
+});
+
+export const DELETE = withAuth(async (request, { params }) => {
+    const { id } = await params;
+
+    await prisma.$transaction(async (tx) => {
+        await tx.quotationItem.deleteMany({ where: { quotationId: id } });
+        await tx.quotationCategory.deleteMany({ where: { quotationId: id } });
+        await tx.quotation.delete({ where: { id } });
+    });
+
+    return NextResponse.json({ success: true });
+});

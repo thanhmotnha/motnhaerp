@@ -38,10 +38,10 @@ export default function ExpensesPage() {
     const fetchData = async () => {
         setLoading(true);
         const [eRes, pRes, sRes, cRes] = await Promise.all([
-            fetch('/api/project-expenses').then(r => r.json()).catch(() => []),
-            fetch('/api/projects').then(r => r.json()).catch(() => []),
-            fetch('/api/suppliers').then(r => r.json()).catch(() => []),
-            fetch('/api/contractors').then(r => r.json()).catch(() => []),
+            fetch('/api/project-expenses?limit=1000').then(r => r.json()).then(d => d.data || []).catch(() => []),
+            fetch('/api/projects?limit=1000').then(r => r.json()).then(d => d.data || []).catch(() => []),
+            fetch('/api/suppliers?limit=1000').then(r => r.json()).then(d => d.data || []).catch(() => []),
+            fetch('/api/contractors?limit=1000').then(r => r.json()).then(d => d.data || []).catch(() => []),
         ]);
         setExpenses(eRes);
         setProjects(pRes);

@@ -15,7 +15,7 @@ export default function ContractsPage() {
     const [filterType, setFilterType] = useState('');
     const router = useRouter();
 
-    useEffect(() => { fetch('/api/contracts').then(r => r.json()).then(d => { setContracts(d); setLoading(false); }); }, []);
+    useEffect(() => { fetch('/api/contracts?limit=1000').then(r => r.json()).then(d => { setContracts(d.data || []); setLoading(false); }); }, []);
 
     const filtered = contracts.filter(c => {
         if (filterStatus && c.status !== filterStatus) return false;
@@ -48,7 +48,7 @@ export default function ContractsPage() {
             </div>
 
             {/* Type summary cards */}
-            <div style={{ display: 'flex', gap: 16, marginTop: 16, flexWrap: 'nowrap' }}>
+            <div style={{ display: 'flex', gap: 16, marginTop: 16, flexWrap: 'wrap' }}>
                 {typeGroups.map(g => (
                     <div key={g.type} className="stat-card" onClick={() => setFilterType(filterType === g.type ? '' : g.type)} style={{ cursor: 'pointer', flex: 1, minWidth: 0, border: filterType === g.type ? '2px solid var(--accent-primary)' : undefined, transition: 'border 0.2s' }}>
                         <div style={{ fontSize: 20 }}>{g.icon}</div>
@@ -74,7 +74,7 @@ export default function ContractsPage() {
                     </select>
                 </div>
                 {loading ? <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-muted)' }}>Đang tải...</div> : (
-                    <table className="data-table">
+                    <div className="table-container"><table className="data-table">
                         <thead><tr><th>Mã HĐ</th><th>Tên</th><th>Khách hàng</th><th>Dự án</th><th>Loại</th><th>Giá trị</th><th>Đã thu</th><th>Tỷ lệ</th><th>Đợt TT</th><th>Trạng thái</th></tr></thead>
                         <tbody>{filtered.map(c => {
                             const rate = pct(c.paidAmount, c.contractValue);
@@ -93,7 +93,7 @@ export default function ContractsPage() {
                                 </tr>
                             );
                         })}</tbody>
-                    </table>
+                    </table></div>
                 )}
             </div>
         </div>

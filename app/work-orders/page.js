@@ -11,7 +11,7 @@ export default function WorkOrdersPage() {
     const [filterPriority, setFilterPriority] = useState('');
     const router = useRouter();
 
-    const fetchOrders = () => { fetch('/api/work-orders').then(r => r.json()).then(d => { setOrders(d); setLoading(false); }); };
+    const fetchOrders = () => { fetch('/api/work-orders?limit=1000').then(r => r.json()).then(d => { setOrders(d.data || []); setLoading(false); }); };
     useEffect(fetchOrders, []);
 
     const updateStatus = async (id, status) => {
@@ -53,7 +53,7 @@ export default function WorkOrdersPage() {
                     </select>
                 </div>
                 {loading ? <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-muted)' }}>Đang tải...</div> : (
-                    <table className="data-table">
+                    <div className="table-container"><table className="data-table">
                         <thead><tr><th>Mã</th><th>Tiêu đề</th><th>Dự án</th><th>Loại</th><th>Ưu tiên</th><th>Người thực hiện</th><th>Hạn</th><th>Trạng thái</th></tr></thead>
                         <tbody>{filtered.map(wo => (
                             <tr key={wo.id}>
@@ -71,7 +71,7 @@ export default function WorkOrdersPage() {
                                 </td>
                             </tr>
                         ))}</tbody>
-                    </table>
+                    </table></div>
                 )}
             </div>
         </div>

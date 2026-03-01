@@ -1,7 +1,9 @@
+import { withAuth } from '@/lib/apiHandler';
 import prisma from '@/lib/prisma';
 import { NextResponse } from 'next/server';
+import { projectUpdateSchema } from '@/lib/validations/project';
 
-export async function GET(request, { params }) {
+export const GET = withAuth(async (request, { params }) => {
     const { id } = await params;
     const project = await prisma.project.findUnique({
         where: { id },
@@ -32,7 +34,7 @@ export async function GET(request, { params }) {
     const debtFromCustomer = project.contractValue - project.paidAmount;
     const debtToContractors = project.contractorPays.reduce((s, p) => s + (p.contractAmount - p.paidAmount), 0);
 
-    // Settlement (Quyết toán)
+    // Settlement (Quyet toan)
     const totalContractValue = project.contracts.reduce((s, c) => s + c.contractValue, 0);
     const totalVariation = project.contracts.reduce((s, c) => s + c.variationAmount, 0);
     const totalCollected = project.contracts.reduce((s, c) => s + c.paidAmount, 0);
@@ -56,38 +58,40 @@ export async function GET(request, { params }) {
         pnl: { income, expense, profit, profitMargin, debtFromCustomer, debtToContractors },
         settlement,
     });
-}
+});
 
-export async function PUT(request, { params }) {
+export const PUT = withAuth(async (request, { params }) => {
     const { id } = await params;
-    const data = await request.json();
+    const body = await request.json();
+    const data = projectUpdateSchema.parse(body);
+
     const project = await prisma.project.update({ where: { id }, data });
     return NextResponse.json(project);
-}
+});
 
-export async function DELETE(request, { params }) {
-    try {
-        const { id } = await params;
-        await prisma.contractPayment.deleteMany({ where: { contract: { projectId: id } } });
-        await prisma.contract.deleteMany({ where: { projectId: id } });
-        await prisma.workOrder.deleteMany({ where: { projectId: id } });
-        await prisma.materialPlan.deleteMany({ where: { projectId: id } });
-        await prisma.purchaseOrderItem.deleteMany({ where: { purchaseOrder: { projectId: id } } });
-        await prisma.purchaseOrder.deleteMany({ where: { projectId: id } });
-        await prisma.projectExpense.deleteMany({ where: { projectId: id } });
-        await prisma.trackingLog.deleteMany({ where: { projectId: id } });
-        await prisma.projectDocument.deleteMany({ where: { projectId: id } });
-        await prisma.projectMilestone.deleteMany({ where: { projectId: id } });
-        await prisma.projectBudget.deleteMany({ where: { projectId: id } });
-        await prisma.contractorPayment.deleteMany({ where: { projectId: id } });
-        await prisma.projectEmployee.deleteMany({ where: { projectId: id } });
-        await prisma.inventoryTransaction.deleteMany({ where: { projectId: id } });
-        await prisma.transaction.deleteMany({ where: { projectId: id } });
-        await prisma.quotationItem.deleteMany({ where: { quotation: { projectId: id } } });
-        await prisma.quotation.deleteMany({ where: { projectId: id } });
-        await prisma.project.delete({ where: { id } });
-        return NextResponse.json({ success: true });
-    } catch (e) {
-        return NextResponse.json({ error: e.message }, { status: 500 });
-    }
-}
+export const DELETE = withAuth(async (request, { params }) => {
+    const { id } = await params;
+
+    await prisma.$transaction(async (tx) => {
+        await tx.contractPayment.deleteMany({ where: { contract: { projectId: id } } });
+        await tx.contract.deleteMany({ where: { projectId: id } });
+        await tx.workOrder.deleteMany({ where: { projectId: id } });
+        await tx.materialPlan.deleteMany({ where: { projectId: id } });
+        await tx.purchaseOrderItem.deleteMany({ where: { purchaseOrder: { projectId: id } } });
+        await tx.purchaseOrder.deleteMany({ where: { projectId: id } });
+        await tx.projectExpense.deleteMany({ where: { projectId: id } });
+        await tx.trackingLog.deleteMany({ where: { projectId: id } });
+        await tx.projectDocument.deleteMany({ where: { projectId: id } });
+        await tx.projectMilestone.deleteMany({ where: { projectId: id } });
+        await tx.projectBudget.deleteMany({ where: { projectId: id } });
+        await tx.contractorPayment.deleteMany({ where: { projectId: id } });
+        await tx.projectEmployee.deleteMany({ where: { projectId: id } });
+        await tx.inventoryTransaction.deleteMany({ where: { projectId: id } });
+        await tx.transaction.deleteMany({ where: { projectId: id } });
+        await tx.quotationItem.deleteMany({ where: { quotation: { projectId: id } } });
+        await tx.quotation.deleteMany({ where: { projectId: id } });
+        await tx.project.delete({ where: { id } });
+    });
+
+    return NextResponse.json({ success: true });
+});
