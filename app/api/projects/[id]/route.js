@@ -28,27 +28,28 @@ export const GET = withAuth(async (request, { params }) => {
     if (!project) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
     // P&L
-    const income = project.paidAmount;
-    const expense = project.spent;
+    const income = project.paidAmount ?? 0;
+    const expense = project.spent ?? 0;
     const profit = income - expense;
     const profitMargin = income > 0 ? ((profit / income) * 100).toFixed(1) : 0;
-    const debtFromCustomer = project.contractValue - project.paidAmount;
-    const debtToContractors = project.contractorPays.reduce((s, p) => s + (p.contractAmount - p.paidAmount), 0);
+    const debtFromCustomer = (project.contractValue ?? 0) - income;
+    const debtToContractors = project.contractorPays.reduce((s, p) => s + ((p.contractAmount ?? 0) - (p.paidAmount ?? 0)), 0);
 
     // Settlement (Quyet toan)
-    const totalContractValue = project.contracts.reduce((s, c) => s + c.contractValue, 0);
-    const totalVariation = project.contracts.reduce((s, c) => s + c.variationAmount, 0);
-    const totalCollected = project.contracts.reduce((s, c) => s + c.paidAmount, 0);
-    const totalPurchase = project.purchaseOrders.reduce((s, po) => s + po.totalAmount, 0);
-    const totalExpenses = project.expenses.reduce((s, e) => s + e.amount, 0);
-    const totalContractorCost = project.contractorPays.reduce((s, p) => s + p.contractAmount, 0);
+    const totalContractValue = project.contracts.reduce((s, c) => s + (c.contractValue ?? 0), 0);
+    const totalVariation = project.contracts.reduce((s, c) => s + (c.variationAmount ?? 0), 0);
+    const totalCollected = project.contracts.reduce((s, c) => s + (c.paidAmount ?? 0), 0);
+    const totalPurchase = project.purchaseOrders.reduce((s, po) => s + (po.totalAmount ?? 0), 0);
+    const totalExpenses = project.expenses.reduce((s, e) => s + (e.amount ?? 0), 0);
+    const totalContractorCost = project.contractorPays.reduce((s, p) => s + (p.contractAmount ?? 0), 0);
     const totalCostB = totalPurchase + totalExpenses + totalContractorCost;
-    const totalPaidB = project.purchaseOrders.reduce((s, po) => s + po.paidAmount, 0)
-        + project.expenses.reduce((s, e) => s + e.paidAmount, 0)
-        + project.contractorPays.reduce((s, p) => s + p.paidAmount, 0);
+    const totalPaidB = project.purchaseOrders.reduce((s, po) => s + (po.paidAmount ?? 0), 0)
+        + project.expenses.reduce((s, e) => s + (e.paidAmount ?? 0), 0)
+        + project.contractorPays.reduce((s, p) => s + (p.paidAmount ?? 0), 0);
+    const totalA = totalContractValue + totalVariation;
 
     const settlement = {
-        sideA: { contractValue: totalContractValue, variation: totalVariation, total: totalContractValue + totalVariation, collected: totalCollected, remaining: totalContractValue + totalVariation - totalCollected, rate: totalContractValue > 0 ? ((totalCollected / (totalContractValue + totalVariation)) * 100).toFixed(1) : 0 },
+        sideA: { contractValue: totalContractValue, variation: totalVariation, total: totalA, collected: totalCollected, remaining: totalA - totalCollected, rate: totalA > 0 ? ((totalCollected / totalA) * 100).toFixed(1) : 0 },
         sideB: { purchase: totalPurchase, expenses: totalExpenses, contractor: totalContractorCost, total: totalCostB, paid: totalPaidB, remaining: totalCostB - totalPaidB },
         profit: totalCollected - totalCostB,
         profitRate: totalCollected > 0 ? (((totalCollected - totalCostB) / totalCollected) * 100).toFixed(1) : 0,

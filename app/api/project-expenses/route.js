@@ -38,10 +38,7 @@ export const POST = withAuth(async (request) => {
     const data = expenseCreateSchema.parse(body);
     const code = await generateCode('projectExpense', 'CP');
     const expense = await prisma.projectExpense.create({
-        data: {
-            code,
-            ...data,
-        },
+        data: { code, ...data },
     });
     return NextResponse.json(expense, { status: 201 });
 });

@@ -35,7 +35,10 @@ export const GET = withAuth(async (request) => {
 });
 
 export const POST = withAuth(async (request) => {
-    const data = await request.json();
-    const plan = await prisma.materialPlan.create({ data });
+    const body = await request.json();
+    const { projectId, productId, quantity, unitPrice, type, status, notes } = body;
+    const plan = await prisma.materialPlan.create({
+        data: { projectId, productId, quantity, unitPrice, type, status, notes },
+    });
     return NextResponse.json(plan);
 });
