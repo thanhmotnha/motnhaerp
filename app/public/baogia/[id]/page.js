@@ -112,18 +112,19 @@ export default function PublicQuotationPage() {
                 .watermark { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%) rotate(-30deg); font-size: 120px; font-weight: 900; color: ${BRAND.blue}; opacity: 0.025; pointer-events: none; white-space: nowrap; letter-spacing: 20px; z-index: 0; }
                 .mn-header-img { width: 100%; display: block; position: relative; z-index: 1; }
                 .mn-header-img img { width: 100%; height: auto; display: block; }
-                .mn-doc-bar { display: flex; justify-content: space-between; align-items: center; padding: 8px 36px; background: ${BRAND.blue}; color: #fff; font-size: 11px; position: relative; z-index: 1; }
-                .mn-doc-bar .code { font-weight: 800; font-size: 13px; color: ${BRAND.gold}; letter-spacing: 1px; }
-                .mn-doc-bar .meta { font-weight: 400; font-size: 10px; opacity: 0.85; }
+                .mn-doc-bar { display: flex; justify-content: flex-end; align-items: center; gap: 20px; padding: 6px 36px; font-size: 10px; font-style: italic; color: ${BRAND.textMid}; position: relative; z-index: 1; }
+                .mn-doc-bar .code { font-weight: 700; color: ${BRAND.blue}; font-style: italic; }
+                .mn-doc-bar .meta { font-weight: 400; font-style: italic; }
                 .mn-content { padding: 0 36px 28px; position: relative; z-index: 1; }
-                .mn-info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin: 20px 0; }
-                .mn-info-box { padding: 14px 16px; border: 1px solid ${BRAND.grey}; border-left: 3px solid ${BRAND.gold}; background: #fafbfc; }
+                .mn-info-row { display: flex; align-items: stretch; margin: 20px 0; border: 1px solid #e2e8f0; border-radius: 6px; overflow: hidden; position: relative; z-index: 1; }
+                .mn-info-cell { padding: 14px 20px; flex: 1; }
+                .mn-info-cell + .mn-info-cell { border-left: 1px solid #e2e8f0; }
                 .mn-info-label { font-size: 8px; font-weight: 700; color: ${BRAND.blue}; text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 6px; }
-                .mn-info-name { font-size: 13px; font-weight: 700; color: ${BRAND.textDark}; margin-bottom: 3px; }
+                .mn-info-name { font-size: 13px; font-weight: 700; color: ${BRAND.textDark}; margin-bottom: 2px; }
                 .mn-info-detail { font-size: 10px; font-weight: 400; color: ${BRAND.textMid}; line-height: 1.8; }
-                .mn-usp-bar { background: ${BRAND.blue}; padding: 14px 20px; display: flex; justify-content: space-around; align-items: center; margin: 0 0 20px; gap: 8px; }
-                .mn-usp-item { color: #fff; font-size: 10px; font-weight: 600; text-align: center; display: flex; align-items: center; gap: 6px; }
-                .mn-usp-icon { width: 22px; height: 22px; background: ${BRAND.gold}; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 10px; color: ${BRAND.blue}; font-weight: 900; flex-shrink: 0; }
+                .mn-usp-cell { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; padding: 14px 16px; align-content: center; min-width: 240px; }
+                .mn-usp-badge { display: flex; align-items: center; gap: 6px; padding: 5px 10px; background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 6px; font-size: 9.5px; font-weight: 600; color: ${BRAND.textDark}; white-space: nowrap; }
+                .mn-usp-check { font-size: 14px; flex-shrink: 0; line-height: 1; }
                 .mn-table { width: 100%; border-collapse: collapse; font-size: 10.5px; margin-bottom: 2px; }
                 .mn-table th { background: ${BRAND.blue}; color: #fff; font-weight: 700; padding: 8px 6px; font-size: 9px; text-transform: uppercase; letter-spacing: 0.3px; white-space: nowrap; border: 1px solid ${BRAND.blue}; }
                 .mn-table td { border: 1px solid ${BRAND.grey}; padding: 6px 6px; vertical-align: middle; font-weight: 400; }
@@ -182,32 +183,34 @@ export default function PublicQuotationPage() {
                 </div>
 
                 <div className="mn-content">
-                    {/* CUSTOMER & PROJECT */}
-                    <div className="mn-info-grid">
-                        <div className="mn-info-box">
+                    {/* CUSTOMER + PROJECT + USP ROW */}
+                    <div className="mn-info-row">
+                        <div className="mn-info-cell">
                             <div className="mn-info-label">Khách hàng</div>
                             <div className="mn-info-name">{q.customer?.name}</div>
                             <div className="mn-info-detail">
-                                {q.customer?.phone && <>ĐT: {q.customer.phone}<br /></>}
-                                {q.customer?.email && <>Email: {q.customer.email}<br /></>}
-                                {q.customer?.address && <>{q.customer.address}</>}
+                                {q.customer?.phone && <>SĐT: {q.customer.phone}</>}
                             </div>
                         </div>
-                        <div className="mn-info-box">
+                        <div className="mn-info-cell">
                             <div className="mn-info-label">Công trình / Dự án</div>
                             <div className="mn-info-name">{q.project?.name || '—'}</div>
-                            <div className="mn-info-detail">{q.project?.address || ''}</div>
-                        </div>
-                    </div>
-
-                    {/* USP */}
-                    <div className="mn-usp-bar">
-                        {uspItems.map((item, i) => (
-                            <div key={i} className="mn-usp-item">
-                                <div className="mn-usp-icon">✓</div>
-                                {item}
+                            <div className="mn-info-detail">
+                                {q.project?.address && <>Địa điểm: {q.project.address}</>}
                             </div>
-                        ))}
+                        </div>
+                        <div className="mn-usp-cell">
+                            {[
+                                { icon: '🏗️', text: 'Vật liệu chuẩn' },
+                                { icon: '👁️', text: 'Giám sát 24/7' },
+                                { icon: '📋', text: 'Không phát sinh' },
+                                { icon: '🛡️', text: 'Bảo hành lâu dài' },
+                            ].map((u, i) => (
+                                <div key={i} className="mn-usp-badge">
+                                    <span className="mn-usp-check">{u.icon}</span>{u.text}
+                                </div>
+                            ))}
+                        </div>
                     </div>
 
                     {/* TABLE */}
