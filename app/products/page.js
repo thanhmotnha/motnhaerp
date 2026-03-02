@@ -6,10 +6,11 @@ import * as XLSX from 'xlsx';
 const fmt = (n) => new Intl.NumberFormat('vi-VN').format(n);
 const fmtCur = (n) => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(n);
 
-const SUPPLY_TYPES = ['Vật tư lưu kho', 'Mua thương mại', 'Sản xuất nội bộ'];
-const SUPPLY_BADGE = { 'Sản xuất nội bộ': 'badge-info', 'Mua thương mại': 'badge-warning', 'Vật tư lưu kho': 'badge-success' };
+const SUPPLY_TYPES = ['Vật tư lưu kho', 'Mua thương mại', 'Sản xuất nội bộ', 'Dịch vụ'];
+const SUPPLY_BADGE = { 'Sản xuất nội bộ': 'info', 'Mua thương mại': 'warning', 'Vật tư lưu kho': 'success', 'Dịch vụ': 'purple' };
+const SUPPLY_ICON = { 'Vật tư lưu kho': '📦', 'Mua thương mại': '🛒', 'Sản xuất nội bộ': '🔨', 'Dịch vụ': '🧠' };
 const CORE_BOARD_TYPES = ['MDF thường', 'MDF chống ẩm', 'MFC', 'Gỗ tự nhiên', 'Nhựa', 'Kính', 'Khác'];
-const stockStatus = (p) => p.stock === 0 ? 'out' : (p.minStock > 0 && p.stock <= p.minStock) ? 'low' : 'ok';
+const stockStatus = (p) => p.supplyType === 'Dịch vụ' ? 'service' : p.stock === 0 ? 'out' : (p.minStock > 0 && p.stock <= p.minStock) ? 'low' : 'ok';
 
 const BRANDS = [{ n: '', logo: '' }, { n: 'Dulux', logo: 'https://logo.clearbit.com/dulux.com' }, { n: 'Jotun', logo: 'https://logo.clearbit.com/jotun.com' }, { n: 'TOA', logo: 'https://logo.clearbit.com/toagroup.com' }, { n: 'Nippon', logo: 'https://logo.clearbit.com/nipponpaint.com' }, { n: 'Hafele', logo: 'https://logo.clearbit.com/hafele.com' }, { n: 'Blum', logo: 'https://logo.clearbit.com/blum.com' }, { n: 'Hettich', logo: 'https://logo.clearbit.com/hettich.com' }, { n: 'Panasonic', logo: 'https://logo.clearbit.com/panasonic.com' }, { n: 'Daikin', logo: 'https://logo.clearbit.com/daikin.com' }, { n: 'Mitsubishi', logo: 'https://logo.clearbit.com/mitsubishielectric.com' }, { n: 'Samsung', logo: 'https://logo.clearbit.com/samsung.com' }, { n: 'LG', logo: 'https://logo.clearbit.com/lg.com' }, { n: 'Rossi', logo: 'https://logo.clearbit.com/rossigroup.com.vn' }, { n: 'Caesar', logo: 'https://logo.clearbit.com/caesar.com.tw' }, { n: 'Toto', logo: 'https://logo.clearbit.com/toto.com' }, { n: 'Grohe', logo: 'https://logo.clearbit.com/grohe.com' }, { n: 'HMF', logo: '' }, { n: 'AA', logo: '' }, { n: 'Hoa Phat', logo: 'https://logo.clearbit.com/hoaphat.com.vn' }];
 const PRODUCT_CATS = ['Nội thất thành phẩm', 'Gỗ tự nhiên', 'Gỗ công nghiệp', 'Đá & Gạch', 'Sơn & Keo', 'Phụ kiện nội thất', 'Thiết bị điện', 'Vật liệu xây dựng', 'Rèm cửa', 'Thiết bị vệ sinh', 'Điều hòa', 'Decor', 'Đồ rời', 'Phòng thờ'];
@@ -96,7 +97,7 @@ export default function ProductsPage() {
     const [extraCats, setExtraCats] = useState([]);
     const [addingCat, setAddingCat] = useState(false);
     const [newCatName, setNewCatName] = useState('');
-    const pCats = [...new Set([...products.map(p => p.category), ...extraCats])].sort();
+    const pCats = [...new Set([...PRODUCT_CATS, ...products.map(p => p.category), ...extraCats])].sort();
     const filteredP = products.filter(p =>
         (!filterCatP || p.category === filterCatP) &&
         (!filterSupplyType || p.supplyType === filterSupplyType) &&
@@ -297,62 +298,66 @@ export default function ProductsPage() {
                         <div className="stat-card"><div className="stat-icon">💰</div><div><div className="stat-value" style={{ fontSize: 13 }}>{fmtCur(products.reduce((s, p) => s + p.stock * p.salePrice, 0))}</div><div className="stat-label">Giá trị tồn</div></div></div>
                     </div>
                     <div className="card">
-                        {/* Category tab bar */}
-                        <div style={{ display: 'flex', gap: 4, padding: '8px 12px', borderBottom: '1px solid var(--border-color)', flexWrap: 'wrap', alignItems: 'center', background: 'var(--surface-alt)' }}>
-                            <button
-                                className={`btn btn-sm ${!filterCatP ? 'btn-primary' : 'btn-ghost'}`}
-                                style={{ fontSize: 12, padding: '4px 12px' }}
-                                onClick={() => setFilterCatP('')}>Tất cả ({products.length})</button>
-                            {pCats.map(c => (
-                                <div key={c} style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                                    {editingCatName?.old === c ? (
-                                        <>
-                                            <input autoFocus value={editingCatName.new}
-                                                onChange={e => setEditingCatName(p => ({ ...p, new: e.target.value }))}
-                                                onBlur={saveRenameCategory}
-                                                onKeyDown={e => { if (e.key === 'Enter') saveRenameCategory(); if (e.key === 'Escape') setEditingCatName(null); }}
-                                                style={{ fontSize: 12, padding: '3px 8px', border: '1px solid var(--primary)', borderRadius: 4, width: 150 }} />
-                                            <button className="btn btn-primary btn-sm" onClick={saveRenameCategory}>✓</button>
-                                            <button className="btn btn-ghost btn-sm" onClick={() => setEditingCatName(null)}>✕</button>
-                                        </>
-                                    ) : (
-                                        <>
-                                            <button
-                                                className={`btn btn-sm ${filterCatP === c ? 'btn-primary' : 'btn-ghost'}`}
-                                                style={{ fontSize: 12, padding: '4px 12px' }}
-                                                onClick={() => setFilterCatP(filterCatP === c ? '' : c)}>
-                                                {c} ({products.filter(p => p.category === c).length})
-                                            </button>
-                                            {filterCatP === c && (
-                                                <button className="btn btn-ghost btn-sm" style={{ fontSize: 11, padding: '2px 5px', opacity: 0.6 }}
-                                                    title="Đổi tên" onClick={() => setEditingCatName({ old: c, new: c })}>✏️</button>
-                                            )}
-                                        </>
-                                    )}
-                                </div>
-                            ))}
-                            {/* Thêm danh mục mới */}
+                        {/* Category filter bar */}
+                        <div style={{ display: 'flex', gap: 6, padding: '10px 16px', borderBottom: '1px solid var(--border-color)', alignItems: 'center', overflowX: 'auto', scrollbarWidth: 'none', msOverflowStyle: 'none', background: 'var(--bg)' }}>
+                            {/* All pill */}
+                            <button onClick={() => setFilterCatP('')} style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '5px 13px', borderRadius: 20, border: !filterCatP ? 'none' : '1px solid var(--border-color)', background: !filterCatP ? 'var(--primary)' : 'transparent', color: !filterCatP ? '#fff' : 'var(--text-secondary)', fontSize: 12.5, fontWeight: !filterCatP ? 600 : 400, cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0, transition: 'all 0.15s' }}>
+                                Tất cả
+                                <span style={{ background: !filterCatP ? 'rgba(255,255,255,0.25)' : 'var(--surface-alt)', color: !filterCatP ? '#fff' : 'var(--text-secondary)', borderRadius: 10, padding: '1px 7px', fontSize: 11, fontWeight: 600 }}>{products.length}</span>
+                            </button>
+                            <div style={{ width: 1, height: 18, background: 'var(--border-color)', flexShrink: 0 }} />
+                            {pCats.map(c => {
+                                const count = products.filter(p => p.category === c).length;
+                                const active = filterCatP === c;
+                                return (
+                                    <div key={c} style={{ display: 'flex', alignItems: 'center', flexShrink: 0 }}>
+                                        {editingCatName?.old === c ? (
+                                            <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+                                                <input autoFocus value={editingCatName.new}
+                                                    onChange={e => setEditingCatName(p => ({ ...p, new: e.target.value }))}
+                                                    onBlur={saveRenameCategory}
+                                                    onKeyDown={e => { if (e.key === 'Enter') saveRenameCategory(); if (e.key === 'Escape') setEditingCatName(null); }}
+                                                    style={{ fontSize: 12, padding: '4px 12px', border: '1.5px solid var(--primary)', borderRadius: 20, width: 160, outline: 'none', background: 'var(--bg)' }} />
+                                                <button onClick={saveRenameCategory} style={{ width: 24, height: 24, borderRadius: '50%', background: 'var(--primary)', border: 'none', color: '#fff', cursor: 'pointer', fontSize: 12, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>✓</button>
+                                                <button onClick={() => setEditingCatName(null)} style={{ width: 24, height: 24, borderRadius: '50%', background: 'var(--surface-alt)', border: 'none', cursor: 'pointer', fontSize: 12, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>✕</button>
+                                            </div>
+                                        ) : (
+                                            <div style={{ display: 'flex', alignItems: 'stretch' }}>
+                                                <button onClick={() => setFilterCatP(active ? '' : c)} style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '5px 12px', borderRadius: active ? '20px 0 0 20px' : 20, border: active ? 'none' : '1px solid var(--border-color)', borderRight: active ? 'none' : undefined, background: active ? 'var(--primary)' : 'transparent', color: active ? '#fff' : 'var(--text-secondary)', fontSize: 12.5, fontWeight: active ? 600 : 400, cursor: 'pointer', whiteSpace: 'nowrap', transition: 'all 0.15s' }}>
+                                                    {c}
+                                                    <span style={{ background: active ? 'rgba(255,255,255,0.25)' : 'var(--surface-alt)', color: active ? '#fff' : 'var(--text-secondary)', borderRadius: 10, padding: '1px 6px', fontSize: 11, fontWeight: 600 }}>{count}</span>
+                                                </button>
+                                                {active && (
+                                                    <button onClick={() => setEditingCatName({ old: c, new: c })} title="Đổi tên danh mục" style={{ padding: '5px 9px', borderRadius: '0 20px 20px 0', border: 'none', background: 'var(--primary)', color: 'rgba(255,255,255,0.75)', fontSize: 11, cursor: 'pointer', display: 'flex', alignItems: 'center', transition: 'opacity 0.15s' }}>✏️</button>
+                                                )}
+                                            </div>
+                                        )}
+                                    </div>
+                                );
+                            })}
+                            <div style={{ width: 1, height: 18, background: 'var(--border-color)', flexShrink: 0 }} />
+                            {/* Add category */}
                             {addingCat ? (
-                                <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+                                <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexShrink: 0 }}>
                                     <input autoFocus value={newCatName} placeholder="Tên danh mục..."
                                         onChange={e => setNewCatName(e.target.value)}
                                         onKeyDown={e => {
                                             if (e.key === 'Enter' && newCatName.trim()) {
                                                 const cat = newCatName.trim();
                                                 if (!pCats.includes(cat)) setExtraCats(p => [...p, cat]);
-                                                setFilterCatP(cat);
-                                                setAddingCat(false); setNewCatName('');
+                                                setFilterCatP(cat); setAddingCat(false); setNewCatName('');
                                                 setNewProduct({ name: '', category: cat, unit: 'cái', importPrice: 0, salePrice: 0, stock: 0, minStock: 0, supplier: '', brand: '', description: '', image: '' });
                                             }
                                             if (e.key === 'Escape') { setAddingCat(false); setNewCatName(''); }
                                         }}
-                                        style={{ fontSize: 12, padding: '3px 8px', border: '1px solid var(--primary)', borderRadius: 4, width: 160 }} />
-                                    <span style={{ fontSize: 11, opacity: 0.5 }}>Enter để tạo</span>
-                                    <button className="btn btn-ghost btn-sm" onClick={() => { setAddingCat(false); setNewCatName(''); }}>✕</button>
+                                        style={{ fontSize: 12, padding: '5px 14px', border: '1.5px solid var(--primary)', borderRadius: 20, width: 180, outline: 'none', background: 'var(--bg)' }} />
+                                    <span style={{ fontSize: 11, color: 'var(--text-secondary)', opacity: 0.6, whiteSpace: 'nowrap' }}>↵ Enter để tạo</span>
+                                    <button onClick={() => { setAddingCat(false); setNewCatName(''); }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-secondary)', opacity: 0.5, fontSize: 16, lineHeight: 1, padding: 2 }}>✕</button>
                                 </div>
                             ) : (
-                                <button className="btn btn-ghost btn-sm" style={{ fontSize: 12, opacity: 0.6 }}
-                                    onClick={() => setAddingCat(true)}>+ Danh mục</button>
+                                <button onClick={() => setAddingCat(true)} style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '5px 12px', borderRadius: 20, border: '1.5px dashed var(--border-color)', background: 'transparent', color: 'var(--text-secondary)', fontSize: 12, cursor: 'pointer', whiteSpace: 'nowrap', opacity: 0.65, flexShrink: 0, transition: 'opacity 0.15s' }}>
+                                    + Danh mục
+                                </button>
                             )}
                         </div>
                         <div className="card-header" style={{ borderTop: 'none', flexWrap: 'wrap', gap: 8 }}>
@@ -446,7 +451,7 @@ export default function ProductsPage() {
                                                             {p.description && <div style={{ fontSize: 11, opacity: 0.45, maxWidth: 380, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.description}</div>}
                                                         </div>}
                                                     </td>
-                                                    <td>{isEditing ? <EditCell value={d.category} onChange={v => setEditingP(e => ({ ...e, data: { ...e.data, category: v } }))} options={PRODUCT_CATS} /> : <span className="badge badge-default">{p.category}</span>}</td>
+                                                    <td>{isEditing ? <EditCell value={d.category} onChange={v => setEditingP(e => ({ ...e, data: { ...e.data, category: v } }))} options={pCats} /> : <span className="badge badge-default">{p.category}</span>}</td>
                                                     <td>{isEditing ? <EditCell value={d.unit} onChange={v => setEditingP(e => ({ ...e, data: { ...e.data, unit: v } }))} /> : p.unit}</td>
                                                     <td style={{ fontWeight: 600 }}>{isEditing ? <EditCell value={d.salePrice} onChange={v => setEditingP(e => ({ ...e, data: { ...e.data, salePrice: v } }))} type="number" /> : fmtCur(p.salePrice)}</td>
                                                     <td>
@@ -456,7 +461,7 @@ export default function ProductsPage() {
                                                             {ss === 'low' && !isEditing && <span style={{ fontSize: 9, background: '#ea580c', color: '#fff', borderRadius: 3, padding: '1px 4px' }}>Sắp hết</span>}
                                                         </div>
                                                     </td>
-                                                    <td style={{ fontSize: 12 }}>{isEditing ? (<select value={d.supplyType || 'Vật tư lưu kho'} onChange={e => setEditingP(ep => ({ ...ep, data: { ...ep.data, supplyType: e.target.value } }))} style={{ width: '100%', fontSize: 12, padding: '2px 4px', border: '1px solid var(--primary)', borderRadius: 4, background: 'var(--bg-input)' }}>{SUPPLY_TYPES.map(t => <option key={t}>{t}</option>)}</select>) : <span className={`badge ${SUPPLY_BADGE[p.supplyType] || 'badge-default'}`}>{p.supplyType || 'Vật tư lưu kho'}</span>}</td>
+                                                    <td style={{ fontSize: 12 }}>{isEditing ? (<select value={d.supplyType || 'Vật tư lưu kho'} onChange={e => setEditingP(ep => ({ ...ep, data: { ...ep.data, supplyType: e.target.value } }))} style={{ width: '100%', fontSize: 12, padding: '2px 4px', border: '1px solid var(--primary)', borderRadius: 4, background: 'var(--bg-input)' }}>{SUPPLY_TYPES.map(t => <option key={t}>{t}</option>)}</select>) : <span className={`badge ${SUPPLY_BADGE[p.supplyType] || 'muted'}`}>{p.supplyType || 'Vật tư lưu kho'}</span>}</td>
                                                     <td style={{ fontSize: 12 }}>{isEditing ? (<select value={d.brand || ''} onChange={e => setEditingP(ep => ({ ...ep, data: { ...ep.data, brand: e.target.value } }))} style={{ width: '100%', fontSize: 12, padding: '2px 4px', border: '1px solid var(--primary)', borderRadius: 4, background: 'var(--bg-input)' }}>{BRANDS.map(b => <option key={b.n} value={b.n}>{b.n || '-- Không --'}</option>)}</select>) : (() => { const br = BRANDS.find(b => b.n === p.brand); return p.brand ? (<div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>{br?.logo && <img src={br.logo} alt="" style={{ width: 18, height: 18, objectFit: 'contain' }} onError={e => e.target.style.display = 'none'} />}<span>{p.brand}</span></div>) : <span style={{ opacity: 0.3 }}>-</span>; })()}</td>
                                                     <td><div style={{ display: 'flex', gap: 4 }}>
                                                         {isEditing
@@ -620,7 +625,7 @@ export default function ProductsPage() {
                                 <div className="form-group" style={{ flex: 2 }}>
                                     <label className="form-label">Danh mục *</label>
                                     <select className="form-select" value={addForm.category} onChange={e => setAddForm(f => ({ ...f, category: e.target.value }))}>
-                                        {PRODUCT_CATS.map(c => <option key={c}>{c}</option>)}
+                                        {pCats.map(c => <option key={c}>{c}</option>)}
                                     </select>
                                 </div>
                                 <div className="form-group">
@@ -638,13 +643,13 @@ export default function ProductsPage() {
                             </div>
                             <div className="form-group">
                                 <label className="form-label">Nguồn cung *</label>
-                                <div style={{ display: 'flex', gap: 8 }}>
+                                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
                                     {SUPPLY_TYPES.map(t => (
                                         <button key={t} type="button"
-                                            className={`btn btn-sm ${addForm.supplyType === t ? SUPPLY_BADGE[t]?.replace('badge-', 'btn-') || 'btn-primary' : 'btn-ghost'}`}
-                                            style={{ fontSize: 12, flex: 1 }}
+                                            className={`btn btn-sm ${addForm.supplyType === t ? `btn-${SUPPLY_BADGE[t] || 'primary'}` : 'btn-ghost'}`}
+                                            style={{ fontSize: 12, flex: 1, minWidth: 120 }}
                                             onClick={() => setAddForm(f => ({ ...f, supplyType: t }))}>
-                                            {t === 'Sản xuất nội bộ' ? '🔨' : t === 'Mua thương mại' ? '🛒' : '📦'} {t}
+                                            {SUPPLY_ICON[t]} {t}
                                         </button>
                                     ))}
                                 </div>
@@ -690,6 +695,13 @@ export default function ProductsPage() {
                                         💡 Sau khi lưu, vào trang chi tiết sản phẩm để khai báo <strong>Định mức vật tư (BOM)</strong> — danh sách ván gỗ, nẹp chỉ cần dùng.
                                     </div>
                                 </>
+                            )}
+                            {addForm.supplyType === 'Dịch vụ' && (
+                                <div style={{ padding: '12px 14px', background: 'rgba(167,139,250,0.08)', borderRadius: 8, fontSize: 12.5, color: 'var(--text-secondary)', borderLeft: '3px solid var(--status-purple)' }}>
+                                    <div style={{ fontWeight: 600, color: 'var(--status-purple)', marginBottom: 4 }}>🧠 Dịch vụ / Chất xám</div>
+                                    Dịch vụ không có tồn kho hay vật tư. Chỉ cần <strong>đơn giá</strong> để sử dụng trong báo giá và hợp đồng.
+                                    <br />VD: Thiết kế kiến trúc, Tư vấn nội thất, Giám sát công trình.
+                                </div>
                             )}
                         </div>
                         <div className="modal-footer">
