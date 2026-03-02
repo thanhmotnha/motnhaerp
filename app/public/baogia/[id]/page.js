@@ -158,7 +158,7 @@ export default function PublicQuotationPage() {
             {/* Print toolbar - chỉ hiện cho khách */}
             <div className="no-print" style={{ background: BRAND.blue, padding: '12px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'sticky', top: 0, zIndex: 100, boxShadow: '0 2px 12px rgba(0,0,0,.3)' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                    <img src="/motnha-header.png" alt="Một Nhà" style={{ height: 28, width: 'auto' }} />
+                    <img src="https://pub-1e1be66737b446708af785e6cc8fe673.r2.dev/assets/motnha-header.jpg" alt="Một Nhà" style={{ height: 28, width: 'auto' }} />
                     <span style={{ color: BRAND.gold, fontSize: 11, fontWeight: 500, fontFamily: 'Montserrat' }}>— Báo giá {q.code}</span>
                 </div>
                 <button onClick={() => window.print()} style={{ padding: '8px 24px', background: BRAND.gold, color: BRAND.blue, border: 'none', borderRadius: 6, fontSize: 13, fontWeight: 800, cursor: 'pointer', fontFamily: 'Montserrat' }}>
@@ -171,7 +171,7 @@ export default function PublicQuotationPage() {
 
                 {/* HEADER */}
                 <div className="mn-header-img">
-                    <img src="/motnha-header.png" alt="Một Nhà - Bảng Báo Giá" />
+                    <img src="https://pub-1e1be66737b446708af785e6cc8fe673.r2.dev/assets/motnha-header.jpg" alt="Một Nhà - Bảng Báo Giá" />
                 </div>
                 <div className="mn-doc-bar">
                     <span className="code">{q.code}</span>
