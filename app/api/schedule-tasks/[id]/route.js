@@ -2,6 +2,7 @@ import { withAuth } from '@/lib/apiHandler';
 import prisma from '@/lib/prisma';
 import { NextResponse } from 'next/server';
 import { scheduleTaskUpdateSchema } from '@/lib/validations/scheduleTask';
+import { recalcProjectProgress, recalcParentProgress, cascadeDependencies, deleteTaskDeep } from '@/lib/scheduleUtils';
 
 export const GET = withAuth(async (request, { params }) => {
     const { id } = await params;
@@ -32,7 +33,7 @@ export const PUT = withAuth(async (request, { params }) => {
 
     const task = await prisma.scheduleTask.update({ where: { id }, data });
 
-    // Cascade: if has predecessor dependency, shift successors
+    // Cascade: if has predecessor dependency, shift successors (with circular guard)
     if (data.endDate) {
         await cascadeDependencies(task);
     }
@@ -53,68 +54,11 @@ export const DELETE = withAuth(async (request, { params }) => {
     const task = await prisma.scheduleTask.findUnique({ where: { id } });
     if (!task) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
-    // Delete children first (cascade)
-    await prisma.scheduleTask.deleteMany({ where: { parentId: id } });
-    // Clear predecessor references pointing to this task
-    await prisma.scheduleTask.updateMany({ where: { predecessorId: id }, data: { predecessorId: null } });
-    await prisma.scheduleTask.delete({ where: { id } });
+    // Deep delete: recursively removes all descendants
+    await deleteTaskDeep(id);
 
     // Recalc
     await recalcProjectProgress(task.projectId);
 
     return NextResponse.json({ success: true });
 });
-
-// Cascade Finish-to-Start dependencies
-async function cascadeDependencies(task) {
-    const successors = await prisma.scheduleTask.findMany({
-        where: { predecessorId: task.id },
-    });
-    for (const succ of successors) {
-        const predEnd = new Date(task.endDate);
-        const succStart = new Date(succ.startDate);
-        if (succStart <= predEnd) {
-            // Shift successor: start = predEnd + 1 day
-            const newStart = new Date(predEnd);
-            newStart.setDate(newStart.getDate() + 1);
-            const newEnd = new Date(newStart);
-            newEnd.setDate(newEnd.getDate() + succ.duration - 1);
-            const updated = await prisma.scheduleTask.update({
-                where: { id: succ.id },
-                data: { startDate: newStart, endDate: newEnd },
-            });
-            // Recursive cascade
-            await cascadeDependencies(updated);
-        }
-    }
-}
-
-async function recalcParentProgress(parentId) {
-    const children = await prisma.scheduleTask.findMany({ where: { parentId } });
-    if (!children.length) return;
-    const totalWeight = children.reduce((s, c) => s + c.weight, 0);
-    const progress = totalWeight > 0
-        ? Math.round(children.reduce((s, c) => s + c.progress * c.weight, 0) / totalWeight)
-        : 0;
-    const parent = await prisma.scheduleTask.update({
-        where: { id: parentId },
-        data: {
-            progress,
-            status: progress === 100 ? 'Hoàn thành' : progress > 0 ? 'Đang thi công' : 'Chưa bắt đầu',
-        },
-    });
-    // Cascade up
-    if (parent.parentId) await recalcParentProgress(parent.parentId);
-}
-
-async function recalcProjectProgress(projectId) {
-    const tasks = await prisma.scheduleTask.findMany({
-        where: { projectId, parentId: null },
-    });
-    if (tasks.length === 0) return;
-    const totalWeight = tasks.reduce((s, t) => s + t.weight, 0);
-    const progress = totalWeight > 0
-        ? Math.round(tasks.reduce((s, t) => s + t.progress * t.weight, 0) / totalWeight)
-        : 0;
-    await prisma.project.update({ where: { id: projectId }, data: { progress } });
-}

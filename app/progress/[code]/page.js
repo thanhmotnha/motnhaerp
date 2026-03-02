@@ -59,7 +59,7 @@ export default function CustomerProgressPage() {
                         <div style={{ height: '100%', width: `${task.progress}%`, background: barColor, borderRadius: 3, transition: 'width 0.5s' }}></div>
                     </div>
                 </div>
-                {task.children && task.children.sort((a, b) => a.order - b.order).map(c => renderTask(c, depth + 1))}
+                {task.children && [...task.children].sort((a, b) => a.order - b.order).map(c => renderTask(c, depth + 1))}
             </div>
         );
     };

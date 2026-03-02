@@ -72,7 +72,7 @@ export default function ScheduleListView({ tasks, flat, onUpdate, onDelete }) {
                     </div>
                 </div>
                 {/* Children */}
-                {task.children && task.children.sort((a, b) => a.order - b.order).map(child => renderTask(child, depth + 1))}
+                {task.children && [...task.children].sort((a, b) => a.order - b.order).map(child => renderTask(child, depth + 1))}
             </div>
         );
     };

@@ -10,7 +10,19 @@ import { scheduleImportSchema } from '@/lib/validations/scheduleTask';
  */
 export const POST = withAuth(async (request) => {
     const body = await request.json();
-    const { projectId, templateId, startDate } = scheduleImportSchema.parse(body);
+    const { projectId, templateId, startDate, force } = scheduleImportSchema.parse(body);
+
+    // M1: Warn if project already has schedule tasks (prevent accidental double-import)
+    if (!force) {
+        const existingCount = await prisma.scheduleTask.count({ where: { projectId } });
+        if (existingCount > 0) {
+            return NextResponse.json({
+                warning: `Dự án đã có ${existingCount} hạng mục. Import sẽ thêm mới, không ghi đè.`,
+                existingCount,
+                confirm: true,
+            }, { status: 409 });
+        }
+    }
 
     const template = await prisma.scheduleTemplate.findUnique({
         where: { id: templateId },

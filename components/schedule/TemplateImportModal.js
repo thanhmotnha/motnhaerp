@@ -27,21 +27,26 @@ export default function TemplateImportModal({ projectId, projectStartDate, onClo
             });
     }, []);
 
-    const handleImport = async () => {
-        if (!selectedId || !startDate) return;
+    const doImport = async (force = false) => {
         setImporting(true);
         try {
             const res = await fetch('/api/schedule-tasks/import-template', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ projectId, templateId: selectedId, startDate }),
+                body: JSON.stringify({ projectId, templateId: selectedId, startDate, force }),
             });
-            if (!res.ok) {
-                const err = await res.json();
-                alert(err.error || 'Lỗi import');
+            const data = await res.json();
+            // 409 = project already has tasks, ask user to confirm
+            if (res.status === 409 && data.confirm) {
+                if (confirm(data.warning + '\n\nBạn có muốn tiếp tục import?')) {
+                    return doImport(true);
+                }
                 return;
             }
-            const data = await res.json();
+            if (!res.ok) {
+                alert(data.error || 'Lỗi import');
+                return;
+            }
             alert(`Đã import ${data.count} hạng mục thành công!`);
             onImported();
         } catch {
@@ -49,6 +54,11 @@ export default function TemplateImportModal({ projectId, projectStartDate, onClo
         } finally {
             setImporting(false);
         }
+    };
+
+    const handleImport = async () => {
+        if (!selectedId || !startDate) return;
+        await doImport();
     };
 
     return (

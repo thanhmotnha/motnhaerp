@@ -1,7 +1,7 @@
 import { withAuth } from '@/lib/apiHandler';
 import { parsePagination, paginatedResponse } from '@/lib/pagination';
 import prisma from '@/lib/prisma';
-import { generateCode } from '@/lib/generateCode';
+import { withCodeRetry } from '@/lib/generateCode';
 import { NextResponse } from 'next/server';
 import { customerCreateSchema } from '@/lib/validations/customer';
 
@@ -36,13 +36,9 @@ export const POST = withAuth(async (request) => {
     const body = await request.json();
     const data = customerCreateSchema.parse(body);
 
-    const code = await generateCode('customer', 'KH');
-    const customer = await prisma.customer.create({
-        data: {
-            code,
-            ...data,
-        },
-    });
+    const customer = await withCodeRetry('customer', 'KH', (code) =>
+        prisma.customer.create({ data: { code, ...data } })
+    );
 
     return NextResponse.json(customer, { status: 201 });
 });
