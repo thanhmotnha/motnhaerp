@@ -76,16 +76,15 @@ export const POST = withAuth(async (request) => {
 
     const buffer = Buffer.from(bytes);
 
-    // Sanitize filename
+    // Generate unique filename using UUID (prevents filename leakage and path traversal)
     const fileExt = ext || '.jpg';
-    const base = path.basename(file.name, fileExt).replace(/[^a-zA-Z0-9_-]/g, '_');
-    const filename = `${base}_${Date.now()}${fileExt}`;
+    const filename = `${crypto.randomUUID()}${fileExt}`;
 
     let url, thumbnailUrl = '';
 
     // Generate thumbnail for images
     const thumbBuffer = type === 'documents' ? await generateThumbnail(buffer, file.type) : null;
-    const thumbFilename = thumbBuffer ? `thumb_${base}_${Date.now()}.jpg` : null;
+    const thumbFilename = thumbBuffer ? `${crypto.randomUUID()}.jpg` : null;
 
     // Upload to R2 if configured, otherwise local filesystem
     if (isR2Configured) {

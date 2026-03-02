@@ -32,7 +32,7 @@ function FinanceContent() {
             fetch('/api/finance/receivables').then(r => r.json()),
         ]);
         setSummary(finRes.summary || {});
-        setTransactions(finRes.transactions || []);
+        setTransactions(finRes.transactions?.data || []);
         setReceivables(recRes);
         setLoading(false);
     };

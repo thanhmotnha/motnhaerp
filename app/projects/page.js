@@ -12,14 +12,16 @@ export default function ProjectsPage() {
     const [customers, setCustomers] = useState([]);
     const [form, setForm] = useState({ name: '', type: 'Thiết kế kiến trúc', status: 'Khảo sát', address: '', area: '', floors: '', budget: '', customerId: '', designer: '', supervisor: '' });
     const router = useRouter();
-    const fetchProjects = () => { setLoading(true); fetch('/api/projects?limit=1000').then(r => r.json()).then(d => { setProjects(d.data || []); setLoading(false); }); };
-    useEffect(() => { fetchProjects(); fetch('/api/customers?limit=1000').then(r => r.json()).then(d => setCustomers(d.data || [])); }, []);
-    const filtered = projects.filter(p => {
-        if (filterStatus && p.status !== filterStatus) return false;
-        if (filterType && p.type !== filterType) return false;
-        if (search && !p.name.toLowerCase().includes(search.toLowerCase()) && !p.code.toLowerCase().includes(search.toLowerCase())) return false;
-        return true;
-    });
+    const fetchProjects = () => {
+        setLoading(true);
+        const params = new URLSearchParams();
+        if (search) params.set('search', search);
+        if (filterStatus) params.set('status', filterStatus);
+        if (filterType) params.set('type', filterType);
+        fetch(`/api/projects?${params}`).then(r => r.json()).then(d => { setProjects(d.data || []); setLoading(false); });
+    };
+    useEffect(() => { fetch('/api/customers?limit=1000').then(r => r.json()).then(d => setCustomers(d.data || [])); }, []);
+    useEffect(() => { fetchProjects(); }, [search, filterStatus, filterType]);
     const handleDelete = async (id, e) => { e.stopPropagation(); if (!confirm('Xóa dự án này?')) return; await fetch(`/api/projects/${id}`, { method: 'DELETE' }); fetchProjects(); };
     const handleCreate = async () => {
         if (!form.name.trim()) return alert('Vui lòng nhập tên dự án');
@@ -51,7 +53,7 @@ export default function ProjectsPage() {
                 {loading ? <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-muted)' }}>Đang tải...</div> : (
                     <div className="table-container"><table className="data-table">
                         <thead><tr><th>Mã</th><th>Dự án</th><th>Khách hàng</th><th>Loại</th><th>Giá trị HĐ</th><th>Đã thu</th><th>Tiến độ</th><th>TT</th><th></th></tr></thead>
-                        <tbody>{filtered.map(p => (
+                        <tbody>{projects.map(p => (
                             <tr key={p.id} onClick={() => router.push(`/projects/${p.id}`)} style={{ cursor: 'pointer' }}>
                                 <td className="accent">{p.code}</td>
                                 <td className="primary">{p.name}{p.phase ? <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{p.phase}</div> : null}</td>
