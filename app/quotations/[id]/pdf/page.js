@@ -20,6 +20,31 @@ const fmt = (n) => new Intl.NumberFormat('vi-VN', { style: 'currency', currency:
 const fmtNum = (n) => new Intl.NumberFormat('vi-VN').format(n || 0);
 
 /* =============================================
+   SỐ TIỀN BẰNG CHỮ (Tiếng Việt)
+   ============================================= */
+function numberToWords(n) {
+    if (!n || n === 0) return 'Không đồng';
+    const u = ['', 'một', 'hai', 'ba', 'bốn', 'năm', 'sáu', 'bảy', 'tám', 'chín'];
+    function readGroup(num, leadZero) {
+        const h = Math.floor(num / 100), t = Math.floor((num % 100) / 10), o = num % 10;
+        let s = '';
+        if (h) s += u[h] + ' trăm ';
+        if (t === 0) { if (o) s += (h || leadZero ? 'lẻ ' : '') + u[o] + ' '; }
+        else if (t === 1) { s += 'mười ' + (o === 5 ? 'lăm ' : o ? u[o] + ' ' : ''); }
+        else { s += u[t] + ' mươi ' + (o === 1 ? 'mốt ' : o === 5 ? 'lăm ' : o ? u[o] + ' ' : ''); }
+        return s;
+    }
+    const ty = Math.floor(n / 1e9), tr = Math.floor((n % 1e9) / 1e6), ng = Math.floor((n % 1e6) / 1e3), rem = n % 1e3;
+    let r = '';
+    if (ty) r += readGroup(ty, false) + 'tỷ ';
+    if (tr) r += readGroup(tr, !!ty) + 'triệu ';
+    if (ng) r += readGroup(ng, !!(ty || tr)) + 'nghìn ';
+    if (rem) r += readGroup(rem, !!(ty || tr || ng));
+    r = r.trim();
+    return r.charAt(0).toUpperCase() + r.slice(1) + ' đồng';
+}
+
+/* =============================================
    USP PER QUOTATION TYPE
    ============================================= */
 const USP_MAP = {
@@ -449,7 +474,28 @@ export default function QuotationPDFPage() {
                     color: ${BRAND.blue};
                     text-transform: uppercase;
                     letter-spacing: 1px;
-                    margin-bottom: 55px;
+                    margin-bottom: 8px;
+                }
+                .mn-sign-space {
+                    height: 80px;
+                    position: relative;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                }
+                .mn-stamp-circle {
+                    width: 72px;
+                    height: 72px;
+                    border-radius: 50%;
+                    border: 2px dashed ${BRAND.blue}40;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    font-size: 8px;
+                    color: ${BRAND.blue}40;
+                    font-style: italic;
+                    text-align: center;
+                    line-height: 1.4;
                 }
                 .mn-sign-line {
                     border-top: 1px solid ${BRAND.grey};
@@ -677,6 +723,9 @@ export default function QuotationPDFPage() {
                             {q.discount > 0 && <div className="mn-sum-row discount"><span>Chiết khấu ({q.discount}%)</span><span>-{fmt(q.total * q.discount / 100)}</span></div>}
                             <div className="mn-sum-row"><span>VAT ({q.vat}%)</span><span>{fmt(vatAmount)}</span></div>
                             <div className="mn-sum-row total"><span>TỔNG GIÁ TRỊ</span><span>{fmt(q.grandTotal)}</span></div>
+                            <div style={{ padding: '8px 16px', fontSize: 10, fontStyle: 'italic', color: BRAND.textMid, borderTop: `1px solid ${BRAND.grey}` }}>
+                                Bằng chữ: <em style={{ color: BRAND.textDark, fontWeight: 600 }}>{numberToWords(Math.round(q.grandTotal))}</em>
+                            </div>
                         </div>
                     </div>
 
@@ -694,10 +743,14 @@ export default function QuotationPDFPage() {
                             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
                                 <div className="mn-sign-area">
                                     <div className="mn-sign-title">Đại diện<br />Khách hàng</div>
+                                    <div className="mn-sign-space"></div>
                                     <div className="mn-sign-line">(Ký, ghi rõ họ tên)</div>
                                 </div>
                                 <div className="mn-sign-area">
-                                    <div className="mn-sign-title">Đại diện<br />Một Nhà</div>
+                                    <div className="mn-sign-title">Đại diện<br />Một Nhà Design &amp; Build</div>
+                                    <div className="mn-sign-space">
+                                        <div className="mn-stamp-circle">Dấu<br />công ty</div>
+                                    </div>
                                     <div className="mn-sign-line">(Ký tên, đóng dấu)</div>
                                 </div>
                             </div>
