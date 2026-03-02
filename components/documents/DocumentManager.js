@@ -170,43 +170,53 @@ function UploadModal({ onClose, onUpload, folders, preselectedFolderId, parentDo
         setUploading(true);
         setProgress({ current: 0, total: files.length });
 
-        for (let i = 0; i < files.length; i++) {
-            setProgress({ current: i + 1, total: files.length });
-            const { file, name } = files[i];
+        // Upload files in parallel batches of 3
+        const BATCH_SIZE = 3;
+        let completed = 0;
 
-            try {
-                const formData = new FormData();
-                formData.append('file', file);
-                formData.append('type', 'documents');
-                const uploadRes = await fetch('/api/upload', { method: 'POST', body: formData });
-                if (!uploadRes.ok) {
-                    const err = await uploadRes.json();
-                    throw new Error(err.error || 'Upload failed');
-                }
-                const { url, thumbnailUrl } = await uploadRes.json();
+        for (let i = 0; i < files.length; i += BATCH_SIZE) {
+            const batch = files.slice(i, i + BATCH_SIZE);
+            const promises = batch.map(async ({ file, name }) => {
+                try {
+                    const formData = new FormData();
+                    formData.append('file', file);
+                    formData.append('type', 'documents');
+                    const uploadRes = await fetch('/api/upload', { method: 'POST', body: formData });
+                    if (!uploadRes.ok) {
+                        const err = await uploadRes.json();
+                        throw new Error(err.error || 'Upload failed');
+                    }
+                    const { url, thumbnailUrl } = await uploadRes.json();
 
-                const docData = {
-                    name: name || file.name,
-                    fileName: file.name,
-                    fileUrl: url,
-                    thumbnailUrl: thumbnailUrl || '',
-                    mimeType: file.type,
-                    fileSize: file.size,
-                    folderId: folderId || null,
-                    space: space || '',
-                    category,
-                    projectId: '',
-                };
-                if (parentDoc) {
-                    docData.parentDocumentId = parentDoc.id;
+                    const docData = {
+                        name: name || file.name,
+                        fileName: file.name,
+                        fileUrl: url,
+                        thumbnailUrl: thumbnailUrl || '',
+                        mimeType: file.type,
+                        fileSize: file.size,
+                        folderId: folderId || null,
+                        space: space || '',
+                        category,
+                        projectId: '',
+                    };
+                    if (parentDoc) {
+                        docData.parentDocumentId = parentDoc.id;
+                    }
+                    // Only save to DB, skip refresh per file
+                    await onUpload(docData, true);
+                } catch (err) {
+                    console.error('Upload error:', err);
+                    alert(`Lỗi upload "${file.name}": ${err.message}`);
                 }
-                await onUpload(docData);
-            } catch (err) {
-                console.error('Upload error:', err);
-                alert(`Lỗi upload "${file.name}": ${err.message}`);
-            }
+                completed++;
+                setProgress({ current: completed, total: files.length });
+            });
+            await Promise.all(promises);
         }
 
+        // Refresh once after all uploads complete
+        await onUpload(null, false);
         setUploading(false);
         onClose();
     };
@@ -501,12 +511,16 @@ export default function DocumentManager({ projectId, onRefresh }) {
         } catch (err) { console.error(err); }
     };
 
-    const handleUploadDoc = async (docData) => {
+    const handleUploadDoc = async (docData, skipRefresh = false) => {
         try {
-            await fetch('/api/project-documents', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...docData, projectId }) });
-            fetchDocuments();
-            fetchFolders();
-            if (onRefresh) onRefresh();
+            if (docData) {
+                await fetch('/api/project-documents', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...docData, projectId }) });
+            }
+            if (!skipRefresh) {
+                fetchDocuments();
+                fetchFolders();
+                if (onRefresh) onRefresh();
+            }
         } catch (err) { console.error(err); }
     };
 
