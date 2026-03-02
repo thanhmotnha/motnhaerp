@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import DocumentManager from '@/components/documents/DocumentManager';
+import ScheduleManager from '@/components/schedule/ScheduleManager';
 const fmt = (n) => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(n);
 const fmtDate = (d) => d ? new Date(d).toLocaleDateString('vi-VN') : '—';
 const pct = (a, b) => b > 0 ? Math.round((a / b) * 100) : 0;
@@ -324,23 +325,12 @@ export default function ProjectDetailPage() {
 
             {/* TAB: Tiến độ */}
             {tab === 'milestones' && (
-                <div className="card" style={{ padding: 24 }}>
-                    <div className="card-header"><span className="card-title">📊 Tiến độ hạng mục</span><span className="badge info">Link KH: /progress/{p.code}</span></div>
-                    {p.milestones.map(m => (
-                        <div key={m.id} style={{ marginBottom: 20 }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-                                <span style={{ fontWeight: 600, fontSize: 13 }}>{m.name}</span>
-                                <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                                    <span className={`badge ${m.status === 'Hoàn thành' ? 'success' : m.status === 'Đang làm' || m.status === 'Đang thực hiện' ? 'warning' : 'muted'}`}>{m.status}</span>
-                                    <input type="range" min="0" max="100" step="5" value={m.progress} onChange={e => updateMilestone(m.id, e.target.value)} style={{ width: 100, accentColor: 'var(--accent-primary)' }} />
-                                    <span style={{ fontWeight: 700, width: 40, textAlign: 'right', fontSize: 13 }}>{m.progress}%</span>
-                                </div>
-                            </div>
-                            <div className="progress-bar"><div className={`progress-fill ${m.progress === 100 ? 'success' : ''}`} style={{ width: `${m.progress}%` }}></div></div>
-                        </div>
-                    ))}
-                    {p.milestones.length === 0 && <div style={{ color: 'var(--text-muted)', padding: 20, textAlign: 'center' }}>Chưa có hạng mục</div>}
-                </div>
+                <ScheduleManager
+                    projectId={id}
+                    projectCode={p.code}
+                    projectStartDate={p.startDate}
+                    onProgressUpdate={(prog) => setData(prev => ({ ...prev, progress: prog }))}
+                />
             )}
 
             {/* TAB: Hợp đồng */}

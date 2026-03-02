@@ -95,6 +95,7 @@ model Project {
   trackingLogs    TrackingLog[]
   documents       ProjectDocument[]
   documentFolders DocumentFolder[]
+  scheduleTasks   ScheduleTask[]
   deletedAt       DateTime?
   createdAt       DateTime    @default(now())
   updatedAt       DateTime    @updatedAt
@@ -638,5 +639,65 @@ model QuotationTemplateItem {
   description   String   @default("")
   categoryId    String
   category      QuotationTemplateCategory @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+}
+
+// ============ PHÂN HỆ TIẾN ĐỘ V2 ============
+
+model ScheduleTask {
+  id            String   @id @default(cuid())
+  name          String
+  order         Int      @default(0)
+  level         Int      @default(0)
+  wbs           String   @default("")
+  startDate     DateTime
+  endDate       DateTime
+  duration      Int      @default(1)
+  progress      Int      @default(0)
+  weight        Float    @default(1)
+  status        String   @default("Chưa bắt đầu")
+  assignee      String   @default("")
+  notes         String   @default("")
+  color         String   @default("")
+  baselineStart DateTime?
+  baselineEnd   DateTime?
+  parentId      String?
+  parent        ScheduleTask?  @relation("TaskTree", fields: [parentId], references: [id])
+  children      ScheduleTask[] @relation("TaskTree")
+  predecessorId String?
+  predecessor   ScheduleTask?  @relation("TaskDep", fields: [predecessorId], references: [id])
+  successors    ScheduleTask[] @relation("TaskDep")
+  projectId     String
+  project       Project  @relation(fields: [projectId], references: [id])
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+model ScheduleTemplate {
+  id          String   @id @default(cuid())
+  name        String
+  type        String   @default("Nội thất")
+  description String   @default("")
+  items       ScheduleTemplateItem[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model ScheduleTemplateItem {
+  id            String   @id @default(cuid())
+  name          String
+  order         Int      @default(0)
+  level         Int      @default(0)
+  wbs           String   @default("")
+  duration      Int      @default(1)
+  weight        Float    @default(1)
+  color         String   @default("")
+  parentId      String?
+  parent        ScheduleTemplateItem? @relation("TplItemTree", fields: [parentId], references: [id])
+  children      ScheduleTemplateItem[] @relation("TplItemTree")
+  predecessorId String?
+  predecessor   ScheduleTemplateItem? @relation("TplItemDep", fields: [predecessorId], references: [id])
+  successors    ScheduleTemplateItem[] @relation("TplItemDep")
+  templateId    String
+  template      ScheduleTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
 }
 
