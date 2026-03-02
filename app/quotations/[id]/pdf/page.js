@@ -226,7 +226,7 @@ export default function QuotationPDFPage() {
                     position: relative;
                     z-index: 1;
                     overflow: hidden;
-                    padding-top: 14px;
+                    padding-top: 50px;
                 }
                 .mn-header-img img {
                     width: 100%;
