@@ -200,6 +200,8 @@ export default function QuotationPDFPage() {
                     display: block;
                     position: relative;
                     z-index: 1;
+                    overflow: hidden;
+                    aspect-ratio: 5 / 2;
                 }
                 .mn-header-img img {
                     width: 100%;
