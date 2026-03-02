@@ -1,21 +1,29 @@
 import { withAuth } from '@/lib/apiHandler';
 import prisma from '@/lib/prisma';
+import { parsePagination, paginatedResponse } from '@/lib/pagination';
 import { generateCode } from '@/lib/generateCode';
 import { NextResponse } from 'next/server';
 import { transactionCreateSchema } from '@/lib/validations/transaction';
 
 export const GET = withAuth(async (request) => {
     const { searchParams } = new URL(request.url);
+    const { page, limit, skip } = parsePagination(searchParams);
     const type = searchParams.get('type');
 
     const where = {};
     if (type) where.type = type;
 
-    const transactions = await prisma.transaction.findMany({
-        where,
-        include: { project: { select: { name: true } } },
-        orderBy: { date: 'desc' },
-    });
+    const [txList, total] = await Promise.all([
+        prisma.transaction.findMany({
+            where,
+            include: { project: { select: { name: true } } },
+            orderBy: { date: 'desc' },
+            skip,
+            take: limit,
+        }),
+        prisma.transaction.count({ where }),
+    ]);
+    const transactions = paginatedResponse(txList, total, { page, limit });
 
     // Contract payments summary (receivables)
     const receivables = await prisma.contractPayment.aggregate({

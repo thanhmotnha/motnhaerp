@@ -2494,6 +2494,39 @@ select.form-input-compact {
   background: #d97706;
 }
 
+.btn-success {
+  background: #10b981;
+  color: #fff;
+  border: none;
+  cursor: pointer;
+  border-radius: var(--border-radius-sm);
+  font-weight: 600;
+  transition: all var(--transition-fast);
+}
+.btn-success:hover { background: #059669; }
+
+.btn-info {
+  background: #0ea5e9;
+  color: #fff;
+  border: none;
+  cursor: pointer;
+  border-radius: var(--border-radius-sm);
+  font-weight: 600;
+  transition: all var(--transition-fast);
+}
+.btn-info:hover { background: #0284c7; }
+
+.btn-purple {
+  background: #8b5cf6;
+  color: #fff;
+  border: none;
+  cursor: pointer;
+  border-radius: var(--border-radius-sm);
+  font-weight: 600;
+  transition: all var(--transition-fast);
+}
+.btn-purple:hover { background: #7c3aed; }
+
 /* Quick-add autocomplete input */
 .quick-add-input {
   border-style: dashed !important;

@@ -3,6 +3,13 @@ import prisma from '@/lib/prisma';
 import { NextResponse } from 'next/server';
 import { productUpdateSchema } from '@/lib/validations/product';
 
+export const GET = withAuth(async (request, { params }) => {
+    const { id } = await params;
+    const product = await prisma.product.findUnique({ where: { id } });
+    if (!product) return NextResponse.json({ error: 'Not found' }, { status: 404 });
+    return NextResponse.json(product);
+});
+
 export const PUT = withAuth(async (request, { params }) => {
     const { id } = await params;
     const body = await request.json();

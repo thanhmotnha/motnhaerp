@@ -20,6 +20,31 @@ const fmt = (n) => new Intl.NumberFormat('vi-VN', { style: 'currency', currency:
 const fmtNum = (n) => new Intl.NumberFormat('vi-VN').format(n || 0);
 
 /* =============================================
+   SỐ TIỀN BẰNG CHỮ (Tiếng Việt)
+   ============================================= */
+function numberToWords(n) {
+    if (!n || n === 0) return 'Không đồng';
+    const u = ['', 'một', 'hai', 'ba', 'bốn', 'năm', 'sáu', 'bảy', 'tám', 'chín'];
+    function readGroup(num, leadZero) {
+        const h = Math.floor(num / 100), t = Math.floor((num % 100) / 10), o = num % 10;
+        let s = '';
+        if (h) s += u[h] + ' trăm ';
+        if (t === 0) { if (o) s += (h || leadZero ? 'lẻ ' : '') + u[o] + ' '; }
+        else if (t === 1) { s += 'mười ' + (o === 5 ? 'lăm ' : o ? u[o] + ' ' : ''); }
+        else { s += u[t] + ' mươi ' + (o === 1 ? 'mốt ' : o === 5 ? 'lăm ' : o ? u[o] + ' ' : ''); }
+        return s;
+    }
+    const ty = Math.floor(n / 1e9), tr = Math.floor((n % 1e9) / 1e6), ng = Math.floor((n % 1e6) / 1e3), rem = n % 1e3;
+    let r = '';
+    if (ty) r += readGroup(ty, false) + 'tỷ ';
+    if (tr) r += readGroup(tr, !!ty) + 'triệu ';
+    if (ng) r += readGroup(ng, !!(ty || tr)) + 'nghìn ';
+    if (rem) r += readGroup(rem, !!(ty || tr || ng));
+    r = r.trim();
+    return r.charAt(0).toUpperCase() + r.slice(1) + ' đồng';
+}
+
+/* =============================================
    USP PER QUOTATION TYPE
    ============================================= */
 const USP_MAP = {
@@ -201,6 +226,7 @@ export default function QuotationPDFPage() {
                     position: relative;
                     z-index: 1;
                     overflow: hidden;
+                    padding-top: 20px;
                 }
                 .mn-header-img img {
                     width: 100%;
@@ -355,29 +381,51 @@ export default function QuotationPDFPage() {
 
                 /* Category header (main group) */
                 .mn-cat-main {
+                    background: linear-gradient(135deg, ${BRAND.blue} 0%, #1a327a 100%);
+                    color: #fff;
+                    padding: 0;
+                    border-radius: 8px 8px 0 0;
+                    overflow: hidden;
+                    display: flex;
+                    align-items: stretch;
+                }
+                .mn-cat-group-label {
                     background: ${BRAND.gold};
                     color: #fff;
-                    padding: 9px 14px;
+                    padding: 0 14px;
+                    font-size: 10px;
                     font-weight: 800;
-                    font-size: 12px;
-                    display: flex;
-                    justify-content: space-between;
-                    align-items: center;
                     letter-spacing: 0.5px;
-                    border-radius: 8px 8px 0 0;
+                    display: flex;
+                    align-items: center;
+                    white-space: nowrap;
+                    min-width: 36px;
+                    justify-content: center;
                 }
-                .mn-cat-main .mn-space-name {
-                    color: ${BRAND.gold};
-                    background: transparent;
-                    border: none;
-                    padding: 4px 0;
-                    font-weight: 900;
-                    font-size: 12px;
-                    font-style: italic;
-                    letter-spacing: 1.5px;
+                .mn-cat-room-block {
+                    flex: 1;
+                    padding: 10px 18px;
+                    display: flex;
+                    flex-direction: column;
+                    justify-content: center;
+                    gap: 2px;
+                }
+                .mn-cat-room-subtitle {
+                    font-size: 8px;
+                    font-weight: 600;
                     text-transform: uppercase;
-                    text-shadow: 0 1px 3px rgba(0,0,0,0.15);
-                    border-bottom: 2px solid ${BRAND.gold};
+                    letter-spacing: 2px;
+                    color: ${BRAND.gold};
+                    opacity: 0.9;
+                }
+                .mn-space-name {
+                    font-weight: 900;
+                    font-size: 15px;
+                    letter-spacing: 1px;
+                    text-transform: uppercase;
+                    color: #ffffff;
+                    text-shadow: 0 1px 4px rgba(0,0,0,0.25);
+                    line-height: 1.2;
                 }
                 .mn-sub-total td {
                     background: ${BRAND.blue}08;
@@ -400,27 +448,67 @@ export default function QuotationPDFPage() {
                 }
 
                 /* ====== SUMMARY BOX ====== */
-                .mn-summary-wrap { display: flex; justify-content: flex-end; margin: 20px 0; }
+                .mn-summary-wrap {
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: flex-end;
+                    gap: 20px;
+                    margin: 20px 0;
+                }
+                .mn-sum-words {
+                    flex: 1;
+                    padding: 12px 16px;
+                    background: ${BRAND.blue}05;
+                    border: 1px solid ${BRAND.blue}20;
+                    border-left: 3px solid ${BRAND.blue};
+                    border-radius: 6px;
+                    font-size: 10.5px;
+                    color: ${BRAND.textMid};
+                    line-height: 1.6;
+                }
+                .mn-sum-words-label {
+                    display: block;
+                    font-size: 8px;
+                    font-weight: 700;
+                    text-transform: uppercase;
+                    letter-spacing: 1.5px;
+                    color: ${BRAND.blue};
+                    margin-bottom: 5px;
+                    opacity: 0.8;
+                }
+                .mn-sum-words-text {
+                    color: ${BRAND.textDark};
+                    font-weight: 600;
+                    font-style: italic;
+                }
                 .mn-sum-box {
-                    width: 340px;
+                    width: 310px;
+                    flex-shrink: 0;
                     border: 1px solid ${BRAND.grey};
+                    border-radius: 6px;
                     overflow: hidden;
                 }
                 .mn-sum-row {
                     display: flex;
                     justify-content: space-between;
-                    padding: 8px 16px;
-                    font-size: 11px;
+                    padding: 7px 14px;
+                    font-size: 10.5px;
                     font-weight: 500;
                     border-bottom: 1px solid #f1f5f9;
                 }
                 .mn-sum-row.total {
-                    background: ${BRAND.gold};
-                    color: #fff;
-                    font-weight: 900;
-                    font-size: 14px;
+                    background: linear-gradient(135deg, ${BRAND.blue} 0%, #1a327a 100%);
+                    color: rgba(255,255,255,0.85);
+                    font-weight: 700;
+                    font-size: 11.5px;
                     border: none;
-                    letter-spacing: 0.5px;
+                    letter-spacing: 0.3px;
+                    padding: 11px 14px;
+                }
+                .mn-sum-row.total span:last-child {
+                    color: ${BRAND.gold};
+                    font-weight: 900;
+                    font-size: 13px;
                 }
                 .mn-sum-row.discount span:last-child { color: #dc2626; font-weight: 600; }
 
@@ -449,7 +537,28 @@ export default function QuotationPDFPage() {
                     color: ${BRAND.blue};
                     text-transform: uppercase;
                     letter-spacing: 1px;
-                    margin-bottom: 55px;
+                    margin-bottom: 8px;
+                }
+                .mn-sign-space {
+                    height: 80px;
+                    position: relative;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                }
+                .mn-stamp-circle {
+                    width: 72px;
+                    height: 72px;
+                    border-radius: 50%;
+                    border: 2px dashed ${BRAND.blue}40;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    font-size: 8px;
+                    color: ${BRAND.blue}40;
+                    font-style: italic;
+                    text-align: center;
+                    line-height: 1.4;
                 }
                 .mn-sign-line {
                     border-top: 1px solid ${BRAND.grey};
@@ -605,8 +714,11 @@ export default function QuotationPDFPage() {
                                         <div key={cat.id || ci}>
                                             {/* Main category + space name merged */}
                                             <div className="mn-cat-main" style={{ marginTop: (gi > 0 || ci > 0) ? 18 : 0 }}>
-                                                <span>#{gi + 1}.{ci + 1} {groupName}</span>
-                                                <span className="mn-space-name">{cat.name || `Khu vực ${ci + 1}`}</span>
+                                                <div className="mn-cat-group-label">#{gi + 1}.{ci + 1}</div>
+                                                <div className="mn-cat-room-block">
+                                                    <div className="mn-cat-room-subtitle">{groupName}</div>
+                                                    <div className="mn-space-name">{cat.name || `Khu vực ${ci + 1}`}</div>
+                                                </div>
                                             </div>
                                             <div className={cat.image ? 'mn-sub-layout' : ''}>
                                                 <div className="mn-sub-table-area">
@@ -668,6 +780,10 @@ export default function QuotationPDFPage() {
 
                     {/* ====== SUMMARY ====== */}
                     <div className="mn-summary-wrap">
+                        <div className="mn-sum-words">
+                            <span className="mn-sum-words-label">Tổng giá trị bằng chữ</span>
+                            <span className="mn-sum-words-text">{numberToWords(Math.round(q.grandTotal))}</span>
+                        </div>
                         <div className="mn-sum-box">
                             {q.directCost > 0 && <div className="mn-sum-row"><span>Chi phí trực tiếp</span><span>{fmt(q.directCost)}</span></div>}
                             {q.managementFee > 0 && <div className="mn-sum-row"><span>Phí quản lý ({q.managementFeeRate}%)</span><span>{fmt(q.managementFee)}</span></div>}
@@ -694,10 +810,14 @@ export default function QuotationPDFPage() {
                             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
                                 <div className="mn-sign-area">
                                     <div className="mn-sign-title">Đại diện<br />Khách hàng</div>
+                                    <div className="mn-sign-space"></div>
                                     <div className="mn-sign-line">(Ký, ghi rõ họ tên)</div>
                                 </div>
                                 <div className="mn-sign-area">
-                                    <div className="mn-sign-title">Đại diện<br />Một Nhà</div>
+                                    <div className="mn-sign-title">Đại diện<br />Một Nhà Design &amp; Build</div>
+                                    <div className="mn-sign-space">
+                                        <div className="mn-stamp-circle">Dấu<br />công ty</div>
+                                    </div>
                                     <div className="mn-sign-line">(Ký tên, đóng dấu)</div>
                                 </div>
                             </div>

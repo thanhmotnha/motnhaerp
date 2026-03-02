@@ -9,11 +9,13 @@ export const GET = withAuth(async (request) => {
     const { page, limit, skip } = parsePagination(searchParams);
     const type = searchParams.get('type');
     const warehouseId = searchParams.get('warehouseId');
+    const productId = searchParams.get('productId');
     const search = searchParams.get('search') || '';
 
     const where = {};
     if (type) where.type = type;
     if (warehouseId) where.warehouseId = warehouseId;
+    if (productId) where.productId = productId;
     if (search) {
         where.OR = [
             { code: { contains: search, mode: 'insensitive' } },

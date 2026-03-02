@@ -1,27 +1,102 @@
 'use client';
-import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, useEffect, Suspense } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
+
 const fmt = (n) => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(n);
+const fmtNum = (n) => new Intl.NumberFormat('vi-VN').format(n || 0);
 const fmtDate = (d) => d ? new Date(d).toLocaleDateString('vi-VN') : '—';
 const pct = (a, b) => b > 0 ? Math.round((a / b) * 100) : 0;
 
-export default function PurchasingPage() {
+const STATUS_BADGE = { 'Đã thanh toán': 'badge-success', 'Đã giao': 'badge-info', 'Đang giao': 'badge-warning', 'Nháp': 'badge-default' };
+
+function PurchasingContent() {
     const router = useRouter();
+    const searchParams = useSearchParams();
     const [orders, setOrders] = useState([]);
     const [loading, setLoading] = useState(true);
     const [filterStatus, setFilterStatus] = useState('');
+    const [projects, setProjects] = useState([]);
 
-    useEffect(() => { fetch('/api/purchase-orders?limit=1000').then(r => r.json()).then(d => { setOrders(d.data || []); setLoading(false); }); }, []);
+    // Create PO modal
+    const [showModal, setShowModal] = useState(false);
+    const [poForm, setPoForm] = useState({ supplier: '', projectId: '', deliveryDate: '', notes: '' });
+    const [poItems, setPoItems] = useState([{ productName: '', unit: 'cái', quantity: 1, unitPrice: 0, amount: 0, productId: null }]);
+    const [saving, setSaving] = useState(false);
+
+    const fetchOrders = () => {
+        setLoading(true);
+        fetch('/api/purchase-orders?limit=1000').then(r => r.json()).then(d => { setOrders(d.data || []); setLoading(false); });
+    };
+
+    useEffect(() => {
+        fetchOrders();
+        fetch('/api/projects?limit=200').then(r => r.json()).then(d => setProjects(d.data || []));
+    }, []);
+
+    // Pre-fill from URL params (from products bulk action)
+    useEffect(() => {
+        const createPO = searchParams.get('createPO');
+        const productIds = searchParams.get('products')?.split(',').filter(Boolean) || [];
+        if (createPO && productIds.length > 0) {
+            fetch('/api/products?limit=1000').then(r => r.json()).then(d => {
+                const all = d.data || [];
+                const items = productIds.map(pid => {
+                    const p = all.find(x => x.id === pid);
+                    return p ? { productName: p.name, unit: p.unit || 'cái', quantity: 1, unitPrice: p.salePrice || 0, amount: p.salePrice || 0, productId: p.id } : null;
+                }).filter(Boolean);
+                if (items.length > 0) {
+                    setPoItems(items);
+                    setPoForm(f => ({ ...f, supplier: items[0] ? (d.data?.find(p => p.id === items[0].productId)?.supplier || '') : '' }));
+                    setShowModal(true);
+                }
+            });
+        }
+    }, [searchParams]);
 
     const totalValue = orders.reduce((s, o) => s + o.totalAmount, 0);
     const totalPaid = orders.reduce((s, o) => s + o.paidAmount, 0);
-    const statuses = ['Đang đặt', 'Đã xác nhận', 'Đang giao', 'Đã giao', 'Đã thanh toán'];
-
+    const statuses = ['Nháp', 'Đang đặt', 'Đã xác nhận', 'Đang giao', 'Đã giao', 'Đã thanh toán'];
     const filtered = filterStatus ? orders.filter(o => o.status === filterStatus) : orders;
+
+    const updateItem = (i, field, value) => {
+        setPoItems(items => items.map((it, idx) => {
+            if (idx !== i) return it;
+            const updated = { ...it, [field]: value };
+            updated.amount = (Number(updated.quantity) || 0) * (Number(updated.unitPrice) || 0);
+            return updated;
+        }));
+    };
+
+    const poTotal = poItems.reduce((s, it) => s + (it.amount || 0), 0);
+
+    const createPO = async () => {
+        if (!poForm.supplier.trim()) return alert('Vui lòng nhập nhà cung cấp');
+        if (poItems.every(it => !it.productName.trim())) return alert('Vui lòng nhập ít nhất 1 sản phẩm');
+        setSaving(true);
+        const validItems = poItems.filter(it => it.productName.trim());
+        const res = await fetch('/api/purchase-orders', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                ...poForm,
+                projectId: poForm.projectId || null,
+                totalAmount: poTotal,
+                items: validItems,
+            }),
+        });
+        setSaving(false);
+        if (!res.ok) { const e = await res.json(); return alert(e.error || 'Lỗi tạo PO'); }
+        setShowModal(false);
+        setPoForm({ supplier: '', projectId: '', deliveryDate: '', notes: '' });
+        setPoItems([{ productName: '', unit: 'cái', quantity: 1, unitPrice: 0, amount: 0, productId: null }]);
+        fetchOrders();
+    };
 
     return (
         <div>
-            <h2 style={{ marginBottom: 24 }}>🛒 Mua sắm vật tư toàn công ty</h2>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
+                <h2 style={{ margin: 0 }}>🛒 Mua sắm vật tư toàn công ty</h2>
+                <button className="btn btn-primary" onClick={() => setShowModal(true)}>+ Tạo PO mới</button>
+            </div>
 
             <div className="stats-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', marginBottom: 24 }}>
                 <div className="stat-card"><div className="stat-icon">🛒</div><div><div className="stat-value">{orders.length}</div><div className="stat-label">Tổng đơn hàng</div></div></div>
@@ -47,10 +122,10 @@ export default function PurchasingPage() {
                         <tbody>{filtered.map(o => {
                             const rate = pct(o.paidAmount, o.totalAmount);
                             return (
-                                <tr key={o.id} onClick={() => o.project && router.push(`/projects/${o.projectId}`)} style={{ cursor: 'pointer' }}>
+                                <tr key={o.id} onClick={() => o.projectId && router.push(`/projects/${o.projectId}`)} style={{ cursor: o.projectId ? 'pointer' : 'default' }}>
                                     <td className="accent">{o.code}</td>
-                                    <td className="primary">{o.supplier}<div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{o.supplierPhone}</div></td>
-                                    <td><span className="badge info">{o.project?.code}</span></td>
+                                    <td className="primary">{o.supplier}</td>
+                                    <td>{o.project ? <span className="badge badge-info">{o.project.code}</span> : <span style={{ opacity: 0.3, fontSize: 12 }}>—</span>}</td>
                                     <td className="amount">{fmt(o.totalAmount)}</td>
                                     <td>
                                         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -61,7 +136,7 @@ export default function PurchasingPage() {
                                     <td>{o.items?.length || 0}</td>
                                     <td style={{ fontSize: 12 }}>{fmtDate(o.orderDate)}</td>
                                     <td style={{ fontSize: 12 }}>{fmtDate(o.deliveryDate)}</td>
-                                    <td><span className={`badge ${o.status === 'Đã thanh toán' ? 'success' : o.status === 'Đã giao' ? 'info' : o.status === 'Đang giao' ? 'warning' : 'muted'}`}>{o.status}</span></td>
+                                    <td><span className={`badge ${STATUS_BADGE[o.status] || 'badge-default'}`}>{o.status}</span></td>
                                 </tr>
                             );
                         })}</tbody>
@@ -69,6 +144,115 @@ export default function PurchasingPage() {
                 )}
                 {!loading && filtered.length === 0 && <div style={{ color: 'var(--text-muted)', padding: 24, textAlign: 'center' }}>Không có dữ liệu</div>}
             </div>
+
+            {/* Create PO Modal */}
+            {showModal && (
+                <div className="modal-overlay" onClick={() => setShowModal(false)}>
+                    <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 760, width: '95%' }}>
+                        <div className="modal-header">
+                            <h3>Tạo đơn mua hàng (PO)</h3>
+                            <button className="modal-close" onClick={() => setShowModal(false)}>×</button>
+                        </div>
+                        <div className="modal-body">
+                            <div className="form-row">
+                                <div className="form-group" style={{ flex: 2 }}>
+                                    <label className="form-label">Nhà cung cấp *</label>
+                                    <input className="form-input" value={poForm.supplier} onChange={e => setPoForm(f => ({ ...f, supplier: e.target.value }))} placeholder="Tên nhà cung cấp..." autoFocus />
+                                </div>
+                                <div className="form-group" style={{ flex: 2 }}>
+                                    <label className="form-label">Dự án (không bắt buộc)</label>
+                                    <select className="form-select" value={poForm.projectId} onChange={e => setPoForm(f => ({ ...f, projectId: e.target.value }))}>
+                                        <option value="">-- Không gắn dự án --</option>
+                                        {projects.map(p => <option key={p.id} value={p.id}>{p.code} — {p.name}</option>)}
+                                    </select>
+                                </div>
+                                <div className="form-group">
+                                    <label className="form-label">Ngày giao hàng</label>
+                                    <input className="form-input" type="date" value={poForm.deliveryDate} onChange={e => setPoForm(f => ({ ...f, deliveryDate: e.target.value }))} />
+                                </div>
+                            </div>
+                            <div className="form-group">
+                                <label className="form-label">Ghi chú</label>
+                                <input className="form-input" value={poForm.notes} onChange={e => setPoForm(f => ({ ...f, notes: e.target.value }))} placeholder="Yêu cầu đặc biệt, quy cách giao hàng..." />
+                            </div>
+
+                            {/* Items table */}
+                            <div style={{ marginTop: 12 }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                                    <label className="form-label" style={{ margin: 0 }}>Danh sách sản phẩm</label>
+                                    <button className="btn btn-ghost btn-sm" onClick={() => setPoItems(it => [...it, { productName: '', unit: 'cái', quantity: 1, unitPrice: 0, amount: 0, productId: null }])}>
+                                        + Thêm dòng
+                                    </button>
+                                </div>
+                                <div style={{ border: '1px solid var(--border-color)', borderRadius: 6, overflow: 'hidden' }}>
+                                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+                                        <thead>
+                                            <tr style={{ background: 'var(--surface-alt)' }}>
+                                                <th style={{ padding: '8px 10px', textAlign: 'left', fontWeight: 600, fontSize: 11 }}>Tên sản phẩm</th>
+                                                <th style={{ padding: '8px 8px', width: 65, textAlign: 'left', fontWeight: 600, fontSize: 11 }}>ĐVT</th>
+                                                <th style={{ padding: '8px 8px', width: 80, textAlign: 'left', fontWeight: 600, fontSize: 11 }}>Số lượng</th>
+                                                <th style={{ padding: '8px 8px', width: 110, textAlign: 'left', fontWeight: 600, fontSize: 11 }}>Đơn giá</th>
+                                                <th style={{ padding: '8px 8px', width: 110, textAlign: 'right', fontWeight: 600, fontSize: 11 }}>Thành tiền</th>
+                                                <th style={{ width: 36 }}></th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {poItems.map((it, i) => (
+                                                <tr key={i} style={{ borderTop: '1px solid var(--border-color)' }}>
+                                                    <td style={{ padding: '6px 8px' }}>
+                                                        <input className="form-input" style={{ fontSize: 12, padding: '4px 8px' }} value={it.productName}
+                                                            onChange={e => updateItem(i, 'productName', e.target.value)} placeholder="Tên sản phẩm..." />
+                                                    </td>
+                                                    <td style={{ padding: '6px 4px' }}>
+                                                        <input className="form-input" style={{ fontSize: 12, padding: '4px 6px' }} value={it.unit}
+                                                            onChange={e => updateItem(i, 'unit', e.target.value)} />
+                                                    </td>
+                                                    <td style={{ padding: '6px 4px' }}>
+                                                        <input className="form-input" type="number" style={{ fontSize: 12, padding: '4px 6px' }} value={it.quantity}
+                                                            onChange={e => updateItem(i, 'quantity', Number(e.target.value))} min="0" step="0.1" />
+                                                    </td>
+                                                    <td style={{ padding: '6px 4px' }}>
+                                                        <input className="form-input" type="number" style={{ fontSize: 12, padding: '4px 6px' }} value={it.unitPrice}
+                                                            onChange={e => updateItem(i, 'unitPrice', Number(e.target.value))} min="0" />
+                                                    </td>
+                                                    <td style={{ padding: '6px 8px', textAlign: 'right', fontWeight: 600, fontSize: 12 }}>
+                                                        {fmtNum(it.amount)}
+                                                    </td>
+                                                    <td style={{ padding: '6px 4px', textAlign: 'center' }}>
+                                                        {poItems.length > 1 && (
+                                                            <button className="btn btn-ghost btn-sm" style={{ fontSize: 12 }}
+                                                                onClick={() => setPoItems(it => it.filter((_, idx) => idx !== i))}>✕</button>
+                                                        )}
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                        <tfoot>
+                                            <tr style={{ background: 'var(--surface-alt)', borderTop: '2px solid var(--border-color)' }}>
+                                                <td colSpan={4} style={{ padding: '10px 12px', fontWeight: 700, fontSize: 13 }}>TỔNG CỘNG</td>
+                                                <td style={{ padding: '10px 8px', textAlign: 'right', fontWeight: 700, fontSize: 14, color: 'var(--primary)' }}>{fmt(poTotal)}</td>
+                                                <td></td>
+                                            </tr>
+                                        </tfoot>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                        <div className="modal-footer">
+                            <button className="btn btn-ghost" onClick={() => setShowModal(false)}>Hủy</button>
+                            <button className="btn btn-primary" onClick={createPO} disabled={saving}>{saving ? 'Đang tạo...' : 'Tạo đơn hàng'}</button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
+    );
+}
+
+export default function PurchasingPage() {
+    return (
+        <Suspense fallback={<div style={{ padding: 40, textAlign: 'center', opacity: 0.4 }}>Đang tải...</div>}>
+            <PurchasingContent />
+        </Suspense>
     );
 }
