@@ -1,18 +1,30 @@
 'use client';
 import { useState, useEffect } from 'react';
+import Link from 'next/link';
 
 export default function TemplateImportModal({ projectId, projectStartDate, onClose, onImported }) {
     const [templates, setTemplates] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(null);
     const [selectedId, setSelectedId] = useState('');
     const [startDate, setStartDate] = useState(projectStartDate ? new Date(projectStartDate).toISOString().split('T')[0] : new Date().toISOString().split('T')[0]);
     const [importing, setImporting] = useState(false);
 
     useEffect(() => {
         fetch('/api/schedule-templates')
-            .then(r => r.json())
-            .then(d => { setTemplates(d); setLoading(false); })
-            .catch(() => setLoading(false));
+            .then(r => {
+                if (!r.ok) throw new Error(`HTTP ${r.status}`);
+                return r.json();
+            })
+            .then(d => {
+                setTemplates(Array.isArray(d) ? d : []);
+                setLoading(false);
+            })
+            .catch(err => {
+                console.error('Load templates error:', err);
+                setError(err.message);
+                setLoading(false);
+            });
     }, []);
 
     const handleImport = async () => {
@@ -46,11 +58,19 @@ export default function TemplateImportModal({ projectId, projectStartDate, onClo
                 <div className="modal-body">
                     {loading ? (
                         <div style={{ padding: 20, textAlign: 'center', color: 'var(--text-muted)' }}>Đang tải mẫu...</div>
+                    ) : error ? (
+                        <div style={{ padding: 20, textAlign: 'center' }}>
+                            <div style={{ fontSize: 32, marginBottom: 8 }}>⚠️</div>
+                            <div style={{ color: 'var(--status-danger)', fontSize: 13 }}>Lỗi tải mẫu: {error}</div>
+                            <div style={{ color: 'var(--text-muted)', fontSize: 12, marginTop: 4 }}>Có thể chưa chạy <code>prisma db push</code> trên server.</div>
+                        </div>
                     ) : templates.length === 0 ? (
                         <div style={{ padding: 20, textAlign: 'center' }}>
                             <div style={{ fontSize: 32, marginBottom: 8 }}>📋</div>
                             <div style={{ color: 'var(--text-muted)', fontSize: 13 }}>Chưa có mẫu tiến độ nào.</div>
-                            <div style={{ color: 'var(--text-muted)', fontSize: 12, marginTop: 4 }}>Admin cần tạo mẫu tại mục Quản lý Mẫu Tiến độ trước.</div>
+                            <div style={{ color: 'var(--text-muted)', fontSize: 12, marginTop: 4 }}>
+                                <Link href="/schedule-templates" style={{ color: 'var(--accent-primary)' }}>→ Tạo mẫu tiến độ</Link>
+                            </div>
                         </div>
                     ) : (
                         <>
