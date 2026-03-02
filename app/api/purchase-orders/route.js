@@ -43,11 +43,12 @@ export const POST = withAuth(async (request) => {
         data: {
             code,
             ...poData,
+            projectId: poData.projectId || null,
             orderDate: poData.orderDate ? new Date(poData.orderDate) : new Date(),
             deliveryDate: poData.deliveryDate ? new Date(poData.deliveryDate) : null,
             items: items ? { create: items } : undefined,
         },
-        include: { items: true },
+        include: { items: true, project: { select: { name: true, code: true } } },
     });
     return NextResponse.json(order);
 });

@@ -120,14 +120,18 @@ model Product {
   warranty      String      @default("")
   brand         String      @default("")
   status        String      @default("Đang bán")
-  supplyType    String      @default("Sẵn kho")
+  supplyType    String      @default("Vật tư lưu kho")
   leadTimeDays  Int         @default(0)
   location      String      @default("")
   image         String      @default("")
+  coreBoard     String      @default("")
+  surfaceCode   String      @default("")
   inventoryTx   InventoryTransaction[]
   quotationItems QuotationItem[]
   materialPlans MaterialPlan[]
   purchaseItems PurchaseOrderItem[]
+  bomComponents ProductBOM[] @relation("BOMParent")
+  bomUsedIn     ProductBOM[] @relation("BOMComponent")
   deletedAt     DateTime?
   createdAt     DateTime    @default(now())
   updatedAt     DateTime    @updatedAt
@@ -455,8 +459,8 @@ model PurchaseOrder {
   deliveryDate    DateTime?
   receivedDate    DateTime?
   notes           String   @default("")
-  projectId       String
-  project         Project  @relation(fields: [projectId], references: [id])
+  projectId       String?
+  project         Project?  @relation(fields: [projectId], references: [id])
   items           PurchaseOrderItem[]
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
@@ -561,6 +565,22 @@ model DocumentFolder {
   documents   ProjectDocument[]
   createdAt   DateTime @default(now())
   @@index([projectId])
+}
+
+// ============ ĐỊNH MỨC VẬT TƯ (BOM) ============
+
+model ProductBOM {
+  id          String   @id @default(cuid())
+  quantity    Float    @default(1)
+  unit        String   @default("")
+  notes       String   @default("")
+  productId   String
+  product     Product  @relation("BOMParent", fields: [productId], references: [id], onDelete: Cascade)
+  componentId String
+  component   Product  @relation("BOMComponent", fields: [componentId], references: [id])
+  createdAt   DateTime @default(now())
+  @@index([productId])
+  @@index([componentId])
 }
 
 // ============ THƯ VIỆN HẠNG MỤC THI CÔNG ============

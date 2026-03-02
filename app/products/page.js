@@ -1,9 +1,15 @@
 ﻿'use client';
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
 import * as XLSX from 'xlsx';
 
 const fmt = (n) => new Intl.NumberFormat('vi-VN').format(n);
 const fmtCur = (n) => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(n);
+
+const SUPPLY_TYPES = ['Vật tư lưu kho', 'Mua thương mại', 'Sản xuất nội bộ'];
+const SUPPLY_BADGE = { 'Sản xuất nội bộ': 'badge-info', 'Mua thương mại': 'badge-warning', 'Vật tư lưu kho': 'badge-success' };
+const CORE_BOARD_TYPES = ['MDF thường', 'MDF chống ẩm', 'MFC', 'Gỗ tự nhiên', 'Nhựa', 'Kính', 'Khác'];
+const stockStatus = (p) => p.stock === 0 ? 'out' : (p.minStock > 0 && p.stock <= p.minStock) ? 'low' : 'ok';
 
 const BRANDS = [{ n: '', logo: '' }, { n: 'Dulux', logo: 'https://logo.clearbit.com/dulux.com' }, { n: 'Jotun', logo: 'https://logo.clearbit.com/jotun.com' }, { n: 'TOA', logo: 'https://logo.clearbit.com/toagroup.com' }, { n: 'Nippon', logo: 'https://logo.clearbit.com/nipponpaint.com' }, { n: 'Hafele', logo: 'https://logo.clearbit.com/hafele.com' }, { n: 'Blum', logo: 'https://logo.clearbit.com/blum.com' }, { n: 'Hettich', logo: 'https://logo.clearbit.com/hettich.com' }, { n: 'Panasonic', logo: 'https://logo.clearbit.com/panasonic.com' }, { n: 'Daikin', logo: 'https://logo.clearbit.com/daikin.com' }, { n: 'Mitsubishi', logo: 'https://logo.clearbit.com/mitsubishielectric.com' }, { n: 'Samsung', logo: 'https://logo.clearbit.com/samsung.com' }, { n: 'LG', logo: 'https://logo.clearbit.com/lg.com' }, { n: 'Rossi', logo: 'https://logo.clearbit.com/rossigroup.com.vn' }, { n: 'Caesar', logo: 'https://logo.clearbit.com/caesar.com.tw' }, { n: 'Toto', logo: 'https://logo.clearbit.com/toto.com' }, { n: 'Grohe', logo: 'https://logo.clearbit.com/grohe.com' }, { n: 'HMF', logo: '' }, { n: 'AA', logo: '' }, { n: 'Hoa Phat', logo: 'https://logo.clearbit.com/hoaphat.com.vn' }];
 const PRODUCT_CATS = ['Nội thất thành phẩm', 'Gỗ tự nhiên', 'Gỗ công nghiệp', 'Đá & Gạch', 'Sơn & Keo', 'Phụ kiện nội thất', 'Thiết bị điện', 'Vật liệu xây dựng', 'Rèm cửa', 'Thiết bị vệ sinh', 'Điều hòa', 'Decor', 'Đồ rời', 'Phòng thờ'];
@@ -19,6 +25,7 @@ function EditCell({ value, onChange, type = 'text', style = {}, options }) {
 }
 
 export default function ProductsPage() {
+    const router = useRouter();
     const [tab, setTab] = useState('products');
 
     // Products
@@ -26,8 +33,13 @@ export default function ProductsPage() {
     const [loadingP, setLoadingP] = useState(true);
     const [searchP, setSearchP] = useState('');
     const [filterCatP, setFilterCatP] = useState('');
+    const [filterSupplyType, setFilterSupplyType] = useState('');
+    const [filterStockStatus, setFilterStockStatus] = useState('');
     const [editingP, setEditingP] = useState(null); // {id, data}
     const [newProduct, setNewProduct] = useState(null);
+    const [selectedIds, setSelectedIds] = useState(new Set());
+    const [showAddModal, setShowAddModal] = useState(false);
+    const [addForm, setAddForm] = useState({ name: '', category: 'Nội thất thành phẩm', unit: 'cái', salePrice: 0, importPrice: 0, brand: '', supplyType: 'Vật tư lưu kho', stock: 0, minStock: 0, supplier: '', coreBoard: '', surfaceCode: '', image: '' });
 
     // Library
     const [library, setLibrary] = useState([]);
@@ -87,6 +99,8 @@ export default function ProductsPage() {
     const pCats = [...new Set([...products.map(p => p.category), ...extraCats])].sort();
     const filteredP = products.filter(p =>
         (!filterCatP || p.category === filterCatP) &&
+        (!filterSupplyType || p.supplyType === filterSupplyType) &&
+        (!filterStockStatus || stockStatus(p) === filterStockStatus) &&
         (!searchP || p.name.toLowerCase().includes(searchP.toLowerCase()) || (p.code || '').toLowerCase().includes(searchP.toLowerCase()))
     );
 
@@ -106,7 +120,7 @@ export default function ProductsPage() {
         fetchProducts();
     };
 
-    const addNewProduct = () => setNewProduct({ name: '', category: filterCatP || 'Nội thất thành phẩm', unit: 'cái', importPrice: 0, salePrice: 0, stock: 0, minStock: 0, supplier: '', brand: '', description: '', image: '' });
+    const addNewProduct = () => { setAddForm({ name: '', category: filterCatP || 'Nội thất thành phẩm', unit: 'cái', salePrice: 0, importPrice: 0, brand: '', supplyType: 'Vật tư lưu kho', stock: 0, minStock: 0, supplier: '', coreBoard: '', surfaceCode: '', image: '' }); setShowAddModal(true); };
 
     // Upload ảnh sản phẩm
     const handleImgUpload = async (e) => {
@@ -166,8 +180,10 @@ export default function ProductsPage() {
         setImporting(false); setImportPreview(null); fetchProducts();
     };
     const saveNewProduct = async () => {
-        await fetch('/api/products', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(newProduct) });
-        setNewProduct(null); fetchProducts();
+        if (!addForm.name.trim()) return alert('Vui lòng nhập tên sản phẩm');
+        const res = await fetch('/api/products', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(addForm) });
+        if (!res.ok) { const err = await res.json(); return alert(err.error || 'Lỗi tạo sản phẩm'); }
+        setShowAddModal(false); fetchProducts();
     };
 
     // --- Library handlers ---
@@ -339,11 +355,32 @@ export default function ProductsPage() {
                                     onClick={() => setAddingCat(true)}>+ Danh mục</button>
                             )}
                         </div>
-                        <div className="card-header" style={{ borderTop: 'none' }}>
-                            <div style={{ display: 'flex', gap: 8, alignItems: 'center', flex: 1 }}>
+                        <div className="card-header" style={{ borderTop: 'none', flexWrap: 'wrap', gap: 8 }}>
+                            <div style={{ display: 'flex', gap: 8, alignItems: 'center', flex: 1, flexWrap: 'wrap' }}>
                                 <input className="form-input" placeholder="Tìm kiếm..." value={searchP} onChange={e => setSearchP(e.target.value)} style={{ maxWidth: 220, fontSize: 13 }} />
+                                <select className="form-select" value={filterSupplyType} onChange={e => setFilterSupplyType(e.target.value)} style={{ fontSize: 12, maxWidth: 160 }}>
+                                    <option value="">Tất cả nguồn cung</option>
+                                    {SUPPLY_TYPES.map(t => <option key={t}>{t}</option>)}
+                                </select>
+                                <div style={{ display: 'flex', gap: 4 }}>
+                                    {[['', 'Tất cả'], ['ok', 'Sẵn kho'], ['low', 'Sắp hết'], ['out', 'Hết hàng']].map(([v, label]) => (
+                                        <button key={v} onClick={() => setFilterStockStatus(v)}
+                                            className={`btn btn-sm ${filterStockStatus === v ? 'btn-primary' : 'btn-ghost'}`}
+                                            style={{ fontSize: 11, padding: '3px 10px' }}>{label}</button>
+                                    ))}
+                                </div>
                             </div>
                             <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                                {selectedIds.size > 0 && (
+                                    <button className="btn btn-sm" style={{ fontSize: 12, background: '#ea580c', color: '#fff', border: 'none' }}
+                                        onClick={() => {
+                                            const nonBuy = [...selectedIds].filter(id => products.find(p => p.id === id)?.supplyType !== 'Mua thương mại');
+                                            if (nonBuy.length > 0) return alert('Vui lòng chỉ chọn sản phẩm có nguồn cung "Mua thương mại"');
+                                            router.push('/purchasing?createPO=1&products=' + [...selectedIds].join(','));
+                                        }}>
+                                        🛒 Tạo Đề xuất Mua hàng ({selectedIds.size})
+                                    </button>
+                                )}
                                 <button className="btn btn-primary btn-sm" onClick={addNewProduct}>+ Thêm SP</button>
                                 <button className="btn btn-secondary btn-sm" onClick={() => excelInputRef.current?.click()}>📥 Import Excel</button>
                                 <input ref={excelInputRef} type="file" accept=".xlsx,.xls,.csv" style={{ display: 'none' }} onChange={handleExcelFile} />
@@ -354,48 +391,40 @@ export default function ProductsPage() {
                             <div style={{ overflowX: 'auto' }}>
                                 <table className="data-table">
                                     <thead><tr>
+                                        <th style={{ width: 36, padding: '8px 4px' }}>
+                                            <input type="checkbox" style={{ cursor: 'pointer' }}
+                                                checked={filteredP.length > 0 && filteredP.every(p => selectedIds.has(p.id))}
+                                                onChange={e => {
+                                                    if (e.target.checked) setSelectedIds(new Set(filteredP.map(p => p.id)));
+                                                    else setSelectedIds(new Set());
+                                                }} />
+                                        </th>
                                         <th style={{ width: 44 }}>Ảnh</th>
                                         <th style={{ minWidth: 180 }}>Tên sản phẩm</th>
                                         <th>Danh mục</th>
                                         <th style={{ width: 60 }}>ĐVT</th>
                                         <th style={{ width: 100 }}>Giá bán</th>
                                         <th style={{ width: 60 }}>Tồn</th>
-                                        <th style={{ width: 90 }}>Nguồn cung</th>
+                                        <th style={{ width: 110 }}>Nguồn cung</th>
                                         <th style={{ width: 120 }}>Thương hiệu</th>
                                         <th style={{ width: 100 }}></th>
                                     </tr></thead>
                                     <tbody>
-                                        {/* New row */}
-                                        {newProduct && (
-                                            <tr style={{ background: 'rgba(99,102,241,0.05)' }}>
-                                                <td style={{ padding: 4 }}>
-                                                    <div style={{ width: 36, height: 36, borderRadius: 5, border: '2px dashed var(--primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', overflow: 'hidden' }}
-                                                        title="Click để chọn ảnh"
-                                                        onClick={() => { imgUpTarget.current = 'new'; imgUpRef.current?.click(); }}>
-                                                        {newProduct.image
-                                                            ? <img src={newProduct.image} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="" />
-                                                            : <span style={{ fontSize: 16, opacity: 0.4 }}>📷</span>
-                                                        }
-                                                    </div>
-                                                </td>
-                                                <td><EditCell value={newProduct.name} onChange={v => setNewProduct(p => ({ ...p, name: v }))} /></td>
-                                                <td><EditCell value={newProduct.category} onChange={v => setNewProduct(p => ({ ...p, category: v }))} options={PRODUCT_CATS} /></td>
-                                                <td><EditCell value={newProduct.unit} onChange={v => setNewProduct(p => ({ ...p, unit: v }))} /></td>
-                                                <td><EditCell value={newProduct.salePrice} onChange={v => setNewProduct(p => ({ ...p, salePrice: v }))} type="number" /></td>
-                                                <td><EditCell value={newProduct.stock} onChange={v => setNewProduct(p => ({ ...p, stock: v }))} type="number" /></td>
-                                                <td><select value={newProduct.supplyType || 'Sẵn kho'} onChange={e => setNewProduct(p => ({ ...p, supplyType: e.target.value }))} style={{ width: '100%', fontSize: 12, padding: '2px 4px', border: '1px solid var(--primary)', borderRadius: 4, background: 'var(--bg-input)' }}><option>Sẵn kho</option><option>Đặt hàng</option><option>Sản xuất</option></select></td>
-                                                <td><select value={newProduct.brand} onChange={e => setNewProduct(p => ({ ...p, brand: e.target.value }))} style={{ width: '100%', fontSize: 12, padding: '2px 4px', border: '1px solid var(--primary)', borderRadius: 4, background: 'var(--bg-input)' }}>{BRANDS.map(b => <option key={b.n} value={b.n}>{b.n || '-- Không --'}</option>)}</select></td>
-                                                <td><div style={{ display: 'flex', gap: 4 }}>
-                                                    <button className="btn btn-primary btn-sm" onClick={saveNewProduct} style={{ fontSize: 11 }}>✓</button>
-                                                    <button className="btn btn-ghost btn-sm" onClick={() => setNewProduct(null)} style={{ fontSize: 11 }}>✕</button>
-                                                </div></td>
-                                            </tr>
-                                        )}
                                         {filteredP.map(p => {
                                             const isEditing = editingP?.id === p.id;
                                             const d = isEditing ? editingP.data : p;
+                                            const ss = stockStatus(p);
                                             return (
-                                                <tr key={p.id} style={{ background: isEditing ? 'rgba(99,102,241,0.04)' : p.stock <= p.minStock && p.minStock > 0 ? 'rgba(231,76,60,0.03)' : '' }}>
+                                                <tr key={p.id} style={{ background: isEditing ? 'rgba(99,102,241,0.04)' : ss === 'out' ? 'rgba(231,76,60,0.04)' : ss === 'low' ? 'rgba(234,88,12,0.03)' : '' }}>
+                                                    <td style={{ padding: '8px 4px', textAlign: 'center' }}>
+                                                        <input type="checkbox" style={{ cursor: 'pointer' }}
+                                                            checked={selectedIds.has(p.id)}
+                                                            onChange={e => {
+                                                                const next = new Set(selectedIds);
+                                                                e.target.checked ? next.add(p.id) : next.delete(p.id);
+                                                                setSelectedIds(next);
+                                                            }} />
+                                                    </td>
                                                     <td style={{ padding: 4, cursor: 'pointer' }}
                                                         onClick={() => { imgUpTarget.current = p.id; imgUpRef.current?.click(); }}>
                                                         <div style={{ width: 36, height: 36, borderRadius: 5, overflow: 'hidden', border: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -411,7 +440,8 @@ export default function ProductsPage() {
                                                             <EditCell value={d.description || ''} onChange={v => setEditingP(e => ({ ...e, data: { ...e.data, description: v } }))} style={{ fontSize: 11 }} />
                                                         </div>
                                                         : <div>
-                                                            <div style={{ fontWeight: 600, fontSize: 13 }}>{p.name}</div>
+                                                            <div style={{ fontWeight: 600, fontSize: 13, color: 'var(--primary)', cursor: 'pointer' }}
+                                                                onClick={() => router.push(`/products/${p.id}`)}>{p.name}</div>
                                                             <div style={{ fontSize: 11, opacity: 0.45, fontFamily: 'monospace' }}>{p.code}</div>
                                                             {p.description && <div style={{ fontSize: 11, opacity: 0.45, maxWidth: 380, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.description}</div>}
                                                         </div>}
@@ -419,8 +449,14 @@ export default function ProductsPage() {
                                                     <td>{isEditing ? <EditCell value={d.category} onChange={v => setEditingP(e => ({ ...e, data: { ...e.data, category: v } }))} options={PRODUCT_CATS} /> : <span className="badge badge-default">{p.category}</span>}</td>
                                                     <td>{isEditing ? <EditCell value={d.unit} onChange={v => setEditingP(e => ({ ...e, data: { ...e.data, unit: v } }))} /> : p.unit}</td>
                                                     <td style={{ fontWeight: 600 }}>{isEditing ? <EditCell value={d.salePrice} onChange={v => setEditingP(e => ({ ...e, data: { ...e.data, salePrice: v } }))} type="number" /> : fmtCur(p.salePrice)}</td>
-                                                    <td style={{ color: p.stock <= p.minStock && p.minStock > 0 ? 'var(--status-danger)' : '' }}>{isEditing ? <EditCell value={d.stock} onChange={v => setEditingP(e => ({ ...e, data: { ...e.data, stock: v } }))} type="number" /> : p.stock}</td>
-                                                    <td style={{ fontSize: 12 }}>{isEditing ? (<select value={d.supplyType || 'Sẵn kho'} onChange={e => setEditingP(ep => ({ ...ep, data: { ...ep.data, supplyType: e.target.value } }))} style={{ width: '100%', fontSize: 12, padding: '2px 4px', border: '1px solid var(--primary)', borderRadius: 4, background: 'var(--bg-input)' }}><option>Sẵn kho</option><option>Đặt hàng</option><option>Sản xuất</option></select>) : <span className={`badge ${p.supplyType === 'Đặt hàng' ? 'warning' : p.supplyType === 'Sản xuất' ? 'info' : 'success'}`}>{p.supplyType || 'Sẵn kho'}</span>}</td>
+                                                    <td>
+                                                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 2 }}>
+                                                            {isEditing ? <EditCell value={d.stock} onChange={v => setEditingP(e => ({ ...e, data: { ...e.data, stock: v } }))} type="number" /> : <span style={{ color: ss === 'out' ? 'var(--status-danger)' : ss === 'low' ? '#ea580c' : '', fontWeight: ss !== 'ok' ? 600 : 400 }}>{p.stock}</span>}
+                                                            {ss === 'out' && !isEditing && <span style={{ fontSize: 9, background: '#dc2626', color: '#fff', borderRadius: 3, padding: '1px 4px' }}>Hết</span>}
+                                                            {ss === 'low' && !isEditing && <span style={{ fontSize: 9, background: '#ea580c', color: '#fff', borderRadius: 3, padding: '1px 4px' }}>Sắp hết</span>}
+                                                        </div>
+                                                    </td>
+                                                    <td style={{ fontSize: 12 }}>{isEditing ? (<select value={d.supplyType || 'Vật tư lưu kho'} onChange={e => setEditingP(ep => ({ ...ep, data: { ...ep.data, supplyType: e.target.value } }))} style={{ width: '100%', fontSize: 12, padding: '2px 4px', border: '1px solid var(--primary)', borderRadius: 4, background: 'var(--bg-input)' }}>{SUPPLY_TYPES.map(t => <option key={t}>{t}</option>)}</select>) : <span className={`badge ${SUPPLY_BADGE[p.supplyType] || 'badge-default'}`}>{p.supplyType || 'Vật tư lưu kho'}</span>}</td>
                                                     <td style={{ fontSize: 12 }}>{isEditing ? (<select value={d.brand || ''} onChange={e => setEditingP(ep => ({ ...ep, data: { ...ep.data, brand: e.target.value } }))} style={{ width: '100%', fontSize: 12, padding: '2px 4px', border: '1px solid var(--primary)', borderRadius: 4, background: 'var(--bg-input)' }}>{BRANDS.map(b => <option key={b.n} value={b.n}>{b.n || '-- Không --'}</option>)}</select>) : (() => { const br = BRANDS.find(b => b.n === p.brand); return p.brand ? (<div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>{br?.logo && <img src={br.logo} alt="" style={{ width: 18, height: 18, objectFit: 'contain' }} onError={e => e.target.style.display = 'none'} />}<span>{p.brand}</span></div>) : <span style={{ opacity: 0.3 }}>-</span>; })()}</td>
                                                     <td><div style={{ display: 'flex', gap: 4 }}>
                                                         {isEditing
@@ -557,6 +593,109 @@ export default function ProductsPage() {
                                 </table>
                             </div>
                         )}
+                    </div>
+                </div>
+            )}
+
+            {/* Add Product Modal */}
+            {showAddModal && (
+                <div className="modal-overlay" onClick={() => setShowAddModal(false)}>
+                    <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 560 }}>
+                        <div className="modal-header">
+                            <h3>Thêm sản phẩm mới</h3>
+                            <button className="modal-close" onClick={() => setShowAddModal(false)}>×</button>
+                        </div>
+                        <div className="modal-body">
+                            <div className="form-row">
+                                <div className="form-group" style={{ flex: 2 }}>
+                                    <label className="form-label">Tên sản phẩm *</label>
+                                    <input className="form-input" value={addForm.name} onChange={e => setAddForm(f => ({ ...f, name: e.target.value }))} placeholder="VD: Tủ áo MDF An Cường" autoFocus />
+                                </div>
+                                <div className="form-group">
+                                    <label className="form-label">ĐVT *</label>
+                                    <input className="form-input" value={addForm.unit} onChange={e => setAddForm(f => ({ ...f, unit: e.target.value }))} placeholder="cái" />
+                                </div>
+                            </div>
+                            <div className="form-row">
+                                <div className="form-group" style={{ flex: 2 }}>
+                                    <label className="form-label">Danh mục *</label>
+                                    <select className="form-select" value={addForm.category} onChange={e => setAddForm(f => ({ ...f, category: e.target.value }))}>
+                                        {PRODUCT_CATS.map(c => <option key={c}>{c}</option>)}
+                                    </select>
+                                </div>
+                                <div className="form-group">
+                                    <label className="form-label">Giá bán</label>
+                                    <input className="form-input" type="number" value={addForm.salePrice} onChange={e => setAddForm(f => ({ ...f, salePrice: Number(e.target.value) }))} />
+                                </div>
+                            </div>
+                            <div className="form-row">
+                                <div className="form-group" style={{ flex: 2 }}>
+                                    <label className="form-label">Thương hiệu</label>
+                                    <select className="form-select" value={addForm.brand} onChange={e => setAddForm(f => ({ ...f, brand: e.target.value }))}>
+                                        {BRANDS.map(b => <option key={b.n} value={b.n}>{b.n || '-- Không --'}</option>)}
+                                    </select>
+                                </div>
+                            </div>
+                            <div className="form-group">
+                                <label className="form-label">Nguồn cung *</label>
+                                <div style={{ display: 'flex', gap: 8 }}>
+                                    {SUPPLY_TYPES.map(t => (
+                                        <button key={t} type="button"
+                                            className={`btn btn-sm ${addForm.supplyType === t ? SUPPLY_BADGE[t]?.replace('badge-', 'btn-') || 'btn-primary' : 'btn-ghost'}`}
+                                            style={{ fontSize: 12, flex: 1 }}
+                                            onClick={() => setAddForm(f => ({ ...f, supplyType: t }))}>
+                                            {t === 'Sản xuất nội bộ' ? '🔨' : t === 'Mua thương mại' ? '🛒' : '📦'} {t}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+                            {addForm.supplyType === 'Vật tư lưu kho' && (
+                                <div className="form-row">
+                                    <div className="form-group">
+                                        <label className="form-label">Tồn kho ban đầu</label>
+                                        <input className="form-input" type="number" value={addForm.stock} onChange={e => setAddForm(f => ({ ...f, stock: Number(e.target.value) }))} />
+                                    </div>
+                                    <div className="form-group">
+                                        <label className="form-label">Tồn kho tối thiểu</label>
+                                        <input className="form-input" type="number" value={addForm.minStock} onChange={e => setAddForm(f => ({ ...f, minStock: Number(e.target.value) }))} placeholder="Cảnh báo sắp hết" />
+                                    </div>
+                                    <div className="form-group" style={{ flex: 2 }}>
+                                        <label className="form-label">Nhà cung cấp</label>
+                                        <input className="form-input" value={addForm.supplier} onChange={e => setAddForm(f => ({ ...f, supplier: e.target.value }))} />
+                                    </div>
+                                </div>
+                            )}
+                            {addForm.supplyType === 'Mua thương mại' && (
+                                <div className="form-group">
+                                    <label className="form-label">Nhà cung cấp mặc định</label>
+                                    <input className="form-input" value={addForm.supplier} onChange={e => setAddForm(f => ({ ...f, supplier: e.target.value }))} placeholder="VD: Hafele Vietnam, Blum..." />
+                                </div>
+                            )}
+                            {addForm.supplyType === 'Sản xuất nội bộ' && (
+                                <>
+                                    <div className="form-row">
+                                        <div className="form-group">
+                                            <label className="form-label">Chất liệu cốt</label>
+                                            <select className="form-select" value={addForm.coreBoard} onChange={e => setAddForm(f => ({ ...f, coreBoard: e.target.value }))}>
+                                                <option value="">-- Chọn --</option>
+                                                {CORE_BOARD_TYPES.map(c => <option key={c}>{c}</option>)}
+                                            </select>
+                                        </div>
+                                        <div className="form-group">
+                                            <label className="form-label">Mã bề mặt / Mã màu</label>
+                                            <input className="form-input" value={addForm.surfaceCode} onChange={e => setAddForm(f => ({ ...f, surfaceCode: e.target.value }))} placeholder="VD: 388EV, U5002..." />
+                                        </div>
+                                    </div>
+                                    <div style={{ padding: '10px 14px', background: 'rgba(35,64,147,0.06)', borderRadius: 6, fontSize: 12, color: 'var(--text-secondary)', borderLeft: '3px solid var(--primary)' }}>
+                                        💡 Sau khi lưu, vào trang chi tiết sản phẩm để khai báo <strong>Định mức vật tư (BOM)</strong> — danh sách ván gỗ, nẹp chỉ cần dùng.
+                                    </div>
+                                </>
+                            )}
+                        </div>
+                        <div className="modal-footer">
+                            <button className="btn btn-ghost" onClick={() => setShowAddModal(false)}>Hủy</button>
+                            <button className="btn btn-primary" onClick={saveNewProduct}>Tạo sản phẩm</button>
+                        </div>
                     </div>
                 </div>
             )}
