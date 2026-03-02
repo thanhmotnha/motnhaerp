@@ -283,9 +283,13 @@ export default function QuotationPDFPage() {
                 /* ====== TABLE ====== */
                 .mn-table {
                     width: 100%;
-                    border-collapse: collapse;
+                    border-collapse: separate;
+                    border-spacing: 0;
                     font-size: 10.5px;
                     margin-bottom: 2px;
+                    border-radius: 8px;
+                    overflow: hidden;
+                    border: 1px solid ${BRAND.grey};
                 }
                 .mn-table th {
                     background: ${BRAND.blue};
@@ -296,14 +300,16 @@ export default function QuotationPDFPage() {
                     text-transform: uppercase;
                     letter-spacing: 0.3px;
                     white-space: nowrap;
-                    border: 1px solid ${BRAND.blue};
+                    border-bottom: 1px solid ${BRAND.blue};
                 }
                 .mn-table td {
-                    border: 1px solid ${BRAND.grey};
+                    border-bottom: 1px solid ${BRAND.grey};
+                    border-right: 1px solid ${BRAND.grey}08;
                     padding: 6px 6px;
                     vertical-align: middle;
                     font-weight: 400;
                 }
+                .mn-table td:last-child { border-right: none; }
                 .mn-table .r { text-align: right; }
                 .mn-table .c { text-align: center; }
                 .mn-table .amt { font-weight: 700; color: ${BRAND.blue}; }
@@ -358,17 +364,20 @@ export default function QuotationPDFPage() {
                     justify-content: space-between;
                     align-items: center;
                     letter-spacing: 0.5px;
+                    border-radius: 8px 8px 0 0;
                 }
                 .mn-cat-main .mn-space-name {
-                    background: #fff;
-                    color: ${BRAND.blue};
-                    border: 2px solid ${BRAND.gold};
-                    padding: 4px 18px;
+                    color: ${BRAND.gold};
+                    background: transparent;
+                    border: none;
+                    padding: 4px 0;
                     font-weight: 900;
-                    font-size: 11px;
+                    font-size: 12px;
                     font-style: italic;
                     letter-spacing: 1.5px;
                     text-transform: uppercase;
+                    text-shadow: 0 1px 3px rgba(0,0,0,0.15);
+                    border-bottom: 2px solid ${BRAND.gold};
                 }
                 .mn-sub-total td {
                     background: ${BRAND.blue}08;
@@ -533,7 +542,8 @@ export default function QuotationPDFPage() {
                             <div className="mn-info-label">Công trình / Dự án</div>
                             <div className="mn-info-name">{q.project?.name || '—'}</div>
                             <div className="mn-info-detail">
-                                {q.project?.address && <>Địa điểm: {q.project.address}</>}
+                                {q.project?.address && <>Địa điểm: {q.project.address}<br /></>}
+                                <span style={{ color: BRAND.gold, fontWeight: 600 }}>Hạng mục: {q.type || 'Thi công'}</span>
                             </div>
                         </div>
                         <div className="mn-usp-cell">

@@ -125,15 +125,16 @@ export default function PublicQuotationPage() {
                 .mn-usp-cell { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; padding: 14px 16px; align-content: center; min-width: 240px; }
                 .mn-usp-badge { display: flex; align-items: center; gap: 6px; padding: 5px 10px; background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 6px; font-size: 9.5px; font-weight: 600; color: ${BRAND.textDark}; white-space: nowrap; }
                 .mn-usp-check { font-size: 14px; flex-shrink: 0; line-height: 1; }
-                .mn-table { width: 100%; border-collapse: collapse; font-size: 10.5px; margin-bottom: 2px; }
-                .mn-table th { background: ${BRAND.blue}; color: #fff; font-weight: 700; padding: 8px 6px; font-size: 9px; text-transform: uppercase; letter-spacing: 0.3px; white-space: nowrap; border: 1px solid ${BRAND.blue}; }
-                .mn-table td { border: 1px solid ${BRAND.grey}; padding: 6px 6px; vertical-align: middle; font-weight: 400; }
+                .mn-table { width: 100%; border-collapse: separate; border-spacing: 0; font-size: 10.5px; margin-bottom: 2px; border-radius: 8px; overflow: hidden; border: 1px solid ${BRAND.grey}; }
+                .mn-table th { background: ${BRAND.blue}; color: #fff; font-weight: 700; padding: 8px 6px; font-size: 9px; text-transform: uppercase; letter-spacing: 0.3px; white-space: nowrap; border-bottom: 1px solid ${BRAND.blue}; }
+                .mn-table td { border-bottom: 1px solid ${BRAND.grey}; border-right: 1px solid ${BRAND.grey}08; padding: 6px 6px; vertical-align: middle; font-weight: 400; }
+                .mn-table td:last-child { border-right: none; }
                 .mn-table .r { text-align: right; } .mn-table .c { text-align: center; }
                 .mn-table .amt { font-weight: 700; color: ${BRAND.blue}; }
                 .mn-table .item-img { width: 32px; height: 32px; object-fit: cover; border-radius: 3px; border: 1px solid ${BRAND.grey}; display: block; }
                 .mn-table .no-img { width: 32px; height: 32px; border-radius: 3px; border: 1px dashed ${BRAND.grey}; display: flex; align-items: center; justify-content: center; font-size: 12px; opacity: 0.3; }
-                .mn-cat-main { background: ${BRAND.gold}; color: #fff; padding: 9px 14px; font-weight: 800; font-size: 12px; display: flex; justify-content: space-between; align-items: center; letter-spacing: 0.5px; }
-                .mn-cat-main .mn-space-name { background: #fff; color: ${BRAND.blue}; border: 2px solid ${BRAND.gold}; padding: 4px 18px; font-weight: 900; font-size: 11px; font-style: italic; letter-spacing: 1.5px; text-transform: uppercase; }
+                .mn-cat-main { background: ${BRAND.gold}; color: #fff; padding: 9px 14px; font-weight: 800; font-size: 12px; display: flex; justify-content: space-between; align-items: center; letter-spacing: 0.5px; border-radius: 8px 8px 0 0; }
+                .mn-cat-main .mn-space-name { color: ${BRAND.gold}; background: transparent; border: none; padding: 4px 0; font-weight: 900; font-size: 12px; font-style: italic; letter-spacing: 1.5px; text-transform: uppercase; text-shadow: 0 1px 3px rgba(0,0,0,0.15); border-bottom: 2px solid ${BRAND.gold}; }
                 .mn-sub-total td { background: ${BRAND.blue}08; font-weight: 700; font-size: 11px; color: ${BRAND.blue}; border-top: 2px solid ${BRAND.gold}; }
                 .mn-desc { font-size: 9.5px; color: ${BRAND.textMid}; font-style: italic; }
                 .mn-notes { margin: 16px 0; border: 1px solid ${BRAND.gold}66; border-left: 3px solid ${BRAND.gold}; padding: 10px 14px; font-size: 11px; color: ${BRAND.textMid}; background: ${BRAND.gold}08; }
@@ -196,7 +197,8 @@ export default function PublicQuotationPage() {
                             <div className="mn-info-label">Công trình / Dự án</div>
                             <div className="mn-info-name">{q.project?.name || '—'}</div>
                             <div className="mn-info-detail">
-                                {q.project?.address && <>Địa điểm: {q.project.address}</>}
+                                {q.project?.address && <>Địa điểm: {q.project.address}<br /></>}
+                                <span style={{ color: BRAND.gold, fontWeight: 600 }}>Hạng mục: {q.type || 'Thi công'}</span>
                             </div>
                         </div>
                         <div className="mn-usp-cell">
