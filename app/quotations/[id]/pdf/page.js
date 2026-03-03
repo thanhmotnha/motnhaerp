@@ -435,6 +435,8 @@ export default function QuotationPDFPage() {
                     border-top: 2px solid ${BRAND.gold};
                 }
                 .mn-desc { font-size: 9.5px; color: ${BRAND.textMid}; font-style: italic; }
+                .item-img { width: 40px; height: 40px; object-fit: cover; border-radius: 4px; display: block; margin: 2px auto; }
+                .no-img { color: #ccc; font-size: 10px; text-align: center; }
 
                 /* ====== NOTES ====== */
                 .mn-notes {
@@ -735,7 +737,7 @@ export default function QuotationPDFPage() {
                                                         <table className="mn-table">
                                                             <thead><tr>
                                                                 <th className="c" style={{ width: 28 }}>STT</th>
-                                                                {hasAnyImage && <th className="c" style={{ width: 38 }}>Ảnh</th>}
+                                                                {hasAnyImage && <th className="c" style={{ width: 52 }}>Ảnh</th>}
                                                                 <th>Hạng mục / Sản phẩm</th>
                                                                 <th className="c" style={{ width: 38 }}>ĐVT</th>
                                                                 {hasAnyDim && <th className="r" style={{ width: 36 }}>Dài</th>}
