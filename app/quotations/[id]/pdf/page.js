@@ -734,7 +734,7 @@ export default function QuotationPDFPage() {
                                                 <div className="mn-cat-main" style={{ marginTop: (gi > 0 || ci > 0) ? 18 : 0 }}>
                                                     <div className="mn-cat-group-label">#{gi + 1}.{ci + 1}</div>
                                                     <div className="mn-cat-room-block">
-                                                        <div className="mn-cat-room-subtitle">{DOC_TITLE_MAP[q.type] || (q.type || '').toUpperCase()}</div>
+                                                        <div className="mn-cat-room-subtitle">{(groupName || q.type || '').toUpperCase()}</div>
                                                         <div className="mn-space-name">{cat.name || `Khu vực ${ci + 1}`}</div>
                                                     </div>
                                                 </div>
