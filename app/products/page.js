@@ -42,6 +42,7 @@ export default function ProductsPage() {
     const [editingP, setEditingP] = useState(null); // {id, data}
     const [newProduct, setNewProduct] = useState(null);
     const [selectedIds, setSelectedIds] = useState(new Set());
+    const [bulkEditModal, setBulkEditModal] = useState(null); // {field, value}
     const [showAddModal, setShowAddModal] = useState(false);
     const [addForm, setAddForm] = useState({ name: '', category: 'Nội thất thành phẩm', unit: 'cái', salePrice: 0, importPrice: 0, brand: '', supplyType: 'Mua ngoài', stock: 0, minStock: 0, supplier: '', coreBoard: '', surfaceCode: '', image: '' });
 
@@ -186,6 +187,7 @@ export default function ProductsPage() {
             salePrice: Number(r['Giá bán'] || r['salePrice'] || 0),
             stock: Number(r['Tồn kho'] || r['stock'] || 0),
             brand: String(r['Thương hiệu'] || r['brand'] || '').trim(),
+            supplyType: normalizeSupply(String(r['Nguồn cung'] || r['supplyType'] || 'Mua ngoài').trim()),
             description: String(r['Mô tả'] || r['description'] || '').trim(),
             image: '',
         })).filter(r => r.name);
@@ -203,6 +205,7 @@ export default function ProductsPage() {
                 importPrice: Number((c[4] || '').replace(/[^\d.]/g, '')) || 0,
                 stock: Number((c[5] || '').trim()) || 0,
                 brand: c[6]?.trim() || '',
+                supplyType: normalizeSupply(c[7]?.trim() || 'Mua ngoài'),
                 image: '',
             };
         }).filter(r => r.name);
@@ -217,7 +220,7 @@ export default function ProductsPage() {
         for (const p of importPreview) {
             await fetch('/api/products', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(p) });
         }
-        setImporting(false); setImportPreview(null); fetchProducts();
+        setImporting(false); setImportPreview(null); setSelectedIds(new Set()); fetchProducts();
     };
     const saveNewProduct = async () => {
         if (!addForm.name.trim()) return alert('Vui lòng nhập tên sản phẩm');
@@ -413,16 +416,30 @@ export default function ProductsPage() {
                                 ))}
                             </div>
                             <div style={{ marginLeft: 'auto', display: 'flex', gap: 6, alignItems: 'center' }}>
-                                {selectedIds.size > 0 && (
+                                {selectedIds.size > 0 && (<>
+                                    <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--primary)' }}>✓ {selectedIds.size} đã chọn</span>
                                     <button className="btn btn-sm" style={{ fontSize: 12, background: '#ea580c', color: '#fff', border: 'none' }}
                                         onClick={() => {
                                             const nonBuy = [...selectedIds].filter(id => normalizeSupply(products.find(p => p.id === id)?.supplyType) !== 'Mua ngoài');
                                             if (nonBuy.length > 0) return alert('Vui lòng chỉ chọn sản phẩm "Mua ngoài"');
                                             router.push('/purchasing?createPO=1&products=' + [...selectedIds].join(','));
                                         }}>
-                                        🛒 Tạo PO ({selectedIds.size})
+                                        🛒 Tạo PO
                                     </button>
-                                )}
+                                    <button className="btn btn-sm btn-ghost" style={{ fontSize: 12 }}
+                                        onClick={() => setBulkEditModal({ category: '', supplyType: '', brand: '' })}>
+                                        ✏️ Sửa hàng loạt
+                                    </button>
+                                    <button className="btn btn-sm" style={{ fontSize: 12, background: 'var(--status-danger)', color: '#fff', border: 'none' }}
+                                        onClick={async () => {
+                                            if (!confirm(`Xóa ${selectedIds.size} sản phẩm đã chọn?`)) return;
+                                            await fetch('/api/products', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ids: [...selectedIds] }) });
+                                            setSelectedIds(new Set()); fetchProducts();
+                                        }}>
+                                        🗑️ Xóa ({selectedIds.size})
+                                    </button>
+                                    <button className="btn btn-sm btn-ghost" style={{ fontSize: 11, opacity: 0.6 }} onClick={() => setSelectedIds(new Set())}>Bỏ chọn</button>
+                                </>)}
                                 <button className="btn btn-primary btn-sm" onClick={addNewProduct}>+ Thêm SP</button>
                                 <button className="btn btn-ghost btn-sm" onClick={() => setShowPasteModal(true)} title="Dán nhiều SP từ Excel">📋 Dán Excel</button>
                                 <button className="btn btn-ghost btn-sm" onClick={() => excelInputRef.current?.click()} title="Import file Excel">📥</button>
@@ -787,7 +804,7 @@ export default function ProductsPage() {
                         </div>
                         <div style={{ overflowY: 'auto', flex: 1, border: '1px solid var(--border-color)', borderRadius: 6 }}>
                             <table className="data-table" style={{ fontSize: 12 }}>
-                                <thead><tr><th>#</th><th>Tên</th><th>Danh mục</th><th>ĐVT</th><th>Giá bán</th><th>Tồn</th><th>TH</th><th style={{ width: 36 }}></th></tr></thead>
+                                <thead><tr><th>#</th><th>Tên</th><th>Danh mục</th><th>ĐVT</th><th>Giá bán</th><th>Nguồn cung</th><th>TH</th><th style={{ width: 36 }}></th></tr></thead>
                                 <tbody>{importPreview.map((p, i) => (
                                     <tr key={i}>
                                         <td style={{ opacity: .4 }}>{i + 1}</td>
@@ -795,7 +812,11 @@ export default function ProductsPage() {
                                         <td><span className="badge badge-default">{p.category}</span></td>
                                         <td>{p.unit}</td>
                                         <td>{fmtCur(p.salePrice)}</td>
-                                        <td>{p.stock}</td>
+                                        <td>
+                                            <select value={p.supplyType || 'Mua ngoài'} onChange={e => setImportPreview(prev => prev.map((item, j) => j === i ? { ...item, supplyType: e.target.value } : item))} style={{ fontSize: 11, padding: '2px 4px', border: '1px solid var(--border-color)', borderRadius: 4, background: 'var(--bg-input)' }}>
+                                                {SUPPLY_TYPES.map(t => <option key={t}>{t}</option>)}
+                                            </select>
+                                        </td>
                                         <td>{p.brand || '-'}</td>
                                         <td><button onClick={() => setImportPreview(prev => prev.filter((_, j) => j !== i))} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--status-danger)', fontSize: 14, padding: 2, opacity: 0.6 }} title="Xóa dòng này">✕</button></td>
                                     </tr>
@@ -844,6 +865,59 @@ export default function ProductsPage() {
                     </div>
                 );
             })()}
+
+            {/* Bulk Edit Modal */}
+            {bulkEditModal && (
+                <div className="modal-overlay" onClick={() => setBulkEditModal(null)}>
+                    <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 440 }}>
+                        <div className="modal-header">
+                            <h3>✏️ Sửa hàng loạt — {selectedIds.size} sản phẩm</h3>
+                            <button className="modal-close" onClick={() => setBulkEditModal(null)}>×</button>
+                        </div>
+                        <div className="modal-body">
+                            <p style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 12 }}>Chỉ cập nhật các trường có giá trị. Để trống = giữ nguyên.</p>
+                            <div className="form-group">
+                                <label className="form-label">Danh mục</label>
+                                <select className="form-select" value={bulkEditModal.category} onChange={e => setBulkEditModal(m => ({ ...m, category: e.target.value }))}>
+                                    <option value="">— Giữ nguyên —</option>
+                                    {allCats.map(c => <option key={c}>{c}</option>)}
+                                </select>
+                            </div>
+                            <div className="form-group">
+                                <label className="form-label">Nguồn cung</label>
+                                <select className="form-select" value={bulkEditModal.supplyType} onChange={e => setBulkEditModal(m => ({ ...m, supplyType: e.target.value }))}>
+                                    <option value="">— Giữ nguyên —</option>
+                                    {SUPPLY_TYPES.map(t => <option key={t}>{t}</option>)}
+                                </select>
+                            </div>
+                            <div className="form-group">
+                                <label className="form-label">Thương hiệu</label>
+                                <select className="form-select" value={bulkEditModal.brand} onChange={e => setBulkEditModal(m => ({ ...m, brand: e.target.value }))}>
+                                    <option value="">— Giữ nguyên —</option>
+                                    {BRANDS.filter(b => b.n).map(b => <option key={b.n} value={b.n}>{b.n}</option>)}
+                                </select>
+                            </div>
+                        </div>
+                        <div className="modal-footer">
+                            <button className="btn btn-ghost" onClick={() => setBulkEditModal(null)}>Hủy</button>
+                            <button className="btn btn-primary" onClick={async () => {
+                                const updates = {};
+                                if (bulkEditModal.category) updates.category = bulkEditModal.category;
+                                if (bulkEditModal.supplyType) updates.supplyType = bulkEditModal.supplyType;
+                                if (bulkEditModal.brand) updates.brand = bulkEditModal.brand;
+                                if (Object.keys(updates).length === 0) return alert('Chưa chọn thay đổi nào');
+                                const promises = [...selectedIds].map(id =>
+                                    fetch(`/api/products/${id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(updates) })
+                                );
+                                await Promise.all(promises);
+                                setBulkEditModal(null); setSelectedIds(new Set()); fetchProducts();
+                            }}>
+                                Áp dụng ({selectedIds.size} SP)
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {/* Hidden image upload input (product images) */}
             <input ref={imgUpRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={handleImgUpload} />

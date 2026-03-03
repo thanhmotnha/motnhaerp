@@ -53,3 +53,10 @@ export const PATCH = withAuth(async (request) => {
     });
     return NextResponse.json({ updated: result.count });
 });
+
+export const DELETE = withAuth(async (request) => {
+    const { ids } = await request.json();
+    if (!ids?.length) return NextResponse.json({ error: 'Thiếu danh sách ID' }, { status: 400 });
+    const result = await prisma.product.deleteMany({ where: { id: { in: ids } } });
+    return NextResponse.json({ deleted: result.count });
+});
