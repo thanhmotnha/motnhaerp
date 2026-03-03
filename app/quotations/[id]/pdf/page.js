@@ -729,76 +729,82 @@ export default function QuotationPDFPage() {
                                                         <div className="mn-space-name">{cat.name || `Khu vực ${ci + 1}`}</div>
                                                     </div>
                                                 </div>
-                                                {/* Block 2: Image (centered, max 70%) */}
-                                                {cat.image && (
-                                                    <div style={{ textAlign: 'center', margin: '10px 0' }}>
-                                                        <img src={cat.image} alt={cat.name || ''} style={{ maxWidth: '70%', borderRadius: 6, border: `2px solid ${BRAND.blue}20` }} />
-                                                        <div style={{ fontSize: 8, color: BRAND.textMid, fontStyle: 'italic', marginTop: 4 }}>{cat.name || 'Hình ảnh phối cảnh'}</div>
+                                                {/* Block 2: Table + Image side-by-side */}
+                                                <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+                                                    <div style={{ flex: 1, minWidth: 0 }}>
+                                                        <table className="mn-table">
+                                                            <thead><tr>
+                                                                <th className="c" style={{ width: 28 }}>STT</th>
+                                                                {hasAnyImage && <th className="c" style={{ width: 38 }}>Ảnh</th>}
+                                                                <th>Hạng mục / Sản phẩm</th>
+                                                                <th className="c" style={{ width: 38 }}>ĐVT</th>
+                                                                {hasAnyDim && <th className="r" style={{ width: 36 }}>Dài</th>}
+                                                                {hasAnyDim && <th className="r" style={{ width: 36 }}>Rộng</th>}
+                                                                {hasAnyDim && <th className="r" style={{ width: 36 }}>Cao</th>}
+                                                                <th className="r" style={{ width: 36 }}>SL</th>
+                                                                {hasAnyVolDiff && <th className="r" style={{ width: 40 }}>KL</th>}
+                                                                <th className="r" style={{ width: 80 }}>Đơn giá</th>
+                                                                <th className="r" style={{ width: 88 }}>Thành tiền</th>
+                                                            </tr></thead>
+                                                            <tbody>
+                                                                {items.map((item, ii) => {
+                                                                    const totalCols = 4 + (hasAnyImage ? 1 : 0) + (hasAnyDim ? 3 : 0) + (hasAnyVolDiff ? 1 : 0);
+                                                                    return (
+                                                                        <React.Fragment key={item.id || ii}>
+                                                                            <tr style={{ background: ii % 2 === 1 ? '#fafbfc' : '#fff' }}>
+                                                                                <td className="c" style={{ color: BRAND.textLight, fontSize: 9 }}>{ii + 1}</td>
+                                                                                {hasAnyImage && <td className="c">
+                                                                                    {item.image ? <img src={item.image} className="item-img" alt="" /> : <div className="no-img">—</div>}
+                                                                                </td>}
+                                                                                <td>
+                                                                                    <div style={{ fontWeight: 600, fontSize: 11 }}>{item.name}</div>
+                                                                                    {item.description && <div style={{ fontSize: 9, color: BRAND.textMid, fontStyle: 'italic', marginTop: 2, wordWrap: 'break-word', whiteSpace: 'normal' }}>{item.description}</div>}
+                                                                                </td>
+                                                                                <td className="c">{item.unit}</td>
+                                                                                {hasAnyDim && <td className="r">{item.length ? fmtNum(item.length) : ''}</td>}
+                                                                                {hasAnyDim && <td className="r">{item.width ? fmtNum(item.width) : ''}</td>}
+                                                                                {hasAnyDim && <td className="r">{item.height ? fmtNum(item.height) : ''}</td>}
+                                                                                <td className="r">{fmtNum(item.quantity)}</td>
+                                                                                {hasAnyVolDiff && <td className="r">{fmtNum(item.volume || item.quantity)}</td>}
+                                                                                <td className="r">{fmt(item.unitPrice)}</td>
+                                                                                <td className="r amt">{fmt(item.amount)}</td>
+                                                                            </tr>
+                                                                            {/* Sub-items (phụ kiện) */}
+                                                                            {(item.subItems || []).map((si, sii) => (
+                                                                                <tr key={`sub-${ii}-${sii}`} style={{ background: '#f8f9fc' }}>
+                                                                                    <td className="c" style={{ fontSize: 8, opacity: 0.3 }}>↳</td>
+                                                                                    {hasAnyImage && <td></td>}
+                                                                                    <td style={{ paddingLeft: 18 }}>
+                                                                                        <div style={{ fontSize: 10, fontStyle: 'italic', color: BRAND.textMid }}>{si.name}</div>
+                                                                                        {si.description && <div style={{ fontSize: 8, color: BRAND.textLight, marginTop: 1 }}>{si.description}</div>}
+                                                                                    </td>
+                                                                                    <td className="c">{si.unit}</td>
+                                                                                    {hasAnyDim && <td className="r">{si.length ? fmtNum(si.length) : ''}</td>}
+                                                                                    {hasAnyDim && <td className="r">{si.width ? fmtNum(si.width) : ''}</td>}
+                                                                                    {hasAnyDim && <td className="r">{si.height ? fmtNum(si.height) : ''}</td>}
+                                                                                    <td className="r">{fmtNum(si.quantity)}</td>
+                                                                                    {hasAnyVolDiff && <td className="r">{fmtNum(si.volume || si.quantity)}</td>}
+                                                                                    <td className="r">{fmt(si.unitPrice)}</td>
+                                                                                    <td className="r">{fmt(si.amount)}</td>
+                                                                                </tr>
+                                                                            ))}
+                                                                        </React.Fragment>
+                                                                    );
+                                                                })}
+                                                                <tr className="mn-sub-total">
+                                                                    <td colSpan={3 + (hasAnyImage ? 1 : 0) + (hasAnyDim ? 3 : 0) + (hasAnyVolDiff ? 1 : 0)} className="r" style={{ paddingRight: 10 }}>Tổng {cat.name || `khu vực #${ci + 1}`}</td>
+                                                                    <td className="r">{fmt(cat.subtotal)}</td>
+                                                                </tr>
+                                                            </tbody>
+                                                        </table>
                                                     </div>
-                                                )}
-                                                {/* Block 3: Table (100% width, no side image) */}
-                                                <table className="mn-table">
-                                                    <thead><tr>
-                                                        <th className="c" style={{ width: 28 }}>STT</th>
-                                                        {hasAnyImage && <th className="c" style={{ width: 38 }}>Ảnh</th>}
-                                                        <th>Hạng mục / Sản phẩm</th>
-                                                        <th style={{ minWidth: 80 }}>Diễn giải</th>
-                                                        <th className="c" style={{ width: 38 }}>ĐVT</th>
-                                                        {hasAnyDim && <th className="r" style={{ width: 36 }}>Dài</th>}
-                                                        {hasAnyDim && <th className="r" style={{ width: 36 }}>Rộng</th>}
-                                                        {hasAnyDim && <th className="r" style={{ width: 36 }}>Cao</th>}
-                                                        <th className="r" style={{ width: 36 }}>SL</th>
-                                                        {hasAnyVolDiff && <th className="r" style={{ width: 40 }}>KL</th>}
-                                                        <th className="r" style={{ width: 80 }}>Đơn giá</th>
-                                                        <th className="r" style={{ width: 88 }}>Thành tiền</th>
-                                                    </tr></thead>
-                                                    <tbody>
-                                                        {items.map((item, ii) => {
-                                                            const colCount = 5 + (hasAnyImage ? 1 : 0) + (hasAnyDim ? 3 : 0) + (hasAnyVolDiff ? 1 : 0);
-                                                            return (
-                                                                <React.Fragment key={item.id || ii}>
-                                                                    <tr style={{ background: ii % 2 === 1 ? '#fafbfc' : '#fff' }}>
-                                                                        <td className="c" style={{ color: BRAND.textLight, fontSize: 9 }}>{ii + 1}</td>
-                                                                        {hasAnyImage && <td className="c">
-                                                                            {item.image ? <img src={item.image} className="item-img" alt="" /> : <div className="no-img">—</div>}
-                                                                        </td>}
-                                                                        <td style={{ fontWeight: 600, fontSize: 11 }}>{item.name}</td>
-                                                                        <td><span className="mn-desc" style={{ wordWrap: 'break-word', whiteSpace: 'normal', display: 'block', maxWidth: 200 }}>{item.description || ''}</span></td>
-                                                                        <td className="c">{item.unit}</td>
-                                                                        {hasAnyDim && <td className="r">{item.length ? fmtNum(item.length) : ''}</td>}
-                                                                        {hasAnyDim && <td className="r">{item.width ? fmtNum(item.width) : ''}</td>}
-                                                                        {hasAnyDim && <td className="r">{item.height ? fmtNum(item.height) : ''}</td>}
-                                                                        <td className="r">{fmtNum(item.quantity)}</td>
-                                                                        {hasAnyVolDiff && <td className="r">{fmtNum(item.volume || item.quantity)}</td>}
-                                                                        <td className="r">{fmt(item.unitPrice)}</td>
-                                                                        <td className="r amt">{fmt(item.amount)}</td>
-                                                                    </tr>
-                                                                    {/* Sub-items (phụ kiện) */}
-                                                                    {(item.subItems || []).map((si, sii) => (
-                                                                        <tr key={`sub-${ii}-${sii}`} style={{ background: '#f8f9fc' }}>
-                                                                            <td className="c" style={{ fontSize: 8, opacity: 0.3 }}>↳</td>
-                                                                            {hasAnyImage && <td></td>}
-                                                                            <td style={{ paddingLeft: 18, fontSize: 10, fontStyle: 'italic', color: BRAND.textMid }}>{si.name}</td>
-                                                                            <td><span className="mn-desc" style={{ wordWrap: 'break-word', whiteSpace: 'normal', display: 'block' }}>{si.description || ''}</span></td>
-                                                                            <td className="c">{si.unit}</td>
-                                                                            {hasAnyDim && <td className="r">{si.length ? fmtNum(si.length) : ''}</td>}
-                                                                            {hasAnyDim && <td className="r">{si.width ? fmtNum(si.width) : ''}</td>}
-                                                                            {hasAnyDim && <td className="r">{si.height ? fmtNum(si.height) : ''}</td>}
-                                                                            <td className="r">{fmtNum(si.quantity)}</td>
-                                                                            {hasAnyVolDiff && <td className="r">{fmtNum(si.volume || si.quantity)}</td>}
-                                                                            <td className="r">{fmt(si.unitPrice)}</td>
-                                                                            <td className="r">{fmt(si.amount)}</td>
-                                                                        </tr>
-                                                                    ))}
-                                                                </React.Fragment>
-                                                            );
-                                                        })}
-                                                        <tr className="mn-sub-total">
-                                                            <td colSpan={4 + (hasAnyImage ? 1 : 0) + (hasAnyDim ? 3 : 0) + (hasAnyVolDiff ? 1 : 0)} className="r" style={{ paddingRight: 10 }}>Tổng {cat.name || `khu vực #${ci + 1}`}</td>
-                                                            <td className="r">{fmt(cat.subtotal)}</td>
-                                                        </tr>
-                                                    </tbody>
-                                                </table>
+                                                    {cat.image && (
+                                                        <div style={{ width: 220, flexShrink: 0 }}>
+                                                            <img src={cat.image} alt={cat.name || ''} style={{ width: '100%', borderRadius: 6, border: `2px solid ${BRAND.blue}20` }} />
+                                                            <div style={{ fontSize: 7, color: BRAND.textMid, fontStyle: 'italic', marginTop: 3, textAlign: 'center' }}>{cat.name || 'Phối cảnh'}</div>
+                                                        </div>
+                                                    )}
+                                                </div>
                                             </div>
                                         );
                                     })}
