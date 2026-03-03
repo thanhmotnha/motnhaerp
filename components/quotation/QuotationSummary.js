@@ -44,10 +44,6 @@ export default function QuotationSummary({ hook }) {
             <div className="card-header"><h3>Tổng kết báo giá</h3></div>
             <div className="card-body">
                 <div className="quotation-summary-grid">
-                    <div className="quotation-summary-row">
-                        <span>{isInterior ? 'Tổng sản phẩm nội thất' : 'Chi phí trực tiếp'}</span>
-                        <span className="quotation-summary-value">{fmt(directCost)} đ</span>
-                    </div>
 
                     <div className="quotation-summary-row">
                         <span>Chi phí vận chuyển, lắp đặt <input className="form-input form-input-compact" type="number"

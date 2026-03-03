@@ -835,8 +835,6 @@ export default function QuotationPDFPage() {
                             <span className="mn-sum-words-text">{numberToWords(Math.round(q.grandTotal))}</span>
                         </div>
                         <div className="mn-sum-box">
-                            {q.directCost > 0 && <div className="mn-sum-row"><span>Chi phí trực tiếp</span><span>{fmt(q.directCost)}</span></div>}
-
                             {q.otherFee > 0 && <div className="mn-sum-row"><span>Vận chuyển, lắp đặt</span><span>{fmt(q.otherFee)}</span></div>}
                             <div className="mn-sum-row"><span>Tổng cộng</span><span style={{ fontWeight: 700 }}>{fmt(q.total)}</span></div>
                             {q.discount > 0 && <div className="mn-sum-row discount"><span>Chiết khấu ({q.discount}%)</span><span>-{fmt(q.total * q.discount / 100)}</span></div>}
