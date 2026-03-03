@@ -24,6 +24,8 @@ export default function PartnersPage() {
     const [pasteText, setPasteText] = useState('');
     const [pastePreview, setPastePreview] = useState([]);
     const [importing, setImporting] = useState(false);
+    const [inlineEditSup, setInlineEditSup] = useState(null);
+    const [inlineEditCon, setInlineEditCon] = useState(null);
 
     const fetchData = async () => {
         setLoading(true);
@@ -65,6 +67,20 @@ export default function PartnersPage() {
         setContractors(prev => prev.filter(c => c.id !== id));
         const res = await fetch(`/api/contractors/${id}`, { method: 'DELETE' });
         if (!res.ok) fetchData();
+    };
+
+    // === Inline Edit ===
+    const saveInlineSup = async () => {
+        const { id, ...edits } = inlineEditSup;
+        setSuppliers(prev => prev.map(s => s.id === id ? { ...s, ...edits } : s));
+        setInlineEditSup(null);
+        await fetch(`/api/suppliers/${id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(edits) });
+    };
+    const saveInlineCon = async () => {
+        const { id, ...edits } = inlineEditCon;
+        setContractors(prev => prev.map(c => c.id === id ? { ...c, ...edits } : c));
+        setInlineEditCon(null);
+        await fetch(`/api/contractors/${id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(edits) });
     };
 
     // === Paste from Excel ===
@@ -175,23 +191,37 @@ export default function PartnersPage() {
                             </tr></thead>
                             <tbody>{filteredSup.length === 0 ? (
                                 <tr><td colSpan={8} style={{ textAlign: 'center', color: 'var(--text-muted)', padding: 24 }}>Không có dữ liệu</td></tr>
-                            ) : filteredSup.map(s => (
-                                <tr key={s.id}>
+                            ) : filteredSup.map(s => {
+                                const ie = inlineEditSup?.id === s.id ? inlineEditSup : null;
+                                const iS = { padding: '2px 6px', fontSize: 12, height: 28, border: '1px solid var(--border)', borderRadius: 4, background: 'var(--bg-primary)', color: 'var(--text-primary)', width: '100%' };
+                                return (
+                                <tr key={s.id} style={{ background: ie ? 'rgba(59,130,246,0.05)' : '' }}>
                                     <td className="accent">{s.code}</td>
-                                    <td className="primary" style={{ cursor: 'pointer' }} onClick={() => openEditSup(s)}>{s.name}</td>
-                                    <td><span className="badge info">{s.type}</span></td>
-                                    <td style={{ fontSize: 12 }}>{s.contact || '—'}</td>
-                                    <td>{s.phone || '—'}</td>
-                                    <td style={{ fontSize: 12 }}>{s.bankAccount ? `${s.bankName} - ${s.bankAccount}` : '—'}</td>
-                                    <td>{'⭐'.repeat(s.rating)}</td>
+                                    <td>{ie ? <input style={iS} value={ie.name} onChange={e => setInlineEditSup({ ...ie, name: e.target.value })} autoFocus /> : <span className="primary">{s.name}</span>}</td>
+                                    <td>{ie ? <select style={iS} value={ie.type} onChange={e => setInlineEditSup({ ...ie, type: e.target.value })}>{SUPPLIER_TYPES.map(t => <option key={t}>{t}</option>)}</select> : <span className="badge info">{s.type}</span>}</td>
+                                    <td>{ie ? <input style={iS} value={ie.contact} onChange={e => setInlineEditSup({ ...ie, contact: e.target.value })} placeholder="Liên hệ" /> : <span style={{ fontSize: 12 }}>{s.contact || '—'}</span>}</td>
+                                    <td>{ie ? <input style={iS} value={ie.phone} onChange={e => setInlineEditSup({ ...ie, phone: e.target.value })} placeholder="SĐT" /> : (s.phone || '—')}</td>
+                                    <td style={{ fontSize: 12 }}>{ie
+                                        ? <div style={{ display: 'flex', gap: 2 }}>
+                                            <input style={{ ...iS, width: 80 }} value={ie.bankAccount} onChange={e => setInlineEditSup({ ...ie, bankAccount: e.target.value })} placeholder="STK" />
+                                            <input style={{ ...iS, width: 90 }} value={ie.bankName} onChange={e => setInlineEditSup({ ...ie, bankName: e.target.value })} placeholder="Ngân hàng" />
+                                          </div>
+                                        : (s.bankAccount ? `${s.bankName} - ${s.bankAccount}` : '—')}</td>
+                                    <td>{ie ? <select style={{ ...iS, width: 70 }} value={ie.rating} onChange={e => setInlineEditSup({ ...ie, rating: Number(e.target.value) })}>{[1,2,3,4,5].map(n => <option key={n} value={n}>{'⭐'.repeat(n)}</option>)}</select> : '⭐'.repeat(s.rating)}</td>
                                     <td>
                                         <div style={{ display: 'flex', gap: 4 }}>
-                                            <button className="btn btn-ghost btn-sm" onClick={() => openEditSup(s)}>✏️</button>
-                                            <button className="btn btn-ghost btn-sm" onClick={() => delSup(s.id)} style={{ color: 'var(--status-danger)' }}>🗑️</button>
+                                            {ie ? (<>
+                                                <button className="btn btn-primary btn-sm" onClick={saveInlineSup}>✅</button>
+                                                <button className="btn btn-ghost btn-sm" onClick={() => setInlineEditSup(null)}>✕</button>
+                                            </>) : (<>
+                                                <button className="btn btn-ghost btn-sm" onClick={() => setInlineEditSup({ id: s.id, name: s.name, type: s.type, contact: s.contact || '', phone: s.phone || '', bankName: s.bankName || '', bankAccount: s.bankAccount || '', rating: s.rating })}>✏️</button>
+                                                <button className="btn btn-ghost btn-sm" onClick={() => delSup(s.id)} style={{ color: 'var(--status-danger)' }}>🗑️</button>
+                                            </>)}
                                         </div>
                                     </td>
                                 </tr>
-                            ))}</tbody>
+                                );
+                            })}</tbody>
                         </table>
                     </div>
                 ) : (
@@ -207,20 +237,27 @@ export default function PartnersPage() {
                                 const contractAmt = c.payments?.reduce((t, p) => t + p.contractAmount, 0) || 0;
                                 const paidAmt = c.payments?.reduce((t, p) => t + p.paidAmount, 0) || 0;
                                 const debt = contractAmt - paidAmt;
+                                const ie = inlineEditCon?.id === c.id ? inlineEditCon : null;
+                                const iS = { padding: '2px 6px', fontSize: 12, height: 28, border: '1px solid var(--border)', borderRadius: 4, background: 'var(--bg-primary)', color: 'var(--text-primary)', width: '100%' };
                                 return (
-                                    <tr key={c.id}>
+                                    <tr key={c.id} style={{ background: ie ? 'rgba(59,130,246,0.05)' : '' }}>
                                         <td className="accent">{c.code}</td>
-                                        <td className="primary" style={{ cursor: 'pointer' }} onClick={() => openEditCon(c)}>{c.name}</td>
-                                        <td><span className="badge warning">{c.type}</span></td>
-                                        <td>{c.phone || '—'}</td>
+                                        <td>{ie ? <input style={iS} value={ie.name} onChange={e => setInlineEditCon({ ...ie, name: e.target.value })} autoFocus /> : <span className="primary">{c.name}</span>}</td>
+                                        <td>{ie ? <select style={iS} value={ie.type} onChange={e => setInlineEditCon({ ...ie, type: e.target.value })}>{CONTRACTOR_TYPES.map(t => <option key={t}>{t}</option>)}</select> : <span className="badge warning">{c.type}</span>}</td>
+                                        <td>{ie ? <input style={iS} value={ie.phone} onChange={e => setInlineEditCon({ ...ie, phone: e.target.value })} placeholder="SĐT" /> : (c.phone || '—')}</td>
                                         <td className="amount">{fmt(contractAmt)}</td>
                                         <td style={{ color: 'var(--status-success)', fontWeight: 600 }}>{fmt(paidAmt)}</td>
                                         <td style={{ color: debt > 0 ? 'var(--status-danger)' : 'var(--text-muted)', fontWeight: 600 }}>{fmt(debt)}</td>
-                                        <td>{'⭐'.repeat(c.rating)}</td>
+                                        <td>{ie ? <select style={{ ...iS, width: 70 }} value={ie.rating} onChange={e => setInlineEditCon({ ...ie, rating: Number(e.target.value) })}>{[1,2,3,4,5].map(n => <option key={n} value={n}>{'⭐'.repeat(n)}</option>)}</select> : '⭐'.repeat(c.rating)}</td>
                                         <td>
                                             <div style={{ display: 'flex', gap: 4 }}>
-                                                <button className="btn btn-ghost btn-sm" onClick={() => openEditCon(c)}>✏️</button>
-                                                <button className="btn btn-ghost btn-sm" onClick={() => delCon(c.id)} style={{ color: 'var(--status-danger)' }}>🗑️</button>
+                                                {ie ? (<>
+                                                    <button className="btn btn-primary btn-sm" onClick={saveInlineCon}>✅</button>
+                                                    <button className="btn btn-ghost btn-sm" onClick={() => setInlineEditCon(null)}>✕</button>
+                                                </>) : (<>
+                                                    <button className="btn btn-ghost btn-sm" onClick={() => setInlineEditCon({ id: c.id, name: c.name, type: c.type, phone: c.phone || '', rating: c.rating })}>✏️</button>
+                                                    <button className="btn btn-ghost btn-sm" onClick={() => delCon(c.id)} style={{ color: 'var(--status-danger)' }}>🗑️</button>
+                                                </>)}
                                             </div>
                                         </td>
                                     </tr>
