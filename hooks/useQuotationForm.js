@@ -249,9 +249,9 @@ export default function useQuotationForm() {
         length: 0, width: 0, height: 0, volume: 0, subItems: [],
     });
 
-    const prodToQuotationItem = (prod) => {
+    const prodToQuotationItem = async (prod) => {
         const isCustomFurniture = (prod.category || '').toLowerCase() === CUSTOM_FURNITURE_CAT.toLowerCase();
-        return {
+        const item = {
             _key: Date.now() + Math.random(),
             name: prod.name, unit: prod.unit || 'cái', quantity: 0,
             mainMaterial: prod.salePrice || 0, auxMaterial: 0, labor: 0,
@@ -261,6 +261,28 @@ export default function useQuotationForm() {
             length: 0, width: 0, height: 0,
             productId: prod.id || null, volume: 0, subItems: [],
         };
+        // Auto-populate sub-items from BOM
+        if (prod.id) {
+            try {
+                const bom = await apiFetch(`/api/products/${prod.id}/bom`);
+                if (bom && bom.length > 0) {
+                    item.subItems = bom.map(b => ({
+                        _key: Date.now() + Math.random(),
+                        name: b.component?.name || b.notes || '',
+                        unit: b.unit || b.component?.unit || 'cái',
+                        quantity: b.quantity || 0,
+                        unitPrice: b.component?.salePrice || 0,
+                        amount: (b.quantity || 0) * (b.component?.salePrice || 0),
+                        description: b.notes || '',
+                        image: b.component?.image || '',
+                        productId: b.component?.id || null,
+                        length: 0, width: 0, height: 0, volume: 0,
+                        mainMaterial: 0, auxMaterial: 0, labor: 0,
+                    }));
+                }
+            } catch { /* no BOM, that's fine */ }
+        }
+        return item;
     };
 
     // ========================================
@@ -324,16 +346,17 @@ export default function useQuotationForm() {
     };
 
     // Product → add as LINE ITEM (level 3) — unchanged
-    const addFromProduct = (prod) => {
+    const addFromProduct = async (prod) => {
         const mi = activeMainIdx;
         const si = activeSubIdx;
         const mcs = [...mainCategories];
         const sub = mcs[mi].subcategories[si];
         const existing = sub.items.filter(i => i.name.trim() !== '');
+        const newItem = await prodToQuotationItem(prod);
         mcs[mi] = {
             ...mcs[mi],
             subcategories: mcs[mi].subcategories.map((s, i) =>
-                i === si ? { ...s, items: [...existing, prodToQuotationItem(prod)] } : s
+                i === si ? { ...s, items: [...existing, newItem] } : s
             ),
         };
         setMainCategories(recalc(mcs));
@@ -372,14 +395,14 @@ export default function useQuotationForm() {
         setActiveSubIdx(mcs[mi].subcategories.length - 1);
     };
 
-    const addBulkFromProducts = (prods) => {
+    const addBulkFromProducts = async (prods) => {
         if (!prods.length) return;
         const mi = activeMainIdx;
         const si = activeSubIdx;
         const mcs = [...mainCategories];
         const sub = mcs[mi].subcategories[si];
         const existing = sub.items.filter(i => i.name.trim() !== '');
-        const newItems = prods.map(prodToQuotationItem);
+        const newItems = await Promise.all(prods.map(p => prodToQuotationItem(p)));
         mcs[mi] = {
             ...mcs[mi],
             subcategories: mcs[mi].subcategories.map((s, i) =>
@@ -406,14 +429,15 @@ export default function useQuotationForm() {
         setActiveSubIdx(mcs[mi].subcategories.length - 1);
     };
 
-    const addCategoryFromProducts = (catName, prods) => {
+    const addCategoryFromProducts = async (catName, prods) => {
         if (!prods.length) return;
         const mi = activeMainIdx;
         const mcs = [...mainCategories];
+        const items = await Promise.all(prods.map(p => prodToQuotationItem(p)));
         const newSub = {
             _key: Date.now() + Math.random(),
             name: catName,
-            items: prods.map(prodToQuotationItem),
+            items,
             subtotal: 0,
         };
         mcs[mi] = { ...mcs[mi], subcategories: [...mcs[mi].subcategories, newSub] };

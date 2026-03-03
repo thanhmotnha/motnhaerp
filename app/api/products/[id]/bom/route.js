@@ -23,7 +23,7 @@ export const GET = withAuth(async (request, { params }) => {
     const bom = await prisma.productBOM.findMany({
         where: { productId: id },
         include: {
-            component: { select: { id: true, code: true, name: true, unit: true, category: true, image: true } },
+            component: { select: { id: true, code: true, name: true, unit: true, category: true, image: true, salePrice: true } },
         },
         orderBy: { createdAt: 'asc' },
     });
