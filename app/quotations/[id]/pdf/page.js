@@ -128,7 +128,7 @@ export default function QuotationPDFPage() {
     const [copied, setCopied] = useState(false);
 
     useEffect(() => {
-        fetch(`/api/public/quotations/${id}`)
+        fetch(`/api/quotations/${id}`)
             .then(r => { if (!r.ok) throw new Error('Not found'); return r.json(); })
             .then(d => {
                 setData(d);
