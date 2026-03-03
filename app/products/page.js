@@ -30,13 +30,15 @@ function EditCell({ value, onChange, type = 'text', style = {}, options }) {
 
 export default function ProductsPage() {
     const router = useRouter();
-    const [tab, setTab] = useState('products');
+    // Read initial filters from URL
+    const [initParams] = useState(() => typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : new URLSearchParams());
+    const [tab, setTab] = useState(initParams.get('tab') || 'products');
 
     // Products
     const [products, setProducts] = useState([]);
     const [loadingP, setLoadingP] = useState(true);
     const [searchP, setSearchP] = useState('');
-    const [filterCatP, setFilterCatP] = useState('');
+    const [filterCatP, setFilterCatP] = useState(initParams.get('cat') || '');
     const [filterSupplyType, setFilterSupplyType] = useState('');
     const [filterStockStatus, setFilterStockStatus] = useState('');
     const [editingP, setEditingP] = useState(null); // {id, data}
@@ -74,6 +76,15 @@ export default function ProductsPage() {
     const fetchProducts = () => { setLoadingP(true); fetch('/api/products?limit=1000').then(r => r.json()).then(d => { setProducts(d.data || []); setLoadingP(false); }); };
     const fetchLibrary = () => { setLoadingL(true); fetch('/api/work-item-library?limit=1000').then(r => r.json()).then(d => { setLibrary(d.data || []); setLoadingL(false); }); };
     useEffect(() => { fetchProducts(); fetchLibrary(); }, []);
+
+    // Persist filters to URL (no page reload)
+    useEffect(() => {
+        const params = new URLSearchParams(window.location.search);
+        if (filterCatP) params.set('cat', filterCatP); else params.delete('cat');
+        if (tab !== 'products') params.set('tab', tab); else params.delete('tab');
+        const newUrl = params.toString() ? `?${params}` : window.location.pathname;
+        window.history.replaceState({}, '', newUrl);
+    }, [filterCatP, tab]);
 
     // Global paste listener: click ô ảnh → paste ảnh từ clipboard
     const [pasteReady, setPasteReady] = useState(false); // hiện toast "Sẵn sàng paste"
@@ -119,7 +130,10 @@ export default function ProductsPage() {
     const startEditP = (p) => setEditingP({ id: p.id, data: { ...p } });
     const saveP = async () => {
         const { id, data } = editingP;
-        await fetch(`/api/products/${id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
+        // Only send fields accepted by schema (strip id, code, createdAt, updatedAt etc.)
+        const { id: _, code: __, createdAt: ___, updatedAt: ____, ...cleanData } = data;
+        const res = await fetch(`/api/products/${id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(cleanData) });
+        if (!res.ok) { const err = await res.json(); alert(err.error || 'Lỗi lưu'); return; }
         setEditingP(null); fetchProducts();
     };
     const deleteP = async (id) => { if (!confirm('Xóa sản phẩm?')) return; const res = await fetch(`/api/products/${id}`, { method: 'DELETE' }); if (res.ok) setProducts(prev => prev.filter(p => p.id !== id)); else fetchProducts(); };
