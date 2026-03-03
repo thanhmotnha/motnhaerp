@@ -2,6 +2,8 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { fmt, UNIT_OPTIONS } from '@/lib/quotation-constants';
 
+const normalizeSupply = (t) => (t === 'Mua thương mại' || t === 'Vật tư lưu kho') ? 'Mua ngoài' : (t || 'Mua ngoài');
+
 function SubcategorySection({ sub, mi, si, hook, onImageClick, onSubcategoryImageClick, onConfigurableProduct }) {
     const { updateSubcategoryName, removeSubcategory, updateItem, removeItem, addItem, addFromLibrary, addFromProduct, allSearchItems, mainCategories } = hook;
 
@@ -39,8 +41,8 @@ function SubcategorySection({ sub, mi, si, hook, onImageClick, onSubcategoryImag
     }, []);
 
     const handleQuickAdd = useCallback((item) => {
-        // Intercept configurable products (Sản xuất nội bộ with attributes)
-        if (item._type === 'product' && item.supplyType === 'Sản xuất nội bộ' && onConfigurableProduct) {
+        // Intercept configurable products (Sản xuất nội bộ)
+        if (item._type === 'product' && normalizeSupply(item.supplyType) === 'Sản xuất nội bộ' && onConfigurableProduct) {
             setQuickSearch('');
             setQuickResults([]);
             setShowQuickDrop(false);

@@ -1,5 +1,6 @@
 'use client';
 import { useState, useEffect, useMemo } from 'react';
+import { apiFetch } from '@/lib/fetchClient';
 
 const fmt = (n) => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(n || 0);
 
@@ -11,28 +12,8 @@ export default function ProductConfigurator({ product, onConfirm, onCancel }) {
     const [quantity, setQuantity] = useState(1);
 
     useEffect(() => {
-        fetch(`/api/products/${product.id}/attributes`)
-            .then(r => r.json())
+        apiFetch(`/api/products/${product.id}/attributes`)
             .then(data => {
-                if (data.length === 0) {
-                    // No attributes — add directly with base product values
-                    onConfirm({
-                        _key: Date.now() + Math.random(),
-                        name: product.name,
-                        unit: product.unit || 'cái',
-                        quantity: 0,
-                        mainMaterial: product.salePrice || 0,
-                        auxMaterial: 0,
-                        labor: 0,
-                        unitPrice: product.salePrice || 0,
-                        amount: 0,
-                        description: `${product.brand ? product.brand + ' - ' : ''}${product.description || ''}`.trim(),
-                        image: product.image || '',
-                        length: 0, width: 0, height: 0,
-                        productId: product.id,
-                    });
-                    return;
-                }
                 const init = {};
                 data.forEach(attr => {
                     if (attr.inputType === 'select' && attr.options.length > 0) {
@@ -45,7 +26,7 @@ export default function ProductConfigurator({ product, onConfirm, onCancel }) {
                 setSelections(init);
                 setLoading(false);
             })
-            .catch(() => { setError('Không tải được tùy chọn'); setLoading(false); });
+            .catch(() => { setError('Không tải được tùy chọn sản phẩm'); setLoading(false); });
     }, [product.id]);
 
     const calculatedPrice = useMemo(() => {
@@ -99,8 +80,15 @@ export default function ProductConfigurator({ product, onConfirm, onCancel }) {
         });
     };
 
-    // Still loading — show nothing (might auto-close if no attrs)
-    if (loading) return null;
+    if (loading) return (
+        <div className="modal-overlay">
+            <div className="modal" style={{ maxWidth: 400, textAlign: 'center' }}>
+                <div className="modal-body" style={{ padding: 40, color: 'var(--text-muted)' }}>
+                    Đang tải cấu hình...
+                </div>
+            </div>
+        </div>
+    );
 
     if (error) return (
         <div className="modal-overlay" onClick={onCancel}>
@@ -130,6 +118,9 @@ export default function ProductConfigurator({ product, onConfirm, onCancel }) {
                     {/* Base price info */}
                     <div style={{ fontSize: 12, color: 'var(--text-muted)', padding: '6px 10px', background: 'var(--bg-hover)', borderRadius: 6 }}>
                         Giá cơ bản: <strong>{fmt(product.salePrice)}</strong>
+                        {attributes.length === 0 && (
+                            <span style={{ marginLeft: 8, opacity: 0.65 }}>· Chưa có biến thể — vào trang sản phẩm để cấu hình</span>
+                        )}
                     </div>
 
                     {/* Attribute selectors */}
