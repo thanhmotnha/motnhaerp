@@ -13,6 +13,10 @@ export default function SuppliersPage() {
     const [form, setForm] = useState(emptyForm);
     const [search, setSearch] = useState('');
     const [filterType, setFilterType] = useState('');
+    const [showPasteModal, setShowPasteModal] = useState(false);
+    const [pasteText, setPasteText] = useState('');
+    const [pastePreview, setPastePreview] = useState([]);
+    const [importing, setImporting] = useState(false);
 
     const fetchData = () => { setLoading(true); fetch('/api/suppliers?limit=1000').then(r => r.json()).then(d => { setSuppliers(d.data || []); setLoading(false); }); };
     useEffect(fetchData, []);
@@ -31,7 +35,40 @@ export default function SuppliersPage() {
         fetchData();
     };
 
-    const handleDelete = async (id) => { if (!confirm('Xóa nhà cung cấp này?')) return; await fetch(`/api/suppliers/${id}`, { method: 'DELETE' }); fetchData(); };
+    const handleDelete = async (id) => {
+        if (!confirm('Xóa nhà cung cấp này?')) return;
+        const res = await fetch(`/api/suppliers/${id}`, { method: 'DELETE' });
+        if (res.ok) setSuppliers(prev => prev.filter(s => s.id !== id)); else fetchData();
+    };
+
+    const parsePasteS = () => {
+        const rows = pasteText.trim().split('\n').map(row => {
+            const c = row.split('\t');
+            return {
+                name: c[0]?.trim() || '',
+                type: SUPPLIER_TYPES.includes(c[1]?.trim()) ? c[1].trim() : 'Vật tư xây dựng',
+                phone: c[2]?.trim() || '',
+                address: c[3]?.trim() || '',
+                taxCode: c[4]?.trim() || '',
+                bankAccount: c[5]?.trim() || '',
+                bankName: c[6]?.trim() || '',
+            };
+        }).filter(r => r.name);
+        setPastePreview(rows);
+    };
+
+    const confirmPasteS = async () => {
+        if (!pastePreview.length) return;
+        setImporting(true);
+        for (const s of pastePreview) {
+            await fetch('/api/suppliers', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(s) });
+        }
+        setImporting(false);
+        setPastePreview([]);
+        setShowPasteModal(false);
+        setPasteText('');
+        fetchData();
+    };
 
     const filtered = suppliers.filter(s => {
         if (filterType && s.type !== filterType) return false;
@@ -57,7 +94,10 @@ export default function SuppliersPage() {
                             {SUPPLIER_TYPES.map(t => <option key={t}>{t}</option>)}
                         </select>
                     </div>
-                    <button className="btn btn-primary" onClick={openCreate}>+ Thêm NCC</button>
+                    <div style={{ display: 'flex', gap: 6 }}>
+                        <button className="btn btn-ghost" onClick={() => setShowPasteModal(true)} title="Dán nhiều NCC từ Excel">📋 Dán Excel</button>
+                        <button className="btn btn-primary" onClick={openCreate}>+ Thêm NCC</button>
+                    </div>
                 </div>
                 {loading ? <div style={{ padding: 40, textAlign: 'center' }}>Đang tải...</div> : (
                     <table className="data-table">
@@ -84,6 +124,75 @@ export default function SuppliersPage() {
                     </table>
                 )}
             </div>
+
+            {/* Paste from Excel — textarea */}
+            {showPasteModal && !pastePreview.length && (
+                <div className="modal-overlay" onClick={() => { setShowPasteModal(false); setPasteText(''); }}>
+                    <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 580 }}>
+                        <div className="modal-header">
+                            <h3>📋 Dán dữ liệu từ Excel</h3>
+                            <button className="modal-close" onClick={() => { setShowPasteModal(false); setPasteText(''); }}>×</button>
+                        </div>
+                        <div className="modal-body">
+                            <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 10, padding: '8px 12px', background: 'var(--bg-hover)', borderRadius: 6, lineHeight: 1.7 }}>
+                                Copy từ Excel rồi Ctrl+V vào ô bên dưới. <strong>Thứ tự cột:</strong><br />
+                                <code style={{ fontSize: 11 }}>Tên NCC* | Loại | SĐT | Địa chỉ | Mã số thuế | STK ngân hàng | Tên ngân hàng</code>
+                            </div>
+                            <textarea
+                                className="form-input"
+                                rows={10}
+                                placeholder="Ctrl+V để dán từ Excel..."
+                                value={pasteText}
+                                onChange={e => setPasteText(e.target.value)}
+                                autoFocus
+                                style={{ fontFamily: 'monospace', fontSize: 12, resize: 'vertical' }}
+                            />
+                            {pasteText.trim() && (() => {
+                                const count = pasteText.trim().split('\n').filter(r => r.split('\t')[0]?.trim()).length;
+                                return <div style={{ marginTop: 6, fontSize: 12, color: 'var(--status-success)' }}>✅ Đọc được <strong>{count}</strong> dòng</div>;
+                            })()}
+                        </div>
+                        <div className="modal-footer">
+                            <button className="btn btn-ghost" onClick={() => { setShowPasteModal(false); setPasteText(''); }}>Hủy</button>
+                            <button className="btn btn-primary" onClick={parsePasteS} disabled={!pasteText.trim()}>Xem trước →</button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Paste preview — confirm */}
+            {pastePreview.length > 0 && (
+                <div className="modal-overlay" onClick={() => setPastePreview([])}>
+                    <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 700 }}>
+                        <div className="modal-header">
+                            <h3>📋 Xem trước — {pastePreview.length} nhà cung cấp</h3>
+                            <button className="modal-close" onClick={() => setPastePreview([])}>×</button>
+                        </div>
+                        <div className="modal-body" style={{ maxHeight: '55vh', overflowY: 'auto', padding: 0 }}>
+                            <table className="data-table" style={{ fontSize: 12 }}>
+                                <thead><tr><th>#</th><th>Tên NCC</th><th>Loại</th><th>SĐT</th><th>Địa chỉ</th><th>MST</th><th>STK / NH</th></tr></thead>
+                                <tbody>{pastePreview.map((s, i) => (
+                                    <tr key={i}>
+                                        <td style={{ opacity: 0.4 }}>{i + 1}</td>
+                                        <td style={{ fontWeight: 600 }}>{s.name}</td>
+                                        <td><span className="badge info">{s.type}</span></td>
+                                        <td>{s.phone || '—'}</td>
+                                        <td style={{ maxWidth: 180, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.address || '—'}</td>
+                                        <td>{s.taxCode || '—'}</td>
+                                        <td>{s.bankAccount ? `${s.bankAccount} / ${s.bankName}` : '—'}</td>
+                                    </tr>
+                                ))}</tbody>
+                            </table>
+                        </div>
+                        <div className="modal-footer">
+                            <button className="btn btn-ghost" onClick={() => setPastePreview([])}>← Sửa lại</button>
+                            <button className="btn btn-primary" onClick={confirmPasteS} disabled={importing}>
+                                {importing ? '⏳ Đang nhập...' : `✅ Nhập ${pastePreview.length} NCC`}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {showModal && (
                 <div className="modal-overlay" onClick={() => setShowModal(false)}>

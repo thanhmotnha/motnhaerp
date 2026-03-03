@@ -59,6 +59,8 @@ export default function ProductsPage() {
     const excelInputRef = useRef(null);
     const [importPreview, setImportPreview] = useState(null);
     const [importing, setImporting] = useState(false);
+    const [showPasteModal, setShowPasteModal] = useState(false);
+    const [pasteText, setPasteText] = useState('');
     const fileInputRef = useRef(null);
     const [uploading, setUploading] = useState(null);
     const [uploadTarget, setUploadTarget] = useState(null);
@@ -178,6 +180,25 @@ export default function ProductsPage() {
         setImportPreview(preview);
         excelInputRef.current.value = '';
     };
+    const parsePasteP = () => {
+        const rows = pasteText.trim().split('\n').map(row => {
+            const c = row.split('\t');
+            return {
+                name: c[0]?.trim() || '',
+                category: c[1]?.trim() || filterCatP || 'Nội thất thành phẩm',
+                unit: c[2]?.trim() || 'cái',
+                salePrice: Number((c[3] || '').replace(/[^\d.]/g, '')) || 0,
+                importPrice: Number((c[4] || '').replace(/[^\d.]/g, '')) || 0,
+                stock: Number((c[5] || '').trim()) || 0,
+                brand: c[6]?.trim() || '',
+                image: '',
+            };
+        }).filter(r => r.name);
+        setImportPreview(rows);
+        setShowPasteModal(false);
+        setPasteText('');
+    };
+
     const confirmImport = async () => {
         if (!importPreview?.length) return;
         setImporting(true);
@@ -390,7 +411,8 @@ export default function ProductsPage() {
                                     </button>
                                 )}
                                 <button className="btn btn-primary btn-sm" onClick={addNewProduct}>+ Thêm SP</button>
-                                <button className="btn btn-ghost btn-sm" onClick={() => excelInputRef.current?.click()} title="Import Excel">📥</button>
+                                <button className="btn btn-ghost btn-sm" onClick={() => setShowPasteModal(true)} title="Dán nhiều SP từ Excel">📋 Dán Excel</button>
+                                <button className="btn btn-ghost btn-sm" onClick={() => excelInputRef.current?.click()} title="Import file Excel">📥</button>
                                 <input ref={excelInputRef} type="file" accept=".xlsx,.xls,.csv" style={{ display: 'none' }} onChange={handleExcelFile} />
                             </div>
                         </div>
@@ -700,6 +722,43 @@ export default function ProductsPage() {
                         <div className="modal-footer">
                             <button className="btn btn-ghost" onClick={() => setShowAddModal(false)}>Hủy</button>
                             <button className="btn btn-primary" onClick={saveNewProduct}>Tạo sản phẩm</button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Paste from Excel modal */}
+            {showPasteModal && (
+                <div className="modal-overlay" onClick={() => { setShowPasteModal(false); setPasteText(''); }}>
+                    <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 580 }}>
+                        <div className="modal-header">
+                            <h3>📋 Dán dữ liệu từ Excel</h3>
+                            <button className="modal-close" onClick={() => { setShowPasteModal(false); setPasteText(''); }}>×</button>
+                        </div>
+                        <div className="modal-body">
+                            <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 10, padding: '8px 12px', background: 'var(--bg-hover)', borderRadius: 6, lineHeight: 1.7 }}>
+                                Copy từ Excel rồi Ctrl+V vào ô bên dưới. <strong>Thứ tự cột:</strong><br />
+                                <code style={{ fontSize: 11 }}>Tên SP* | Danh mục | ĐVT | Giá bán | Giá nhập | Tồn kho | Thương hiệu</code>
+                            </div>
+                            <textarea
+                                className="form-input"
+                                rows={10}
+                                placeholder="Ctrl+V để dán từ Excel..."
+                                value={pasteText}
+                                onChange={e => setPasteText(e.target.value)}
+                                autoFocus
+                                style={{ fontFamily: 'monospace', fontSize: 12, resize: 'vertical' }}
+                            />
+                            {pasteText.trim() && (() => {
+                                const count = pasteText.trim().split('\n').filter(r => r.split('\t')[0]?.trim()).length;
+                                return <div style={{ marginTop: 6, fontSize: 12, color: 'var(--status-success)' }}>✅ Đọc được <strong>{count}</strong> dòng</div>;
+                            })()}
+                        </div>
+                        <div className="modal-footer">
+                            <button className="btn btn-ghost" onClick={() => { setShowPasteModal(false); setPasteText(''); }}>Hủy</button>
+                            <button className="btn btn-primary" onClick={parsePasteP} disabled={!pasteText.trim()}>
+                                Xem trước →
+                            </button>
                         </div>
                     </div>
                 </div>
