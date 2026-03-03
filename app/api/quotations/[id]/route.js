@@ -2,6 +2,9 @@ import { withAuth } from '@/lib/apiHandler';
 import prisma from '@/lib/prisma';
 import { NextResponse } from 'next/server';
 import { quotationUpdateSchema } from '@/lib/validations/quotation';
+import { generateCode } from '@/lib/generateCode';
+
+const LOCKED_STATUSES = ['Hợp đồng', 'Từ chối'];
 
 export const GET = withAuth(async (request, { params }) => {
     const { id } = await params;
@@ -15,6 +18,7 @@ export const GET = withAuth(async (request, { params }) => {
                 orderBy: { order: 'asc' },
             },
             items: true,
+            children: { select: { id: true, code: true, status: true }, where: { deletedAt: null } },
         },
     });
     if (!quotation) return NextResponse.json({ error: 'Not found' }, { status: 404 });
@@ -23,6 +27,14 @@ export const GET = withAuth(async (request, { params }) => {
 
 export const PUT = withAuth(async (request, { params }) => {
     const { id } = await params;
+
+    // GĐ1: Lock check
+    const existing = await prisma.quotation.findUnique({ where: { id }, select: { status: true, revision: true } });
+    if (!existing) return NextResponse.json({ error: 'Không tìm thấy' }, { status: 404 });
+    if (LOCKED_STATUSES.includes(existing.status)) {
+        return NextResponse.json({ error: `Báo giá đã "${existing.status}" — không thể sửa. Hãy tạo BG bổ sung.` }, { status: 403 });
+    }
+
     const body = await request.json();
     const { categories, ...validated } = quotationUpdateSchema.parse(body);
 
@@ -37,6 +49,12 @@ export const PUT = withAuth(async (request, { params }) => {
     }
     // projectId: "" -> null to avoid FK error
     if (!data.projectId) data.projectId = null;
+
+    // GĐ2: Auto revert 'Xác nhận' → 'Gửi KH' + increment revision
+    if (existing.status === 'Xác nhận' && categories !== undefined) {
+        data.status = 'Gửi KH';
+        data.revision = existing.revision + 1;
+    }
 
     // Wrap delete+recreate in a transaction
     await prisma.$transaction(async (tx) => {
@@ -113,4 +131,63 @@ export const DELETE = withAuth(async (request, { params }) => {
     });
 
     return NextResponse.json({ success: true });
+});
+
+// GĐ3: Clone quotation (BG bổ sung / copy)
+export const POST = withAuth(async (request, { params }) => {
+    const { id } = await params;
+    const original = await prisma.quotation.findUnique({
+        where: { id },
+        include: { categories: { include: { items: true }, orderBy: { order: 'asc' } } },
+    });
+    if (!original) return NextResponse.json({ error: 'Không tìm thấy' }, { status: 404 });
+
+    const body = await request.json().catch(() => ({}));
+    const isSupplemental = body.type === 'supplemental'; // BG bổ sung vs copy
+
+    const code = await generateCode('BG');
+    const clone = await prisma.quotation.create({
+        data: {
+            code,
+            customerId: original.customerId,
+            projectId: original.projectId,
+            type: original.type,
+            notes: isSupplemental ? `BG bổ sung cho ${original.code}` : original.notes,
+            vat: original.vat,
+            discount: isSupplemental ? 0 : original.discount,
+            managementFeeRate: original.managementFeeRate,
+            designFee: isSupplemental ? 0 : original.designFee,
+            otherFee: isSupplemental ? 0 : original.otherFee,
+            status: 'Nháp',
+            revision: 1,
+            parentId: isSupplemental ? id : null,
+        },
+    });
+
+    // Copy categories + items (skip for supplemental — starts empty)
+    if (!isSupplemental && original.categories.length > 0) {
+        for (const cat of original.categories) {
+            const newCat = await prisma.quotationCategory.create({
+                data: {
+                    name: cat.name, group: cat.group, image: cat.image,
+                    order: cat.order, subtotal: cat.subtotal, quotationId: clone.id,
+                },
+            });
+            if (cat.items.length > 0) {
+                await prisma.quotationItem.createMany({
+                    data: cat.items.map(item => ({
+                        name: item.name, order: item.order, unit: item.unit,
+                        quantity: item.quantity, mainMaterial: item.mainMaterial,
+                        auxMaterial: item.auxMaterial, labor: item.labor,
+                        unitPrice: item.unitPrice, amount: item.amount,
+                        description: item.description, length: item.length,
+                        width: item.width, height: item.height, image: item.image,
+                        productId: item.productId, quotationId: clone.id, categoryId: newCat.id,
+                    })),
+                });
+            }
+        }
+    }
+
+    return NextResponse.json(clone, { status: 201 });
 });

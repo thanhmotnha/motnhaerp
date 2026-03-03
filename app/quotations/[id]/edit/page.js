@@ -21,6 +21,7 @@ export default function EditQuotationPage() {
     const imgInputRef = useRef(null);
     const imgUploadTarget = useRef(null);
     const [treeSidebarOpen, setTreeSidebarOpen] = useState(false);
+    const [qMeta, setQMeta] = useState({ status: 'Nháp', revision: 1, code: '', parentId: null, children: [] });
 
     const {
         form, setForm, mainCategories, setMainCategories,
@@ -44,6 +45,11 @@ export default function EditQuotationPage() {
                 adjustment: q.adjustment ?? 0,
                 adjustmentType: q.adjustmentType || 'amount',
                 status: q.status || 'Nháp',
+            });
+            setQMeta({
+                status: q.status || 'Nháp', revision: q.revision || 1, code: q.code || '',
+                parentId: q.parentId || null, children: q.children || [],
+                lockedAt: q.lockedAt, createdAt: q.createdAt,
             });
             if (q.categories && q.categories.length > 0) {
                 // Group categories by `group` field → build mainCategories
@@ -155,14 +161,31 @@ export default function EditQuotationPage() {
     const handleSave = async () => {
         setSaving(true);
         try {
-            await apiFetch(`/api/quotations/${params.id}`, {
+            const res = await apiFetch(`/api/quotations/${params.id}`, {
                 method: 'PUT', body: JSON.stringify(buildPayload()),
             });
             try { localStorage.removeItem(`quotation_draft_${params.id}`); } catch { }
-            toast.success('Đã cập nhật báo giá thành công!');
+            // Update meta in case revision/status changed
+            if (res.revision) setQMeta(m => ({ ...m, revision: res.revision, status: res.status || m.status }));
+            if (res.status) setForm(f => ({ ...f, status: res.status }));
+            toast.success('Đã cập nhật báo giá!');
         } catch (e) { toast.error(e.message); }
         setSaving(false);
     };
+
+    const handleClone = async (type) => {
+        try {
+            const res = await apiFetch(`/api/quotations/${params.id}`, {
+                method: 'POST', body: JSON.stringify({ type }),
+            });
+            toast.success(type === 'supplemental' ? 'Đã tạo BG bổ sung!' : 'Đã tạo bản copy!');
+            router.push(`/quotations/${res.id}/edit`);
+        } catch (e) { toast.error(e.message); }
+    };
+
+    const isLocked = ['Hợp đồng', 'Từ chối'].includes(qMeta.status);
+    const isWarning = qMeta.status === 'Gửi KH';
+    const isConfirmed = qMeta.status === 'Xác nhận';
 
     if (loading) return <div style={{ padding: 60, textAlign: 'center' }}>Đang tải...</div>;
 
@@ -178,13 +201,55 @@ export default function EditQuotationPage() {
 
             <div style={{ flex: 1, minWidth: 0 }}>
                 <div className="quotation-page-header">
-                    <h2 style={{ margin: 0 }}>Sửa Báo Giá</h2>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <h2 style={{ margin: 0 }}>Sửa Báo Giá</h2>
+                        {qMeta.code && <span style={{ fontSize: 12, fontFamily: 'monospace', opacity: 0.5 }}>{qMeta.code}</span>}
+                        {qMeta.revision > 1 && <span className="badge info" style={{ fontSize: 11 }}>v{qMeta.revision}</span>}
+                    </div>
                     <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                         <button className="btn btn-ghost" onClick={() => router.push('/quotations')}>← Quay lại</button>
                         <button className="btn btn-ghost" onClick={() => window.open(`/quotations/${params.id}/pdf`, '_blank')}>📄 PDF</button>
-                        <button className="btn btn-primary" onClick={handleSave} disabled={saving}>{saving ? 'Đang lưu...' : 'Cập nhật'}</button>
+                        {isLocked ? (
+                            <>
+                                <button className="btn btn-secondary" onClick={() => handleClone('supplemental')}>📋 Tạo BG bổ sung</button>
+                                <button className="btn btn-ghost" onClick={() => handleClone('copy')}>📋 Tạo bản copy</button>
+                            </>
+                        ) : (
+                            <button className="btn btn-primary" onClick={handleSave} disabled={saving}>{saving ? 'Đang lưu...' : 'Cập nhật'}</button>
+                        )}
                     </div>
                 </div>
+
+                {/* Lock / Warning banners */}
+                {isLocked && (
+                    <div style={{ padding: '10px 16px', background: qMeta.status === 'Hợp đồng' ? 'rgba(22,163,74,0.08)' : 'rgba(220,38,38,0.08)', border: `1px solid ${qMeta.status === 'Hợp đồng' ? 'rgba(22,163,74,0.3)' : 'rgba(220,38,38,0.3)'}`, borderRadius: 8, marginBottom: 12, fontSize: 13, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <span>🔒 Báo giá đã <strong>{qMeta.status}</strong> — không thể chỉnh sửa.</span>
+                        <button className="btn btn-primary btn-sm" onClick={() => handleClone('supplemental')} style={{ fontSize: 12 }}>📋 Tạo BG bổ sung</button>
+                    </div>
+                )}
+                {isWarning && (
+                    <div style={{ padding: '10px 16px', background: 'rgba(234,179,8,0.08)', border: '1px solid rgba(234,179,8,0.3)', borderRadius: 8, marginBottom: 12, fontSize: 13 }}>
+                        ⚠️ BG đã gửi khách hàng. Sửa sẽ ghi nhận thay đổi.
+                    </div>
+                )}
+                {isConfirmed && (
+                    <div style={{ padding: '10px 16px', background: 'rgba(234,179,8,0.08)', border: '1px solid rgba(234,179,8,0.3)', borderRadius: 8, marginBottom: 12, fontSize: 13 }}>
+                        ⚠️ BG đã được KH xác nhận. Sửa sẽ tự động chuyển về "Gửi KH" và tăng phiên bản (v{qMeta.revision} → v{qMeta.revision + 1}).
+                    </div>
+                )}
+                {qMeta.parentId && (
+                    <div style={{ padding: '8px 16px', background: 'rgba(35,64,147,0.06)', borderRadius: 8, marginBottom: 12, fontSize: 12 }}>
+                        📎 BG bổ sung cho: <a href={`/quotations/${qMeta.parentId}/edit`} style={{ color: 'var(--primary)', textDecoration: 'underline' }}>BG gốc</a>
+                    </div>
+                )}
+                {qMeta.children?.length > 0 && (
+                    <div style={{ padding: '8px 16px', background: 'rgba(35,64,147,0.06)', borderRadius: 8, marginBottom: 12, fontSize: 12, display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                        <span>📎 BG bổ sung:</span>
+                        {qMeta.children.map(c => (
+                            <a key={c.id} href={`/quotations/${c.id}/edit`} style={{ color: 'var(--primary)', textDecoration: 'underline' }}>{c.code}</a>
+                        ))}
+                    </div>
+                )}
 
                 {/* Thông tin chung */}
                 <div className="card" style={{ marginBottom: 16 }}>
