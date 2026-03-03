@@ -174,7 +174,7 @@ export default function EditQuotationPage() {
             </button>
             {treeSidebarOpen && <div className="quotation-tree-overlay" onClick={() => setTreeSidebarOpen(false)} />}
             <div className={`quotation-tree-wrapper ${treeSidebarOpen ? 'open' : ''}`}>
-                <TreeSidebar hook={hook} onClose={() => setTreeSidebarOpen(false)} />
+                <TreeSidebar hook={hook} onClose={() => setTreeSidebarOpen(false)} onConfigurableProduct={(item, mi, si) => setConfiguratorState({ product: item, mi, si })} />
             </div>
 
             <div style={{ flex: 1, minWidth: 0 }}>

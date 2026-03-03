@@ -164,7 +164,7 @@ export default function CreateQuotationPage() {
 
             {/* LEFT: Tree sidebar */}
             <div className={`quotation-tree-wrapper ${treeSidebarOpen ? 'open' : ''}`}>
-                <TreeSidebar hook={hook} onClose={() => setTreeSidebarOpen(false)} />
+                <TreeSidebar hook={hook} onClose={() => setTreeSidebarOpen(false)} onConfigurableProduct={(item, mi, si) => setConfiguratorState({ product: item, mi, si })} />
             </div>
 
             {/* RIGHT: Main content */}
