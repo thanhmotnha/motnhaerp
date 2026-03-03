@@ -180,7 +180,6 @@ function SubcategorySection({ sub, mi, si, hook, onImageClick, onSubcategoryImag
                     </thead>
                     <tbody>
                         {sub.items.map((item, ii) => {
-                            const hasDim = item.length > 0 || item.width > 0 || item.height > 0;
                             return (
                                 <React.Fragment key={item._key}>
                                     <tr>
@@ -209,14 +208,25 @@ function SubcategorySection({ sub, mi, si, hook, onImageClick, onSubcategoryImag
                                         <td><input className="form-input form-input-compact" type="number" value={item.height || ''} onChange={e => updateItem(mi, si, ii, 'height', e.target.value)} placeholder="0" /></td>
                                         <td><input className="form-input form-input-compact" type="number" value={item.quantity || ''} onChange={e => updateItem(mi, si, ii, 'quantity', e.target.value)} placeholder="0" /></td>
                                         <td style={{ textAlign: 'right', fontSize: 12, fontWeight: 500 }}>
-                                            {hasDim ? (
-                                                <span title={`(${item.length || 1} × ${item.width || 1} × ${item.height || 1}) × ${item.quantity || 0}`} style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 3 }}>
-                                                    {fmt(item.volume || 0)}
-                                                    <span style={{ fontSize: 8, background: 'var(--accent-primary)', color: '#fff', padding: '1px 3px', borderRadius: 3, lineHeight: 1 }}>auto</span>
-                                                </span>
-                                            ) : (
-                                                <span style={{ opacity: 0.3, fontSize: 11 }}>{fmt(item.volume || 0)}</span>
-                                            )}
+                                            {(() => {
+                                                const u = (item.unit || '').toLowerCase().trim();
+                                                const isDimUnit = ['md', 'mét dài', 'm', 'm²', 'm2', 'm³', 'm3'].includes(u);
+                                                const vol = item.volume || 0;
+                                                if (isDimUnit && vol !== (Number(item.quantity) || 0)) {
+                                                    const formula = u === 'md' || u === 'mét dài' || u === 'm'
+                                                        ? `${item.length || 0} × ${item.quantity || 0}`
+                                                        : u === 'm²' || u === 'm2'
+                                                            ? `${item.length || 0} × ${item.width || 0} × ${item.quantity || 0}`
+                                                            : `${item.length || 0} × ${item.width || 0} × ${item.height || 0} × ${item.quantity || 0}`;
+                                                    return (
+                                                        <span title={formula} style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 3 }}>
+                                                            {fmt(vol)}
+                                                            <span style={{ fontSize: 8, background: 'var(--accent-primary)', color: '#fff', padding: '1px 3px', borderRadius: 3, lineHeight: 1 }}>auto</span>
+                                                        </span>
+                                                    );
+                                                }
+                                                return <span style={{ opacity: vol > 0 ? 1 : 0.3, fontSize: 11 }}>{fmt(vol)}</span>;
+                                            })()}
                                         </td>
                                         <td>
                                             <select className="form-select form-input-compact" value={item.unit} onChange={e => updateItem(mi, si, ii, 'unit', e.target.value)}>

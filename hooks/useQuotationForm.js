@@ -93,8 +93,19 @@ export default function useQuotationForm() {
         const w = Number(item.width) || 0;
         const h = Number(item.height) || 0;
         const qty = Number(item.quantity) || 0;
-        const hasDim = l > 0 || w > 0 || h > 0;
-        return hasDim ? (l || 1) * (w || 1) * (h || 1) * qty : qty;
+        const unit = (item.unit || '').toLowerCase().trim();
+        // Unit-aware volume calculation
+        if (unit === 'md' || unit === 'mét dài' || unit === 'm') {
+            return l > 0 ? l * qty : qty;
+        }
+        if (unit === 'm²' || unit === 'm2') {
+            return (l > 0 && w > 0) ? l * w * qty : qty;
+        }
+        if (unit === 'm³' || unit === 'm3') {
+            return (l > 0 && w > 0 && h > 0) ? l * w * h * qty : qty;
+        }
+        // For bộ, cái, chiếc, etc.: volume = quantity
+        return qty;
     };
 
     const recalc = useCallback((mcs) => {
