@@ -205,8 +205,8 @@ export default function ProductDetailPage() {
             <div style={{ display: 'flex', borderBottom: '2px solid var(--border-color)', marginBottom: 20 }}>
                 {[
                     ['info', '📋 Thông tin'],
-                    ...(normalizeSupply(product.supplyType) === 'Sản xuất nội bộ' ? [['bom', '🔩 Định mức BOM'], ['attributes', '🎛 Biến thể']] : []),
-                    ...(normalizeSupply(product.supplyType) !== 'Dịch vụ' ? [['inventory', '📦 Lịch sử kho']] : []),
+                    ...(normalizeSupply(product.supplyType) === 'Sản xuất nội bộ' ? [['bom', '🔩 Định mức BOM']] : []),
+                    ...(normalizeSupply(product.supplyType) !== 'Dịch vụ' ? [['attributes', '🎛 Biến thể'], ['inventory', '📦 Lịch sử kho']] : []),
                 ].map(([key, label]) => (
                     <button key={key} onClick={() => setTab(key)}
                         style={{ padding: '9px 22px', border: 'none', borderBottom: tab === key ? '2px solid var(--primary)' : '2px solid transparent', background: 'none', marginBottom: -2, fontSize: 13, fontWeight: tab === key ? 700 : 400, color: tab === key ? 'var(--primary)' : 'var(--text-secondary)', cursor: 'pointer' }}>
