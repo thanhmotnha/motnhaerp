@@ -801,11 +801,13 @@ export default function QuotationPDFPage() {
                                                                     );
                                                                 })}
                                                                 <tr className="mn-sub-total">
-                                                                    <td colSpan={3 + (hasAnyImage ? 1 : 0) + (hasAnyDim ? 3 : 0) + (hasAnyVolDiff ? 1 : 0)} className="r" style={{ paddingRight: 14 }}>
-                                                                        <span style={{ opacity: 0.6, fontSize: 9, marginRight: 6 }}>▸</span>
-                                                                        Tổng {cat.name || `Khu vực ${ci + 1}`}
+                                                                    <td colSpan={99} style={{ padding: '8px 12px' }}>
+                                                                        <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 12 }}>
+                                                                            <span style={{ opacity: 0.6, fontSize: 9 }}>▸</span>
+                                                                            <span>Tổng {cat.name || `Khu vực ${ci + 1}`}</span>
+                                                                            <span style={{ fontWeight: 900, minWidth: 100, textAlign: 'right' }}>{fmt(cat.subtotal)} đ</span>
+                                                                        </div>
                                                                     </td>
-                                                                    <td className="r" style={{ fontWeight: 900 }}>{fmt(cat.subtotal)}</td>
                                                                 </tr>
                                                             </tbody>
                                                         </table>
