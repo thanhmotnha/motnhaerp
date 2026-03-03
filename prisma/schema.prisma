@@ -134,6 +134,7 @@ model Product {
   purchaseItems PurchaseOrderItem[]
   bomComponents ProductBOM[] @relation("BOMParent")
   bomUsedIn     ProductBOM[] @relation("BOMComponent")
+  attributes    ProductAttribute[]
   deletedAt     DateTime?
   createdAt     DateTime    @default(now())
   updatedAt     DateTime    @updatedAt
@@ -614,6 +615,31 @@ model ProductBOM {
   createdAt   DateTime @default(now())
   @@index([productId])
   @@index([componentId])
+}
+
+// ============ PRODUCT CONFIGURATOR (BIẾN THỂ) ============
+
+model ProductAttribute {
+  id        String   @id @default(cuid())
+  name      String
+  inputType String   @default("select")
+  required  Boolean  @default(true)
+  order     Int      @default(0)
+  productId String
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  options   ProductAttributeOption[]
+  createdAt DateTime @default(now())
+  @@index([productId])
+}
+
+model ProductAttributeOption {
+  id          String           @id @default(cuid())
+  label       String
+  priceAddon  Float            @default(0)
+  order       Int              @default(0)
+  attributeId String
+  attribute   ProductAttribute @relation(fields: [attributeId], references: [id], onDelete: Cascade)
+  @@index([attributeId])
 }
 
 // ============ THƯ VIỆN HẠNG MỤC THI CÔNG ============

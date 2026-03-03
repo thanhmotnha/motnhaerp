@@ -280,6 +280,20 @@ export default function useQuotationForm() {
         setMainCategories(recalc(mcs));
     };
 
+    // Configured product → add pre-built item directly (called by ProductConfigurator)
+    const addFromProductConfigured = (mi, si, quotationItem) => {
+        const mcs = [...mainCategories];
+        const sub = mcs[mi].subcategories[si];
+        const existing = sub.items.filter(i => i.name.trim() !== '');
+        mcs[mi] = {
+            ...mcs[mi],
+            subcategories: mcs[mi].subcategories.map((s, i) =>
+                i === si ? { ...s, items: [...existing, quotationItem] } : s
+            ),
+        };
+        setMainCategories(recalc(mcs));
+    };
+
     // ========================================
     // Tree add handlers (bulk)
     // ========================================
@@ -508,7 +522,7 @@ export default function useQuotationForm() {
         editingLibCat, setEditingLibCat, saveLibCategory,
         editingProdCat, setEditingProdCat, saveProdCategory,
         // Tree actions (single)
-        addFromLibrary, addFromProduct,
+        addFromLibrary, addFromProduct, addFromProductConfigured,
         // Tree actions (bulk)
         addBulkFromLibrary, addBulkFromProducts,
         addCategoryFromLibrary, addCategoryFromProducts,

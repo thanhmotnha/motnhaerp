@@ -32,6 +32,13 @@ export default function ProductDetailPage() {
     const [txList, setTxList] = useState([]);
     const [loadingTx, setLoadingTx] = useState(false);
 
+    // Biến thể (Attributes)
+    const [attributes, setAttributes] = useState([]);
+    const [attrForm, setAttrForm] = useState({ name: '', inputType: 'select', required: true });
+    const [showAttrForm, setShowAttrForm] = useState(false);
+    const [optionForms, setOptionForms] = useState({});
+    const [showOptionForm, setShowOptionForm] = useState({});
+
     const fetchProduct = async () => {
         const res = await fetch(`/api/products/${id}`);
         if (!res.ok) { router.push('/products'); return; }
@@ -55,6 +62,11 @@ export default function ProductDetailPage() {
         setLoadingTx(false);
     };
 
+    const fetchAttributes = async () => {
+        const res = await fetch(`/api/products/${id}/attributes`);
+        setAttributes(await res.json());
+    };
+
     useEffect(() => { fetchProduct(); }, [id]);
     useEffect(() => {
         if (tab === 'bom') {
@@ -62,7 +74,44 @@ export default function ProductDetailPage() {
             fetch('/api/products?limit=1000').then(r => r.json()).then(d => setAllProducts(d.data || []));
         }
         if (tab === 'inventory') fetchTx();
+        if (tab === 'attributes') fetchAttributes();
     }, [tab]);
+
+    const addAttribute = async () => {
+        if (!attrForm.name.trim()) return alert('Nhập tên thuộc tính');
+        const res = await fetch(`/api/products/${id}/attributes`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(attrForm),
+        });
+        if (!res.ok) { const err = await res.json(); return alert(err.error || 'Lỗi'); }
+        setShowAttrForm(false);
+        setAttrForm({ name: '', inputType: 'select', required: true });
+        fetchAttributes();
+    };
+
+    const deleteAttribute = async (attrId) => {
+        if (!confirm('Xóa thuộc tính và tất cả tùy chọn?')) return;
+        await fetch(`/api/products/${id}/attributes/${attrId}`, { method: 'DELETE' });
+        fetchAttributes();
+    };
+
+    const addOption = async (attrId) => {
+        const form = optionForms[attrId] || {};
+        if (!form.label?.trim()) return alert('Nhập nhãn tùy chọn');
+        const res = await fetch(`/api/products/${id}/attributes/${attrId}/options`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ label: form.label, priceAddon: Number(form.priceAddon) || 0 }),
+        });
+        if (!res.ok) { const err = await res.json(); return alert(err.error || 'Lỗi'); }
+        setOptionForms(prev => ({ ...prev, [attrId]: { label: '', priceAddon: 0 } }));
+        fetchAttributes();
+    };
+
+    const deleteOption = async (attrId, optionId) => {
+        if (!confirm('Xóa tùy chọn này?')) return;
+        await fetch(`/api/products/${id}/attributes/${attrId}/options/${optionId}`, { method: 'DELETE' });
+        fetchAttributes();
+    };
 
     const saveInfo = async () => {
         setSaving(true);
@@ -117,7 +166,7 @@ export default function ProductDetailPage() {
             <div style={{ display: 'flex', borderBottom: '2px solid var(--border-color)', marginBottom: 20 }}>
                 {[
                     ['info', '📋 Thông tin'],
-                    ...(normalizeSupply(product.supplyType) === 'Sản xuất nội bộ' ? [['bom', '🔩 Định mức BOM']] : []),
+                    ...(normalizeSupply(product.supplyType) === 'Sản xuất nội bộ' ? [['bom', '🔩 Định mức BOM'], ['attributes', '🎛 Biến thể']] : []),
                     ...(normalizeSupply(product.supplyType) !== 'Dịch vụ' ? [['inventory', '📦 Lịch sử kho']] : []),
                 ].map(([key, label]) => (
                     <button key={key} onClick={() => setTab(key)}
@@ -324,6 +373,104 @@ export default function ProductDetailPage() {
                             Tổng: <strong>{bom.length}</strong> loại vật tư thành phần
                         </div>
                     )}
+                </div>
+            )}
+
+            {/* ===== TAB BIẾN THỂ ===== */}
+            {tab === 'attributes' && (
+                <div>
+                    <div className="card" style={{ marginBottom: 16 }}>
+                        <div className="card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                            <div>
+                                <h3 style={{ margin: 0 }}>🎛 Cấu hình biến thể</h3>
+                                <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 3 }}>Khai báo các tùy chọn (Loại thùng, Loại cánh, Mã màu...) cho: <strong>{product.name}</strong></div>
+                            </div>
+                            <button className="btn btn-ghost btn-sm" onClick={() => setShowAttrForm(v => !v)}>+ Thêm thuộc tính</button>
+                        </div>
+                        {showAttrForm && (
+                            <div style={{ padding: '12px 16px', borderTop: '1px solid var(--border-color)', background: 'var(--bg-hover)', display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'flex-end' }}>
+                                <div className="form-group" style={{ flex: 2, minWidth: 160, margin: 0 }}>
+                                    <label className="form-label">Tên thuộc tính *</label>
+                                    <input className="form-input" placeholder="VD: Loại thùng, Mã màu..." value={attrForm.name} onChange={e => setAttrForm(f => ({ ...f, name: e.target.value }))} autoFocus />
+                                </div>
+                                <div className="form-group" style={{ margin: 0 }}>
+                                    <label className="form-label">Loại nhập</label>
+                                    <select className="form-select" value={attrForm.inputType} onChange={e => setAttrForm(f => ({ ...f, inputType: e.target.value }))}>
+                                        <option value="select">Chọn từ danh sách</option>
+                                        <option value="text">Nhập văn bản tự do</option>
+                                    </select>
+                                </div>
+                                <div className="form-group" style={{ margin: 0, display: 'flex', alignItems: 'center', gap: 6, paddingBottom: 2 }}>
+                                    <input type="checkbox" id="attr-req" checked={attrForm.required} onChange={e => setAttrForm(f => ({ ...f, required: e.target.checked }))} />
+                                    <label htmlFor="attr-req" style={{ fontSize: 13 }}>Bắt buộc</label>
+                                </div>
+                                <button className="btn btn-primary btn-sm" onClick={addAttribute}>Thêm</button>
+                                <button className="btn btn-ghost btn-sm" onClick={() => setShowAttrForm(false)}>Hủy</button>
+                            </div>
+                        )}
+                    </div>
+
+                    {attributes.length === 0 && !showAttrForm && (
+                        <div style={{ padding: '32px 24px', textAlign: 'center', color: 'var(--text-muted)', background: 'var(--bg-card)', borderRadius: 8 }}>
+                            Chưa có thuộc tính nào — bấm "+ Thêm thuộc tính" để khai báo biến thể
+                        </div>
+                    )}
+
+                    {attributes.map(attr => (
+                        <div key={attr.id} className="card" style={{ marginBottom: 12 }}>
+                            <div style={{ padding: '12px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border-color)' }}>
+                                <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                                    <span style={{ fontWeight: 700, fontSize: 14 }}>{attr.name}</span>
+                                    <span className={`badge ${attr.inputType === 'select' ? 'info' : 'muted'}`} style={{ fontSize: 11 }}>{attr.inputType === 'select' ? 'Chọn' : 'Văn bản'}</span>
+                                    <span className={`badge ${attr.required ? 'warning' : 'muted'}`} style={{ fontSize: 11 }}>{attr.required ? 'Bắt buộc' : 'Tùy chọn'}</span>
+                                </div>
+                                <button className="btn btn-ghost btn-sm" style={{ color: 'var(--status-danger)' }} onClick={() => deleteAttribute(attr.id)}>🗑 Xóa</button>
+                            </div>
+
+                            {attr.inputType === 'select' ? (
+                                <div style={{ padding: '12px 16px' }}>
+                                    {attr.options.length > 0 ? (
+                                        <table className="data-table" style={{ marginBottom: 12 }}>
+                                            <thead><tr><th>#</th><th>Nhãn tùy chọn</th><th>+Giá thêm/đơn vị</th><th></th></tr></thead>
+                                            <tbody>{attr.options.map((opt, i) => (
+                                                <tr key={opt.id}>
+                                                    <td style={{ width: 32, color: 'var(--text-muted)', fontSize: 12 }}>{i + 1}</td>
+                                                    <td style={{ fontWeight: 500 }}>{opt.label}</td>
+                                                    <td style={{ color: opt.priceAddon > 0 ? 'var(--status-success)' : 'var(--text-muted)' }}>
+                                                        {opt.priceAddon > 0 ? `+${fmtCur(opt.priceAddon)}` : '—'}
+                                                    </td>
+                                                    <td><button className="btn btn-ghost btn-sm" style={{ color: 'var(--status-danger)', fontSize: 11 }} onClick={() => deleteOption(attr.id, opt.id)}>🗑</button></td>
+                                                </tr>
+                                            ))}</tbody>
+                                        </table>
+                                    ) : (
+                                        <div style={{ fontSize: 13, color: 'var(--text-muted)', marginBottom: 10 }}>Chưa có tùy chọn nào</div>
+                                    )}
+
+                                    {showOptionForm[attr.id] ? (
+                                        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'flex-end', padding: '10px 0' }}>
+                                            <div className="form-group" style={{ flex: 2, minWidth: 160, margin: 0 }}>
+                                                <label className="form-label">Nhãn *</label>
+                                                <input className="form-input" placeholder="VD: Gỗ nhựa Picomat" value={optionForms[attr.id]?.label || ''} onChange={e => setOptionForms(p => ({ ...p, [attr.id]: { ...p[attr.id], label: e.target.value } }))} autoFocus />
+                                            </div>
+                                            <div className="form-group" style={{ width: 160, margin: 0 }}>
+                                                <label className="form-label">+Giá thêm (VNĐ)</label>
+                                                <input type="number" className="form-input" step="1000" value={optionForms[attr.id]?.priceAddon || 0} onChange={e => setOptionForms(p => ({ ...p, [attr.id]: { ...p[attr.id], priceAddon: e.target.value } }))} />
+                                            </div>
+                                            <button className="btn btn-primary btn-sm" onClick={() => addOption(attr.id)}>Thêm</button>
+                                            <button className="btn btn-ghost btn-sm" onClick={() => setShowOptionForm(p => ({ ...p, [attr.id]: false }))}>Đóng</button>
+                                        </div>
+                                    ) : (
+                                        <button className="btn btn-ghost btn-sm" onClick={() => setShowOptionForm(p => ({ ...p, [attr.id]: true }))}>+ Tùy chọn</button>
+                                    )}
+                                </div>
+                            ) : (
+                                <div style={{ padding: '12px 16px', fontSize: 13, color: 'var(--text-muted)', fontStyle: 'italic' }}>
+                                    Người dùng sẽ nhập văn bản tự do khi cấu hình trong báo giá
+                                </div>
+                            )}
+                        </div>
+                    ))}
                 </div>
             )}
 

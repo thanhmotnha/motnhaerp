@@ -2,7 +2,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { fmt, UNIT_OPTIONS } from '@/lib/quotation-constants';
 
-function SubcategorySection({ sub, mi, si, hook, onImageClick, onSubcategoryImageClick }) {
+function SubcategorySection({ sub, mi, si, hook, onImageClick, onSubcategoryImageClick, onConfigurableProduct }) {
     const { updateSubcategoryName, removeSubcategory, updateItem, removeItem, addItem, addFromLibrary, addFromProduct, allSearchItems, mainCategories } = hook;
 
     // Quick-add autocomplete state
@@ -39,6 +39,16 @@ function SubcategorySection({ sub, mi, si, hook, onImageClick, onSubcategoryImag
     }, []);
 
     const handleQuickAdd = useCallback((item) => {
+        // Intercept configurable products (Sản xuất nội bộ with attributes)
+        if (item._type === 'product' && item.supplyType === 'Sản xuất nội bộ' && onConfigurableProduct) {
+            setQuickSearch('');
+            setQuickResults([]);
+            setShowQuickDrop(false);
+            hook.setActiveMainIdx(mi);
+            hook.setActiveSubIdx(si);
+            onConfigurableProduct(item, mi, si);
+            return;
+        }
         // Temporarily set active indices to target this subcategory
         hook.setActiveMainIdx(mi);
         hook.setActiveSubIdx(si);
@@ -50,7 +60,7 @@ function SubcategorySection({ sub, mi, si, hook, onImageClick, onSubcategoryImag
         setQuickResults([]);
         setShowQuickDrop(false);
         setTimeout(() => quickRef.current?.focus(), 50);
-    }, [addFromLibrary, addFromProduct, mi, si, hook]);
+    }, [addFromLibrary, addFromProduct, mi, si, hook, onConfigurableProduct]);
 
     const handleQuickKeyDown = (e) => {
         if (e.key === 'ArrowDown') {
@@ -191,7 +201,7 @@ function SubcategorySection({ sub, mi, si, hook, onImageClick, onSubcategoryImag
     );
 }
 
-export default function CategoryTable({ mi, hook, onImageClick, onSubcategoryImageClick }) {
+export default function CategoryTable({ mi, hook, onImageClick, onSubcategoryImageClick, onConfigurableProduct }) {
     const { mainCategories, addSubcategory } = hook;
     const mc = mainCategories[mi];
     if (!mc) return null;
@@ -199,7 +209,7 @@ export default function CategoryTable({ mi, hook, onImageClick, onSubcategoryIma
     return (
         <div>
             {mc.subcategories.map((sub, si) => (
-                <SubcategorySection key={sub._key} sub={sub} mi={mi} si={si} hook={hook} onImageClick={onImageClick} onSubcategoryImageClick={onSubcategoryImageClick} />
+                <SubcategorySection key={sub._key} sub={sub} mi={mi} si={si} hook={hook} onImageClick={onImageClick} onSubcategoryImageClick={onSubcategoryImageClick} onConfigurableProduct={onConfigurableProduct} />
             ))}
             <button className="btn btn-ghost" onClick={() => addSubcategory(mi)}
                 style={{ width: '100%', padding: '10px', border: '2px dashed var(--border-color)', borderRadius: 8, fontSize: 13 }}>

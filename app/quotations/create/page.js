@@ -9,6 +9,7 @@ import useAutoSaveDraft from '@/hooks/useAutoSaveDraft';
 import TreeSidebar from '@/components/quotation/TreeSidebar';
 import QuotationSummary from '@/components/quotation/QuotationSummary';
 import CategoryTable from '@/components/quotation/CategoryTable';
+import ProductConfigurator from '@/components/quotation/ProductConfigurator';
 
 export default function CreateQuotationPage() {
     const router = useRouter();
@@ -101,6 +102,9 @@ export default function CreateQuotationPage() {
         imgUploadTarget.current = { mi, si, ii: null, isSubcategory: true };
         imgInputRef.current?.click();
     };
+
+    // Configurator
+    const [configuratorState, setConfiguratorState] = useState(null);
 
     const handleImgChange = async (e) => {
         const file = e.target.files?.[0];
@@ -246,7 +250,7 @@ export default function CreateQuotationPage() {
                 </div>
 
                 {/* Subcategory sections (Level 2 + Level 3) */}
-                <CategoryTable mi={activeMainIdx} hook={hook} onImageClick={handleImageClick} onSubcategoryImageClick={handleSubcategoryImageClick} />
+                <CategoryTable mi={activeMainIdx} hook={hook} onImageClick={handleImageClick} onSubcategoryImageClick={handleSubcategoryImageClick} onConfigurableProduct={(item, mi, si) => setConfiguratorState({ product: item, mi, si })} />
 
                 {/* Summary */}
                 <QuotationSummary hook={hook} />
@@ -260,6 +264,18 @@ export default function CreateQuotationPage() {
             )}
 
             <input ref={imgInputRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={handleImgChange} />
+
+            {/* Product Configurator */}
+            {configuratorState && (
+                <ProductConfigurator
+                    product={configuratorState.product}
+                    onConfirm={(item) => {
+                        hook.addFromProductConfigured(configuratorState.mi, configuratorState.si, item);
+                        setConfiguratorState(null);
+                    }}
+                    onCancel={() => setConfiguratorState(null)}
+                />
+            )}
 
             {/* Modal lưu mẫu */}
             {showTemplateSave && (
