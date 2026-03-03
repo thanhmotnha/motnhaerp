@@ -3,7 +3,48 @@ import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { fmt, UNIT_OPTIONS } from '@/lib/quotation-constants';
 import { apiFetch } from '@/lib/fetchClient';
 
-const normalizeSupply = (t) => (t === 'Mua thương mại' || t === 'Vật tư lưu kho') ? 'Mua ngoài' : (t || 'Mua ngoài');
+// Inline product search for sub-item name field
+function SubItemSearch({ value, onChange, onSelect, products }) {
+    const [search, setSearch] = useState('');
+    const [results, setResults] = useState([]);
+    const [show, setShow] = useState(false);
+    const [focused, setFocused] = useState(false);
+    const ref = useRef(null);
+
+    useEffect(() => {
+        if (!focused || !search.trim()) { setResults([]); return; }
+        const q = search.toLowerCase();
+        setResults((products || []).filter(p => p.name.toLowerCase().includes(q)).slice(0, 8));
+    }, [search, products, focused]);
+
+    useEffect(() => {
+        const handle = (e) => { if (ref.current && !ref.current.contains(e.target)) setShow(false); };
+        document.addEventListener('mousedown', handle);
+        return () => document.removeEventListener('mousedown', handle);
+    }, []);
+
+    return (
+        <div ref={ref} style={{ position: 'relative' }}>
+            <input className="form-input form-input-compact" value={focused ? search : value}
+                placeholder="Phụ kiện — gõ tìm SP..."
+                style={{ fontSize: 12, fontStyle: 'italic' }}
+                onFocus={() => { setFocused(true); setSearch(value || ''); setShow(true); }}
+                onBlur={() => { setTimeout(() => { setFocused(false); setShow(false); }, 200); }}
+                onChange={e => { setSearch(e.target.value); onChange(e.target.value); setShow(true); }} />
+            {show && results.length > 0 && (
+                <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 60, background: 'var(--bg-card, #fff)', border: '1px solid var(--border-color)', borderRadius: 6, maxHeight: 180, overflow: 'auto', boxShadow: '0 4px 12px rgba(0,0,0,0.15)' }}>
+                    {results.map(p => (
+                        <div key={p.id} onMouseDown={() => { onSelect(p); setShow(false); setFocused(false); }}
+                            style={{ padding: '5px 8px', cursor: 'pointer', fontSize: 11, display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--border-light)' }}>
+                            <span style={{ flex: 1 }}>{p.name}</span>
+                            <span style={{ opacity: 0.5, whiteSpace: 'nowrap', marginLeft: 6 }}>{p.unit} · {fmt(p.salePrice)}đ</span>
+                        </div>
+                    ))}
+                </div>
+            )}
+        </div>
+    );
+}
 
 // Inline variant selector for product rows
 function InlineVariants({ productId, basePrice, onPriceChange, onDescChange }) {
@@ -69,7 +110,7 @@ function InlineVariants({ productId, basePrice, onPriceChange, onDescChange }) {
 }
 
 function SubcategorySection({ sub, mi, si, hook, onImageClick, onSubcategoryImageClick }) {
-    const { updateSubcategoryName, removeSubcategory, updateItem, removeItem, addItem, addFromLibrary, addFromProduct, allSearchItems, mainCategories, addSubItem, removeSubItem, updateSubItem } = hook;
+    const { updateSubcategoryName, removeSubcategory, updateItem, removeItem, addItem, addFromLibrary, addFromProduct, allSearchItems, mainCategories, addSubItem, removeSubItem, updateSubItem, products } = hook;
 
     // Quick-add autocomplete state
     const [quickSearch, setQuickSearch] = useState('');
@@ -249,7 +290,17 @@ function SubcategorySection({ sub, mi, si, hook, onImageClick, onSubcategoryImag
                                             <td></td>
                                             <td style={{ textAlign: 'center', opacity: 0.3, fontSize: 9 }}>↳</td>
                                             <td style={{ paddingLeft: 24 }}>
-                                                <input className="form-input form-input-compact" value={si_item.name} onChange={e => updateSubItem(mi, si, ii, sii, 'name', e.target.value)} placeholder="Phụ kiện" style={{ fontSize: 12, fontStyle: 'italic' }} />
+                                                <SubItemSearch
+                                                    value={si_item.name}
+                                                    products={products}
+                                                    onChange={v => updateSubItem(mi, si, ii, sii, 'name', v)}
+                                                    onSelect={p => {
+                                                        updateSubItem(mi, si, ii, sii, 'name', p.name);
+                                                        updateSubItem(mi, si, ii, sii, 'unit', p.unit || 'cái');
+                                                        updateSubItem(mi, si, ii, sii, 'unitPrice', p.salePrice || 0);
+                                                        updateSubItem(mi, si, ii, sii, 'productId', p.id);
+                                                    }}
+                                                />
                                             </td>
                                             <td><input className="form-input form-input-compact" type="number" value={si_item.length || ''} onChange={e => updateSubItem(mi, si, ii, sii, 'length', e.target.value)} placeholder="0" /></td>
                                             <td><input className="form-input form-input-compact" type="number" value={si_item.width || ''} onChange={e => updateSubItem(mi, si, ii, sii, 'width', e.target.value)} placeholder="0" /></td>
