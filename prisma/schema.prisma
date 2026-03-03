@@ -296,10 +296,12 @@ model Contractor {
   taxCode     String   @default("")
   bankAccount String   @default("")
   bankName    String   @default("")
-  rating      Int      @default(3)
-  notes       String   @default("") @db.Text
-  payments    ContractorPayment[]
-  deletedAt   DateTime?
+  rating        Int      @default(3)
+  notes         String   @default("") @db.Text
+  isBlacklisted Boolean  @default(false)
+  creditLimit   Float    @default(0)
+  payments      ContractorPayment[]
+  deletedAt     DateTime?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 }
@@ -333,8 +335,10 @@ model Supplier {
   taxCode     String   @default("")
   bankAccount String   @default("")
   bankName    String   @default("")
-  rating      Int      @default(3)
+  rating         Int      @default(3)
   notes          String   @default("") @db.Text
+  isBlacklisted  Boolean  @default(false)
+  creditLimit    Float    @default(0)
   deletedAt      DateTime?
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt

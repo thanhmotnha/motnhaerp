@@ -1,15 +1,21 @@
 'use client';
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import { useRole } from '@/contexts/RoleContext';
 
 const fmt = (n) => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(n || 0);
 
 const SUPPLIER_TYPES = ['Vật tư xây dựng', 'Thiết bị vệ sinh', 'Thiết bị điện', 'Nội thất', 'Sắt thép', 'Gạch ốp lát', 'Sơn', 'Nhôm kính', 'Cơ khí', 'Khác'];
 const CONTRACTOR_TYPES = ['Thầu xây dựng', 'CTV thiết kế kiến trúc', 'CTV Kết cấu', 'CTV 3D', 'Thầu mộc', 'Thầu điện', 'Thầu nước', 'Thầu sơn', 'Thầu đá', 'Thầu cơ khí', 'Thầu nhôm kính', 'Thầu trần thạch cao', 'Khác'];
 
-const emptySup = { name: '', type: 'Vật tư xây dựng', contact: '', phone: '', email: '', address: '', taxCode: '', bankAccount: '', bankName: '', rating: 3, notes: '' };
-const emptyCon = { name: '', type: 'Thầu xây dựng', phone: '', address: '', taxCode: '', bankAccount: '', bankName: '', rating: 3, notes: '' };
+const emptySup = { name: '', type: 'Vật tư xây dựng', contact: '', phone: '', email: '', address: '', taxCode: '', bankAccount: '', bankName: '', rating: 3, notes: '', isBlacklisted: false, creditLimit: 0 };
+const emptyCon = { name: '', type: 'Thầu xây dựng', phone: '', address: '', taxCode: '', bankAccount: '', bankName: '', rating: 3, notes: '', isBlacklisted: false, creditLimit: 0 };
+const FINANCE_ROLES = ['giam_doc', 'pho_gd', 'ke_toan'];
 
 export default function PartnersPage() {
+    const router = useRouter();
+    const { role } = useRole();
+    const canSeeFinance = FINANCE_ROLES.includes(role);
     const [tab, setTab] = useState('ncc');
     const [suppliers, setSuppliers] = useState([]);
     const [contractors, setContractors] = useState([]);
@@ -187,17 +193,23 @@ export default function PartnersPage() {
                     <div style={{ overflowX: 'auto' }}>
                         <table className="data-table" style={{ margin: 0 }}>
                             <thead><tr>
-                                <th>Mã</th><th>Tên NCC</th><th>Loại</th><th>Liên hệ</th><th>SĐT</th><th>Ngân hàng</th><th>Đánh giá</th><th style={{ width: 80 }}></th>
+                                <th>Mã</th><th>Tên NCC</th><th>Loại</th><th>Liên hệ</th><th>SĐT</th><th>Ngân hàng</th>
+                                {canSeeFinance && <><th style={{ textAlign: 'right' }}>Tổng mua</th><th style={{ textAlign: 'right' }}>Đã TT</th><th style={{ textAlign: 'right' }}>Công nợ</th></>}
+                                <th>Đánh giá</th><th style={{ width: 90 }}></th>
                             </tr></thead>
                             <tbody>{filteredSup.length === 0 ? (
-                                <tr><td colSpan={8} style={{ textAlign: 'center', color: 'var(--text-muted)', padding: 24 }}>Không có dữ liệu</td></tr>
+                                <tr><td colSpan={canSeeFinance ? 11 : 8} style={{ textAlign: 'center', color: 'var(--text-muted)', padding: 24 }}>Không có dữ liệu</td></tr>
                             ) : filteredSup.map(s => {
                                 const ie = inlineEditSup?.id === s.id ? inlineEditSup : null;
                                 const iS = { padding: '2px 6px', fontSize: 12, height: 28, border: '1px solid var(--border)', borderRadius: 4, background: 'var(--bg-primary)', color: 'var(--text-primary)', width: '100%' };
                                 return (
-                                <tr key={s.id} style={{ background: ie ? 'rgba(59,130,246,0.05)' : '' }}>
+                                <tr key={s.id} style={{ background: ie ? 'rgba(59,130,246,0.05)' : s.isBlacklisted ? 'rgba(239,68,68,0.04)' : '' }}>
                                     <td className="accent">{s.code}</td>
-                                    <td>{ie ? <input style={iS} value={ie.name} onChange={e => setInlineEditSup({ ...ie, name: e.target.value })} autoFocus /> : <span className="primary">{s.name}</span>}</td>
+                                    <td>{ie ? <input style={iS} value={ie.name} onChange={e => setInlineEditSup({ ...ie, name: e.target.value })} autoFocus /> :
+                                        <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                                            <span className="primary" style={{ cursor: 'pointer', textDecoration: 'underline dotted' }} onClick={() => router.push(`/partners/suppliers/${s.id}`)}>{s.name}</span>
+                                            {s.isBlacklisted && <span title="Blacklist" style={{ fontSize: 14 }}>🚫</span>}
+                                        </span>}</td>
                                     <td>{ie ? <select style={iS} value={ie.type} onChange={e => setInlineEditSup({ ...ie, type: e.target.value })}>{SUPPLIER_TYPES.map(t => <option key={t}>{t}</option>)}</select> : <span className="badge info">{s.type}</span>}</td>
                                     <td>{ie ? <input style={iS} value={ie.contact} onChange={e => setInlineEditSup({ ...ie, contact: e.target.value })} placeholder="Liên hệ" /> : <span style={{ fontSize: 12 }}>{s.contact || '—'}</span>}</td>
                                     <td>{ie ? <input style={iS} value={ie.phone} onChange={e => setInlineEditSup({ ...ie, phone: e.target.value })} placeholder="SĐT" /> : (s.phone || '—')}</td>
@@ -207,14 +219,25 @@ export default function PartnersPage() {
                                             <input style={{ ...iS, width: 90 }} value={ie.bankName} onChange={e => setInlineEditSup({ ...ie, bankName: e.target.value })} placeholder="Ngân hàng" />
                                           </div>
                                         : (s.bankAccount ? `${s.bankName} - ${s.bankAccount}` : '—')}</td>
-                                    <td>{ie ? <select style={{ ...iS, width: 70 }} value={ie.rating} onChange={e => setInlineEditSup({ ...ie, rating: Number(e.target.value) })}>{[1,2,3,4,5].map(n => <option key={n} value={n}>{'⭐'.repeat(n)}</option>)}</select> : '⭐'.repeat(s.rating)}</td>
+                                    {canSeeFinance && <>
+                                        <td style={{ textAlign: 'right', fontSize: 12 }}>{fmt(s.totalPurchase || 0)}</td>
+                                        <td style={{ textAlign: 'right', fontSize: 12, color: 'var(--status-success)' }}>{fmt(s.totalPaid || 0)}</td>
+                                        <td style={{ textAlign: 'right', fontSize: 12, fontWeight: 600, color: (s.debt || 0) > 0 ? 'var(--status-danger)' : 'var(--text-muted)' }}>{fmt(s.debt || 0)}</td>
+                                    </>}
+                                    <td>{ie
+                                        ? <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+                                            <select style={{ ...iS, width: 70 }} value={ie.rating} onChange={e => setInlineEditSup({ ...ie, rating: Number(e.target.value) })}>{[1,2,3,4,5].map(n => <option key={n} value={n}>{'⭐'.repeat(n)}</option>)}</select>
+                                            <button title={ie.isBlacklisted ? 'Bỏ blacklist' : 'Thêm blacklist'} style={{ fontSize: 14, padding: '2px 4px', background: ie.isBlacklisted ? '#1f2937' : 'var(--bg-secondary)', border: '1px solid var(--border)', borderRadius: 4, cursor: 'pointer' }} onClick={() => setInlineEditSup({ ...ie, isBlacklisted: !ie.isBlacklisted })}>🚫</button>
+                                            <input style={{ ...iS, width: 80 }} type="number" min="0" value={ie.creditLimit} onChange={e => setInlineEditSup({ ...ie, creditLimit: Number(e.target.value) })} placeholder="HM nợ" title="Hạn mức tín dụng" />
+                                          </div>
+                                        : '⭐'.repeat(s.rating)}</td>
                                     <td>
                                         <div style={{ display: 'flex', gap: 4 }}>
                                             {ie ? (<>
                                                 <button className="btn btn-primary btn-sm" onClick={saveInlineSup}>✅</button>
                                                 <button className="btn btn-ghost btn-sm" onClick={() => setInlineEditSup(null)}>✕</button>
                                             </>) : (<>
-                                                <button className="btn btn-ghost btn-sm" onClick={() => setInlineEditSup({ id: s.id, name: s.name, type: s.type, contact: s.contact || '', phone: s.phone || '', bankName: s.bankName || '', bankAccount: s.bankAccount || '', rating: s.rating })}>✏️</button>
+                                                <button className="btn btn-ghost btn-sm" onClick={() => setInlineEditSup({ id: s.id, name: s.name, type: s.type, contact: s.contact || '', phone: s.phone || '', bankName: s.bankName || '', bankAccount: s.bankAccount || '', rating: s.rating, isBlacklisted: s.isBlacklisted || false, creditLimit: s.creditLimit || 0 })}>✏️</button>
                                                 <button className="btn btn-ghost btn-sm" onClick={() => delSup(s.id)} style={{ color: 'var(--status-danger)' }}>🗑️</button>
                                             </>)}
                                         </div>
@@ -229,7 +252,7 @@ export default function PartnersPage() {
                     <div style={{ overflowX: 'auto' }}>
                         <table className="data-table" style={{ margin: 0 }}>
                             <thead><tr>
-                                <th>Mã</th><th>Tên thầu phụ</th><th>Loại</th><th>SĐT</th><th>Tổng HĐ</th><th>Đã TT</th><th>Công nợ</th><th>Đánh giá</th><th style={{ width: 80 }}></th>
+                                <th>Mã</th><th>Tên thầu phụ</th><th>Loại</th><th>SĐT</th><th style={{ textAlign: 'right' }}>Tổng HĐ</th><th style={{ textAlign: 'right' }}>Đã TT</th><th style={{ textAlign: 'right' }}>Công nợ</th><th>Đánh giá</th><th style={{ width: 90 }}></th>
                             </tr></thead>
                             <tbody>{filteredCon.length === 0 ? (
                                 <tr><td colSpan={9} style={{ textAlign: 'center', color: 'var(--text-muted)', padding: 24 }}>Không có dữ liệu</td></tr>
@@ -240,22 +263,32 @@ export default function PartnersPage() {
                                 const ie = inlineEditCon?.id === c.id ? inlineEditCon : null;
                                 const iS = { padding: '2px 6px', fontSize: 12, height: 28, border: '1px solid var(--border)', borderRadius: 4, background: 'var(--bg-primary)', color: 'var(--text-primary)', width: '100%' };
                                 return (
-                                    <tr key={c.id} style={{ background: ie ? 'rgba(59,130,246,0.05)' : '' }}>
+                                    <tr key={c.id} style={{ background: ie ? 'rgba(59,130,246,0.05)' : c.isBlacklisted ? 'rgba(239,68,68,0.04)' : '' }}>
                                         <td className="accent">{c.code}</td>
-                                        <td>{ie ? <input style={iS} value={ie.name} onChange={e => setInlineEditCon({ ...ie, name: e.target.value })} autoFocus /> : <span className="primary">{c.name}</span>}</td>
+                                        <td>{ie ? <input style={iS} value={ie.name} onChange={e => setInlineEditCon({ ...ie, name: e.target.value })} autoFocus /> :
+                                            <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                                                <span className="primary" style={{ cursor: 'pointer', textDecoration: 'underline dotted' }} onClick={() => router.push(`/partners/contractors/${c.id}`)}>{c.name}</span>
+                                                {c.isBlacklisted && <span title="Blacklist" style={{ fontSize: 14 }}>🚫</span>}
+                                            </span>}</td>
                                         <td>{ie ? <select style={iS} value={ie.type} onChange={e => setInlineEditCon({ ...ie, type: e.target.value })}>{CONTRACTOR_TYPES.map(t => <option key={t}>{t}</option>)}</select> : <span className="badge warning">{c.type}</span>}</td>
                                         <td>{ie ? <input style={iS} value={ie.phone} onChange={e => setInlineEditCon({ ...ie, phone: e.target.value })} placeholder="SĐT" /> : (c.phone || '—')}</td>
-                                        <td className="amount">{fmt(contractAmt)}</td>
-                                        <td style={{ color: 'var(--status-success)', fontWeight: 600 }}>{fmt(paidAmt)}</td>
-                                        <td style={{ color: debt > 0 ? 'var(--status-danger)' : 'var(--text-muted)', fontWeight: 600 }}>{fmt(debt)}</td>
-                                        <td>{ie ? <select style={{ ...iS, width: 70 }} value={ie.rating} onChange={e => setInlineEditCon({ ...ie, rating: Number(e.target.value) })}>{[1,2,3,4,5].map(n => <option key={n} value={n}>{'⭐'.repeat(n)}</option>)}</select> : '⭐'.repeat(c.rating)}</td>
+                                        <td style={{ textAlign: 'right', fontSize: 12 }}>{fmt(contractAmt)}</td>
+                                        <td style={{ textAlign: 'right', fontSize: 12, color: 'var(--status-success)', fontWeight: 600 }}>{fmt(paidAmt)}</td>
+                                        <td style={{ textAlign: 'right', fontSize: 12, color: debt > 0 ? 'var(--status-danger)' : 'var(--text-muted)', fontWeight: 600 }}>{fmt(debt)}</td>
+                                        <td>{ie
+                                            ? <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+                                                <select style={{ ...iS, width: 70 }} value={ie.rating} onChange={e => setInlineEditCon({ ...ie, rating: Number(e.target.value) })}>{[1,2,3,4,5].map(n => <option key={n} value={n}>{'⭐'.repeat(n)}</option>)}</select>
+                                                <button title={ie.isBlacklisted ? 'Bỏ blacklist' : 'Thêm blacklist'} style={{ fontSize: 14, padding: '2px 4px', background: ie.isBlacklisted ? '#1f2937' : 'var(--bg-secondary)', border: '1px solid var(--border)', borderRadius: 4, cursor: 'pointer' }} onClick={() => setInlineEditCon({ ...ie, isBlacklisted: !ie.isBlacklisted })}>🚫</button>
+                                                <input style={{ ...iS, width: 80 }} type="number" min="0" value={ie.creditLimit} onChange={e => setInlineEditCon({ ...ie, creditLimit: Number(e.target.value) })} placeholder="HM nợ" title="Hạn mức tín dụng" />
+                                              </div>
+                                            : '⭐'.repeat(c.rating)}</td>
                                         <td>
                                             <div style={{ display: 'flex', gap: 4 }}>
                                                 {ie ? (<>
                                                     <button className="btn btn-primary btn-sm" onClick={saveInlineCon}>✅</button>
                                                     <button className="btn btn-ghost btn-sm" onClick={() => setInlineEditCon(null)}>✕</button>
                                                 </>) : (<>
-                                                    <button className="btn btn-ghost btn-sm" onClick={() => setInlineEditCon({ id: c.id, name: c.name, type: c.type, phone: c.phone || '', rating: c.rating })}>✏️</button>
+                                                    <button className="btn btn-ghost btn-sm" onClick={() => setInlineEditCon({ id: c.id, name: c.name, type: c.type, phone: c.phone || '', rating: c.rating, isBlacklisted: c.isBlacklisted || false, creditLimit: c.creditLimit || 0 })}>✏️</button>
                                                     <button className="btn btn-ghost btn-sm" onClick={() => delCon(c.id)} style={{ color: 'var(--status-danger)' }}>🗑️</button>
                                                 </>)}
                                             </div>

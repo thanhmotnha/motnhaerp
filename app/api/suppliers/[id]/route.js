@@ -5,7 +5,16 @@ import { supplierUpdateSchema } from '@/lib/validations/supplier';
 
 export const GET = withAuth(async (request, { params }) => {
     const { id } = await params;
-    const supplier = await prisma.supplier.findUnique({ where: { id } });
+    const supplier = await prisma.supplier.findUnique({
+        where: { id },
+        include: {
+            purchaseOrders: {
+                orderBy: { createdAt: 'asc' },
+                take: 100,
+                include: { project: { select: { id: true, code: true, name: true, status: true } } },
+            },
+        },
+    });
     if (!supplier) return NextResponse.json({ error: 'Not found' }, { status: 404 });
     return NextResponse.json(supplier);
 });

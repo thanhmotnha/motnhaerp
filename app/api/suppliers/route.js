@@ -11,11 +11,24 @@ export const GET = withAuth(async (request) => {
 
     const where = {};
 
-    const [data, total] = await Promise.all([
+    const [data, total, poStats] = await Promise.all([
         prisma.supplier.findMany({ where, skip, take: limit, orderBy: { createdAt: 'desc' } }),
         prisma.supplier.count({ where }),
+        prisma.purchaseOrder.groupBy({
+            by: ['supplierId'],
+            _sum: { totalAmount: true, paidAmount: true },
+            where: { supplierId: { not: null } },
+        }),
     ]);
-    return NextResponse.json(paginatedResponse(data, total, { page, limit }));
+    const statsMap = {};
+    poStats.forEach(s => { if (s.supplierId) statsMap[s.supplierId] = s._sum; });
+    const dataWithStats = data.map(s => ({
+        ...s,
+        totalPurchase: statsMap[s.id]?.totalAmount || 0,
+        totalPaid: statsMap[s.id]?.paidAmount || 0,
+        debt: (statsMap[s.id]?.totalAmount || 0) - (statsMap[s.id]?.paidAmount || 0),
+    }));
+    return NextResponse.json(paginatedResponse(dataWithStats, total, { page, limit }));
 });
 
 export const POST = withAuth(async (request) => {

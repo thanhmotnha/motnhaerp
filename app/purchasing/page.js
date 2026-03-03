@@ -16,10 +16,11 @@ function PurchasingContent() {
     const [loading, setLoading] = useState(true);
     const [filterStatus, setFilterStatus] = useState('');
     const [projects, setProjects] = useState([]);
+    const [suppliers, setSuppliers] = useState([]);
 
     // Create PO modal
     const [showModal, setShowModal] = useState(false);
-    const [poForm, setPoForm] = useState({ supplier: '', projectId: '', deliveryDate: '', notes: '' });
+    const [poForm, setPoForm] = useState({ supplier: '', supplierId: null, projectId: '', deliveryDate: '', notes: '' });
     const [poItems, setPoItems] = useState([{ productName: '', unit: 'cái', quantity: 1, unitPrice: 0, amount: 0, productId: null }]);
     const [saving, setSaving] = useState(false);
 
@@ -31,6 +32,7 @@ function PurchasingContent() {
     useEffect(() => {
         fetchOrders();
         fetch('/api/projects?limit=200').then(r => r.json()).then(d => setProjects(d.data || []));
+        fetch('/api/suppliers?limit=1000').then(r => r.json()).then(d => setSuppliers(d.data || []));
     }, []);
 
     // Pre-fill from URL params (from products bulk action)
@@ -86,7 +88,7 @@ function PurchasingContent() {
         setSaving(false);
         if (!res.ok) { const e = await res.json(); return alert(e.error || 'Lỗi tạo PO'); }
         setShowModal(false);
-        setPoForm({ supplier: '', projectId: '', deliveryDate: '', notes: '' });
+        setPoForm({ supplier: '', supplierId: null, projectId: '', deliveryDate: '', notes: '' });
         setPoItems([{ productName: '', unit: 'cái', quantity: 1, unitPrice: 0, amount: 0, productId: null }]);
         fetchOrders();
     };
@@ -157,7 +159,44 @@ function PurchasingContent() {
                             <div className="form-row">
                                 <div className="form-group" style={{ flex: 2 }}>
                                     <label className="form-label">Nhà cung cấp *</label>
-                                    <input className="form-input" value={poForm.supplier} onChange={e => setPoForm(f => ({ ...f, supplier: e.target.value }))} placeholder="Tên nhà cung cấp..." autoFocus />
+                                    <select className="form-select" value={poForm.supplierId || ''} autoFocus
+                                        onChange={e => {
+                                            const sup = suppliers.find(s => s.id === e.target.value);
+                                            setPoForm(f => ({ ...f, supplierId: sup?.id || null, supplier: sup?.name || '' }));
+                                        }}>
+                                        <option value="">-- Chọn nhà cung cấp --</option>
+                                        {suppliers.map(s => <option key={s.id} value={s.id}>{s.name}{s.isBlacklisted ? ' 🚫' : ''}</option>)}
+                                    </select>
+                                    {!poForm.supplierId && (
+                                        <input className="form-input" style={{ marginTop: 6, fontSize: 12 }} value={poForm.supplier} onChange={e => setPoForm(f => ({ ...f, supplier: e.target.value }))} placeholder="Hoặc nhập tên NCC thủ công..." />
+                                    )}
+                                    {(() => {
+                                        const sup = suppliers.find(s => s.id === poForm.supplierId);
+                                        if (!sup) return null;
+                                        const debt = (sup.totalPurchase || 0) - (sup.totalPaid || 0);
+                                        const remaining = sup.creditLimit > 0 ? sup.creditLimit - debt : null;
+                                        return (
+                                            <div style={{ marginTop: 6, display: 'flex', flexDirection: 'column', gap: 4 }}>
+                                                {sup.isBlacklisted && (
+                                                    <div style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid var(--status-danger)', borderRadius: 6, padding: '8px 12px', fontSize: 13, color: 'var(--status-danger)', fontWeight: 600 }}>
+                                                        🚫 NCC này đang trong Blacklist — không thể tạo PO
+                                                    </div>
+                                                )}
+                                                {sup.creditLimit > 0 && (
+                                                    <div style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border)', borderRadius: 6, padding: '6px 12px', fontSize: 12, display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+                                                        <span>Hạn mức: <strong>{new Intl.NumberFormat('vi-VN', { notation: 'compact' }).format(sup.creditLimit)}</strong></span>
+                                                        <span>Đang nợ: <strong style={{ color: 'var(--status-danger)' }}>{new Intl.NumberFormat('vi-VN', { notation: 'compact' }).format(debt)}</strong></span>
+                                                        <span>Còn lại: <strong style={{ color: remaining >= 0 ? 'var(--status-success)' : 'var(--status-danger)' }}>{new Intl.NumberFormat('vi-VN', { notation: 'compact' }).format(remaining)}</strong></span>
+                                                    </div>
+                                                )}
+                                                {sup.creditLimit > 0 && poTotal > (remaining ?? Infinity) && !sup.isBlacklisted && (
+                                                    <div style={{ background: 'rgba(245,158,11,0.1)', border: '1px solid var(--status-warning)', borderRadius: 6, padding: '6px 12px', fontSize: 12, color: '#b45309', fontWeight: 600 }}>
+                                                        ⚠️ Tổng PO vượt hạn mức tín dụng còn lại
+                                                    </div>
+                                                )}
+                                            </div>
+                                        );
+                                    })()}
                                 </div>
                                 <div className="form-group" style={{ flex: 2 }}>
                                     <label className="form-label">Dự án (không bắt buộc)</label>
@@ -240,7 +279,7 @@ function PurchasingContent() {
                         </div>
                         <div className="modal-footer">
                             <button className="btn btn-ghost" onClick={() => setShowModal(false)}>Hủy</button>
-                            <button className="btn btn-primary" onClick={createPO} disabled={saving}>{saving ? 'Đang tạo...' : 'Tạo đơn hàng'}</button>
+                            <button className="btn btn-primary" onClick={createPO} disabled={saving || suppliers.find(s => s.id === poForm.supplierId)?.isBlacklisted}>{saving ? 'Đang tạo...' : 'Tạo đơn hàng'}</button>
                         </div>
                     </div>
                 </div>
