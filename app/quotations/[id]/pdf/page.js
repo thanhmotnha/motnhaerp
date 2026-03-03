@@ -428,11 +428,18 @@ export default function QuotationPDFPage() {
                     line-height: 1.2;
                 }
                 .mn-sub-total td {
-                    background: ${BRAND.blue}08;
-                    font-weight: 700;
-                    font-size: 11px;
+                    background: linear-gradient(135deg, ${BRAND.blue}0A 0%, ${BRAND.blue}15 100%);
+                    font-weight: 800;
+                    font-size: 11.5px;
                     color: ${BRAND.blue};
                     border-top: 2px solid ${BRAND.gold};
+                    padding: 9px 10px;
+                    letter-spacing: 0.3px;
+                }
+                .mn-sub-total td:last-child {
+                    color: ${BRAND.blue};
+                    font-size: 12.5px;
+                    white-space: nowrap;
                 }
                 .mn-desc { font-size: 9.5px; color: ${BRAND.textMid}; font-style: italic; }
                 .item-img { width: 40px; height: 40px; object-fit: cover; border-radius: 4px; display: block; margin: 2px auto; }
@@ -794,8 +801,11 @@ export default function QuotationPDFPage() {
                                                                     );
                                                                 })}
                                                                 <tr className="mn-sub-total">
-                                                                    <td colSpan={3 + (hasAnyImage ? 1 : 0) + (hasAnyDim ? 3 : 0) + (hasAnyVolDiff ? 1 : 0)} className="r" style={{ paddingRight: 10 }}>Tổng {cat.name || `khu vực #${ci + 1}`}</td>
-                                                                    <td className="r">{fmt(cat.subtotal)}</td>
+                                                                    <td colSpan={3 + (hasAnyImage ? 1 : 0) + (hasAnyDim ? 3 : 0) + (hasAnyVolDiff ? 1 : 0)} className="r" style={{ paddingRight: 14 }}>
+                                                                        <span style={{ opacity: 0.6, fontSize: 9, marginRight: 6 }}>▸</span>
+                                                                        Tổng {cat.name || `Khu vực ${ci + 1}`}
+                                                                    </td>
+                                                                    <td className="r" style={{ fontWeight: 900 }}>{fmt(cat.subtotal)}</td>
                                                                 </tr>
                                                             </tbody>
                                                         </table>
