@@ -42,16 +42,21 @@ export default function SuppliersPage() {
     };
 
     const parsePasteS = () => {
+        const existingNames = new Set(suppliers.map(s => s.name.toLowerCase().trim()));
         const rows = pasteText.trim().split('\n').map(row => {
             const c = row.split('\t');
+            const name = c[0]?.trim() || '';
             return {
-                name: c[0]?.trim() || '',
+                name,
                 type: SUPPLIER_TYPES.includes(c[1]?.trim()) ? c[1].trim() : 'Vật tư xây dựng',
                 phone: c[2]?.trim() || '',
                 address: c[3]?.trim() || '',
                 taxCode: c[4]?.trim() || '',
                 bankAccount: c[5]?.trim() || '',
                 bankName: c[6]?.trim() || '',
+                contact: c[7]?.trim() || '',
+                email: c[8]?.trim() || '',
+                _isDup: existingNames.has(name.toLowerCase()),
             };
         }).filter(r => r.name);
         setPastePreview(rows);
@@ -60,9 +65,8 @@ export default function SuppliersPage() {
     const confirmPasteS = async () => {
         if (!pastePreview.length) return;
         setImporting(true);
-        for (const s of pastePreview) {
-            await fetch('/api/suppliers', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(s) });
-        }
+        const payload = pastePreview.map(({ _isDup, ...s }) => s);
+        await fetch('/api/suppliers/bulk', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
         setImporting(false);
         setPastePreview([]);
         setShowPasteModal(false);
@@ -136,7 +140,8 @@ export default function SuppliersPage() {
                         <div className="modal-body">
                             <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 10, padding: '8px 12px', background: 'var(--bg-hover)', borderRadius: 6, lineHeight: 1.7 }}>
                                 Copy từ Excel rồi Ctrl+V vào ô bên dưới. <strong>Thứ tự cột:</strong><br />
-                                <code style={{ fontSize: 11 }}>Tên NCC* | Loại | SĐT | Địa chỉ | Mã số thuế | STK ngân hàng | Tên ngân hàng</code>
+                                <code style={{ fontSize: 11 }}>Tên NCC* | Loại | SĐT | Địa chỉ | MST | STK ngân hàng | Tên ngân hàng | Người liên hệ | Email</code>
+                                <div style={{ marginTop: 4, color: 'var(--text-muted)', fontSize: 11 }}>💡 Loại phải khớp: {SUPPLIER_TYPES.join(' · ')}</div>
                             </div>
                             <textarea
                                 className="form-input"
@@ -165,19 +170,22 @@ export default function SuppliersPage() {
                 <div className="modal-overlay" onClick={() => setPastePreview([])}>
                     <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 700 }}>
                         <div className="modal-header">
-                            <h3>📋 Xem trước — {pastePreview.length} nhà cung cấp</h3>
+                            <h3>📋 Xem trước — {pastePreview.length} nhà cung cấp{pastePreview.filter(s => s._isDup).length > 0 && <span style={{ marginLeft: 8, fontSize: 12, color: '#ea580c', fontWeight: 400 }}>⚠️ {pastePreview.filter(s => s._isDup).length} trùng tên</span>}</h3>
                             <button className="modal-close" onClick={() => setPastePreview([])}>×</button>
                         </div>
                         <div className="modal-body" style={{ maxHeight: '55vh', overflowY: 'auto', padding: 0 }}>
                             <table className="data-table" style={{ fontSize: 12 }}>
-                                <thead><tr><th>#</th><th>Tên NCC</th><th>Loại</th><th>SĐT</th><th>Địa chỉ</th><th>MST</th><th>STK / NH</th></tr></thead>
+                                <thead><tr><th>#</th><th>Tên NCC</th><th>Loại</th><th>SĐT</th><th>Liên hệ</th><th>MST</th><th>STK / NH</th></tr></thead>
                                 <tbody>{pastePreview.map((s, i) => (
-                                    <tr key={i}>
+                                    <tr key={i} style={{ background: s._isDup ? 'rgba(234,88,12,0.06)' : '' }}>
                                         <td style={{ opacity: 0.4 }}>{i + 1}</td>
-                                        <td style={{ fontWeight: 600 }}>{s.name}</td>
+                                        <td style={{ fontWeight: 600 }}>
+                                            {s.name}
+                                            {s._isDup && <span style={{ marginLeft: 6, fontSize: 10, background: '#ea580c', color: '#fff', borderRadius: 3, padding: '1px 5px' }}>trùng</span>}
+                                        </td>
                                         <td><span className="badge info">{s.type}</span></td>
                                         <td>{s.phone || '—'}</td>
-                                        <td style={{ maxWidth: 180, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.address || '—'}</td>
+                                        <td style={{ fontSize: 11 }}>{s.contact || '—'}{s.email ? <div style={{ opacity: 0.6 }}>{s.email}</div> : null}</td>
                                         <td>{s.taxCode || '—'}</td>
                                         <td>{s.bankAccount ? `${s.bankAccount} / ${s.bankName}` : '—'}</td>
                                     </tr>
