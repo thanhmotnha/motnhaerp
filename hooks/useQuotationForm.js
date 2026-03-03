@@ -265,7 +265,7 @@ export default function useQuotationForm() {
         const isCustomFurniture = (prod.category || '').toLowerCase() === CUSTOM_FURNITURE_CAT.toLowerCase();
         const item = {
             _key: Date.now() + Math.random(),
-            name: prod.name, unit: prod.unit || 'cái', quantity: 0,
+            name: prod.name, unit: prod.unit || 'cái', quantity: 1,
             mainMaterial: prod.salePrice || 0, auxMaterial: 0, labor: 0,
             unitPrice: prod.salePrice || 0, amount: 0,
             description: `${prod.brand ? prod.brand + ' - ' : ''}${prod.description || ''}`.trim(),
