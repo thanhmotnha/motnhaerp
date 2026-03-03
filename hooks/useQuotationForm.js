@@ -1,7 +1,7 @@
 'use client';
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { apiFetch } from '@/lib/fetchClient';
-import { emptyItem, emptySubcategory, emptyMainCategory } from '@/lib/quotation-constants';
+import { emptyItem, emptySubcategory, emptyMainCategory, CUSTOM_FURNITURE_CAT } from '@/lib/quotation-constants';
 
 export default function useQuotationForm() {
     // Reference data
@@ -250,7 +250,7 @@ export default function useQuotationForm() {
     });
 
     const prodToQuotationItem = (prod) => {
-        const isCustomFurniture = (prod.category || '').toLowerCase() === 'nội thất';
+        const isCustomFurniture = (prod.category || '').toLowerCase() === CUSTOM_FURNITURE_CAT.toLowerCase();
         return {
             _key: Date.now() + Math.random(),
             name: prod.name, unit: prod.unit || 'cái', quantity: 0,

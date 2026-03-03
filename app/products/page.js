@@ -16,7 +16,7 @@ const isService = (p) => normalizeSupply(p.supplyType) === 'Dịch vụ';
 const stockStatus = (p) => isService(p) ? 'service' : p.stock === 0 ? 'out' : (p.minStock > 0 && p.stock <= p.minStock) ? 'low' : 'ok';
 
 const BRANDS = [{ n: '', logo: '' }, { n: 'Dulux', logo: 'https://logo.clearbit.com/dulux.com' }, { n: 'Jotun', logo: 'https://logo.clearbit.com/jotun.com' }, { n: 'TOA', logo: 'https://logo.clearbit.com/toagroup.com' }, { n: 'Nippon', logo: 'https://logo.clearbit.com/nipponpaint.com' }, { n: 'Hafele', logo: 'https://logo.clearbit.com/hafele.com' }, { n: 'Blum', logo: 'https://logo.clearbit.com/blum.com' }, { n: 'Hettich', logo: 'https://logo.clearbit.com/hettich.com' }, { n: 'Panasonic', logo: 'https://logo.clearbit.com/panasonic.com' }, { n: 'Daikin', logo: 'https://logo.clearbit.com/daikin.com' }, { n: 'Mitsubishi', logo: 'https://logo.clearbit.com/mitsubishielectric.com' }, { n: 'Samsung', logo: 'https://logo.clearbit.com/samsung.com' }, { n: 'LG', logo: 'https://logo.clearbit.com/lg.com' }, { n: 'Rossi', logo: 'https://logo.clearbit.com/rossigroup.com.vn' }, { n: 'Caesar', logo: 'https://logo.clearbit.com/caesar.com.tw' }, { n: 'Toto', logo: 'https://logo.clearbit.com/toto.com' }, { n: 'Grohe', logo: 'https://logo.clearbit.com/grohe.com' }, { n: 'HMF', logo: '' }, { n: 'AA', logo: '' }, { n: 'Hoa Phat', logo: 'https://logo.clearbit.com/hoaphat.com.vn' }];
-const PRODUCT_CATS = ['Nội thất thành phẩm', 'Gỗ tự nhiên', 'Gỗ công nghiệp', 'Đá & Gạch', 'Sơn & Keo', 'Phụ kiện nội thất', 'Thiết bị điện', 'Vật liệu xây dựng', 'Rèm cửa', 'Thiết bị vệ sinh', 'Điều hòa', 'Decor', 'Đồ rời', 'Phòng thờ'];
+import { PRODUCT_CATS } from '@/lib/quotation-constants';
 
 // Editable cell
 function EditCell({ value, onChange, type = 'text', style = {}, options }) {
@@ -46,7 +46,7 @@ export default function ProductsPage() {
     const [selectedIds, setSelectedIds] = useState(new Set());
     const [bulkEditModal, setBulkEditModal] = useState(null); // {field, value}
     const [showAddModal, setShowAddModal] = useState(false);
-    const [addForm, setAddForm] = useState({ name: '', category: 'Nội thất thành phẩm', unit: 'cái', salePrice: 0, importPrice: 0, brand: '', supplyType: 'Mua ngoài', stock: 0, minStock: 0, supplier: '', coreBoard: '', surfaceCode: '', image: '' });
+    const [addForm, setAddForm] = useState({ name: '', category: 'Nội thất', unit: 'cái', salePrice: 0, importPrice: 0, brand: '', supplyType: 'Mua ngoài', stock: 0, minStock: 0, supplier: '', coreBoard: '', surfaceCode: '', image: '' });
 
     // Library
     const [library, setLibrary] = useState([]);
@@ -146,7 +146,7 @@ export default function ProductsPage() {
         fetchProducts();
     };
 
-    const addNewProduct = () => { setAddForm({ name: '', category: filterCatP || 'Nội thất thành phẩm', unit: 'cái', salePrice: 0, importPrice: 0, brand: '', supplyType: 'Mua ngoài', stock: 0, minStock: 0, supplier: '', coreBoard: '', surfaceCode: '', image: '' }); setShowAddModal(true); };
+    const addNewProduct = () => { setAddForm({ name: '', category: filterCatP || 'Nội thất', unit: 'cái', salePrice: 0, importPrice: 0, brand: '', supplyType: 'Mua ngoài', stock: 0, minStock: 0, supplier: '', coreBoard: '', surfaceCode: '', image: '' }); setShowAddModal(true); };
 
     // Upload ảnh sản phẩm
     const handleImgUpload = async (e) => {
@@ -195,7 +195,7 @@ export default function ProductsPage() {
         const rows = XLSX.utils.sheet_to_json(ws, { defval: '' });
         const preview = rows.map(r => ({
             name: String(r['Tên'] || r['name'] || '').trim(),
-            category: String(r['Danh mục'] || r['category'] || 'Nội thất thành phẩm').trim(),
+            category: String(r['Danh mục'] || r['category'] || 'Nội thất').trim(),
             unit: String(r['ĐVT'] || r['unit'] || 'cái').trim(),
             importPrice: Number(r['Giá nhập'] || r['importPrice'] || 0),
             salePrice: Number(r['Giá bán'] || r['salePrice'] || 0),
@@ -213,7 +213,7 @@ export default function ProductsPage() {
             const c = row.split('\t');
             return {
                 name: c[0]?.trim() || '',
-                category: c[1]?.trim() || filterCatP || 'Nội thất thành phẩm',
+                category: c[1]?.trim() || filterCatP || 'Nội thất',
                 unit: c[2]?.trim() || 'cái',
                 salePrice: Number((c[3] || '').replace(/[^\d.]/g, '')) || 0,
                 importPrice: Number((c[4] || '').replace(/[^\d.]/g, '')) || 0,
