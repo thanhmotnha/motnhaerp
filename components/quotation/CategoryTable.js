@@ -42,7 +42,7 @@ function SubcategorySection({ sub, mi, si, hook, onImageClick, onSubcategoryImag
 
     const handleQuickAdd = useCallback((item) => {
         // Intercept configurable products (Sản xuất nội bộ)
-        if (item._type === 'product' && normalizeSupply(item.supplyType) === 'Sản xuất nội bộ' && onConfigurableProduct) {
+        if (item._type === 'product' && onConfigurableProduct) {
             setQuickSearch('');
             setQuickResults([]);
             setShowQuickDrop(false);

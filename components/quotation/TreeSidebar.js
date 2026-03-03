@@ -1,7 +1,7 @@
 'use client';
 import { fmt } from '@/lib/quotation-constants';
 
-export default function TreeSidebar({ hook, onClose }) {
+export default function TreeSidebar({ hook, onClose, onConfigurableProduct }) {
     const {
         treeTab, setTreeTab, treeSearch, setTreeSearch,
         libTree, prodTree, expandedNodes, toggleNode,
@@ -183,7 +183,10 @@ export default function TreeSidebar({ hook, onClose }) {
                                         </button>
                                     )}
                                 </div>
-                                {expandedNodes[cat] && items.map(item => renderTreeLeaf(item, addFromProduct, 'products'))}
+                                {expandedNodes[cat] && items.map(item => renderTreeLeaf(item, (p) => {
+                                    if (onConfigurableProduct) { onConfigurableProduct(p, activeMainIdx, activeSubIdx); return; }
+                                    addFromProduct(p);
+                                }, 'products'))}
                             </div>
                         );
                     })
