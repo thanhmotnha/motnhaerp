@@ -317,10 +317,25 @@ model ContractorPayment {
   contractor      Contractor @relation(fields: [contractorId], references: [id])
   projectId       String
   project         Project    @relation(fields: [projectId], references: [id])
+  items           ContractorPaymentItem[]
   createdAt       DateTime   @default(now())
   updatedAt       DateTime   @updatedAt
   @@index([projectId])
   @@index([contractorId])
+}
+
+model ContractorPaymentItem {
+  id                  String            @id @default(cuid())
+  description         String
+  unit                String            @default("")
+  quantity            Float             @default(0)
+  unitPrice           Float             @default(0)
+  amount              Float             @default(0)
+  notes               String            @default("")
+  acceptedAt          DateTime          @default(now())
+  contractorPaymentId String
+  contractorPayment   ContractorPayment @relation(fields: [contractorPaymentId], references: [id], onDelete: Cascade)
+  @@index([contractorPaymentId])
 }
 
 model Supplier {
@@ -732,6 +747,8 @@ model ScheduleTask {
   project       Project  @relation(fields: [projectId], references: [id])
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
+  @@index([projectId])
+  @@index([parentId])
 }
 
 model ScheduleTemplate {
