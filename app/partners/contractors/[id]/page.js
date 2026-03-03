@@ -19,6 +19,7 @@ export default function ContractorDetailPage() {
     const [editing, setEditing] = useState(false);
     const [form, setForm] = useState({});
     const [saving, setSaving] = useState(false);
+    const [expandedPay, setExpandedPay] = useState(null); // payment id to show items
 
     const fetchContractor = async () => {
         setLoading(true);
@@ -210,32 +211,47 @@ export default function ContractorDetailPage() {
                 {/* Tab: Sổ công nợ */}
                 {tab === 'ledger' && (
                     <div style={{ overflowX: 'auto' }}>
-                        {ledgerRows.length === 0 ? (
+                        {!contractor?.payments?.length ? (
                             <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-muted)' }}>Chưa có giao dịch nào</div>
                         ) : (
                             <table className="data-table" style={{ margin: 0 }}>
                                 <thead><tr>
-                                    <th>Ngày</th><th>Diễn giải</th><th>Trạng thái</th>
-                                    <th style={{ textAlign: 'right' }}>+Hợp đồng</th>
-                                    <th style={{ textAlign: 'right' }}>-Đã TT</th>
-                                    <th style={{ textAlign: 'right' }}>Tồn nợ</th>
+                                    <th style={{ width: 30 }}></th>
+                                    <th>Dự án</th><th>Mô tả HĐ</th><th>Trạng thái</th>
+                                    <th style={{ textAlign: 'right' }}>Giá trị HĐ</th>
+                                    <th style={{ textAlign: 'right' }}>Đã TT</th>
+                                    <th style={{ textAlign: 'right' }}>Còn nợ</th>
                                 </tr></thead>
                                 <tbody>
-                                    {ledgerRows.map((row, i) => (
-                                        <tr key={i}>
-                                            <td style={{ fontSize: 12, whiteSpace: 'nowrap' }}>{fmtDate(row.date)}</td>
-                                            <td style={{ fontSize: 13 }}>
-                                                <div>{row.desc}</div>
-                                                {row.subDesc && <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{row.subDesc}</div>}
-                                            </td>
-                                            <td>{row.status ? <span className={`badge ${STATUS_COLORS[row.status] || 'muted'}`}>{row.status}</span> : '—'}</td>
-                                            <td style={{ textAlign: 'right', fontSize: 12, color: row.debit > 0 ? 'var(--status-danger)' : 'var(--text-muted)' }}>{row.debit > 0 ? fmt(row.debit) : '—'}</td>
-                                            <td style={{ textAlign: 'right', fontSize: 12, color: row.credit > 0 ? 'var(--status-success)' : 'var(--text-muted)' }}>{row.credit > 0 ? fmt(row.credit) : '—'}</td>
-                                            <td style={{ textAlign: 'right', fontSize: 12, fontWeight: 600, color: row.balance > 0 ? 'var(--status-danger)' : 'var(--text-muted)' }}>{fmt(row.balance)}</td>
-                                        </tr>
-                                    ))}
+                                    {contractor.payments.map((p) => {
+                                        const isExp = expandedPay === p.id;
+                                        const debt = (p.contractAmount || 0) - (p.paidAmount || 0);
+                                        return (<>
+                                            <tr key={p.id} style={{ cursor: p.items?.length ? 'pointer' : 'default' }} onClick={() => p.items?.length && setExpandedPay(isExp ? null : p.id)}>
+                                                <td style={{ textAlign: 'center', fontSize: 12 }}>{p.items?.length ? (isExp ? '▼' : '▶') : ''}</td>
+                                                <td style={{ fontSize: 12 }}><span className="accent">{p.project?.code}</span> {p.project?.name}</td>
+                                                <td style={{ fontSize: 13 }}>
+                                                    <div>{p.description || '—'}</div>
+                                                    {p.items?.length > 0 && <div style={{ fontSize: 11, color: 'var(--accent-primary)' }}>{p.items.length} hạng mục NT</div>}
+                                                </td>
+                                                <td><span className={`badge ${STATUS_COLORS[p.status] || 'muted'}`}>{p.status}</span></td>
+                                                <td style={{ textAlign: 'right', fontSize: 12 }}>{fmt(p.contractAmount)}</td>
+                                                <td style={{ textAlign: 'right', fontSize: 12, color: 'var(--status-success)' }}>{fmt(p.paidAmount)}</td>
+                                                <td style={{ textAlign: 'right', fontSize: 12, fontWeight: 600, color: debt > 0 ? 'var(--status-danger)' : 'var(--text-muted)' }}>{fmt(debt)}</td>
+                                            </tr>
+                                            {isExp && p.items?.map(it => (
+                                                <tr key={it.id} style={{ background: 'rgba(59,130,246,0.04)' }}>
+                                                    <td></td>
+                                                    <td colSpan={2} style={{ fontSize: 12, paddingLeft: 24, color: 'var(--text-muted)' }}>↳ {it.description}</td>
+                                                    <td style={{ fontSize: 11, color: 'var(--text-muted)' }}>{new Intl.NumberFormat('vi-VN').format(it.quantity)} {it.unit} × {new Intl.NumberFormat('vi-VN').format(it.unitPrice)}</td>
+                                                    <td style={{ textAlign: 'right', fontSize: 12 }}>{fmt(it.amount)}</td>
+                                                    <td colSpan={2}></td>
+                                                </tr>
+                                            ))}
+                                        </>);
+                                    })}
                                     <tr style={{ background: 'var(--bg-secondary)', fontWeight: 700 }}>
-                                        <td colSpan={3} style={{ textAlign: 'right', fontSize: 13 }}>Tổng</td>
+                                        <td colSpan={4} style={{ textAlign: 'right', fontSize: 13 }}>Tổng</td>
                                         <td style={{ textAlign: 'right', fontSize: 13, color: 'var(--status-danger)' }}>{fmt(totalContract)}</td>
                                         <td style={{ textAlign: 'right', fontSize: 13, color: 'var(--status-success)' }}>{fmt(totalPaid)}</td>
                                         <td style={{ textAlign: 'right', fontSize: 13, color: totalDebt > 0 ? 'var(--status-danger)' : 'var(--text-muted)' }}>{fmt(totalDebt)}</td>

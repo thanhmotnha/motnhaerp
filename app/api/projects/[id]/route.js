@@ -12,7 +12,7 @@ export const GET = withAuth(async (request, { params }) => {
             quotations: { include: { items: true } },
             milestones: { orderBy: { order: 'asc' } },
             budgets: true,
-            contractorPays: { include: { contractor: { select: { name: true, type: true, phone: true } } } },
+            contractorPays: { include: { contractor: { select: { name: true, type: true, phone: true } }, items: { orderBy: { acceptedAt: 'asc' } } } },
             employees: { include: { employee: { select: { name: true, position: true, phone: true } } } },
             transactions: { orderBy: { date: 'desc' }, take: 10 },
             contracts: { include: { payments: { orderBy: { createdAt: 'asc' } }, quotation: { select: { code: true } } } },

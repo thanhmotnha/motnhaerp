@@ -162,8 +162,10 @@ export default function ScheduleManager({ projectId, projectCode, projectStartDa
                 <ScheduleListView
                     tasks={tasks}
                     flat={flat}
+                    projectId={projectId}
                     onUpdate={updateTask}
                     onDelete={deleteTask}
+                    onRefresh={fetchTasks}
                 />
             )}
             {view === 'gantt' && flat.length > 0 && (

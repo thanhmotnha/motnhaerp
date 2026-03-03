@@ -10,7 +10,10 @@ export const GET = withAuth(async (request, { params }) => {
         include: {
             payments: {
                 orderBy: { createdAt: 'asc' },
-                include: { project: { select: { id: true, code: true, name: true, status: true } } },
+                include: {
+                    project: { select: { id: true, code: true, name: true, status: true } },
+                    items: { orderBy: { acceptedAt: 'asc' } },
+                },
             },
         },
     });

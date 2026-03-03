@@ -87,6 +87,9 @@ export default function ProjectDetailPage() {
     const [cpForm, setCpForm] = useState({ contractorId: '', contractAmount: '', paidAmount: '0', description: '', dueDate: '', status: 'Chưa TT' });
     const [contractorList, setContractorList] = useState([]);
     const [editCp, setEditCp] = useState(null); // { id, paidAmount, status }
+    const [ntModal, setNtModal] = useState(null); // cp object being viewed for nghiem thu
+    const [ntForm, setNtForm] = useState({ description: '', unit: 'm²', quantity: '', unitPrice: '', notes: '' });
+    const [savingNt, setSavingNt] = useState(false);
     const fetchData = () => { fetch(`/api/projects/${id}`).then(r => r.json()).then(d => { setData(d); setLoading(false); }); };
     useEffect(fetchData, [id]);
 
@@ -145,6 +148,29 @@ export default function ProjectDetailPage() {
         if (!confirm('Xóa thầu phụ này khỏi dự án?')) return;
         await fetch(`/api/contractor-payments/${cpId}`, { method: 'DELETE' });
         fetchData();
+    };
+    const openNtModal = (cp) => {
+        setNtModal(cp);
+        setNtForm({ description: '', unit: 'm²', quantity: '', unitPrice: '', notes: '' });
+    };
+    const refreshNtModal = async (cpId) => {
+        const res = await fetch(`/api/contractor-payments/${cpId}`);
+        if (res.ok) setNtModal(await res.json());
+        fetchData();
+    };
+    const addNtItem = async () => {
+        if (!ntForm.description.trim()) return alert('Nhập tên hạng mục!');
+        if (!ntForm.quantity || !ntForm.unitPrice) return alert('Nhập khối lượng và đơn giá!');
+        setSavingNt(true);
+        await fetch(`/api/contractor-payments/${ntModal.id}/items`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...ntForm, quantity: Number(ntForm.quantity), unitPrice: Number(ntForm.unitPrice) }) });
+        setSavingNt(false);
+        setNtForm({ description: '', unit: 'm²', quantity: '', unitPrice: '', notes: '' });
+        refreshNtModal(ntModal.id);
+    };
+    const deleteNtItem = async (itemId) => {
+        if (!confirm('Xóa hạng mục này?')) return;
+        await fetch(`/api/contractor-payments/${ntModal.id}/items/${itemId}`, { method: 'DELETE' });
+        refreshNtModal(ntModal.id);
     };
 
     // PO from materials
@@ -838,16 +864,23 @@ ${po.notes ? `<div class="notes-box"><strong>Ghi chú:</strong> ${po.notes}</div
                         </div>
                     </div>
                     <div className="table-container"><table className="data-table">
-                        <thead><tr><th>Thầu phụ</th><th>Loại</th><th>Mô tả</th><th>HĐ thầu</th><th>Đã TT</th><th>Còn nợ</th><th>TT</th><th style={{ width: 80 }}></th></tr></thead>
+                        <thead><tr><th>Thầu phụ</th><th>Loại</th><th>Mô tả</th><th>HĐ thầu / NT</th><th>Đã TT</th><th>Còn nợ</th><th>TT</th><th style={{ width: 110 }}></th></tr></thead>
                         <tbody>{p.contractorPays.map(cp => {
                             const ec = editCp?.id === cp.id ? editCp : null;
                             const iS = { padding: '3px 6px', fontSize: 12, border: '1px solid var(--border)', borderRadius: 4, background: 'var(--bg-primary)', color: 'var(--text-primary)' };
+                            const itemCount = cp.items?.length || 0;
+                            const ntTotal = cp.items?.reduce((s, it) => s + it.amount, 0) || 0;
                             return (
                             <tr key={cp.id} style={{ background: ec ? 'rgba(59,130,246,0.05)' : '' }}>
                                 <td className="primary">{cp.contractor.name}<div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{cp.contractor.phone}</div></td>
                                 <td><span className="badge muted">{cp.contractor.type}</span></td>
                                 <td style={{ fontSize: 12 }}>{cp.description}</td>
-                                <td className="amount">{fmt(cp.contractAmount)}</td>
+                                <td>
+                                    <div style={{ fontSize: 13 }}>{fmt(cp.contractAmount)}</div>
+                                    <button style={{ fontSize: 11, color: 'var(--accent-primary)', background: 'none', border: 'none', cursor: 'pointer', padding: 0, textDecoration: 'underline' }} onClick={() => openNtModal(cp)}>
+                                        📋 {itemCount > 0 ? `${itemCount} hạng mục NT` : 'Thêm nghiệm thu'}
+                                    </button>
+                                </td>
                                 <td style={{ color: 'var(--status-success)', fontWeight: 600 }}>
                                     {ec ? <input style={{ ...iS, width: 110 }} type="number" min="0" value={ec.paidAmount} onChange={e => setEditCp({ ...ec, paidAmount: e.target.value })} /> : fmt(cp.paidAmount)}
                                 </td>
@@ -883,6 +916,64 @@ ${po.notes ? `<div class="notes-box"><strong>Ghi chú:</strong> ${po.notes}</div
             {tab === 'documents' && <DocumentManager projectId={id} onRefresh={fetchData} />}
 
             {/* MODALS */}
+
+            {/* Modal: Nghiệm thu hạng mục */}
+            {ntModal && (
+                <div className="modal-overlay" onClick={() => setNtModal(null)}>
+                    <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 780 }}>
+                        <div className="modal-header">
+                            <div>
+                                <h3>📋 Nghiệm thu — {ntModal.contractor?.name}</h3>
+                                <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>{ntModal.description}</div>
+                            </div>
+                            <button className="modal-close" onClick={() => setNtModal(null)}>×</button>
+                        </div>
+                        <div className="modal-body" style={{ padding: 0 }}>
+                            {/* Items table */}
+                            <div style={{ overflowX: 'auto' }}>
+                                <table className="data-table" style={{ margin: 0 }}>
+                                    <thead><tr>
+                                        <th>Hạng mục</th><th>ĐVT</th><th style={{ textAlign: 'right' }}>Khối lượng</th><th style={{ textAlign: 'right' }}>Đơn giá</th><th style={{ textAlign: 'right' }}>Thành tiền</th><th style={{ width: 40 }}></th>
+                                    </tr></thead>
+                                    <tbody>
+                                        {(ntModal.items || []).length === 0 && (
+                                            <tr><td colSpan={6} style={{ textAlign: 'center', color: 'var(--text-muted)', padding: 20, fontSize: 13 }}>Chưa có hạng mục nào</td></tr>
+                                        )}
+                                        {(ntModal.items || []).map(it => (
+                                            <tr key={it.id}>
+                                                <td style={{ fontSize: 13 }}>{it.description}</td>
+                                                <td style={{ fontSize: 12 }}>{it.unit}</td>
+                                                <td style={{ textAlign: 'right', fontSize: 12 }}>{new Intl.NumberFormat('vi-VN').format(it.quantity)}</td>
+                                                <td style={{ textAlign: 'right', fontSize: 12 }}>{new Intl.NumberFormat('vi-VN').format(it.unitPrice)}</td>
+                                                <td style={{ textAlign: 'right', fontSize: 13, fontWeight: 600 }}>{fmt(it.amount)}</td>
+                                                <td><button className="btn btn-ghost btn-sm" style={{ color: 'var(--status-danger)', fontSize: 12 }} onClick={() => deleteNtItem(it.id)}>✕</button></td>
+                                            </tr>
+                                        ))}
+                                        {/* Add row */}
+                                        <tr style={{ background: 'var(--bg-secondary)' }}>
+                                            <td><input className="form-input" style={{ fontSize: 12, padding: '4px 8px' }} value={ntForm.description} onChange={e => setNtForm({ ...ntForm, description: e.target.value })} placeholder="Tên hạng mục *" /></td>
+                                            <td><input className="form-input" style={{ fontSize: 12, padding: '4px 6px', width: 60 }} value={ntForm.unit} onChange={e => setNtForm({ ...ntForm, unit: e.target.value })} /></td>
+                                            <td><input className="form-input" type="number" min="0" style={{ fontSize: 12, padding: '4px 6px', textAlign: 'right' }} value={ntForm.quantity} onChange={e => setNtForm({ ...ntForm, quantity: e.target.value })} placeholder="KL" /></td>
+                                            <td><input className="form-input" type="number" min="0" style={{ fontSize: 12, padding: '4px 6px', textAlign: 'right' }} value={ntForm.unitPrice} onChange={e => setNtForm({ ...ntForm, unitPrice: e.target.value })} placeholder="Đơn giá" /></td>
+                                            <td style={{ textAlign: 'right', fontSize: 12, color: 'var(--text-muted)' }}>
+                                                {ntForm.quantity && ntForm.unitPrice ? fmt(Number(ntForm.quantity) * Number(ntForm.unitPrice)) : '—'}
+                                            </td>
+                                            <td><button className="btn btn-primary btn-sm" onClick={addNtItem} disabled={savingNt}>✅</button></td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                            {/* Summary */}
+                            <div style={{ padding: '14px 20px', display: 'flex', gap: 24, borderTop: '1px solid var(--border)', background: 'var(--bg-secondary)', flexWrap: 'wrap' }}>
+                                <div><div style={{ fontSize: 11, color: 'var(--text-muted)' }}>Tổng nghiệm thu</div><div style={{ fontWeight: 700, fontSize: 15 }}>{fmt((ntModal.items || []).reduce((s, it) => s + it.amount, 0))}</div></div>
+                                <div><div style={{ fontSize: 11, color: 'var(--text-muted)' }}>Giá trị HĐ</div><div style={{ fontWeight: 700, fontSize: 15 }}>{fmt(ntModal.contractAmount)}</div></div>
+                                <div><div style={{ fontSize: 11, color: 'var(--text-muted)' }}>Đã thanh toán</div><div style={{ fontWeight: 700, fontSize: 15, color: 'var(--status-success)' }}>{fmt(ntModal.paidAmount)}</div></div>
+                                <div><div style={{ fontSize: 11, color: 'var(--text-muted)' }}>Còn nợ</div><div style={{ fontWeight: 700, fontSize: 15, color: ntModal.contractAmount - ntModal.paidAmount > 0 ? 'var(--status-danger)' : 'var(--text-muted)' }}>{fmt(ntModal.contractAmount - ntModal.paidAmount)}</div></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {/* Modal: Thêm thầu phụ */}
             {modal === 'contractor_pay' && (

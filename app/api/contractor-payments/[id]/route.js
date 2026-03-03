@@ -2,6 +2,19 @@ import { withAuth } from '@/lib/apiHandler';
 import prisma from '@/lib/prisma';
 import { NextResponse } from 'next/server';
 
+export const GET = withAuth(async (request, { params }) => {
+    const { id } = await params;
+    const payment = await prisma.contractorPayment.findUnique({
+        where: { id },
+        include: {
+            items: { orderBy: { acceptedAt: 'asc' } },
+            contractor: { select: { name: true, type: true, phone: true } },
+        },
+    });
+    if (!payment) return NextResponse.json({ error: 'Not found' }, { status: 404 });
+    return NextResponse.json(payment);
+});
+
 export const PUT = withAuth(async (request, { params }) => {
     const { id } = await params;
     const body = await request.json();

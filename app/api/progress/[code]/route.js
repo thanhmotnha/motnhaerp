@@ -1,8 +1,7 @@
-import { withAuth } from '@/lib/apiHandler';
 import prisma from '@/lib/prisma';
 import { NextResponse } from 'next/server';
 
-export const GET = withAuth(async (request, { params }) => {
+export async function GET(request, { params }) {
     const { code } = await params;
     const project = await prisma.project.findUnique({
         where: { code },
@@ -18,17 +17,27 @@ export const GET = withAuth(async (request, { params }) => {
             startDate: true,
             endDate: true,
             customer: { select: { name: true } },
-            // New: schedule tasks (WBS)
+            // Schedule tasks (WBS) with latest progress reports
             scheduleTasks: {
                 orderBy: [{ order: 'asc' }, { createdAt: 'asc' }],
                 select: {
                     id: true, name: true, order: true, level: true, wbs: true,
                     startDate: true, endDate: true, duration: true,
                     progress: true, status: true, parentId: true,
-                    color: true,
+                    color: true, isLocked: true, assignee: true,
+                    progressReports: {
+                        orderBy: { createdAt: 'desc' },
+                        take: 5,
+                        where: { status: 'Đã duyệt' },
+                        select: {
+                            id: true, progressFrom: true, progressTo: true,
+                            description: true, images: true, reportDate: true,
+                            createdBy: true,
+                        },
+                    },
                 },
             },
-            // Tracking logs with images (for client gallery)
+            // Tracking logs
             trackingLogs: {
                 orderBy: { createdAt: 'desc' },
                 take: 20,
@@ -45,7 +54,15 @@ export const GET = withAuth(async (request, { params }) => {
     // Build task tree for client
     const taskMap = new Map();
     const roots = [];
-    project.scheduleTasks.forEach(t => taskMap.set(t.id, { ...t, children: [] }));
+    project.scheduleTasks.forEach(t => {
+        // Parse images JSON for each report
+        const reports = t.progressReports.map(r => {
+            let imgs = [];
+            try { imgs = JSON.parse(r.images); } catch { imgs = []; }
+            return { ...r, images: imgs };
+        });
+        taskMap.set(t.id, { ...t, progressReports: reports, children: [] });
+    });
     project.scheduleTasks.forEach(t => {
         const node = taskMap.get(t.id);
         if (t.parentId && taskMap.has(t.parentId)) {
@@ -77,7 +94,6 @@ export const GET = withAuth(async (request, { params }) => {
         tasks: roots,
         thisWeekTasks,
         logs: project.trackingLogs,
-        // Fallback
         milestones: project.milestones,
     });
-}, { public: true });
+}

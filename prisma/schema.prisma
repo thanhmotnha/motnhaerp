@@ -97,6 +97,7 @@ model Project {
   documents       ProjectDocument[]
   documentFolders DocumentFolder[]
   scheduleTasks   ScheduleTask[]
+  progressReports ProgressReport[]
   deletedAt       DateTime?
   createdAt       DateTime    @default(now())
   updatedAt       DateTime    @updatedAt
@@ -732,6 +733,7 @@ model ScheduleTask {
   progress      Int      @default(0)
   weight        Float    @default(1)
   status        String   @default("Chưa bắt đầu")
+  isLocked      Boolean  @default(false)
   assignee      String   @default("")
   notes         String   @default("")
   color         String   @default("")
@@ -745,10 +747,30 @@ model ScheduleTask {
   successors    ScheduleTask[] @relation("TaskDep")
   projectId     String
   project       Project  @relation(fields: [projectId], references: [id])
+  progressReports ProgressReport[]
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
   @@index([projectId])
   @@index([parentId])
+}
+
+model ProgressReport {
+  id            String   @id @default(cuid())
+  progressFrom  Int      @default(0)
+  progressTo    Int
+  description   String   @default("") @db.Text
+  images        String   @default("[]") @db.Text
+  status        String   @default("Đã duyệt")
+  rejectionNote String   @default("")
+  reportDate    DateTime @default(now())
+  createdBy     String   @default("")
+  taskId        String
+  task          ScheduleTask @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  projectId     String
+  project       Project  @relation(fields: [projectId], references: [id])
+  createdAt     DateTime @default(now())
+  @@index([taskId])
+  @@index([projectId])
 }
 
 model ScheduleTemplate {

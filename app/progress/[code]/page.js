@@ -3,11 +3,15 @@ import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
 
 const fmtDate = (d) => d ? new Date(d).toLocaleDateString('vi-VN') : '';
+const fmtDateFull = (d) => d ? new Date(d).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '';
 
 export default function CustomerProgressPage() {
     const { code } = useParams();
     const [data, setData] = useState(null);
     const [loading, setLoading] = useState(true);
+    const [expandedTask, setExpandedTask] = useState(null);
+    const [lightbox, setLightbox] = useState(null);
+
     useEffect(() => {
         fetch(`/api/progress/${code}`)
             .then(r => r.json())
@@ -33,128 +37,203 @@ export default function CustomerProgressPage() {
     const thisWeek = p.thisWeekTasks || [];
     const logs = p.logs || [];
     const milestones = p.milestones || [];
-
-    // Use schedule tasks if available, fallback to milestones
     const hasSchedule = tasks.length > 0;
 
     const renderTask = (task, depth = 0) => {
         const isGroup = task.children && task.children.length > 0;
         const barColor = task.progress === 100 ? '#22c55e' : task.progress > 0 ? '#3b82f6' : '#334155';
+        const isOverdue = task.status !== 'Hoàn thành' && new Date(task.endDate) < new Date();
+        const reports = task.progressReports || [];
+        const hasPhotos = reports.some(r => r.images && r.images.length > 0);
+        const isExpanded = expandedTask === task.id;
+
         return (
             <div key={task.id}>
-                <div style={{ padding: '12px 0', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+                <div
+                    style={{
+                        padding: '14px 0', borderBottom: '1px solid rgba(255,255,255,0.06)',
+                        cursor: hasPhotos ? 'pointer' : 'default',
+                    }}
+                    onClick={() => hasPhotos && setExpandedTask(isExpanded ? null : task.id)}
+                >
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6, paddingLeft: depth * 20 }}>
-                        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                        <div style={{ display: 'flex', gap: 8, alignItems: 'center', flex: 1, minWidth: 0 }}>
                             <span style={{
-                                width: 24, height: 24, borderRadius: '50%',
+                                width: 26, height: 26, borderRadius: '50%', flexShrink: 0,
                                 background: task.progress === 100 ? '#22c55e' : task.progress > 0 ? '#3b82f6' : '#334155',
                                 display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                fontSize: 10, fontWeight: 700, flexShrink: 0,
-                            }}>{task.progress === 100 ? '✓' : ''}</span>
-                            <span style={{ fontWeight: isGroup ? 700 : 500, fontSize: 14 }}>{task.name}</span>
+                                fontSize: 10, fontWeight: 700,
+                            }}>{task.progress === 100 ? '✓' : task.isLocked ? '🔒' : ''}</span>
+                            <div style={{ minWidth: 0 }}>
+                                <span style={{ fontWeight: isGroup ? 700 : 500, fontSize: 14 }}>{task.name}</span>
+                                {task.assignee && <div style={{ fontSize: 11, color: '#64748b', marginTop: 1 }}>👤 {task.assignee}</div>}
+                            </div>
                         </div>
-                        <span style={{ fontWeight: 700, color: barColor, fontSize: 13 }}>{task.progress}%</span>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
+                            {hasPhotos && <span style={{ fontSize: 12 }}>📷</span>}
+                            {isOverdue && <span style={{ fontSize: 10, padding: '2px 6px', borderRadius: 4, background: 'rgba(239,68,68,0.2)', color: '#ef4444', fontWeight: 600 }}>Quá hạn</span>}
+                            <span style={{ fontWeight: 700, color: barColor, fontSize: 14 }}>{task.progress}%</span>
+                        </div>
                     </div>
-                    <div style={{ marginLeft: depth * 20 + 32, height: 5, background: 'rgba(255,255,255,0.08)', borderRadius: 3, overflow: 'hidden' }}>
+                    <div style={{ marginLeft: depth * 20 + 34, height: 5, background: 'rgba(255,255,255,0.08)', borderRadius: 3, overflow: 'hidden' }}>
                         <div style={{ height: '100%', width: `${task.progress}%`, background: barColor, borderRadius: 3, transition: 'width 0.5s' }}></div>
                     </div>
                 </div>
+
+                {/* Expanded: show progress reports with photos */}
+                {isExpanded && reports.length > 0 && (
+                    <div style={{ padding: '12px 0 12px 54px', borderBottom: '1px solid rgba(255,255,255,0.06)', background: 'rgba(59,130,246,0.03)' }}>
+                        {reports.map(r => (
+                            <div key={r.id} style={{ marginBottom: 16 }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                                    <div style={{ fontSize: 12, color: '#94a3b8' }}>
+                                        📤 {r.createdBy || 'Giám sát'} • {fmtDateFull(r.reportDate)}
+                                    </div>
+                                    <span style={{ fontWeight: 700, fontSize: 12, color: '#3b82f6' }}>{r.progressFrom}% → {r.progressTo}%</span>
+                                </div>
+                                {r.description && <div style={{ fontSize: 13, color: '#cbd5e1', marginBottom: 6, lineHeight: 1.5 }}>{r.description}</div>}
+                                {/* Photos Grid */}
+                                {r.images && r.images.length > 0 && (
+                                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                                        {r.images.map((url, j) => (
+                                            <img
+                                                key={j}
+                                                src={url}
+                                                alt={`Ảnh ${j + 1}`}
+                                                onClick={(e) => { e.stopPropagation(); setLightbox(url); }}
+                                                style={{
+                                                    width: 80, height: 80, objectFit: 'cover',
+                                                    borderRadius: 10, cursor: 'pointer',
+                                                    border: '2px solid rgba(255,255,255,0.1)',
+                                                    transition: 'transform 0.2s',
+                                                }}
+                                            />
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+                        ))}
+                    </div>
+                )}
+
                 {task.children && [...task.children].sort((a, b) => a.order - b.order).map(c => renderTask(c, depth + 1))}
             </div>
         );
     };
 
     return (
-        <div style={{ minHeight: '100vh', background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%)', color: '#e2e8f0', padding: '40px 20px' }}>
-            <div style={{ maxWidth: 700, margin: '0 auto' }}>
-                {/* Header */}
-                <div style={{ textAlign: 'center', marginBottom: 32 }}>
-                    <div style={{ fontSize: 11, color: '#475569', letterSpacing: 3, textTransform: 'uppercase', marginBottom: 8 }}>CẬP NHẬT TIẾN ĐỘ DỰ ÁN</div>
-                    <h1 style={{ fontSize: 26, fontWeight: 700, color: '#f8fafc', margin: 0 }}>{p.name}</h1>
-                    <div style={{ color: '#94a3b8', marginTop: 6, fontSize: 13 }}>{p.customer?.name} • {p.address}</div>
-                </div>
-
-                {/* Big Progress */}
-                <div style={{ background: 'rgba(255,255,255,0.03)', borderRadius: 20, padding: 32, marginBottom: 24, textAlign: 'center', border: '1px solid rgba(255,255,255,0.08)', backdropFilter: 'blur(10px)' }}>
-                    <div style={{ fontSize: 64, fontWeight: 800, background: 'linear-gradient(135deg, #3b82f6, #8b5cf6)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', lineHeight: 1 }}>{p.progress}%</div>
-                    <div style={{ fontSize: 13, color: '#94a3b8', marginTop: 4 }}>Tiến độ tổng</div>
-                    <div style={{ height: 12, background: 'rgba(255,255,255,0.08)', borderRadius: 6, overflow: 'hidden', marginTop: 16 }}>
-                        <div style={{ height: '100%', width: `${p.progress}%`, background: 'linear-gradient(90deg, #3b82f6, #8b5cf6)', borderRadius: 6, transition: 'width 0.8s ease' }}></div>
+        <>
+            <style>{`
+                @keyframes spin { to { transform: rotate(360deg); } }
+                @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+                @media (max-width: 480px) {
+                    .progress-stats { flex-direction: column; gap: 8px !important; }
+                    .progress-stats > div { text-align: left; display: flex; justify-content: space-between; align-items: center; }
+                }
+            `}</style>
+            <div style={{ minHeight: '100vh', background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%)', color: '#e2e8f0', padding: '24px 16px' }}>
+                <div style={{ maxWidth: 700, margin: '0 auto' }}>
+                    {/* Header */}
+                    <div style={{ textAlign: 'center', marginBottom: 28 }}>
+                        <div style={{ fontSize: 10, color: '#475569', letterSpacing: 3, textTransform: 'uppercase', marginBottom: 6 }}>CẬP NHẬT TIẾN ĐỘ DỰ ÁN</div>
+                        <h1 style={{ fontSize: 22, fontWeight: 700, color: '#f8fafc', margin: 0, lineHeight: 1.3 }}>{p.name}</h1>
+                        <div style={{ color: '#94a3b8', marginTop: 4, fontSize: 12 }}>{p.customer?.name} • {p.address}</div>
                     </div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 20, gap: 16 }}>
-                        <div><div style={{ fontWeight: 700, fontSize: 18 }}>{p.area}m²</div><div style={{ fontSize: 10, color: '#64748b' }}>Diện tích</div></div>
-                        <div><div style={{ fontWeight: 700, fontSize: 18 }}>{p.floors} tầng</div><div style={{ fontSize: 10, color: '#64748b' }}>Số tầng</div></div>
-                        <div><div style={{ fontWeight: 700, fontSize: 18 }}>{p.status}</div><div style={{ fontSize: 10, color: '#64748b' }}>Trạng thái</div></div>
-                    </div>
-                </div>
 
-                {/* This Week Tasks */}
-                {thisWeek.length > 0 && (
-                    <div style={{ marginBottom: 24 }}>
-                        <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 12, color: '#f8fafc', display: 'flex', alignItems: 'center', gap: 8 }}>
-                            <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#3b82f6', animation: 'pulse 2s infinite' }}></span>
-                            Đang thực hiện tuần này
+                    {/* Big Progress */}
+                    <div style={{ background: 'rgba(255,255,255,0.03)', borderRadius: 20, padding: '28px 24px', marginBottom: 20, textAlign: 'center', border: '1px solid rgba(255,255,255,0.08)', backdropFilter: 'blur(10px)' }}>
+                        <div style={{ fontSize: 56, fontWeight: 800, background: 'linear-gradient(135deg, #3b82f6, #8b5cf6)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', lineHeight: 1 }}>{p.progress}%</div>
+                        <div style={{ fontSize: 12, color: '#94a3b8', marginTop: 4 }}>Tiến độ tổng</div>
+                        <div style={{ height: 10, background: 'rgba(255,255,255,0.08)', borderRadius: 5, overflow: 'hidden', marginTop: 14 }}>
+                            <div style={{ height: '100%', width: `${p.progress}%`, background: 'linear-gradient(90deg, #3b82f6, #8b5cf6)', borderRadius: 5, transition: 'width 0.8s ease' }}></div>
                         </div>
-                        <style>{`@keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }`}</style>
-                        {thisWeek.map(t => (
-                            <div key={t.id} style={{ background: 'rgba(59,130,246,0.08)', borderRadius: 10, padding: '12px 16px', marginBottom: 8, border: '1px solid rgba(59,130,246,0.15)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                <div>
-                                    <div style={{ fontWeight: 600, fontSize: 13 }}>{t.name}</div>
-                                    <div style={{ fontSize: 11, color: '#64748b', marginTop: 2 }}>{fmtDate(t.startDate)} → {fmtDate(t.endDate)}</div>
-                                </div>
-                                <div style={{ fontWeight: 700, fontSize: 13, color: t.progress > 0 ? '#3b82f6' : '#64748b' }}>{t.progress}%</div>
+                        <div className="progress-stats" style={{ display: 'flex', justifyContent: 'space-between', marginTop: 16, gap: 12 }}>
+                            <div><div style={{ fontWeight: 700, fontSize: 16 }}>{p.area}m²</div><div style={{ fontSize: 10, color: '#64748b' }}>Diện tích</div></div>
+                            <div><div style={{ fontWeight: 700, fontSize: 16 }}>{p.floors} tầng</div><div style={{ fontSize: 10, color: '#64748b' }}>Số tầng</div></div>
+                            <div><div style={{ fontWeight: 700, fontSize: 16 }}>{p.status}</div><div style={{ fontSize: 10, color: '#64748b' }}>Trạng thái</div></div>
+                        </div>
+                    </div>
+
+                    {/* This Week */}
+                    {thisWeek.length > 0 && (
+                        <div style={{ marginBottom: 20 }}>
+                            <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 10, color: '#f8fafc', display: 'flex', alignItems: 'center', gap: 8 }}>
+                                <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#3b82f6', animation: 'pulse 2s infinite' }}></span>
+                                Đang thực hiện tuần này
                             </div>
-                        ))}
-                    </div>
-                )}
-
-                {/* Tasks WBS */}
-                {hasSchedule ? (
-                    <div>
-                        <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 12, color: '#f8fafc' }}>Chi tiết hạng mục</div>
-                        <div style={{ background: 'rgba(255,255,255,0.03)', borderRadius: 16, padding: '4px 20px', border: '1px solid rgba(255,255,255,0.06)' }}>
-                            {tasks.map(t => renderTask(t, 0))}
-                        </div>
-                    </div>
-                ) : (
-                    /* Fallback: old milestones */
-                    <div>
-                        <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 12, color: '#f8fafc' }}>Chi tiết hạng mục</div>
-                        {milestones.map((m, i) => (
-                            <div key={m.id} style={{ background: 'rgba(255,255,255,0.03)', borderRadius: 12, padding: 16, marginBottom: 8, border: '1px solid rgba(255,255,255,0.06)' }}>
-                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-                                    <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                                        <span style={{ width: 24, height: 24, borderRadius: '50%', background: m.progress === 100 ? '#22c55e' : m.progress > 0 ? '#3b82f6' : '#334155', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 700 }}>{m.progress === 100 ? '✓' : i + 1}</span>
-                                        <span style={{ fontWeight: 600, fontSize: 14 }}>{m.name}</span>
+                            {thisWeek.map(t => (
+                                <div key={t.id} style={{ background: 'rgba(59,130,246,0.08)', borderRadius: 10, padding: '10px 14px', marginBottom: 6, border: '1px solid rgba(59,130,246,0.15)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                    <div>
+                                        <div style={{ fontWeight: 600, fontSize: 13 }}>{t.name}</div>
+                                        <div style={{ fontSize: 11, color: '#64748b', marginTop: 2 }}>{fmtDate(t.startDate)} → {fmtDate(t.endDate)}</div>
                                     </div>
-                                    <span style={{ fontWeight: 700, color: m.progress === 100 ? '#22c55e' : m.progress > 0 ? '#3b82f6' : '#64748b' }}>{m.progress}%</span>
+                                    <div style={{ fontWeight: 700, fontSize: 13, color: t.progress > 0 ? '#3b82f6' : '#64748b' }}>{t.progress}%</div>
                                 </div>
-                                <div style={{ height: 5, background: 'rgba(255,255,255,0.08)', borderRadius: 3, overflow: 'hidden' }}>
-                                    <div style={{ height: '100%', width: `${m.progress}%`, background: m.progress === 100 ? '#22c55e' : 'linear-gradient(90deg, #3b82f6, #8b5cf6)', borderRadius: 3 }}></div>
+                            ))}
+                        </div>
+                    )}
+
+                    {/* Task List — click for photos */}
+                    {hasSchedule ? (
+                        <div>
+                            <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 10, color: '#f8fafc' }}>
+                                Chi tiết hạng mục
+                                <span style={{ fontSize: 11, color: '#64748b', fontWeight: 400, marginLeft: 8 }}>Bấm để xem ảnh</span>
+                            </div>
+                            <div style={{ background: 'rgba(255,255,255,0.03)', borderRadius: 16, padding: '4px 16px', border: '1px solid rgba(255,255,255,0.06)' }}>
+                                {tasks.map(t => renderTask(t, 0))}
+                            </div>
+                        </div>
+                    ) : (
+                        <div>
+                            <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 10, color: '#f8fafc' }}>Chi tiết hạng mục</div>
+                            {milestones.map((m, i) => (
+                                <div key={m.id} style={{ background: 'rgba(255,255,255,0.03)', borderRadius: 12, padding: 14, marginBottom: 8, border: '1px solid rgba(255,255,255,0.06)' }}>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                                        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                                            <span style={{ width: 24, height: 24, borderRadius: '50%', background: m.progress === 100 ? '#22c55e' : m.progress > 0 ? '#3b82f6' : '#334155', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 700 }}>{m.progress === 100 ? '✓' : i + 1}</span>
+                                            <span style={{ fontWeight: 600, fontSize: 14 }}>{m.name}</span>
+                                        </div>
+                                        <span style={{ fontWeight: 700, color: m.progress === 100 ? '#22c55e' : m.progress > 0 ? '#3b82f6' : '#64748b' }}>{m.progress}%</span>
+                                    </div>
+                                    <div style={{ height: 5, background: 'rgba(255,255,255,0.08)', borderRadius: 3, overflow: 'hidden' }}>
+                                        <div style={{ height: '100%', width: `${m.progress}%`, background: m.progress === 100 ? '#22c55e' : 'linear-gradient(90deg, #3b82f6, #8b5cf6)', borderRadius: 3 }}></div>
+                                    </div>
                                 </div>
-                            </div>
-                        ))}
-                    </div>
-                )}
+                            ))}
+                        </div>
+                    )}
 
-                {/* Tracking Logs */}
-                {logs.length > 0 && (
-                    <div style={{ marginTop: 32 }}>
-                        <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 12, color: '#f8fafc' }}>📒 Nhật ký gần đây</div>
-                        {logs.slice(0, 10).map(log => (
-                            <div key={log.id} style={{ background: 'rgba(255,255,255,0.03)', borderRadius: 10, padding: '10px 16px', marginBottom: 6, border: '1px solid rgba(255,255,255,0.05)', display: 'flex', justifyContent: 'space-between', fontSize: 13 }}>
-                                <span>{log.content}</span>
-                                <span style={{ color: '#64748b', fontSize: 11, flexShrink: 0, marginLeft: 12 }}>{fmtDate(log.createdAt)}</span>
-                            </div>
-                        ))}
-                    </div>
-                )}
+                    {/* Tracking Logs */}
+                    {logs.length > 0 && (
+                        <div style={{ marginTop: 28 }}>
+                            <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 10, color: '#f8fafc' }}>📒 Nhật ký gần đây</div>
+                            {logs.slice(0, 10).map(log => (
+                                <div key={log.id} style={{ background: 'rgba(255,255,255,0.03)', borderRadius: 10, padding: '10px 14px', marginBottom: 6, border: '1px solid rgba(255,255,255,0.05)' }}>
+                                    <div style={{ fontSize: 13, lineHeight: 1.5, marginBottom: 4 }}>{log.content}</div>
+                                    <div style={{ fontSize: 11, color: '#64748b' }}>{fmtDateFull(log.createdAt)}</div>
+                                </div>
+                            ))}
+                        </div>
+                    )}
 
-                {/* Footer */}
-                <div style={{ textAlign: 'center', marginTop: 40, fontSize: 11, color: '#334155' }}>
-                    Cập nhật: {new Date().toLocaleDateString('vi-VN')} • HomeERP
+                    <div style={{ textAlign: 'center', marginTop: 32, fontSize: 11, color: '#334155' }}>
+                        Cập nhật: {new Date().toLocaleDateString('vi-VN')} • HomeERP
+                    </div>
                 </div>
             </div>
-        </div>
+
+            {/* Lightbox */}
+            {lightbox && (
+                <div onClick={() => setLightbox(null)} style={{
+                    position: 'fixed', inset: 0, zIndex: 10000,
+                    background: 'rgba(0,0,0,0.95)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    cursor: 'zoom-out', padding: 16,
+                }}>
+                    <img src={lightbox} alt="" style={{ maxWidth: '100%', maxHeight: '90vh', borderRadius: 12, objectFit: 'contain' }} />
+                </div>
+            )}
+        </>
     );
 }
