@@ -4,9 +4,11 @@ import { NextResponse } from 'next/server';
 import { scheduleTemplateCreateSchema } from '@/lib/validations/scheduleTemplate';
 
 // Default templates to auto-seed if none exist
+let seeded = false;
 async function ensureDefaultTemplates() {
+    if (seeded) return;
     const count = await prisma.scheduleTemplate.count();
-    if (count > 0) return;
+    if (count > 0) { seeded = true; return; }
 
     console.log('[schedule-templates] Auto-seeding default templates...');
 

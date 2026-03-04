@@ -66,18 +66,16 @@ export const PUT = withAuth(async (request) => {
     const body = await request.json();
     const updates = scheduleTaskBulkUpdateSchema.parse(body);
 
-    const results = [];
-    for (const u of updates) {
-        const { id, ...data } = u;
-        // Auto-calc duration if dates changed
-        if (data.startDate && data.endDate) {
-            data.duration = Math.max(1, Math.ceil((new Date(data.endDate) - new Date(data.startDate)) / 86400000));
-        }
-        const updated = await prisma.scheduleTask.update({ where: { id }, data });
-        results.push(updated);
-    }
+    const results = await prisma.$transaction(
+        updates.map(u => {
+            const { id, ...data } = u;
+            if (data.startDate && data.endDate) {
+                data.duration = Math.max(1, Math.ceil((new Date(data.endDate) - new Date(data.startDate)) / 86400000));
+            }
+            return prisma.scheduleTask.update({ where: { id }, data });
+        })
+    );
 
-    // Recalc project progress for affected project
     if (results.length > 0) {
         await recalcProjectProgress(results[0].projectId);
     }

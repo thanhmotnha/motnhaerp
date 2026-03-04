@@ -3,6 +3,7 @@ import prisma from '@/lib/prisma';
 import { parsePagination, paginatedResponse } from '@/lib/pagination';
 import { generateCode } from '@/lib/generateCode';
 import { NextResponse } from 'next/server';
+import { purchaseOrderCreateSchema } from '@/lib/validations/purchaseOrder';
 
 export const GET = withAuth(async (request) => {
     const { searchParams } = new URL(request.url);
@@ -36,16 +37,21 @@ export const GET = withAuth(async (request) => {
 });
 
 export const POST = withAuth(async (request) => {
-    const data = await request.json();
-    const { items, ...poData } = data;
+    const body = await request.json();
+    const { items, ...poData } = purchaseOrderCreateSchema.parse(body);
     const code = await generateCode('purchaseOrder', 'PO');
     const order = await prisma.purchaseOrder.create({
         data: {
             code,
-            ...poData,
+            supplier: poData.supplier,
+            totalAmount: poData.totalAmount,
+            paidAmount: poData.paidAmount,
+            status: poData.status,
+            notes: poData.notes,
             projectId: poData.projectId || null,
-            orderDate: poData.orderDate ? new Date(poData.orderDate) : new Date(),
-            deliveryDate: poData.deliveryDate ? new Date(poData.deliveryDate) : null,
+            orderDate: poData.orderDate || new Date(),
+            deliveryDate: poData.deliveryDate || null,
+            receivedDate: poData.receivedDate || null,
             items: items ? { create: items } : undefined,
         },
         include: { items: true, project: { select: { name: true, code: true } } },

@@ -25,47 +25,35 @@ export const GET = withAuth(async (request) => {
     ]);
     const transactions = paginatedResponse(txList, total, { page, limit });
 
-    // Contract payments summary (receivables)
-    const receivables = await prisma.contractPayment.aggregate({
-        _sum: { amount: true, paidAmount: true },
-    });
+    // All summary queries in parallel
+    const [receivables, payables, income, expense, expApproved, expPaid, expPending] = await Promise.all([
+        prisma.contractPayment.aggregate({ _sum: { amount: true, paidAmount: true } }),
+        prisma.contractorPayment.aggregate({ _sum: { contractAmount: true, paidAmount: true } }),
+        prisma.transaction.aggregate({ where: { type: 'Thu' }, _sum: { amount: true } }),
+        prisma.transaction.aggregate({ where: { type: 'Chi' }, _sum: { amount: true } }),
+        prisma.projectExpense.aggregate({ where: { status: { not: 'Từ chối' } }, _sum: { amount: true } }),
+        prisma.projectExpense.aggregate({ where: { status: { in: ['Đã chi', 'Hoàn thành'] } }, _sum: { amount: true } }),
+        prisma.projectExpense.aggregate({ where: { status: 'Chờ duyệt' }, _sum: { amount: true } }),
+    ]);
 
-    // Contractor payments summary (payables)
-    const payables = await prisma.contractorPayment.aggregate({
-        _sum: { contractAmount: true, paidAmount: true },
-    });
-
-    // Manual transactions summary
-    const income = await prisma.transaction.aggregate({ where: { type: 'Thu' }, _sum: { amount: true } });
-    const expense = await prisma.transaction.aggregate({ where: { type: 'Chi' }, _sum: { amount: true } });
-
-    // Project expenses summary (chi phi du an + cong ty)
-    const allExpenses = await prisma.projectExpense.findMany({
-        select: { amount: true, paidAmount: true, status: true, expenseType: true },
-    });
-    const totalExpenseApproved = allExpenses.filter(e => e.status !== 'Từ chối').reduce((s, e) => s + (e.amount || 0), 0);
-    const totalExpensePaid = allExpenses.filter(e => e.status === 'Đã chi' || e.status === 'Hoàn thành').reduce((s, e) => s + (e.paidAmount || e.amount || 0), 0);
-    const totalExpensePending = allExpenses.filter(e => e.status === 'Chờ duyệt').reduce((s, e) => s + (e.amount || 0), 0);
+    const totalExpenseApproved = expApproved._sum.amount || 0;
+    const totalExpensePaid = expPaid._sum.amount || 0;
+    const totalExpensePending = expPending._sum.amount || 0;
 
     return NextResponse.json({
         transactions,
         summary: {
-            // Receivables (from contract payments)
             totalReceivable: receivables._sum.amount || 0,
             totalReceived: receivables._sum.paidAmount || 0,
             receivableOutstanding: (receivables._sum.amount || 0) - (receivables._sum.paidAmount || 0),
-            // Payables (to contractors)
             totalPayable: payables._sum.contractAmount || 0,
             totalPaid: payables._sum.paidAmount || 0,
             payableOutstanding: (payables._sum.contractAmount || 0) - (payables._sum.paidAmount || 0),
-            // Project expenses
             totalExpenseApproved,
             totalExpensePaid,
             totalExpensePending,
-            // Manual transactions
             manualIncome: income._sum.amount || 0,
             manualExpense: expense._sum.amount || 0,
-            // Net cashflow
             netCashflow: (receivables._sum.paidAmount || 0) + (income._sum.amount || 0)
                 - (payables._sum.paidAmount || 0) - totalExpensePaid - (expense._sum.amount || 0),
         },
