@@ -9,6 +9,8 @@ const fmt = (n) => new Intl.NumberFormat('vi-VN').format(n);
 const fmtCur = (n) => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(n);
 const SUPPLY_TYPES = ['Mua ngoài', 'Sản xuất nội bộ', 'Dịch vụ'];
 const SUPPLY_BADGE = { 'Sản xuất nội bộ': 'info', 'Mua ngoài': 'success', 'Dịch vụ': 'purple', 'Mua thương mại': 'success', 'Vật tư lưu kho': 'success' };
+const SUPPLY_COLOR = { 'Sản xuất nội bộ': { bg: '#234093', color: '#fff' }, 'Mua ngoài': { bg: '#f0ebe3', color: '#8a7350' }, 'Dịch vụ': { bg: '#f3eeff', color: '#7c3aed' } };
+const STOCK_DOT = { ok: { color: '#22c55e', label: 'Còn hàng' }, low: { color: '#eab308', label: 'Sắp hết' }, out: { color: '#ef4444', label: 'Hết hàng' }, service: { color: '#a3a3a3', label: 'Dịch vụ' } };
 const SUPPLY_ICON = { 'Mua ngoài': '🛒', 'Sản xuất nội bộ': '🔨', 'Dịch vụ': '🧠' };
 const normalizeSupply = (t) => (t === 'Mua thương mại' || t === 'Vật tư lưu kho') ? 'Mua ngoài' : (t || 'Mua ngoài');
 const CORE_BOARD_TYPES = ['MDF thường', 'MDF chống ẩm', 'MFC', 'Gỗ tự nhiên', 'Nhựa', 'Kính', 'Khác'];
@@ -54,6 +56,7 @@ export default function ProductsPage() {
     const [searchP, setSearchP] = useState('');
     const [filterSupplyType, setFilterSupplyType] = useState('');
     const [filterStockStatus, setFilterStockStatus] = useState('');
+    const [viewMode, setViewMode] = useState('list');
     const [editingP, setEditingP] = useState(null);
     const [quickEditP, setQuickEditP] = useState(null);
     const [newProduct, setNewProduct] = useState(null);
@@ -331,6 +334,8 @@ export default function ProductsPage() {
     );
 
     const lowStock = products.filter(p => p.stock <= p.minStock && p.minStock > 0).length;
+    const outStock = products.filter(p => !isService(p) && p.stock === 0).length;
+    const copyCode = (code) => { navigator.clipboard.writeText(code); };
 
     return (
         <div>
@@ -360,24 +365,32 @@ export default function ProductsPage() {
                         }}
                         totalCount={products.length} onRefresh={() => { fetchCategories(); fetchProducts(); }} />
                     <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
-                        <div style={{ display: 'flex', gap: 12, padding: '8px 16px', borderBottom: '1px solid var(--border-color)', fontSize: 12, color: 'var(--text-muted)', alignItems: 'center' }}>
-                            <span>📦 <strong>{filteredP.length}</strong></span>
-                            {lowStock > 0 && <span style={{ color: 'var(--status-danger)' }}>⚠️ {lowStock} sắp hết</span>}
-                            <span style={{ opacity: 0.6 }}>💰 {fmtCur(products.reduce((s, p) => s + p.stock * p.salePrice, 0))}</span>
-                        </div>
-                        <div style={{ padding: '6px 16px', borderBottom: '1px solid var(--border-color)', display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
-                            <input className="form-input" placeholder="🔍 Tìm tên, mã..." value={searchP} onChange={e => setSearchP(e.target.value)} style={{ width: 200, fontSize: 12, padding: '4px 8px' }} />
-                            <select className="form-select" value={filterSupplyType} onChange={e => setFilterSupplyType(e.target.value)} style={{ fontSize: 11, width: 120, padding: '4px 6px' }}>
+                        {/* Toolbar */}
+                        <div style={{ padding: '10px 16px', borderBottom: '1px solid var(--border-color)', display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                            <input className="form-input" placeholder="🔍 Tìm theo Tên, Mã SP..." value={searchP} onChange={e => setSearchP(e.target.value)} style={{ width: 220, fontSize: 12, padding: '6px 10px', borderRadius: 6 }} />
+                            <select className="form-select" value={filterSupplyType} onChange={e => setFilterSupplyType(e.target.value)} style={{ fontSize: 11, width: 130, padding: '6px 8px' }}>
                                 <option value="">Nguồn cung</option>{SUPPLY_TYPES.map(t => <option key={t}>{t}</option>)}
                             </select>
-                            <div style={{ display: 'flex', gap: 2, background: 'var(--surface-alt)', borderRadius: 6, padding: 2 }}>
-                                {[['', 'Tất cả'], ['ok', '✅'], ['low', '⚠️'], ['out', '❌']].map(([v, l]) => (
-                                    <button key={v} onClick={() => setFilterStockStatus(v)} style={{ fontSize: 10, padding: '3px 7px', border: 'none', borderRadius: 4, cursor: 'pointer', background: filterStockStatus === v ? '#fff' : 'transparent', fontWeight: filterStockStatus === v ? 600 : 400, boxShadow: filterStockStatus === v ? '0 1px 3px rgba(0,0,0,0.1)' : 'none' }}>{l}</button>
+
+                            {/* View toggle */}
+                            <div style={{ display: 'flex', gap: 0, background: 'var(--surface-alt)', borderRadius: 6, padding: 2, border: '1px solid var(--border-color)' }}>
+                                <button onClick={() => setViewMode('list')} style={{ fontSize: 11, padding: '4px 10px', border: 'none', borderRadius: 4, cursor: 'pointer', background: viewMode === 'list' ? '#fff' : 'transparent', fontWeight: viewMode === 'list' ? 600 : 400, boxShadow: viewMode === 'list' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none', color: viewMode === 'list' ? '#234093' : 'var(--text-secondary)' }}>☰ Danh sách</button>
+                                <button onClick={() => setViewMode('grid')} style={{ fontSize: 11, padding: '4px 10px', border: 'none', borderRadius: 4, cursor: 'pointer', background: viewMode === 'grid' ? '#fff' : 'transparent', fontWeight: viewMode === 'grid' ? 600 : 400, boxShadow: viewMode === 'grid' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none', color: viewMode === 'grid' ? '#234093' : 'var(--text-secondary)' }}>⊞ Dạng lưới</button>
+                            </div>
+
+                            {/* Stock filter with labels */}
+                            <div style={{ display: 'flex', gap: 2, background: 'var(--surface-alt)', borderRadius: 6, padding: 2, border: '1px solid var(--border-color)' }}>
+                                {[['', 'Tất cả', '#666'], ['ok', '🟢 Còn hàng', '#22c55e'], ['low', '🟡 Sắp hết', '#eab308'], ['out', '🔴 Hết hàng', '#ef4444']].map(([v, l, c]) => (
+                                    <button key={v} onClick={() => setFilterStockStatus(v)} title={l} style={{ fontSize: 10, padding: '4px 8px', border: 'none', borderRadius: 4, cursor: 'pointer', background: filterStockStatus === v ? '#fff' : 'transparent', fontWeight: filterStockStatus === v ? 600 : 400, boxShadow: filterStockStatus === v ? '0 1px 3px rgba(0,0,0,0.1)' : 'none', color: filterStockStatus === v ? c : 'var(--text-muted)' }}>{l}</button>
                                 ))}
                             </div>
-                            <div style={{ marginLeft: 'auto', display: 'flex', gap: 4 }}>
+
+                            <div style={{ marginLeft: 'auto', display: 'flex', gap: 4, alignItems: 'center' }}>
+                                <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>📦 <strong>{filteredP.length}</strong></span>
+                                {lowStock > 0 && <span style={{ fontSize: 10, color: '#eab308' }}>⚠️{lowStock}</span>}
+                                {outStock > 0 && <span style={{ fontSize: 10, color: '#ef4444' }}>🔴{outStock}</span>}
                                 {selectedIds.size > 0 && <button className="btn btn-sm" style={{ fontSize: 11, background: '#ea580c', color: '#fff', border: 'none' }} onClick={() => { const bad = [...selectedIds].filter(id => normalizeSupply(products.find(p => p.id === id)?.supplyType) !== 'Mua ngoài'); if (bad.length) return alert('Chỉ chọn SP "Mua ngoài"'); router.push('/purchasing?createPO=1&products=' + [...selectedIds].join(',')); }}>🛒 PO ({selectedIds.size})</button>}
-                                <button className="btn btn-primary btn-sm" onClick={addNewProduct} style={{ fontSize: 11 }}>+ Thêm</button>
+                                <button className="btn btn-sm" onClick={addNewProduct} style={{ fontSize: 11, background: '#DBB35E', color: '#fff', border: 'none', fontWeight: 700, borderRadius: 6, padding: '5px 14px' }}>+ THÊM SẢN PHẨM</button>
                                 <button className="btn btn-ghost btn-sm" onClick={() => excelInputRef.current?.click()} title="Import Excel">📥</button>
                                 <input ref={excelInputRef} type="file" accept=".xlsx,.xls,.csv" style={{ display: 'none' }} onChange={handleExcelFile} />
                             </div>
@@ -385,38 +398,88 @@ export default function ProductsPage() {
                         <BulkActionsBar selectedIds={selectedIds} categories={flatCats} onDone={() => { setSelectedIds(new Set()); fetchProducts(); fetchCategories(); }} />
                         {loadingP ? <div style={{ padding: 40, textAlign: 'center', opacity: 0.4 }}>Đang tải...</div> : (
                             <div style={{ flex: 1, overflowY: 'auto' }}>
-                                <table className="data-table" style={{ fontSize: 12 }}>
-                                    <thead><tr>
-                                        <th style={{ width: 30, padding: '4px' }}><input type="checkbox" checked={filteredP.length > 0 && filteredP.every(p => selectedIds.has(p.id))} onChange={e => setSelectedIds(e.target.checked ? new Set(filteredP.map(p => p.id)) : new Set())} /></th>
-                                        <th style={{ width: 34 }}>Ảnh</th><th style={{ minWidth: 170 }}>Tên SP</th><th style={{ width: 45 }}>ĐVT</th>
-                                        <th style={{ width: 95 }}>Giá bán</th><th style={{ width: 55 }}>Tồn</th><th style={{ width: 95 }}>Nguồn</th><th style={{ width: 85 }}>TH</th><th style={{ width: 75 }}></th>
-                                    </tr></thead>
-                                    <tbody>{filteredP.map(p => {
-                                        const ss = stockStatus(p);
-                                        const isQE = quickEditP?.id === p.id;
-                                        return (<tr key={p.id} style={{ background: isQE ? 'rgba(99,102,241,0.06)' : ss === 'out' ? 'rgba(231,76,60,0.03)' : ss === 'low' ? 'rgba(234,88,12,0.02)' : '' }}>
-                                            <td style={{ padding: 4, textAlign: 'center' }}><input type="checkbox" checked={selectedIds.has(p.id)} onChange={e => { const n = new Set(selectedIds); e.target.checked ? n.add(p.id) : n.delete(p.id); setSelectedIds(n); }} /></td>
-                                            <td style={{ padding: 3, cursor: 'pointer' }} onClick={() => { imgUpTarget.current = p.id; imgUpRef.current?.click(); }}><div style={{ width: 30, height: 30, borderRadius: 4, overflow: 'hidden', border: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{p.image ? <img src={p.image} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="" /> : <span style={{ fontSize: 12, opacity: 0.2 }}>📷</span>}</div></td>
-                                            <td style={{ padding: '3px 6px' }}><div><div style={{ fontWeight: 600, fontSize: 12, color: 'var(--primary)', cursor: 'pointer' }} onClick={() => startEditP(p)}>{p.name}</div><div style={{ fontSize: 10, opacity: 0.4 }}><span style={{ fontFamily: 'monospace' }}>{p.code}</span>{p.category && <span style={{ marginLeft: 4, background: 'var(--surface-alt)', borderRadius: 3, padding: '0 4px' }}>{p.category}</span>}</div></div></td>
-                                            <td style={{ padding: '3px 4px' }}>{p.unit}</td>
-                                            <td style={{ fontWeight: 600, padding: '3px 4px' }}>{isQE
-                                                ? <input type="number" value={quickEditP.salePrice} onChange={e => setQuickEditP(q => ({ ...q, salePrice: Number(e.target.value) }))} style={{ width: 80, fontSize: 12, padding: '2px 4px', border: '1px solid var(--primary)', borderRadius: 4, background: 'var(--bg-input)', fontWeight: 600 }} />
-                                                : fmtCur(p.salePrice)}</td>
-                                            <td style={{ padding: '3px 4px' }}>{isService(p) ? <span style={{ opacity: 0.3 }}>—</span> : isQE
-                                                ? <input type="number" value={quickEditP.stock} onChange={e => setQuickEditP(q => ({ ...q, stock: Number(e.target.value) }))} style={{ width: 55, fontSize: 12, padding: '2px 4px', border: '1px solid var(--primary)', borderRadius: 4, background: 'var(--bg-input)' }} />
-                                                : <StockCell value={p.stock} status={ss} onSave={v => quickUpdateStock(p.id, v)} />}</td>
-                                            <td style={{ padding: '3px 4px' }}>{isQE
-                                                ? <select value={quickEditP.supplyType} onChange={e => setQuickEditP(q => ({ ...q, supplyType: e.target.value }))} style={{ fontSize: 10, padding: '2px 3px', border: '1px solid var(--primary)', borderRadius: 4, background: 'var(--bg-input)' }}>{SUPPLY_TYPES.map(t => <option key={t}>{t}</option>)}</select>
-                                                : <span className={`badge ${SUPPLY_BADGE[p.supplyType] || 'muted'}`} style={{ fontSize: 10 }}>{normalizeSupply(p.supplyType)}</span>}</td>
-                                            <td style={{ fontSize: 11, padding: '3px 4px' }}>{isQE
-                                                ? <select value={quickEditP.brand} onChange={e => setQuickEditP(q => ({ ...q, brand: e.target.value }))} style={{ fontSize: 10, padding: '2px 3px', border: '1px solid var(--primary)', borderRadius: 4, background: 'var(--bg-input)', maxWidth: 80 }}>{BRANDS.map(b => <option key={b.n} value={b.n}>{b.n || '-'}</option>)}</select>
-                                                : (p.brand || <span style={{ opacity: 0.2 }}>-</span>)}</td>
-                                            <td style={{ padding: '3px 4px' }}>{isQE
-                                                ? <div style={{ display: 'flex', gap: 2 }}><button className="btn btn-primary btn-sm" onClick={saveQuickP} style={{ fontSize: 11, padding: '1px 5px' }}>✓</button><button className="btn btn-ghost btn-sm" onClick={() => setQuickEditP(null)} style={{ fontSize: 11, padding: '1px 3px' }}>✕</button></div>
-                                                : <div style={{ display: 'flex', gap: 1 }}><button className="btn btn-ghost btn-sm" onClick={() => startQuickEditP(p)} style={{ fontSize: 11, padding: '1px 3px' }} title="Sửa nhanh">✏️</button><button className="btn btn-ghost btn-sm" onClick={() => duplicateP(p)} style={{ fontSize: 11, padding: '1px 3px' }}>📋</button><button className="btn btn-ghost btn-sm" onClick={() => deleteP(p.id)} style={{ fontSize: 11, padding: '1px 3px' }}>🗑️</button></div>}</td>
-                                        </tr>);
-                                    })}</tbody>
-                                </table>
+
+                                {/* ========= LIST VIEW ========= */}
+                                {viewMode === 'list' && (<>
+                                    <table className="data-table" style={{ fontSize: 12 }}>
+                                        <thead><tr>
+                                            <th style={{ width: 30, padding: '4px' }}><input type="checkbox" checked={filteredP.length > 0 && filteredP.every(p => selectedIds.has(p.id))} onChange={e => setSelectedIds(e.target.checked ? new Set(filteredP.map(p => p.id)) : new Set())} /></th>
+                                            <th style={{ width: 38 }}>Ảnh</th><th style={{ minWidth: 160 }}>Tên SP</th><th style={{ width: 70 }}>Mã SP</th><th style={{ width: 45 }}>ĐVT</th>
+                                            <th style={{ width: 100 }}>Giá bán</th><th style={{ width: 70 }}>Tồn kho</th><th style={{ width: 100 }}>Nguồn</th><th style={{ width: 85 }}>TH</th><th style={{ width: 75 }}></th>
+                                        </tr></thead>
+                                        <tbody>{filteredP.map(p => {
+                                            const ss = stockStatus(p);
+                                            const isQE = quickEditP?.id === p.id;
+                                            const sc = SUPPLY_COLOR[normalizeSupply(p.supplyType)] || { bg: '#f5f5f5', color: '#666' };
+                                            const sd = STOCK_DOT[ss] || STOCK_DOT.ok;
+                                            return (<tr key={p.id} style={{ background: isQE ? 'rgba(99,102,241,0.06)' : '' }}>
+                                                <td style={{ padding: 4, textAlign: 'center' }}><input type="checkbox" checked={selectedIds.has(p.id)} onChange={e => { const n = new Set(selectedIds); e.target.checked ? n.add(p.id) : n.delete(p.id); setSelectedIds(n); }} /></td>
+                                                <td style={{ padding: 3, cursor: 'pointer' }} onClick={() => { imgUpTarget.current = p.id; imgUpRef.current?.click(); }}><div style={{ width: 34, height: 34, borderRadius: 5, overflow: 'hidden', border: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f9f9f9' }}>{p.image ? <img src={p.image} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="" /> : <span style={{ fontSize: 14, opacity: 0.15 }}>📷</span>}</div></td>
+                                                <td style={{ padding: '4px 6px' }}><div style={{ fontWeight: 600, fontSize: 12.5, color: '#234093', cursor: 'pointer' }} onClick={() => startEditP(p)}>{p.name}</div>{p.category && <span style={{ fontSize: 10, opacity: 0.45, background: 'var(--surface-alt)', borderRadius: 3, padding: '0 4px' }}>{p.category}</span>}</td>
+                                                <td style={{ padding: '4px 4px' }}><div style={{ display: 'flex', alignItems: 'center', gap: 2 }}><span style={{ fontFamily: 'monospace', fontSize: 10.5, opacity: 0.55 }}>{p.code}</span><button onClick={() => copyCode(p.code)} style={{ border: 'none', background: 'none', cursor: 'pointer', fontSize: 10, opacity: 0.3, padding: 0 }} title="Copy mã SP">📋</button></div></td>
+                                                <td style={{ padding: '4px 4px', fontSize: 11 }}>{p.unit}</td>
+                                                <td style={{ fontWeight: 600, padding: '4px 4px' }}>{isQE
+                                                    ? <input type="number" value={quickEditP.salePrice} onChange={e => setQuickEditP(q => ({ ...q, salePrice: Number(e.target.value) }))} style={{ width: 85, fontSize: 12, padding: '2px 4px', border: '1px solid #234093', borderRadius: 4, background: 'var(--bg-input)', fontWeight: 600 }} />
+                                                    : fmtCur(p.salePrice)}</td>
+                                                <td style={{ padding: '4px 4px' }}>{isService(p) ? <span style={{ opacity: 0.3 }}>—</span> : isQE
+                                                    ? <input type="number" value={quickEditP.stock} onChange={e => setQuickEditP(q => ({ ...q, stock: Number(e.target.value) }))} style={{ width: 55, fontSize: 12, padding: '2px 4px', border: '1px solid #234093', borderRadius: 4, background: 'var(--bg-input)' }} />
+                                                    : <div style={{ display: 'flex', alignItems: 'center', gap: 4, cursor: 'pointer' }} onClick={() => { /* StockCell handles click */ }}><span style={{ width: 7, height: 7, borderRadius: '50%', background: sd.color, display: 'inline-block', flexShrink: 0 }} /><StockCell value={p.stock} status={ss} onSave={v => quickUpdateStock(p.id, v)} /></div>}</td>
+                                                <td style={{ padding: '4px 4px' }}>{isQE
+                                                    ? <select value={quickEditP.supplyType} onChange={e => setQuickEditP(q => ({ ...q, supplyType: e.target.value }))} style={{ fontSize: 10, padding: '2px 3px', border: '1px solid #234093', borderRadius: 4, background: 'var(--bg-input)' }}>{SUPPLY_TYPES.map(t => <option key={t}>{t}</option>)}</select>
+                                                    : <span style={{ fontSize: 10, padding: '2px 8px', borderRadius: 10, background: sc.bg, color: sc.color, fontWeight: 600, whiteSpace: 'nowrap' }}>{normalizeSupply(p.supplyType)}</span>}</td>
+                                                <td style={{ fontSize: 11, padding: '4px 4px' }}>{isQE
+                                                    ? <select value={quickEditP.brand} onChange={e => setQuickEditP(q => ({ ...q, brand: e.target.value }))} style={{ fontSize: 10, padding: '2px 3px', border: '1px solid #234093', borderRadius: 4, background: 'var(--bg-input)', maxWidth: 80 }}>{BRANDS.map(b => <option key={b.n} value={b.n}>{b.n || '-'}</option>)}</select>
+                                                    : (p.brand || <span style={{ opacity: 0.2 }}>-</span>)}</td>
+                                                <td style={{ padding: '4px 4px' }}>{isQE
+                                                    ? <div style={{ display: 'flex', gap: 2 }}><button className="btn btn-sm" onClick={saveQuickP} style={{ fontSize: 11, padding: '2px 6px', background: '#234093', color: '#fff', border: 'none', borderRadius: 4 }}>✓</button><button className="btn btn-ghost btn-sm" onClick={() => setQuickEditP(null)} style={{ fontSize: 11, padding: '2px 4px' }}>✕</button></div>
+                                                    : <div style={{ display: 'flex', gap: 1 }}><button className="btn btn-ghost btn-sm" onClick={() => startQuickEditP(p)} style={{ fontSize: 11, padding: '1px 3px' }} title="Sửa nhanh">✏️</button><button className="btn btn-ghost btn-sm" onClick={() => duplicateP(p)} style={{ fontSize: 11, padding: '1px 3px' }}>📋</button><button className="btn btn-ghost btn-sm" onClick={() => deleteP(p.id)} style={{ fontSize: 11, padding: '1px 3px' }}>🗑️</button></div>}</td>
+                                            </tr>);
+                                        })}</tbody>
+                                    </table>
+                                </>)}
+
+                                {/* ========= GRID/CARD VIEW ========= */}
+                                {viewMode === 'grid' && (
+                                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(195px, 1fr))', gap: 12, padding: 12 }}>
+                                        {filteredP.map(p => {
+                                            const ss = stockStatus(p);
+                                            const sc = SUPPLY_COLOR[normalizeSupply(p.supplyType)] || { bg: '#f5f5f5', color: '#666' };
+                                            const sd = STOCK_DOT[ss] || STOCK_DOT.ok;
+                                            return (
+                                                <div key={p.id} className="product-card" style={{ border: '1px solid var(--border-color)', borderRadius: 10, overflow: 'hidden', background: 'var(--bg-card)', transition: 'box-shadow .15s, transform .15s', cursor: 'default' }}>
+                                                    {/* Image */}
+                                                    <div onClick={() => { imgUpTarget.current = p.id; imgUpRef.current?.click(); }} style={{ width: '100%', aspectRatio: '4/3', background: '#f5f3ef', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', overflow: 'hidden', position: 'relative' }}>
+                                                        {p.image
+                                                            ? <img src={p.image} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                                            : <span style={{ fontSize: 40, opacity: 0.08 }}>📷</span>}
+                                                        <div className="card-img-overlay" style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,.35)', display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: 0, transition: 'opacity .15s', color: '#fff', fontSize: 16 }}>📤 Đổi ảnh</div>
+                                                    </div>
+                                                    {/* Body */}
+                                                    <div style={{ padding: '10px 12px' }}>
+                                                        <div style={{ fontWeight: 700, fontSize: 13, color: '#234093', cursor: 'pointer', lineHeight: 1.3, marginBottom: 4, minHeight: 34 }} onClick={() => startEditP(p)}>{p.name}</div>
+                                                        <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: 6 }}>
+                                                            <span style={{ fontFamily: 'monospace', fontSize: 10.5, opacity: 0.45 }}>{p.code}</span>
+                                                            <button onClick={() => copyCode(p.code)} style={{ border: 'none', background: 'none', cursor: 'pointer', fontSize: 11, opacity: 0.35, padding: 0 }} title="Copy mã">📋</button>
+                                                        </div>
+                                                        <div style={{ marginBottom: 6 }}><span style={{ fontSize: 10, padding: '2px 8px', borderRadius: 10, background: sc.bg, color: sc.color, fontWeight: 600 }}>{normalizeSupply(p.supplyType)}</span></div>
+                                                        <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 4 }}>{fmtCur(p.salePrice)} <span style={{ fontSize: 10, fontWeight: 400, opacity: 0.5 }}>/ {p.unit}</span></div>
+                                                        <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11 }}>
+                                                            <span style={{ width: 8, height: 8, borderRadius: '50%', background: sd.color, display: 'inline-block' }} />
+                                                            <span style={{ color: sd.color, fontWeight: 600 }}>{sd.label}</span>
+                                                            {!isService(p) && <span style={{ opacity: 0.45 }}>({p.stock})</span>}
+                                                        </div>
+                                                    </div>
+                                                    {/* Footer actions */}
+                                                    <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 2, padding: '6px 10px', borderTop: '1px solid var(--border-color)' }}>
+                                                        <button className="btn btn-ghost btn-sm" onClick={() => startEditP(p)} style={{ fontSize: 11 }}>Sửa</button>
+                                                        <button className="btn btn-ghost btn-sm" onClick={() => deleteP(p.id)} style={{ fontSize: 11, color: '#ef4444' }}>Xóa</button>
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                )}
+
                                 {hasMore && <div ref={sentinelRef} style={{ padding: 16, textAlign: 'center', opacity: 0.4, fontSize: 11 }}>Đang tải thêm...</div>}
                                 {!hasMore && filteredP.length > 0 && <div style={{ padding: 10, textAlign: 'center', opacity: 0.25, fontSize: 10 }}>— Hết —</div>}
                             </div>
@@ -861,9 +924,14 @@ export default function ProductsPage() {
             <input ref={imgUpRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={handleImgUpload} />
 
             <style>{`
+                @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap');
+                .data-table, .product-card, .form-input, .form-select, .btn { font-family: 'Montserrat', sans-serif; }
                 .thumb-wrap { position: relative; }
                 .thumb-wrap .thumb-overlay { position: absolute; inset: 0; border-radius: 5px; background: rgba(0,0,0,0.45); display: flex; align-items: center; justify-content: center; opacity: 0; transition: opacity 0.15s; font-size: 13px; color: #fff; }
                 .thumb-wrap:hover .thumb-overlay { opacity: 1; }
+                .product-card:hover { box-shadow: 0 4px 16px rgba(35,64,147,0.12); transform: translateY(-2px); }
+                .product-card .card-img-overlay { opacity: 0; }
+                .product-card:hover .card-img-overlay { opacity: 1 !important; }
             `}</style>
         </div>
     );
