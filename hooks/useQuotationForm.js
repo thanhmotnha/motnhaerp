@@ -239,6 +239,73 @@ export default function useQuotationForm() {
     };
 
     // ========================================
+    // SUB-ITEM (phụ kiện) handlers
+    // ========================================
+    const addSubItem = (mi, si, ii) => {
+        const mcs = [...mainCategories];
+        const sub = mcs[mi].subcategories[si];
+        const item = { ...sub.items[ii] };
+        item.subItems = [...(item.subItems || []), {
+            _key: Date.now() + Math.random(),
+            name: '', unit: 'cái', quantity: 0, volume: 0,
+            unitPrice: 0, amount: 0, description: '',
+            length: 0, width: 0, height: 0, image: '',
+        }];
+        const newItems = [...sub.items];
+        newItems[ii] = item;
+        mcs[mi] = {
+            ...mcs[mi],
+            subcategories: mcs[mi].subcategories.map((s, i) =>
+                i === si ? { ...s, items: newItems } : s
+            ),
+        };
+        setMainCategories(mcs);
+    };
+
+    const removeSubItem = (mi, si, ii, sii) => {
+        const mcs = [...mainCategories];
+        const sub = mcs[mi].subcategories[si];
+        const item = { ...sub.items[ii] };
+        item.subItems = (item.subItems || []).filter((_, j) => j !== sii);
+        const newItems = [...sub.items];
+        newItems[ii] = item;
+        mcs[mi] = {
+            ...mcs[mi],
+            subcategories: mcs[mi].subcategories.map((s, i) =>
+                i === si ? { ...s, items: newItems } : s
+            ),
+        };
+        setMainCategories(recalc(mcs));
+    };
+
+    const updateSubItem = (mi, si, ii, sii, field, value) => {
+        const mcs = [...mainCategories];
+        const sub = mcs[mi].subcategories[si];
+        const item = { ...sub.items[ii] };
+        const subItems = [...(item.subItems || [])];
+        const si_item = { ...subItems[sii] };
+        if (['quantity', 'unitPrice', 'length', 'width', 'height'].includes(field)) {
+            si_item[field] = parseFloat(value) || 0;
+        } else {
+            si_item[field] = value;
+        }
+        // Recalc sub-item amount
+        const qty = si_item.quantity || 0;
+        si_item.amount = qty * (si_item.unitPrice || 0);
+        subItems[sii] = si_item;
+        item.subItems = subItems;
+        const newItems = [...sub.items];
+        newItems[ii] = item;
+        mcs[mi] = {
+            ...mcs[mi],
+            subcategories: mcs[mi].subcategories.map((s, i) =>
+                i === si ? { ...s, items: newItems } : s
+            ),
+        };
+        setMainCategories(recalc(mcs));
+    };
+
+    // ========================================
     // Helper: build item from library/product
     // ========================================
     const libItemToQuotationItem = (libItem) => ({
@@ -512,6 +579,8 @@ export default function useQuotationForm() {
         addSubcategory, removeSubcategory, updateSubcategoryName, updateSubcategoryImage,
         // Item handlers
         addItem, removeItem, updateItem,
+        // Sub-item handlers
+        addSubItem, removeSubItem, updateSubItem,
         // Tree state
         treeSearch, setTreeSearch,
         expandedNodes, toggleNode,
