@@ -80,6 +80,8 @@ export default function ProductsPage() {
     const excelInputRef = useRef(null);
     const [importPreview, setImportPreview] = useState(null);
     const [importing, setImporting] = useState(false);
+    const [showPasteModal, setShowPasteModal] = useState(false);
+    const [pasteText, setPasteText] = useState('');
     const fileInputRef = useRef(null);
     const [uploading, setUploading] = useState(null);
     const [uploadTarget, setUploadTarget] = useState(null);
@@ -324,41 +326,37 @@ export default function ProductsPage() {
         setImportPreview(mapped);
         e.target.value = '';
     };
-    const handlePasteExcel = async () => {
-        try {
-            const text = await navigator.clipboard.readText();
-            if (!text?.trim()) return alert('Clipboard trống! Copy dữ liệu từ Excel trước.');
-            const lines = text.split('\n').map(l => l.split('\t').map(c => c.trim()));
-            if (lines.length < 2) return alert('Cần ít nhất 2 dòng (header + data)');
-            const headerMap = { 'tên': 'name', 'tên sản phẩm': 'name', 'name': 'name', 'tên sp': 'name', 'danh mục': 'category', 'category': 'category', 'đvt': 'unit', 'unit': 'unit', 'đơn vị': 'unit', 'giá bán': 'salePrice', 'saleprice': 'salePrice', 'giá nhập': 'importPrice', 'importprice': 'importPrice', 'tồn kho': 'stock', 'stock': 'stock', 'tồn': 'stock', 'thương hiệu': 'brand', 'brand': 'brand', 'nguồn cung': 'supplyType', 'supplytype': 'supplyType', 'nhà cung cấp': 'supplier', 'supplier': 'supplier', 'tồn tối thiểu': 'minStock', 'minstock': 'minStock' };
-            const headers = lines[0].map(h => headerMap[h.toLowerCase()] || null);
-            if (!headers.includes('name')) return alert('Không tìm thấy cột "Tên" trong header. Hàng đầu phải là tiêu đề.');
-            const existingNames = new Set(products.map(p => p.name.toLowerCase().trim()));
-            const seenNames = new Set();
-            const mapped = lines.slice(1).filter(cols => cols.some(c => c)).map((cols, idx) => {
-                const row = {};
-                headers.forEach((key, i) => { if (key && cols[i]) row[key] = cols[i]; });
-                const name = (row.name || '').trim();
-                const salePrice = Number(row.salePrice || 0);
-                const importPrice = Number(row.importPrice || 0);
-                const stock = Number(row.stock || 0);
-                const errors = [];
-                if (!name) errors.push('Thiếu tên');
-                if (name && existingNames.has(name.toLowerCase())) errors.push('Trùng SP đã có');
-                if (name && seenNames.has(name.toLowerCase())) errors.push('Trùng trong paste');
-                if (name) seenNames.add(name.toLowerCase());
-                return {
-                    name, category: row.category || '', unit: row.unit || 'cái', salePrice, importPrice,
-                    stock, minStock: Number(row.minStock || 0), brand: row.brand || '',
-                    supplyType: row.supplyType || 'Mua ngoài', supplier: row.supplier || '',
-                    _errors: errors, _enabled: errors.length === 0, _row: idx + 2,
-                };
-            }).filter(p => p.name || p._errors.length > 0);
-            if (!mapped.length) return alert('Không parse được dữ liệu nào từ clipboard');
-            setImportPreview(mapped);
-        } catch (err) {
-            alert('Lỗi đọc clipboard: ' + err.message + '\nHãy cho phép trình duyệt truy cập clipboard.');
-        }
+    const parsePastedText = (text) => {
+        if (!text?.trim()) return alert('Chưa có dữ liệu! Paste từ Excel vào ô bên trên.');
+        const lines = text.split('\n').map(l => l.split('\t').map(c => c.trim()));
+        if (lines.length < 2) return alert('Cần ít nhất 2 dòng (header + data)');
+        const headerMap = { 'tên': 'name', 'tên sản phẩm': 'name', 'name': 'name', 'tên sp': 'name', 'danh mục': 'category', 'category': 'category', 'đvt': 'unit', 'unit': 'unit', 'đơn vị': 'unit', 'giá bán': 'salePrice', 'saleprice': 'salePrice', 'giá nhập': 'importPrice', 'importprice': 'importPrice', 'tồn kho': 'stock', 'stock': 'stock', 'tồn': 'stock', 'thương hiệu': 'brand', 'brand': 'brand', 'nguồn cung': 'supplyType', 'supplytype': 'supplyType', 'nhà cung cấp': 'supplier', 'supplier': 'supplier', 'tồn tối thiểu': 'minStock', 'minstock': 'minStock' };
+        const headers = lines[0].map(h => headerMap[h.toLowerCase()] || null);
+        if (!headers.includes('name')) return alert('Không tìm thấy cột "Tên" trong header. Hàng đầu tiên phải là tiêu đề: Tên, Danh mục, ĐVT, Giá bán...');
+        const existingNames = new Set(products.map(p => p.name.toLowerCase().trim()));
+        const seenNames = new Set();
+        const mapped = lines.slice(1).filter(cols => cols.some(c => c)).map((cols, idx) => {
+            const row = {};
+            headers.forEach((key, i) => { if (key && cols[i]) row[key] = cols[i]; });
+            const name = (row.name || '').trim();
+            const salePrice = Number(row.salePrice || 0);
+            const importPrice = Number(row.importPrice || 0);
+            const stock = Number(row.stock || 0);
+            const errors = [];
+            if (!name) errors.push('Thiếu tên');
+            if (name && existingNames.has(name.toLowerCase())) errors.push('Trùng SP đã có');
+            if (name && seenNames.has(name.toLowerCase())) errors.push('Trùng trong paste');
+            if (name) seenNames.add(name.toLowerCase());
+            return {
+                name, category: row.category || '', unit: row.unit || 'cái', salePrice, importPrice,
+                stock, minStock: Number(row.minStock || 0), brand: row.brand || '',
+                supplyType: row.supplyType || 'Mua ngoài', supplier: row.supplier || '',
+                _errors: errors, _enabled: errors.length === 0, _row: idx + 2,
+            };
+        }).filter(p => p.name || p._errors.length > 0);
+        if (!mapped.length) return alert('Không parse được dữ liệu nào');
+        setShowPasteModal(false); setPasteText('');
+        setImportPreview(mapped);
     };
     const toggleImportRow = (idx) => setImportPreview(prev => prev.map((p, i) => i === idx ? { ...p, _enabled: !p._enabled } : p));
     const confirmImport = async () => {
@@ -460,7 +458,7 @@ export default function ProductsPage() {
                                 <button className="btn btn-sm" onClick={addNewProduct} style={{ fontSize: 11, background: '#DBB35E', color: '#fff', border: 'none', fontWeight: 700, borderRadius: 6, padding: '5px 14px' }}>+ THÊM SẢN PHẨM</button>
                                 <button className="btn btn-ghost btn-sm" onClick={() => excelInputRef.current?.click()} title="Import Excel">📥</button>
                                 <input ref={excelInputRef} type="file" accept=".xlsx,.xls,.csv" style={{ display: 'none' }} onChange={handleExcelFile} />
-                                <button className="btn btn-ghost btn-sm" onClick={handlePasteExcel} title="Paste từ Excel (Ctrl+V)">📋 Paste</button>
+                                <button className="btn btn-ghost btn-sm" onClick={() => { setPasteText(''); setShowPasteModal(true); }} title="Paste từ Excel">📋 Paste</button>
                             </div>
                         </div>
                         <BulkActionsBar selectedIds={selectedIds} categories={flatCats} onDone={() => { setSelectedIds(new Set()); fetchProducts(); fetchCategories(); }} />
@@ -954,6 +952,36 @@ export default function ProductsPage() {
                         <div className="modal-footer">
                             <button className="btn btn-ghost" onClick={() => setShowAddModal(false)}>Hủy</button>
                             <button className="btn btn-primary" onClick={saveNewProduct}>Tạo sản phẩm</button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Paste from Excel modal */}
+            {showPasteModal && (
+                <div className="modal-overlay" onClick={() => setShowPasteModal(false)}>
+                    <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 600 }}>
+                        <div className="modal-header">
+                            <h3 style={{ margin: 0 }}>📋 Paste từ Excel</h3>
+                            <button className="modal-close" onClick={() => setShowPasteModal(false)}>×</button>
+                        </div>
+                        <div className="modal-body">
+                            <div style={{ padding: '8px 12px', background: 'rgba(35,64,147,0.06)', borderRadius: 6, fontSize: 12, color: 'var(--text-secondary)', marginBottom: 10, borderLeft: '3px solid #234093' }}>
+                                💡 Copy các ô từ Excel (bao gồm hàng tiêu đề), rồi <strong>Ctrl+V</strong> vào ô bên dưới.
+                                <br />Header hỗ trợ: <strong>Tên, Danh mục, ĐVT, Giá bán, Giá nhập, Tồn kho, Thương hiệu, Nguồn cung, Nhà cung cấp</strong>
+                            </div>
+                            <textarea
+                                autoFocus
+                                value={pasteText}
+                                onChange={e => setPasteText(e.target.value)}
+                                placeholder="Ctrl+V paste dữ liệu từ Excel vào đây...&#10;&#10;Ví dụ:&#10;Tên&#9;Danh mục&#9;ĐVT&#9;Giá bán&#10;Bản lề Blum&#9;Phụ kiện nội thất&#9;bộ&#9;350000"
+                                style={{ width: '100%', minHeight: 180, fontSize: 12, fontFamily: 'monospace', padding: 10, border: '1px solid var(--border-color)', borderRadius: 6, resize: 'vertical', background: 'var(--bg-input)' }}
+                            />
+                            {pasteText && <div style={{ fontSize: 11, opacity: 0.5, marginTop: 4 }}>{pasteText.split('\n').filter(l => l.trim()).length} dòng phát hiện</div>}
+                        </div>
+                        <div className="modal-footer">
+                            <button className="btn btn-ghost" onClick={() => setShowPasteModal(false)}>Hủy</button>
+                            <button className="btn btn-primary" onClick={() => parsePastedText(pasteText)} disabled={!pasteText.trim()}>🔍 Xử lý & Preview</button>
                         </div>
                     </div>
                 </div>
