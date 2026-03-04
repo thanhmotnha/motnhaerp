@@ -1,7 +1,7 @@
 'use client';
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { apiFetch } from '@/lib/fetchClient';
-import { emptyItem, emptySubcategory, emptyMainCategory, CUSTOM_FURNITURE_CAT } from '@/lib/quotation-constants';
+import { emptyItem, emptySubcategory, emptyMainCategory, PRESET_CATEGORIES } from '@/lib/quotation-constants';
 
 export default function useQuotationForm() {
     // Reference data
@@ -31,7 +31,6 @@ export default function useQuotationForm() {
     const [mainCategories, setMainCategories] = useState([emptyMainCategory()]);
     const [activeMainIdx, setActiveMainIdx] = useState(0);
     const [activeSubIdx, setActiveSubIdx] = useState(0);
-    const [deductions, setDeductions] = useState([]);
 
     // Load reference data
     useEffect(() => {
@@ -86,45 +85,21 @@ export default function useQuotationForm() {
     const toggleNode = (key) => setExpandedNodes(prev => ({ ...prev, [key]: !prev[key] }));
 
     // ========================================
-    // RECALC: Calculate all totals (volume-based)
+    // RECALC: Calculate all totals
     // ========================================
-    const calcVolume = (item) => {
-        const l = Number(item.length) || 0;
-        const w = Number(item.width) || 0;
-        const h = Number(item.height) || 0;
-        const qty = Number(item.quantity) || 0;
-        const unit = (item.unit || '').toLowerCase().trim();
-        // Unit-aware volume calculation (default qty=1 when dims entered)
-        if (unit === 'md' || unit === 'mét dài' || unit === 'm') {
-            return l > 0 ? l * (qty || 1) : qty;
-        }
-        if (unit === 'm²' || unit === 'm2') {
-            return (l > 0 && w > 0) ? l * w * (qty || 1) : qty;
-        }
-        if (unit === 'm³' || unit === 'm3') {
-            return (l > 0 && w > 0 && h > 0) ? l * w * h * (qty || 1) : qty;
-        }
-        // For bộ, cái, chiếc, etc.: volume = quantity
-        return qty;
-    };
-
     const recalc = useCallback((mcs) => {
         return mcs.map(mc => {
             const subs = mc.subcategories.map(sub => {
                 const items = sub.items.map(item => {
-                    const volume = calcVolume(item);
+                    const l = Number(item.length) || 0;
+                    const w = Number(item.width) || 0;
+                    const h = Number(item.height) || 0;
+                    let qty = Number(item.quantity) || 0;
+                    if (l && w) qty = l * w * (h || 1);
                     const unitPrice = Number(item.unitPrice) || 0;
-                    const amount = volume * unitPrice;
-                    // Sub-items
-                    const subItems = (item.subItems || []).map(si => {
-                        const sv = calcVolume(si);
-                        const sp = Number(si.unitPrice) || 0;
-                        return { ...si, volume: sv, amount: sv * sp };
-                    });
-                    const subTotal = subItems.reduce((s, si) => s + si.amount, 0);
-                    return { ...item, volume, amount, subItems };
+                    return { ...item, quantity: qty, amount: qty * unitPrice };
                 });
-                const subtotal = items.reduce((s, i) => s + i.amount + (i.subItems || []).reduce((ss, si) => ss + si.amount, 0), 0);
+                const subtotal = items.reduce((s, i) => s + i.amount, 0);
                 return { ...sub, items, subtotal };
             });
             const subtotal = subs.reduce((s, sub) => s + sub.subtotal, 0);
@@ -154,6 +129,20 @@ export default function useQuotationForm() {
         const mcs = [...mainCategories];
         mcs[mi] = { ...mcs[mi], name };
         setMainCategories(mcs);
+    };
+
+    // Apply preset category → set name + auto-create subcategories
+    const applyPresetCategory = (mi, presetName) => {
+        const preset = PRESET_CATEGORIES.find(p => p.name === presetName);
+        if (!preset) return;
+        const mcs = [...mainCategories];
+        mcs[mi] = {
+            ...mcs[mi],
+            name: preset.name,
+            subcategories: preset.subcategories.map(subName => emptySubcategory(subName)),
+        };
+        setMainCategories(mcs);
+        setActiveSubIdx(0);
     };
 
     // ========================================
@@ -258,86 +247,18 @@ export default function useQuotationForm() {
         mainMaterial: libItem.mainMaterial || 0, auxMaterial: libItem.auxMaterial || 0,
         labor: libItem.labor || 0, unitPrice: libItem.unitPrice || 0, amount: 0,
         description: libItem.description || '', image: libItem.image || '',
-        length: 0, width: 0, height: 0, volume: 0, subItems: [],
+        length: 0, width: 0, height: 0,
     });
 
-    const prodToQuotationItem = async (prod) => {
-        const isCustomFurniture = (prod.category || '').toLowerCase() === CUSTOM_FURNITURE_CAT.toLowerCase();
-        const item = {
-            _key: Date.now() + Math.random(),
-            name: prod.name, unit: prod.unit || 'cái', quantity: 1,
-            mainMaterial: prod.salePrice || 0, auxMaterial: 0, labor: 0,
-            unitPrice: prod.salePrice || 0, amount: 0,
-            description: `${prod.brand ? prod.brand + ' - ' : ''}${prod.description || ''}`.trim(),
-            image: isCustomFurniture ? '' : (prod.image || ''),
-            length: 0, width: 0, height: 0,
-            productId: prod.id || null, volume: 0, subItems: [],
-        };
-        // Auto-populate sub-items from BOM
-        if (prod.id) {
-            try {
-                const bom = await apiFetch(`/api/products/${prod.id}/bom`);
-                if (bom && bom.length > 0) {
-                    item.subItems = bom.map(b => ({
-                        _key: Date.now() + Math.random(),
-                        name: b.component?.name || b.notes || '',
-                        unit: b.unit || b.component?.unit || 'cái',
-                        quantity: b.quantity || 0,
-                        unitPrice: b.component?.salePrice || 0,
-                        amount: (b.quantity || 0) * (b.component?.salePrice || 0),
-                        description: b.notes || '',
-                        image: b.component?.image || '',
-                        productId: b.component?.id || null,
-                        length: 0, width: 0, height: 0, volume: 0,
-                        mainMaterial: 0, auxMaterial: 0, labor: 0,
-                    }));
-                }
-            } catch { /* no BOM, that's fine */ }
-        }
-        return item;
-    };
-
-    // ========================================
-    // SUB-ITEM handlers (phụ kiện đi kèm)
-    // ========================================
-    const addSubItem = (mi, si, ii) => {
-        const mcs = [...mainCategories];
-        const item = { ...mcs[mi].subcategories[si].items[ii] };
-        item.subItems = [...(item.subItems || []), { ...emptyItem(), _key: Date.now() + Math.random() }];
-        const newItems = [...mcs[mi].subcategories[si].items];
-        newItems[ii] = item;
-        mcs[mi] = { ...mcs[mi], subcategories: mcs[mi].subcategories.map((s, i) => i === si ? { ...s, items: newItems } : s) };
-        setMainCategories(mcs);
-    };
-
-    const removeSubItem = (mi, si, ii, sii) => {
-        const mcs = [...mainCategories];
-        const item = { ...mcs[mi].subcategories[si].items[ii] };
-        item.subItems = (item.subItems || []).filter((_, j) => j !== sii);
-        const newItems = [...mcs[mi].subcategories[si].items];
-        newItems[ii] = item;
-        mcs[mi] = { ...mcs[mi], subcategories: mcs[mi].subcategories.map((s, i) => i === si ? { ...s, items: newItems } : s) };
-        setMainCategories(recalc(mcs));
-    };
-
-    const updateSubItem = (mi, si, ii, sii, field, value) => {
-        const mcs = [...mainCategories];
-        const item = { ...mcs[mi].subcategories[si].items[ii] };
-        const subItems = [...(item.subItems || [])];
-        const sub = { ...subItems[sii] };
-        if (['quantity', 'unitPrice', 'length', 'width', 'height', 'mainMaterial', 'auxMaterial', 'labor'].includes(field)) {
-            sub[field] = parseFloat(value) || 0;
-            if (['mainMaterial', 'auxMaterial', 'labor'].includes(field)) {
-                sub.unitPrice = (sub.mainMaterial || 0) + (sub.auxMaterial || 0) + (sub.labor || 0);
-            }
-        } else { sub[field] = value; }
-        subItems[sii] = sub;
-        item.subItems = subItems;
-        const newItems = [...mcs[mi].subcategories[si].items];
-        newItems[ii] = item;
-        mcs[mi] = { ...mcs[mi], subcategories: mcs[mi].subcategories.map((s, i) => i === si ? { ...s, items: newItems } : s) };
-        setMainCategories(recalc(mcs));
-    };
+    const prodToQuotationItem = (prod) => ({
+        _key: Date.now() + Math.random(),
+        name: prod.name, unit: prod.unit || 'cái', quantity: 0,
+        mainMaterial: prod.salePrice || 0, auxMaterial: 0, labor: 0,
+        unitPrice: prod.salePrice || 0, amount: 0,
+        description: `${prod.brand ? prod.brand + ' - ' : ''}${prod.description || ''}`.trim(),
+        image: prod.image || '', length: 0, width: 0, height: 0,
+        productId: prod.id || null,
+    });
 
     // ========================================
     // Tree add handlers (single)
@@ -358,31 +279,16 @@ export default function useQuotationForm() {
     };
 
     // Product → add as LINE ITEM (level 3) — unchanged
-    const addFromProduct = async (prod) => {
+    const addFromProduct = (prod) => {
         const mi = activeMainIdx;
         const si = activeSubIdx;
         const mcs = [...mainCategories];
         const sub = mcs[mi].subcategories[si];
         const existing = sub.items.filter(i => i.name.trim() !== '');
-        const newItem = await prodToQuotationItem(prod);
         mcs[mi] = {
             ...mcs[mi],
             subcategories: mcs[mi].subcategories.map((s, i) =>
-                i === si ? { ...s, items: [...existing, newItem] } : s
-            ),
-        };
-        setMainCategories(recalc(mcs));
-    };
-
-    // Configured product → add pre-built item directly (called by ProductConfigurator)
-    const addFromProductConfigured = (mi, si, quotationItem) => {
-        const mcs = [...mainCategories];
-        const sub = mcs[mi].subcategories[si];
-        const existing = sub.items.filter(i => i.name.trim() !== '');
-        mcs[mi] = {
-            ...mcs[mi],
-            subcategories: mcs[mi].subcategories.map((s, i) =>
-                i === si ? { ...s, items: [...existing, quotationItem] } : s
+                i === si ? { ...s, items: [...existing, prodToQuotationItem(prod)] } : s
             ),
         };
         setMainCategories(recalc(mcs));
@@ -407,14 +313,14 @@ export default function useQuotationForm() {
         setActiveSubIdx(mcs[mi].subcategories.length - 1);
     };
 
-    const addBulkFromProducts = async (prods) => {
+    const addBulkFromProducts = (prods) => {
         if (!prods.length) return;
         const mi = activeMainIdx;
         const si = activeSubIdx;
         const mcs = [...mainCategories];
         const sub = mcs[mi].subcategories[si];
         const existing = sub.items.filter(i => i.name.trim() !== '');
-        const newItems = await Promise.all(prods.map(p => prodToQuotationItem(p)));
+        const newItems = prods.map(prodToQuotationItem);
         mcs[mi] = {
             ...mcs[mi],
             subcategories: mcs[mi].subcategories.map((s, i) =>
@@ -441,15 +347,14 @@ export default function useQuotationForm() {
         setActiveSubIdx(mcs[mi].subcategories.length - 1);
     };
 
-    const addCategoryFromProducts = async (catName, prods) => {
+    const addCategoryFromProducts = (catName, prods) => {
         if (!prods.length) return;
         const mi = activeMainIdx;
         const mcs = [...mainCategories];
-        const items = await Promise.all(prods.map(p => prodToQuotationItem(p)));
         const newSub = {
             _key: Date.now() + Math.random(),
             name: catName,
-            items,
+            items: prods.map(prodToQuotationItem),
             subtotal: 0,
         };
         mcs[mi] = { ...mcs[mi], subcategories: [...mcs[mi].subcategories, newSub] };
@@ -538,30 +443,16 @@ export default function useQuotationForm() {
     // CALCULATIONS
     // ========================================
     const directCost = mainCategories.reduce((s, mc) => s + mc.subtotal, 0);
-    const beforeAdjust = directCost + (form.otherFee || 0);
+    const managementFee = directCost * (form.managementFeeRate || 0) / 100;
+    const beforeAdjust = directCost + managementFee + (form.designFee || 0) + (form.otherFee || 0);
     const adjustmentAmount = form.adjustmentType === 'percent'
         ? beforeAdjust * (form.adjustment || 0) / 100
         : (form.adjustment || 0);
     const total = beforeAdjust + adjustmentAmount;
     const discountAmount = total * (form.discount || 0) / 100;
     const afterDiscount = total - discountAmount;
-    const totalDeductions = deductions.reduce((s, d) => s + (Number(d.amount) || 0), 0);
-    const grandTotal = afterDiscount - totalDeductions;
-
-    // Deduction handlers
-    const addDeduction = (type) => {
-        setDeductions(prev => [...prev, {
-            _key: Date.now() + Math.random(),
-            type, // 'khuyến mại' or 'giảm trừ'
-            name: '',
-            amount: 0,
-            productId: null,
-        }]);
-    };
-    const removeDeduction = (idx) => setDeductions(prev => prev.filter((_, i) => i !== idx));
-    const updateDeduction = (idx, field, value) => {
-        setDeductions(prev => prev.map((d, i) => i === idx ? { ...d, [field]: value } : d));
-    };
+    const vatAmount = afterDiscount * (form.vat || 0) / 100;
+    const grandTotal = afterDiscount + vatAmount;
 
     // ========================================
     // BUILD PAYLOAD for API (flatten 3-level → categories with group)
@@ -576,11 +467,10 @@ export default function useQuotationForm() {
                     group: mc.name,
                     image: sub.image || '',
                     subtotal: sub.subtotal || 0,
-                    items: sub.items.filter(i => i.name.trim() !== '').map((item, idx) => ({
+                    items: sub.items.filter(i => i.name.trim() !== '').map(item => ({
                         name: item.name,
                         unit: item.unit,
                         quantity: Number(item.quantity) || 0,
-                        volume: Number(item.volume) || 0,
                         mainMaterial: Number(item.mainMaterial) || 0,
                         auxMaterial: Number(item.auxMaterial) || 0,
                         labor: Number(item.labor) || 0,
@@ -592,13 +482,6 @@ export default function useQuotationForm() {
                         height: Number(item.height) || 0,
                         image: item.image || '',
                         productId: item.productId || null,
-                        subItems: (item.subItems || []).filter(si => si.name.trim() !== '').map(si => ({
-                            name: si.name, unit: si.unit,
-                            quantity: Number(si.quantity) || 0, volume: Number(si.volume) || 0,
-                            unitPrice: Number(si.unitPrice) || 0, amount: Number(si.amount) || 0,
-                            description: si.description || '', image: si.image || '',
-                            length: Number(si.length) || 0, width: Number(si.width) || 0, height: Number(si.height) || 0,
-                        })),
                     })),
                 });
             });
@@ -607,9 +490,8 @@ export default function useQuotationForm() {
         return {
             ...form,
             categories,
-            deductions: deductions.filter(d => d.name.trim() !== '').map(({ _key, ...d }) => d),
-            directCost, adjustmentAmount, total,
-            discount: form.discount, vat: form.vat || 0,
+            directCost, managementFee, adjustmentAmount, total,
+            discount: form.discount, vat: form.vat,
             grandTotal,
         };
     };
@@ -618,7 +500,6 @@ export default function useQuotationForm() {
         // Reference data
         customers, projects, products, library,
         filteredProjects,
-        refreshCustomers: () => apiFetch('/api/customers?limit=1000').then(d => setCustomers(d.data || [])).catch(() => { }),
         // Form state
         form, setForm,
         // 3-level hierarchy
@@ -626,13 +507,11 @@ export default function useQuotationForm() {
         activeMainIdx, setActiveMainIdx,
         activeSubIdx, setActiveSubIdx,
         // Main category handlers
-        addMainCategory, removeMainCategory, updateMainCategoryName,
+        addMainCategory, removeMainCategory, updateMainCategoryName, applyPresetCategory,
         // Subcategory handlers
         addSubcategory, removeSubcategory, updateSubcategoryName, updateSubcategoryImage,
         // Item handlers
         addItem, removeItem, updateItem,
-        // Sub-item handlers
-        addSubItem, removeSubItem, updateSubItem,
         // Tree state
         treeSearch, setTreeSearch,
         expandedNodes, toggleNode,
@@ -643,7 +522,7 @@ export default function useQuotationForm() {
         editingLibCat, setEditingLibCat, saveLibCategory,
         editingProdCat, setEditingProdCat, saveProdCategory,
         // Tree actions (single)
-        addFromLibrary, addFromProduct, addFromProductConfigured,
+        addFromLibrary, addFromProduct,
         // Tree actions (bulk)
         addBulkFromLibrary, addBulkFromProducts,
         addCategoryFromLibrary, addCategoryFromProducts,
@@ -655,11 +534,8 @@ export default function useQuotationForm() {
         allSearchItems,
         // Calculation
         recalc,
-        directCost, adjustmentAmount, total,
-        discountAmount, afterDiscount, totalDeductions, grandTotal,
-        // Deductions
-        deductions, setDeductions,
-        addDeduction, removeDeduction, updateDeduction,
+        directCost, managementFee, adjustmentAmount, total,
+        discountAmount, afterDiscount, vatAmount, grandTotal,
         // Build
         buildPayload,
     };

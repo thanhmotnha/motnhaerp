@@ -1,24 +1,24 @@
-﻿'use client';
+'use client';
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import * as XLSX from 'xlsx';
+import CategorySidebar from '@/components/products/CategorySidebar';
+import BulkActionsBar from '@/components/products/BulkActionsBar';
 
 const fmt = (n) => new Intl.NumberFormat('vi-VN').format(n);
 const fmtCur = (n) => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(n);
-
 const SUPPLY_TYPES = ['Mua ngoài', 'Sản xuất nội bộ', 'Dịch vụ'];
-// Legacy values kept for backwards compat with existing DB records
 const SUPPLY_BADGE = { 'Sản xuất nội bộ': 'info', 'Mua ngoài': 'success', 'Dịch vụ': 'purple', 'Mua thương mại': 'success', 'Vật tư lưu kho': 'success' };
+const SUPPLY_COLOR = { 'Sản xuất nội bộ': { bg: '#234093', color: '#fff' }, 'Mua ngoài': { bg: '#f0ebe3', color: '#8a7350' }, 'Dịch vụ': { bg: '#f3eeff', color: '#7c3aed' } };
+const STOCK_DOT = { ok: { color: '#22c55e', label: 'Còn hàng' }, low: { color: '#eab308', label: 'Sắp hết' }, out: { color: '#ef4444', label: 'Hết hàng' }, service: { color: '#a3a3a3', label: 'Dịch vụ' } };
 const SUPPLY_ICON = { 'Mua ngoài': '🛒', 'Sản xuất nội bộ': '🔨', 'Dịch vụ': '🧠' };
 const normalizeSupply = (t) => (t === 'Mua thương mại' || t === 'Vật tư lưu kho') ? 'Mua ngoài' : (t || 'Mua ngoài');
 const CORE_BOARD_TYPES = ['MDF thường', 'MDF chống ẩm', 'MFC', 'Gỗ tự nhiên', 'Nhựa', 'Kính', 'Khác'];
 const isService = (p) => normalizeSupply(p.supplyType) === 'Dịch vụ';
 const stockStatus = (p) => isService(p) ? 'service' : p.stock === 0 ? 'out' : (p.minStock > 0 && p.stock <= p.minStock) ? 'low' : 'ok';
-
 const BRANDS = [{ n: '', logo: '' }, { n: 'Dulux', logo: 'https://logo.clearbit.com/dulux.com' }, { n: 'Jotun', logo: 'https://logo.clearbit.com/jotun.com' }, { n: 'TOA', logo: 'https://logo.clearbit.com/toagroup.com' }, { n: 'Nippon', logo: 'https://logo.clearbit.com/nipponpaint.com' }, { n: 'Hafele', logo: 'https://logo.clearbit.com/hafele.com' }, { n: 'Blum', logo: 'https://logo.clearbit.com/blum.com' }, { n: 'Hettich', logo: 'https://logo.clearbit.com/hettich.com' }, { n: 'Panasonic', logo: 'https://logo.clearbit.com/panasonic.com' }, { n: 'Daikin', logo: 'https://logo.clearbit.com/daikin.com' }, { n: 'Mitsubishi', logo: 'https://logo.clearbit.com/mitsubishielectric.com' }, { n: 'Samsung', logo: 'https://logo.clearbit.com/samsung.com' }, { n: 'LG', logo: 'https://logo.clearbit.com/lg.com' }, { n: 'Rossi', logo: 'https://logo.clearbit.com/rossigroup.com.vn' }, { n: 'Caesar', logo: 'https://logo.clearbit.com/caesar.com.tw' }, { n: 'Toto', logo: 'https://logo.clearbit.com/toto.com' }, { n: 'Grohe', logo: 'https://logo.clearbit.com/grohe.com' }, { n: 'HMF', logo: '' }, { n: 'AA', logo: '' }, { n: 'Hoa Phat', logo: 'https://logo.clearbit.com/hoaphat.com.vn' }];
-import { CUSTOM_FURNITURE_CAT } from '@/lib/quotation-constants';
+const PRODUCT_CATS = ['Nội thất thành phẩm', 'Gỗ tự nhiên', 'Gỗ công nghiệp', 'Đá & Gạch', 'Sơn & Keo', 'Phụ kiện nội thất', 'Thiết bị điện', 'Vật liệu xây dựng', 'Rèm cửa', 'Thiết bị vệ sinh', 'Điều hòa', 'Decor', 'Đồ rời', 'Phòng thờ'];
 
-// Editable cell
 function EditCell({ value, onChange, type = 'text', style = {}, options }) {
     if (options) return (
         <select value={value} onChange={e => onChange(e.target.value)} style={{ width: '100%', padding: '2px 4px', border: '1px solid var(--primary)', borderRadius: 4, fontSize: 12, background: 'var(--bg-input)', ...style }}>
@@ -28,39 +28,55 @@ function EditCell({ value, onChange, type = 'text', style = {}, options }) {
     return <input type={type} value={value ?? ''} onChange={e => onChange(type === 'number' ? Number(e.target.value) : e.target.value)} style={{ width: '100%', padding: '2px 4px', border: '1px solid var(--primary)', borderRadius: 4, fontSize: 12, background: 'var(--bg-input)', ...style }} />;
 }
 
+function StockCell({ value, status, onSave }) {
+    const [editing, setEditing] = useState(false);
+    const [val, setVal] = useState(value);
+    if (editing) return (
+        <input autoFocus type="number" value={val} onChange={e => setVal(e.target.value)}
+            onBlur={() => { setEditing(false); if (Number(val) !== value) onSave(val); }}
+            onKeyDown={e => { if (e.key === 'Enter') { setEditing(false); if (Number(val) !== value) onSave(val); } if (e.key === 'Escape') setEditing(false); }}
+            style={{ width: 55, fontSize: 12, padding: '2px 4px', border: '1px solid var(--primary)', borderRadius: 4, background: 'var(--bg-input)' }} />
+    );
+    return (
+        <div onClick={() => { setVal(value); setEditing(true); }} style={{ cursor: 'pointer', display: 'flex', flexDirection: 'column', gap: 1 }} title="Click để sửa tồn kho">
+            <span style={{ color: status === 'out' ? 'var(--status-danger)' : status === 'low' ? '#ea580c' : '', fontWeight: status !== 'ok' ? 600 : 400 }}>{value}</span>
+            {status === 'out' && <span style={{ fontSize: 9, background: '#dc2626', color: '#fff', borderRadius: 3, padding: '0px 3px', width: 'fit-content' }}>Hết</span>}
+            {status === 'low' && <span style={{ fontSize: 9, background: '#ea580c', color: '#fff', borderRadius: 3, padding: '0px 3px', width: 'fit-content' }}>Sắp hết</span>}
+        </div>
+    );
+}
+
+const PAGE_SIZE = 50;
+
 export default function ProductsPage() {
     const router = useRouter();
-    // Read initial filters from URL
-    const [initParams] = useState(() => typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : new URLSearchParams());
-    const [tab, setTab] = useState(initParams.get('tab') || 'products');
-
-    // Products
+    const [tab, setTab] = useState('products');
     const [products, setProducts] = useState([]);
     const [loadingP, setLoadingP] = useState(true);
     const [searchP, setSearchP] = useState('');
-    const [filterCatP, setFilterCatP] = useState(initParams.get('cat') || '');
     const [filterSupplyType, setFilterSupplyType] = useState('');
     const [filterStockStatus, setFilterStockStatus] = useState('');
-    const [editingP, setEditingP] = useState(null); // {id, data}
+    const [viewMode, setViewMode] = useState('list');
+    const [editingP, setEditingP] = useState(null);
+    const [quickEditP, setQuickEditP] = useState(new Map());
     const [newProduct, setNewProduct] = useState(null);
     const [selectedIds, setSelectedIds] = useState(new Set());
-    const [bulkEditModal, setBulkEditModal] = useState(null); // {field, value}
     const [showAddModal, setShowAddModal] = useState(false);
-    const [addForm, setAddForm] = useState({ name: '', category: 'Nội thất', unit: 'cái', salePrice: 0, importPrice: 0, brand: '', supplyType: 'Mua ngoài', stock: 0, minStock: 0, supplier: '', coreBoard: '', surfaceCode: '', image: '' });
-
-    // Library
+    const [addForm, setAddForm] = useState({ name: '', category: 'Nội thất thành phẩm', unit: 'cái', salePrice: 0, importPrice: 0, brand: '', supplyType: 'Mua ngoài', stock: 0, minStock: 0, supplier: '', coreBoard: '', surfaceCode: '', image: '' });
+    const [categories, setCategories] = useState([]);
+    const [activeCatId, setActiveCatId] = useState(null);
+    const [activeCatName, setActiveCatName] = useState(null);
+    const [cursor, setCursor] = useState(null);
+    const [hasMore, setHasMore] = useState(true);
+    const sentinelRef = useRef(null);
+    const loadingMore = useRef(false);
     const [library, setLibrary] = useState([]);
     const [loadingL, setLoadingL] = useState(true);
     const [searchL, setSearchL] = useState('');
     const [filterCatL, setFilterCatL] = useState('');
     const [editingL, setEditingL] = useState(null);
     const [newLibItem, setNewLibItem] = useState(null);
-
-    // Upload
-    const [editingCatName, setEditingCatName] = useState(null);
-    const [editingLibCat, setEditingLibCat] = useState(null); // {old, new} for library category rename
-    const [deletingCat, setDeletingCat] = useState(null); // category name being deleted
-    const [deleteCatTarget, setDeleteCatTarget] = useState(''); // target category to move products to
+    const [editingLibCat, setEditingLibCat] = useState(null);
     const excelInputRef = useRef(null);
     const [importPreview, setImportPreview] = useState(null);
     const [importing, setImporting] = useState(false);
@@ -70,24 +86,74 @@ export default function ProductsPage() {
     const [uploading, setUploading] = useState(null);
     const [uploadTarget, setUploadTarget] = useState(null);
     const activeThumb = useRef(null);
-    const imgUpRef = useRef(null);      // hidden input for product image
-    const imgUpTarget = useRef(null);   // 'new' | {id}
+    const imgUpRef = useRef(null);
+    const imgUpTarget = useRef(null);
 
-    const fetchProducts = () => { setLoadingP(true); fetch('/api/products?limit=1000').then(r => r.json()).then(d => { setProducts(d.data || []); setLoadingP(false); }); };
+    const fetchCategories = useCallback(() => {
+        fetch('/api/product-categories').then(r => r.json()).then(async cats => {
+            if (cats && cats.length > 0) {
+                setCategories(cats);
+            } else {
+                // Fallback: fetch ALL products to build categories (independent of current filter)
+                const res = await fetch('/api/products?limit=9999');
+                const d = await res.json();
+                const allP = d.data || [];
+                const names = [...new Set([...PRODUCT_CATS, ...allP.map(p => p.category).filter(Boolean)])].sort();
+                const fakeCats = names.map(name => ({
+                    id: `__str__${name}`, name, _count: { products: allP.filter(p => p.category === name).length },
+                    children: [],
+                }));
+                setCategories(fakeCats);
+            }
+        }).catch(() => { });
+    }, []);
+
+    const fetchProducts = useCallback((reset = true) => {
+        if (reset) { setLoadingP(true); setProducts([]); setCursor(null); setHasMore(true); }
+        const params = new URLSearchParams({ limit: String(PAGE_SIZE) });
+        // Use categoryId for real categories, category string for fallback
+        if (activeCatId && !activeCatId.startsWith('__str__')) params.set('categoryId', activeCatId);
+        else if (activeCatName) params.set('category', activeCatName);
+        if (searchP) params.set('search', searchP);
+        if (filterSupplyType) params.set('supplyType', filterSupplyType);
+        fetch(`/api/products?${params}`).then(r => r.json()).then(d => {
+            const items = d.data || [];
+            setProducts(items);
+            setCursor(items.length === PAGE_SIZE ? items[items.length - 1].id : null);
+            setHasMore(items.length === PAGE_SIZE);
+            setLoadingP(false);
+        });
+    }, [activeCatId, activeCatName, searchP, filterSupplyType]);
+
+    const loadMore = useCallback(() => {
+        if (!cursor || !hasMore || loadingMore.current) return;
+        loadingMore.current = true;
+        const params = new URLSearchParams({ limit: String(PAGE_SIZE), cursor });
+        if (activeCatId && !activeCatId.startsWith('__str__')) params.set('categoryId', activeCatId);
+        else if (activeCatName) params.set('category', activeCatName);
+        if (searchP) params.set('search', searchP);
+        fetch(`/api/products?${params}`).then(r => r.json()).then(d => {
+            const items = d.data || [];
+            setProducts(prev => [...prev, ...items]);
+            setCursor(d.nextCursor);
+            setHasMore(!!d.nextCursor);
+            loadingMore.current = false;
+        });
+    }, [cursor, hasMore, activeCatId, activeCatName, searchP]);
+
     const fetchLibrary = () => { setLoadingL(true); fetch('/api/work-item-library?limit=1000').then(r => r.json()).then(d => { setLibrary(d.data || []); setLoadingL(false); }); };
-    useEffect(() => { fetchProducts(); fetchLibrary(); }, []);
 
-    // Persist filters to URL (no page reload)
+    useEffect(() => { fetchCategories(); fetchLibrary(); }, []);
+    useEffect(() => { fetchProducts(); }, [fetchProducts]);
+
     useEffect(() => {
-        const params = new URLSearchParams(window.location.search);
-        if (filterCatP) params.set('cat', filterCatP); else params.delete('cat');
-        if (tab !== 'products') params.set('tab', tab); else params.delete('tab');
-        const newUrl = params.toString() ? `?${params}` : window.location.pathname;
-        window.history.replaceState({}, '', newUrl);
-    }, [filterCatP, tab]);
+        if (!sentinelRef.current) return;
+        const obs = new IntersectionObserver(([entry]) => { if (entry.isIntersecting) loadMore(); }, { threshold: 0.1 });
+        obs.observe(sentinelRef.current);
+        return () => obs.disconnect();
+    }, [loadMore]);
 
-    // Global paste listener: click ô ảnh → paste ảnh từ clipboard
-    const [pasteReady, setPasteReady] = useState(false); // hiện toast "Sẵn sàng paste"
+    const [pasteReady, setPasteReady] = useState(false);
     useEffect(() => {
         const handler = async (e) => {
             if (!imgUpTarget.current) return;
@@ -101,226 +167,227 @@ export default function ProductsPage() {
             const { url } = await res.json();
             const target = imgUpTarget.current;
             imgUpTarget.current = null; setPasteReady(false);
-            if (target === 'new') {
-                setNewProduct(p => ({ ...p, image: url }));
-            } else {
-                await fetch(`/api/products/${target}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ image: url }) });
-                fetchProducts();
-            }
+            if (target === 'new') { setNewProduct(p => ({ ...p, image: url })); }
+            else { await fetch(`/api/products/${target}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ image: url }) }); fetchProducts(); }
         };
         document.addEventListener('paste', handler);
         return () => document.removeEventListener('paste', handler);
     }, []);
 
     // --- Products handlers ---
-    const [extraCats, setExtraCats] = useState([]);
-    const [addingCat, setAddingCat] = useState(false);
-    const [newCatName, setNewCatName] = useState('');
-    // Pill bar: only categories that have products (or user-added extra cats)
-    const pCats = [...new Set([...products.map(p => p.category).filter(Boolean), ...extraCats])].sort();
-    // Dropdown: actual DB categories + ensure 'Nội thất' always exists
-    const allCats = [...new Set([CUSTOM_FURNITURE_CAT, ...pCats])].sort();
-    const filteredP = products.filter(p =>
-        (!filterCatP || p.category === filterCatP) &&
-        (!filterSupplyType || normalizeSupply(p.supplyType) === filterSupplyType) &&
-        (!filterStockStatus || stockStatus(p) === filterStockStatus) &&
-        (!searchP || p.name.toLowerCase().includes(searchP.toLowerCase()) || (p.code || '').toLowerCase().includes(searchP.toLowerCase()))
-    );
+    const flatCats = [];
+    const walkCats = (cats, depth = 0) => { for (const c of cats) { flatCats.push({ ...c, depth }); if (c.children) walkCats(c.children, depth + 1); } };
+    walkCats(categories);
+    const allCats = [...new Set([...PRODUCT_CATS, ...flatCats.map(c => c.name)])].sort();
+    const filteredP = products.filter(p => (!filterStockStatus || stockStatus(p) === filterStockStatus));
 
-    const startEditP = (p) => setEditingP({ id: p.id, data: { ...p } });
+    const startEditP = (p) => {
+        const { id, code, createdAt, updatedAt, deletedAt, inventoryTx, quotationItems, materialPlans, purchaseItems, bomComponents, bomUsedIn, categoryRef, ...clean } = p;
+        setEditingP({ id, data: { ...clean } });
+    };
     const saveP = async () => {
         const { id, data } = editingP;
-        // Only send fields accepted by schema (strip id, code, createdAt, updatedAt etc.)
-        const { id: _, code: __, createdAt: ___, updatedAt: ____, ...cleanData } = data;
-        const res = await fetch(`/api/products/${id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(cleanData) });
-        if (!res.ok) { const err = await res.json(); alert(err.error || 'Lỗi lưu'); return; }
-        setEditingP(null); fetchProducts();
+        const res = await fetch(`/api/products/${id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
+        if (!res.ok) { const err = await res.json(); return alert(err.error || 'Lỗi cập nhật'); }
+        setEditingP(null); fetchProducts(); fetchCategories();
     };
-    const deleteP = async (id) => { if (!confirm('Xóa sản phẩm?')) return; const res = await fetch(`/api/products/${id}`, { method: 'DELETE' }); if (res.ok) setProducts(prev => prev.filter(p => p.id !== id)); else fetchProducts(); };
-    const duplicateP = async (p) => {
-        const { id, code, createdAt, updatedAt, ...rest } = p;
-        await fetch('/api/products', {
-            method: 'POST', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ ...rest, name: rest.name + ' (2)', stock: 0 }),
+    const startQuickEditP = (p) => {
+        setQuickEditP(prev => {
+            const m = new Map(prev);
+            if (m.has(p.id)) { m.delete(p.id); } else {
+                m.set(p.id, { name: p.name || '', unit: p.unit || 'cái', category: p.category || '', salePrice: p.salePrice || 0, importPrice: p.importPrice || 0, stock: p.stock ?? 0, minStock: p.minStock ?? 0, supplyType: normalizeSupply(p.supplyType), brand: p.brand || '', supplier: p.supplier || '' });
+            }
+            return m;
         });
+    };
+    const updateQuickField = (id, field, value) => {
+        setQuickEditP(prev => {
+            const m = new Map(prev);
+            const row = { ...m.get(id), [field]: value };
+            m.set(id, row);
+            return m;
+        });
+    };
+    const cancelQuickEditP = (id) => {
+        setQuickEditP(prev => { const m = new Map(prev); m.delete(id); return m; });
+    };
+    const saveQuickP = async (id) => {
+        const data = quickEditP.get(id);
+        if (!data) return;
+        const res = await fetch(`/api/products/${id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
+        if (!res.ok) { const err = await res.json(); return alert(err.error || 'Lỗi cập nhật'); }
+        cancelQuickEditP(id);
+        fetchProducts(); fetchCategories();
+    };
+    const saveAllQuickP = async () => {
+        const entries = [...quickEditP.entries()];
+        if (!entries.length) return;
+        let ok = 0, fail = 0;
+        for (const [id, data] of entries) {
+            const res = await fetch(`/api/products/${id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
+            if (res.ok) ok++; else fail++;
+        }
+        setQuickEditP(new Map());
+        fetchProducts(); fetchCategories();
+        if (fail) alert(`Đã lưu ${ok}, lỗi ${fail}`);
+    };
+    const deleteP = async (id) => { if (!confirm('Xóa sản phẩm?')) return; await fetch(`/api/products/${id}`, { method: 'DELETE' }); fetchProducts(); fetchCategories(); };
+    const duplicateP = async (p) => {
+        const { id, code, createdAt, updatedAt, categoryRef, ...rest } = p;
+        await fetch('/api/products', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...rest, name: rest.name + ' (2)', stock: 0 }) });
+        fetchProducts(); fetchCategories();
+    };
+    const quickUpdateStock = async (productId, newStock) => {
+        await fetch(`/api/products/${productId}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ stock: Number(newStock) }) });
         fetchProducts();
     };
-
-    const addNewProduct = () => { setAddForm({ name: '', category: filterCatP || 'Nội thất', unit: 'cái', salePrice: 0, importPrice: 0, brand: '', supplyType: 'Mua ngoài', stock: 0, minStock: 0, supplier: '', coreBoard: '', surfaceCode: '', image: '' }); setShowAddModal(true); };
-
-    // Upload ảnh sản phẩm
+    const addNewProduct = () => {
+        const activeCat = flatCats.find(c => c.id === activeCatId);
+        setAddForm({ name: '', category: activeCat?.name || 'Nội thất thành phẩm', unit: 'cái', salePrice: 0, importPrice: 0, brand: '', supplyType: 'Mua ngoài', stock: 0, minStock: 0, supplier: '', coreBoard: '', surfaceCode: '', image: '', categoryId: activeCatId || null });
+        setShowAddModal(true);
+    };
     const handleImgUpload = async (e) => {
         const file = e.target.files?.[0]; if (!file) return;
         const fd = new FormData(); fd.append('file', file); fd.append('type', 'products');
         const res = await fetch('/api/upload', { method: 'POST', body: fd });
         const { url } = await res.json();
-        if (imgUpTarget.current === 'new') {
-            setNewProduct(p => ({ ...p, image: url }));
-        } else if (imgUpTarget.current) {
-            await fetch(`/api/products/${imgUpTarget.current}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ image: url }) });
-            fetchProducts();
-        }
+        if (imgUpTarget.current === 'new') { setNewProduct(p => ({ ...p, image: url })); }
+        else if (imgUpTarget.current) { await fetch(`/api/products/${imgUpTarget.current}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ image: url }) }); fetchProducts(); }
         imgUpTarget.current = null; e.target.value = '';
-    };
-    const saveRenameCategory = async () => {
-        if (!editingCatName || editingCatName.new === editingCatName.old) { setEditingCatName(null); return; }
-        await fetch('/api/products', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ oldCategory: editingCatName.old, newCategory: editingCatName.new }) });
-        setEditingCatName(null); fetchProducts();
-    };
-    const handleDeleteCategory = async () => {
-        const count = products.filter(p => p.category === deletingCat).length;
-        if (count > 0) {
-            await fetch('/api/products', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ deleteCategory: deletingCat, targetCategory: deleteCatTarget }) });
-        }
-        setExtraCats(prev => prev.filter(c => c !== deletingCat));
-        if (filterCatP === deletingCat) setFilterCatP('');
-        setDeletingCat(null); setDeleteCatTarget('');
-        fetchProducts();
     };
     const saveRenameLibCat = async () => {
         if (!editingLibCat || editingLibCat.new === editingLibCat.old) { setEditingLibCat(null); return; }
         if (!editingLibCat.new.trim()) { setEditingLibCat(null); return; }
         await fetch('/api/work-item-library', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ oldCategory: editingLibCat.old, newCategory: editingLibCat.new.trim() }) });
-        if (filterCatL === editingLibCat.old) setFilterCatL(editingLibCat.new.trim());
         setEditingLibCat(null); fetchLibrary();
     };
 
-
-    // Excel import
-    const handleExcelFile = async (e) => {
-        const file = e.target.files?.[0]; if (!file) return;
-        const ab = await file.arrayBuffer();
-        const wb = XLSX.read(ab, { type: 'array' });
-        const ws = wb.Sheets[wb.SheetNames[0]];
-        const rows = XLSX.utils.sheet_to_json(ws, { defval: '' });
-        const preview = rows.map(r => ({
-            name: String(r['Tên'] || r['name'] || '').trim(),
-            category: String(r['Danh mục'] || r['category'] || 'Nội thất').trim(),
-            unit: String(r['ĐVT'] || r['unit'] || 'cái').trim(),
-            importPrice: Number(r['Giá nhập'] || r['importPrice'] || 0),
-            salePrice: Number(r['Giá bán'] || r['salePrice'] || 0),
-            stock: Number(r['Tồn kho'] || r['stock'] || 0),
-            brand: String(r['Thương hiệu'] || r['brand'] || '').trim(),
-            supplyType: normalizeSupply(String(r['Nguồn cung'] || r['supplyType'] || 'Mua ngoài').trim()),
-            description: String(r['Mô tả'] || r['description'] || '').trim(),
-            image: '',
-        })).filter(r => r.name);
-        setImportPreview(preview);
-        excelInputRef.current.value = '';
-    };
-    const parsePasteP = () => {
-        const rows = pasteText.trim().split('\n').map(row => {
-            const c = row.split('\t');
-            return {
-                name: c[0]?.trim() || '',
-                category: c[1]?.trim() || filterCatP || 'Nội thất',
-                unit: c[2]?.trim() || 'cái',
-                salePrice: Number((c[3] || '').replace(/[^\d.]/g, '')) || 0,
-                importPrice: Number((c[4] || '').replace(/[^\d.]/g, '')) || 0,
-                stock: Number((c[5] || '').trim()) || 0,
-                brand: c[6]?.trim() || '',
-                supplyType: normalizeSupply(c[7]?.trim() || 'Mua ngoài'),
-                image: '',
-            };
-        }).filter(r => r.name);
-        setImportPreview(rows);
-        setShowPasteModal(false);
-        setPasteText('');
-    };
-
-    const confirmImport = async () => {
-        if (!importPreview?.length) return;
-        setImporting(true);
-        for (const p of importPreview) {
-            await fetch('/api/products', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(p) });
-        }
-        setImporting(false); setImportPreview(null); setSelectedIds(new Set()); fetchProducts();
-    };
-    const saveNewProduct = async () => {
-        if (!addForm.name.trim()) return alert('Vui lòng nhập tên sản phẩm');
-        const res = await fetch('/api/products', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(addForm) });
-        if (!res.ok) { const err = await res.json(); return alert(err.error || 'Lỗi tạo sản phẩm'); }
-        setShowAddModal(false); fetchProducts();
-    };
-
-    // --- Library handlers ---
-    const lCats = [...new Set(library.map(i => i.category))].sort();
+    // --- Library handlers (from original) ---
+    const lCats = [...new Set(library.map(i => i.category).filter(Boolean))].sort();
     const filteredL = library.filter(i =>
         (!filterCatL || i.category === filterCatL) &&
-        (!searchL || i.name.toLowerCase().includes(searchL.toLowerCase()) || (i.subcategory || '').toLowerCase().includes(searchL.toLowerCase()))
+        (!searchL || i.name.toLowerCase().includes(searchL.toLowerCase()))
     );
-
     const startEditL = (item) => setEditingL({ id: item.id, data: { ...item } });
     const saveL = async () => {
         const { id, data } = editingL;
-        await fetch(`/api/work-item-library/${id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
+        const { id: _, createdAt, updatedAt, ...clean } = data;
+        const res = await fetch(`/api/work-item-library/${id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(clean) });
+        if (!res.ok) { const err = await res.json(); return alert(err.error || 'Lỗi cập nhật'); }
         setEditingL(null); fetchLibrary();
     };
-    const deleteL = async (id) => { if (!confirm('Xóa hạng mục?')) return; const res = await fetch(`/api/work-item-library/${id}`, { method: 'DELETE' }); if (res.ok) setLibrary(prev => prev.filter(l => l.id !== id)); else fetchLibrary(); };
+    const deleteL = async (id) => { if (!confirm('Xóa hạng mục?')) return; await fetch(`/api/work-item-library/${id}`, { method: 'DELETE' }); fetchLibrary(); };
     const addNewLib = () => setNewLibItem({ name: '', category: filterCatL || '', subcategory: '', unit: 'cái', mainMaterial: 0, auxMaterial: 0, labor: 0, unitPrice: 0, description: '', image: '' });
     const saveNewLib = async () => {
-        await fetch('/api/work-item-library', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...newLibItem, mainMaterial: Number(newLibItem.mainMaterial), auxMaterial: Number(newLibItem.auxMaterial), labor: Number(newLibItem.labor), unitPrice: Number(newLibItem.unitPrice) }) });
+        if (!newLibItem?.name?.trim()) return alert('Nhập tên hạng mục');
+        const res = await fetch('/api/work-item-library', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(newLibItem) });
+        if (!res.ok) { const err = await res.json(); return alert(err.error || 'Lỗi tạo'); }
         setNewLibItem(null); fetchLibrary();
     };
 
-    // Upload
-    const triggerUpload = (id, entity) => { setUploadTarget({ id, entity }); fileInputRef.current?.click(); };
-
-    const doUploadFile = useCallback(async (file, target) => {
-        if (!file || !target) return;
-        setUploading(target.id);
-        const fd = new FormData();
-        fd.append('file', file);
-        fd.append('type', target.entity === 'product' ? 'products' : 'library');
-        try {
-            const res = await fetch('/api/upload', { method: 'POST', body: fd });
-            const { url } = await res.json();
-            if (target.entity === 'product') {
-                await fetch(`/api/products/${target.id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ image: url }) });
-                fetchProducts();
-                setEditingP(p => p?.id === target.id ? { ...p, data: { ...p.data, image: url } } : p);
-            } else {
-                await fetch(`/api/work-item-library/${target.id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ image: url }) });
-                fetchLibrary();
-                setEditingL(p => p?.id === target.id ? { ...p, data: { ...p.data, image: url } } : p);
-            }
-        } catch { alert('Upload lỗi'); }
-        setUploading(null);
-    }, []);
-
-    const handleFileChange = async (e) => {
-        const file = e.target.files?.[0];
-        if (file && uploadTarget) await doUploadFile(file, uploadTarget);
-        setUploadTarget(null); e.target.value = '';
+    // --- Save new product ---
+    const saveNewProduct = async () => {
+        if (!addForm.name?.trim()) return alert('Nhập tên sản phẩm');
+        const res = await fetch('/api/products', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(addForm) });
+        if (!res.ok) { const err = await res.json(); return alert(err.error || 'Lỗi tạo'); }
+        setShowAddModal(false); fetchProducts(); fetchCategories();
     };
 
-    // Paste ảnh từ clipboard (Ctrl+V) khi đang hover/focus vào thumb
-    useEffect(() => {
-        const onPaste = async (e) => {
-            const target = activeThumb.current;
-            if (!target) return;
-            const item = Array.from(e.clipboardData?.items || []).find(i => i.type.startsWith('image/'));
-            if (!item) return;
-            e.preventDefault();
-            const file = item.getAsFile();
-            await doUploadFile(file, target);
-        };
-        document.addEventListener('paste', onPaste);
-        return () => document.removeEventListener('paste', onPaste);
-    }, [doUploadFile]);
+    // --- Excel import with validation ---
+    const handleExcelFile = async (e) => {
+        const file = e.target.files?.[0]; if (!file) return;
+        const data = await file.arrayBuffer();
+        const wb = XLSX.read(data);
+        const ws = wb.Sheets[wb.SheetNames[0]];
+        const rows = XLSX.utils.sheet_to_json(ws);
+        const existingNames = new Set(products.map(p => p.name.toLowerCase().trim()));
+        const seenNames = new Set();
+        const mapped = rows.map((r, idx) => {
+            const name = (r['Tên'] || r['name'] || r['Tên sản phẩm'] || '').trim();
+            const salePrice = Number(r['Giá bán'] || r['salePrice'] || 0);
+            const importPrice = Number(r['Giá nhập'] || r['importPrice'] || 0);
+            const stock = Number(r['Tồn kho'] || r['stock'] || 0);
+            const errors = [];
+            if (!name) errors.push('Thiếu tên');
+            if (name && existingNames.has(name.toLowerCase())) errors.push('Trùng SP đã có');
+            if (name && seenNames.has(name.toLowerCase())) errors.push('Trùng trong file');
+            if (isNaN(salePrice) || salePrice < 0) errors.push('Giá bán sai');
+            if (isNaN(stock) || stock < 0) errors.push('Tồn kho sai');
+            if (name) seenNames.add(name.toLowerCase());
+            return {
+                name, category: r['Danh mục'] || r['category'] || '',
+                unit: r['ĐVT'] || r['unit'] || 'cái', salePrice, importPrice,
+                stock, minStock: Number(r['Tồn tối thiểu'] || r['minStock'] || 0),
+                brand: r['Thương hiệu'] || r['brand'] || '',
+                supplyType: r['Nguồn cung'] || r['supplyType'] || 'Mua ngoài',
+                _errors: errors, _enabled: errors.length === 0, _row: idx + 2,
+            };
+        }).filter(p => p.name || p._errors.length > 0);
+        setImportPreview(mapped);
+        e.target.value = '';
+    };
+    const parsePastedText = (text) => {
+        if (!text?.trim()) return alert('Chưa có dữ liệu! Paste từ Excel vào ô bên trên.');
+        const lines = text.split('\n').map(l => l.split('\t').map(c => c.trim()));
+        if (lines.length < 2) return alert('Cần ít nhất 2 dòng (header + data)');
+        const headerMap = { 'tên': 'name', 'tên sản phẩm': 'name', 'name': 'name', 'tên sp': 'name', 'danh mục': 'category', 'category': 'category', 'đvt': 'unit', 'unit': 'unit', 'đơn vị': 'unit', 'giá bán': 'salePrice', 'saleprice': 'salePrice', 'giá nhập': 'importPrice', 'importprice': 'importPrice', 'tồn kho': 'stock', 'stock': 'stock', 'tồn': 'stock', 'thương hiệu': 'brand', 'brand': 'brand', 'nguồn cung': 'supplyType', 'supplytype': 'supplyType', 'nhà cung cấp': 'supplier', 'supplier': 'supplier', 'tồn tối thiểu': 'minStock', 'minstock': 'minStock' };
+        const headers = lines[0].map(h => headerMap[h.toLowerCase()] || null);
+        if (!headers.includes('name')) return alert('Không tìm thấy cột "Tên" trong header. Hàng đầu tiên phải là tiêu đề: Tên, Danh mục, ĐVT, Giá bán...');
+        const existingNames = new Set(products.map(p => p.name.toLowerCase().trim()));
+        const seenNames = new Set();
+        const mapped = lines.slice(1).filter(cols => cols.some(c => c)).map((cols, idx) => {
+            const row = {};
+            headers.forEach((key, i) => { if (key && cols[i]) row[key] = cols[i]; });
+            const name = (row.name || '').trim();
+            const salePrice = Number(row.salePrice || 0);
+            const importPrice = Number(row.importPrice || 0);
+            const stock = Number(row.stock || 0);
+            const errors = [];
+            if (!name) errors.push('Thiếu tên');
+            if (name && existingNames.has(name.toLowerCase())) errors.push('Trùng SP đã có');
+            if (name && seenNames.has(name.toLowerCase())) errors.push('Trùng trong paste');
+            if (name) seenNames.add(name.toLowerCase());
+            return {
+                name, category: row.category || '', unit: row.unit || 'cái', salePrice, importPrice,
+                stock, minStock: Number(row.minStock || 0), brand: row.brand || '',
+                supplyType: row.supplyType || 'Mua ngoài', supplier: row.supplier || '',
+                _errors: errors, _enabled: errors.length === 0, _row: idx + 2,
+            };
+        }).filter(p => p.name || p._errors.length > 0);
+        if (!mapped.length) return alert('Không parse được dữ liệu nào');
+        setShowPasteModal(false); setPasteText('');
+        setImportPreview(mapped);
+    };
+    const toggleImportRow = (idx) => setImportPreview(prev => prev.map((p, i) => i === idx ? { ...p, _enabled: !p._enabled } : p));
+    const confirmImport = async () => {
+        const toImport = importPreview.filter(p => p._enabled && p._errors.length === 0);
+        if (!toImport.length) return alert('Không có sản phẩm hợp lệ để import');
+        setImporting(true);
+        // Batch: POST 10 at a time
+        for (let i = 0; i < toImport.length; i += 10) {
+            const batch = toImport.slice(i, i + 10);
+            await Promise.all(batch.map(({ _errors, _enabled, _row, ...p }) =>
+                fetch('/api/products', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(p) })
+            ));
+        }
+        setImporting(false); setImportPreview(null); fetchProducts(); fetchCategories();
+    };
 
+    // --- Thumbnail upload ---
+    const handleFileChange = async (e) => {
+        const file = e.target.files?.[0]; if (!file || !activeThumb.current) return;
+        const { id, entity } = activeThumb.current;
+        setUploading(id);
+        const fd = new FormData(); fd.append('file', file); fd.append('type', entity === 'library' ? 'work-items' : 'products');
+        const res = await fetch('/api/upload', { method: 'POST', body: fd });
+        const { url } = await res.json();
+        const apiUrl = entity === 'library' ? `/api/work-item-library/${id}` : `/api/products/${id}`;
+        await fetch(apiUrl, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ image: url }) });
+        setUploading(null); activeThumb.current = null; e.target.value = '';
+        entity === 'library' ? fetchLibrary() : fetchProducts();
+    };
     const Thumb = ({ image, id, entity }) => (
-        <div
-            onClick={() => triggerUpload(id, entity)}
-            onMouseEnter={() => { activeThumb.current = { id, entity }; }}
-            onMouseLeave={() => { if (activeThumb.current?.id === id) activeThumb.current = null; }}
-            onFocus={() => { activeThumb.current = { id, entity }; }}
-            onBlur={() => { if (activeThumb.current?.id === id) activeThumb.current = null; }}
-            tabIndex={0}
-            title="Click để chọn file · Ctrl+V để paste ảnh"
-            style={{ width: 36, height: 36, cursor: 'pointer', flexShrink: 0, position: 'relative', outline: 'none' }}
-            className="thumb-wrap"
-        >
+        <div className="thumb-wrap" onClick={() => { activeThumb.current = { id, entity }; fileInputRef.current?.click(); }} style={{ position: 'relative', cursor: 'pointer', width: 36, height: 36 }}>
             {uploading === id
                 ? <div style={{ width: 36, height: 36, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>⏳</div>
                 : image
@@ -332,6 +399,8 @@ export default function ProductsPage() {
     );
 
     const lowStock = products.filter(p => p.stock <= p.minStock && p.minStock > 0).length;
+    const outStock = products.filter(p => !isService(p) && p.stock === 0).length;
+    const copyCode = (code) => { navigator.clipboard.writeText(code); };
 
     return (
         <div>
@@ -346,198 +415,151 @@ export default function ProductsPage() {
 
             {/* ===== PRODUCTS ===== */}
             {tab === 'products' && (
-                <div>
-                    <div className="stats-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', marginBottom: 16 }}>
-                        <div className="stat-card"><div className="stat-icon">📦</div><div><div className="stat-value">{products.length}</div><div className="stat-label">Tổng SP</div></div></div>
-                        <div className="stat-card"><div className="stat-icon">📂</div><div><div className="stat-value">{pCats.length}</div><div className="stat-label">Danh mục</div></div></div>
-                        <div className="stat-card"><div className="stat-icon">⚠️</div><div><div className="stat-value" style={{ color: lowStock > 0 ? 'var(--status-danger)' : '' }}>{lowStock}</div><div className="stat-label">Sắp hết</div></div></div>
-                        <div className="stat-card"><div className="stat-icon">💰</div><div><div className="stat-value" style={{ fontSize: 13 }}>{fmtCur(products.reduce((s, p) => s + p.stock * p.salePrice, 0))}</div><div className="stat-label">Giá trị tồn</div></div></div>
-                    </div>
-                    <div className="card">
-                        {/* Category filter bar */}
-                        <div style={{ display: 'flex', gap: 6, padding: '10px 16px', borderBottom: '1px solid var(--border-color)', alignItems: 'center', overflowX: 'auto', scrollbarWidth: 'none', msOverflowStyle: 'none', background: 'var(--bg)' }}>
-                            {/* All pill */}
-                            <button onClick={() => setFilterCatP('')} style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '5px 13px', borderRadius: 20, border: !filterCatP ? 'none' : '1px solid var(--border-color)', background: !filterCatP ? 'var(--primary)' : 'transparent', color: !filterCatP ? '#fff' : 'var(--text-secondary)', fontSize: 12.5, fontWeight: !filterCatP ? 600 : 400, cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0, transition: 'all 0.15s' }}>
-                                Tất cả
-                                <span style={{ background: !filterCatP ? 'rgba(255,255,255,0.25)' : 'var(--surface-alt)', color: !filterCatP ? '#fff' : 'var(--text-secondary)', borderRadius: 10, padding: '1px 7px', fontSize: 11, fontWeight: 600 }}>{products.length}</span>
-                            </button>
-                            <div style={{ width: 1, height: 18, background: 'var(--border-color)', flexShrink: 0 }} />
-                            {pCats.map(c => {
-                                const count = products.filter(p => p.category === c).length;
-                                const active = filterCatP === c;
-                                return (
-                                    <div key={c} style={{ display: 'flex', alignItems: 'center', flexShrink: 0 }}>
-                                        {editingCatName?.old === c ? (
-                                            <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
-                                                <input autoFocus value={editingCatName.new}
-                                                    onChange={e => setEditingCatName(p => ({ ...p, new: e.target.value }))}
-                                                    onBlur={saveRenameCategory}
-                                                    onKeyDown={e => { if (e.key === 'Enter') saveRenameCategory(); if (e.key === 'Escape') setEditingCatName(null); }}
-                                                    style={{ fontSize: 12, padding: '4px 12px', border: '1.5px solid var(--primary)', borderRadius: 20, width: 160, outline: 'none', background: 'var(--bg)' }} />
-                                                <button onClick={saveRenameCategory} style={{ width: 24, height: 24, borderRadius: '50%', background: 'var(--primary)', border: 'none', color: '#fff', cursor: 'pointer', fontSize: 12, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>✓</button>
-                                                <button onClick={() => setEditingCatName(null)} style={{ width: 24, height: 24, borderRadius: '50%', background: 'var(--surface-alt)', border: 'none', cursor: 'pointer', fontSize: 12, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>✕</button>
-                                            </div>
-                                        ) : (
-                                            <div style={{ display: 'flex', alignItems: 'stretch' }}>
-                                                <button onClick={() => setFilterCatP(active ? '' : c)} style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '5px 12px', borderRadius: active ? '20px 0 0 20px' : 20, border: active ? 'none' : '1px solid var(--border-color)', borderRight: active ? 'none' : undefined, background: active ? 'var(--primary)' : 'transparent', color: active ? '#fff' : 'var(--text-secondary)', fontSize: 12.5, fontWeight: active ? 600 : 400, cursor: 'pointer', whiteSpace: 'nowrap', transition: 'all 0.15s' }}>
-                                                    {c}
-                                                    <span style={{ background: active ? 'rgba(255,255,255,0.25)' : 'var(--surface-alt)', color: active ? '#fff' : 'var(--text-secondary)', borderRadius: 10, padding: '1px 6px', fontSize: 11, fontWeight: 600 }}>{count}</span>
-                                                </button>
-                                                {active && (<>
-                                                    <button onClick={() => setEditingCatName({ old: c, new: c })} title="Đổi tên danh mục" style={{ padding: '5px 8px', border: 'none', borderLeft: '1px solid rgba(255,255,255,0.2)', background: 'var(--primary)', color: 'rgba(255,255,255,0.75)', fontSize: 11, cursor: 'pointer', display: 'flex', alignItems: 'center', transition: 'opacity 0.15s' }}>✏️</button>
-                                                    <button onClick={() => { setDeletingCat(c); setDeleteCatTarget(''); }} title="Xóa danh mục" style={{ padding: '5px 9px', borderRadius: '0 20px 20px 0', border: 'none', borderLeft: '1px solid rgba(255,255,255,0.2)', background: 'var(--primary)', color: 'rgba(255,255,255,0.6)', fontSize: 11, cursor: 'pointer', display: 'flex', alignItems: 'center', transition: 'opacity 0.15s' }}>🗑️</button>
-                                                </>)}
-                                            </div>
-                                        )}
-                                    </div>
-                                );
-                            })}
-                            <div style={{ width: 1, height: 18, background: 'var(--border-color)', flexShrink: 0 }} />
-                            {/* Add category */}
-                            {addingCat ? (
-                                <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexShrink: 0 }}>
-                                    <input autoFocus value={newCatName} placeholder="Tên danh mục..."
-                                        onChange={e => setNewCatName(e.target.value)}
-                                        onKeyDown={e => {
-                                            if (e.key === 'Enter' && newCatName.trim()) {
-                                                const cat = newCatName.trim();
-                                                if (!pCats.includes(cat)) setExtraCats(p => [...p, cat]);
-                                                setFilterCatP(cat); setAddingCat(false); setNewCatName('');
-                                                setNewProduct({ name: '', category: cat, unit: 'cái', importPrice: 0, salePrice: 0, stock: 0, minStock: 0, supplier: '', brand: '', description: '', image: '' });
-                                            }
-                                            if (e.key === 'Escape') { setAddingCat(false); setNewCatName(''); }
-                                        }}
-                                        style={{ fontSize: 12, padding: '5px 14px', border: '1.5px solid var(--primary)', borderRadius: 20, width: 180, outline: 'none', background: 'var(--bg)' }} />
-                                    <span style={{ fontSize: 11, color: 'var(--text-secondary)', opacity: 0.6, whiteSpace: 'nowrap' }}>↵ Enter để tạo</span>
-                                    <button onClick={() => { setAddingCat(false); setNewCatName(''); }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-secondary)', opacity: 0.5, fontSize: 16, lineHeight: 1, padding: 2 }}>✕</button>
-                                </div>
-                            ) : (
-                                <button onClick={() => setAddingCat(true)} style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '5px 12px', borderRadius: 20, border: '1.5px dashed var(--border-color)', background: 'transparent', color: 'var(--text-secondary)', fontSize: 12, cursor: 'pointer', whiteSpace: 'nowrap', opacity: 0.65, flexShrink: 0, transition: 'opacity 0.15s' }}>
-                                    + Danh mục
-                                </button>
-                            )}
-                        </div>
+                <div style={{ display: 'flex', minHeight: 'calc(100vh - 200px)', border: '1px solid var(--border-color)', borderRadius: 8, overflow: 'hidden' }}>
+                    <CategorySidebar categories={categories} activeCatId={activeCatId}
+                        onSelect={id => {
+                            setActiveCatId(id);
+                            // If it's a fake string category, set name for filtering
+                            if (id?.startsWith('__str__')) {
+                                const cat = categories.find(c => c.id === id);
+                                setActiveCatName(cat?.name || null);
+                            } else {
+                                setActiveCatName(null);
+                            }
+                            setSelectedIds(new Set());
+                        }}
+                        totalCount={products.length} onRefresh={() => { fetchCategories(); fetchProducts(); }} />
+                    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+                        {/* Toolbar */}
                         <div style={{ padding: '10px 16px', borderBottom: '1px solid var(--border-color)', display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-                            <input className="form-input" placeholder="🔍 Tìm kiếm..." value={searchP} onChange={e => setSearchP(e.target.value)} style={{ width: 200, fontSize: 13 }} />
-                            <select className="form-select" value={filterSupplyType} onChange={e => setFilterSupplyType(e.target.value)} style={{ fontSize: 12, width: 140 }}>
-                                <option value="">Nguồn cung</option>
-                                {SUPPLY_TYPES.map(t => <option key={t}>{t}</option>)}
+                            <input className="form-input" placeholder="🔍 Tìm theo Tên, Mã SP..." value={searchP} onChange={e => setSearchP(e.target.value)} style={{ width: 220, fontSize: 12, padding: '6px 10px', borderRadius: 6 }} />
+                            <select className="form-select" value={filterSupplyType} onChange={e => setFilterSupplyType(e.target.value)} style={{ fontSize: 11, width: 130, padding: '6px 8px' }}>
+                                <option value="">Nguồn cung</option>{SUPPLY_TYPES.map(t => <option key={t}>{t}</option>)}
                             </select>
-                            <div style={{ display: 'flex', gap: 3, background: 'var(--surface-alt)', borderRadius: 8, padding: 3 }}>
-                                {[['', 'Tất cả'], ['ok', 'Sẵn kho'], ['low', 'Sắp hết'], ['out', 'Hết hàng']].map(([v, label]) => (
-                                    <button key={v} onClick={() => setFilterStockStatus(v)}
-                                        style={{ fontSize: 11, padding: '4px 10px', border: 'none', borderRadius: 6, cursor: 'pointer', background: filterStockStatus === v ? '#fff' : 'transparent', color: filterStockStatus === v ? 'var(--primary)' : 'var(--text-secondary)', fontWeight: filterStockStatus === v ? 600 : 400, boxShadow: filterStockStatus === v ? '0 1px 3px rgba(0,0,0,0.12)' : 'none', transition: 'all 0.15s' }}>{label}</button>
+
+                            {/* View toggle */}
+                            <div style={{ display: 'flex', gap: 0, background: 'var(--surface-alt)', borderRadius: 6, padding: 2, border: '1px solid var(--border-color)' }}>
+                                <button onClick={() => setViewMode('list')} style={{ fontSize: 11, padding: '4px 10px', border: 'none', borderRadius: 4, cursor: 'pointer', background: viewMode === 'list' ? '#fff' : 'transparent', fontWeight: viewMode === 'list' ? 600 : 400, boxShadow: viewMode === 'list' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none', color: viewMode === 'list' ? '#234093' : 'var(--text-secondary)' }}>☰ Danh sách</button>
+                                <button onClick={() => setViewMode('grid')} style={{ fontSize: 11, padding: '4px 10px', border: 'none', borderRadius: 4, cursor: 'pointer', background: viewMode === 'grid' ? '#fff' : 'transparent', fontWeight: viewMode === 'grid' ? 600 : 400, boxShadow: viewMode === 'grid' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none', color: viewMode === 'grid' ? '#234093' : 'var(--text-secondary)' }}>⊞ Dạng lưới</button>
+                            </div>
+
+                            {/* Stock filter with labels */}
+                            <div style={{ display: 'flex', gap: 2, background: 'var(--surface-alt)', borderRadius: 6, padding: 2, border: '1px solid var(--border-color)' }}>
+                                {[['', 'Tất cả', '#666'], ['ok', '🟢 Còn hàng', '#22c55e'], ['low', '🟡 Sắp hết', '#eab308'], ['out', '🔴 Hết hàng', '#ef4444']].map(([v, l, c]) => (
+                                    <button key={v} onClick={() => setFilterStockStatus(v)} title={l} style={{ fontSize: 10, padding: '4px 8px', border: 'none', borderRadius: 4, cursor: 'pointer', background: filterStockStatus === v ? '#fff' : 'transparent', fontWeight: filterStockStatus === v ? 600 : 400, boxShadow: filterStockStatus === v ? '0 1px 3px rgba(0,0,0,0.1)' : 'none', color: filterStockStatus === v ? c : 'var(--text-muted)' }}>{l}</button>
                                 ))}
                             </div>
-                            <div style={{ marginLeft: 'auto', display: 'flex', gap: 6, alignItems: 'center' }}>
-                                {selectedIds.size > 0 && (<>
-                                    <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--primary)' }}>✓ {selectedIds.size} đã chọn</span>
-                                    <button className="btn btn-sm" style={{ fontSize: 12, background: '#ea580c', color: '#fff', border: 'none' }}
-                                        onClick={() => {
-                                            const nonBuy = [...selectedIds].filter(id => normalizeSupply(products.find(p => p.id === id)?.supplyType) !== 'Mua ngoài');
-                                            if (nonBuy.length > 0) return alert('Vui lòng chỉ chọn sản phẩm "Mua ngoài"');
-                                            router.push('/purchasing?createPO=1&products=' + [...selectedIds].join(','));
-                                        }}>
-                                        🛒 Tạo PO
-                                    </button>
-                                    <button className="btn btn-sm btn-ghost" style={{ fontSize: 12 }}
-                                        onClick={() => setBulkEditModal({ category: '', supplyType: '', brand: '' })}>
-                                        ✏️ Sửa hàng loạt
-                                    </button>
-                                    <button className="btn btn-sm" style={{ fontSize: 12, background: 'var(--status-danger)', color: '#fff', border: 'none' }}
-                                        onClick={async () => {
-                                            if (!confirm(`Xóa ${selectedIds.size} sản phẩm đã chọn?`)) return;
-                                            await fetch('/api/products', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ids: [...selectedIds] }) });
-                                            setSelectedIds(new Set()); fetchProducts();
-                                        }}>
-                                        🗑️ Xóa ({selectedIds.size})
-                                    </button>
-                                    <button className="btn btn-sm btn-ghost" style={{ fontSize: 11, opacity: 0.6 }} onClick={() => setSelectedIds(new Set())}>Bỏ chọn</button>
-                                </>)}
-                                <button className="btn btn-primary btn-sm" onClick={addNewProduct}>+ Thêm SP</button>
-                                <button className="btn btn-ghost btn-sm" onClick={() => setShowPasteModal(true)} title="Dán nhiều SP từ Excel">📋 Dán Excel</button>
-                                <button className="btn btn-ghost btn-sm" onClick={() => excelInputRef.current?.click()} title="Import file Excel">📥</button>
+
+                            <div style={{ marginLeft: 'auto', display: 'flex', gap: 4, alignItems: 'center' }}>
+                                <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>📦 <strong>{filteredP.length}</strong></span>
+                                {lowStock > 0 && <span style={{ fontSize: 10, color: '#eab308' }}>⚠️{lowStock}</span>}
+                                {outStock > 0 && <span style={{ fontSize: 10, color: '#ef4444' }}>🔴{outStock}</span>}
+                                {selectedIds.size > 0 && <button className="btn btn-sm" style={{ fontSize: 11, background: '#ea580c', color: '#fff', border: 'none' }} onClick={() => { const bad = [...selectedIds].filter(id => normalizeSupply(products.find(p => p.id === id)?.supplyType) !== 'Mua ngoài'); if (bad.length) return alert('Chỉ chọn SP "Mua ngoài"'); router.push('/purchasing?createPO=1&products=' + [...selectedIds].join(',')); }}>🛒 PO ({selectedIds.size})</button>}
+                                <button className="btn btn-sm" onClick={addNewProduct} style={{ fontSize: 11, background: '#DBB35E', color: '#fff', border: 'none', fontWeight: 700, borderRadius: 6, padding: '5px 14px' }}>+ THÊM SẢN PHẨM</button>
+                                <button className="btn btn-ghost btn-sm" onClick={() => excelInputRef.current?.click()} title="Import Excel">📥</button>
                                 <input ref={excelInputRef} type="file" accept=".xlsx,.xls,.csv" style={{ display: 'none' }} onChange={handleExcelFile} />
+                                <button className="btn btn-ghost btn-sm" onClick={() => { setPasteText(''); setShowPasteModal(true); }} title="Paste từ Excel">📋 Paste</button>
                             </div>
                         </div>
+                        <BulkActionsBar selectedIds={selectedIds} categories={flatCats} onDone={() => { setSelectedIds(new Set()); fetchProducts(); fetchCategories(); }} />
+                        {quickEditP.size > 0 && (
+                            <div style={{ padding: '6px 16px', background: 'linear-gradient(90deg, #234093, #3b5998)', display: 'flex', alignItems: 'center', gap: 10, borderBottom: '1px solid var(--border-color)' }}>
+                                <span style={{ fontSize: 12, color: '#fff', fontWeight: 600 }}>✏️ Đang sửa {quickEditP.size} sản phẩm</span>
+                                <button className="btn btn-sm" onClick={saveAllQuickP} style={{ fontSize: 11, padding: '3px 12px', background: '#DBB35E', color: '#fff', border: 'none', borderRadius: 4, fontWeight: 700 }}>💾 Lưu tất cả</button>
+                                <button className="btn btn-ghost btn-sm" onClick={() => setQuickEditP(new Map())} style={{ fontSize: 11, color: '#fff', opacity: 0.8 }}>✕ Hủy tất cả</button>
+                            </div>
+                        )}
                         {loadingP ? <div style={{ padding: 40, textAlign: 'center', opacity: 0.4 }}>Đang tải...</div> : (
-                            <div style={{ overflowX: 'auto' }}>
-                                <table className="data-table">
-                                    <thead><tr>
-                                        <th style={{ width: 36, padding: '8px 4px' }}>
-                                            <input type="checkbox" style={{ cursor: 'pointer' }}
-                                                checked={filteredP.length > 0 && filteredP.every(p => selectedIds.has(p.id))}
-                                                onChange={e => {
-                                                    if (e.target.checked) setSelectedIds(new Set(filteredP.map(p => p.id)));
-                                                    else setSelectedIds(new Set());
-                                                }} />
-                                        </th>
-                                        <th style={{ width: 44 }}>Ảnh</th>
-                                        <th style={{ minWidth: 200 }}>Tên sản phẩm</th>
-                                        <th style={{ width: 55 }}>ĐVT</th>
-                                        <th style={{ width: 110 }}>Giá bán</th>
-                                        <th style={{ width: 65 }}>Tồn</th>
-                                        <th style={{ width: 120 }}>Nguồn cung</th>
-                                        <th style={{ width: 110 }}>Thương hiệu</th>
-                                        <th style={{ width: 90 }}></th>
-                                    </tr></thead>
-                                    <tbody>
-                                        {filteredP.map(p => {
-                                            const isEditing = editingP?.id === p.id;
-                                            const d = isEditing ? editingP.data : p;
+                            <div style={{ flex: 1, overflowY: 'auto' }}>
+
+                                {/* ========= LIST VIEW ========= */}
+                                {viewMode === 'list' && (<>
+                                    <table className="data-table" style={{ fontSize: 12 }}>
+                                        <thead><tr>
+                                            <th style={{ width: 30, padding: '4px' }}><input type="checkbox" checked={filteredP.length > 0 && filteredP.every(p => selectedIds.has(p.id))} onChange={e => setSelectedIds(e.target.checked ? new Set(filteredP.map(p => p.id)) : new Set())} /></th>
+                                            <th style={{ width: 38 }}>Ảnh</th><th style={{ minWidth: 160 }}>Tên SP</th><th style={{ width: 70 }}>Mã SP</th><th style={{ width: 45 }}>ĐVT</th>
+                                            <th style={{ width: 100 }}>Giá bán</th><th style={{ width: 70 }}>Tồn kho</th><th style={{ width: 100 }}>Nguồn</th><th style={{ width: 85 }}>TH</th><th style={{ width: 75 }}></th>
+                                        </tr></thead>
+                                        <tbody>{filteredP.map(p => {
                                             const ss = stockStatus(p);
+                                            const qe = quickEditP.get(p.id);
+                                            const isQE = !!qe;
+                                            const sc = SUPPLY_COLOR[normalizeSupply(p.supplyType)] || { bg: '#f5f5f5', color: '#666' };
+                                            const sd = STOCK_DOT[ss] || STOCK_DOT.ok;
+                                            return (<tr key={p.id} style={{ background: isQE ? 'rgba(99,102,241,0.06)' : '' }}>
+                                                <td style={{ padding: 4, textAlign: 'center' }}><input type="checkbox" checked={selectedIds.has(p.id)} onChange={e => { const n = new Set(selectedIds); e.target.checked ? n.add(p.id) : n.delete(p.id); setSelectedIds(n); }} /></td>
+                                                <td style={{ padding: 3, cursor: 'pointer' }} onClick={() => { imgUpTarget.current = p.id; imgUpRef.current?.click(); }}><div style={{ width: 34, height: 34, borderRadius: 5, overflow: 'hidden', border: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f9f9f9' }}>{p.image ? <img src={p.image} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="" /> : <span style={{ fontSize: 14, opacity: 0.15 }}>📷</span>}</div></td>
+                                                <td style={{ padding: '4px 6px' }}>{isQE
+                                                    ? <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}><input value={qe.name} onChange={e => updateQuickField(p.id, 'name', e.target.value)} style={{ width: '100%', fontSize: 12, padding: '2px 4px', border: '1px solid #234093', borderRadius: 4, background: 'var(--bg-input)', fontWeight: 600 }} /><select value={qe.category} onChange={e => updateQuickField(p.id, 'category', e.target.value)} style={{ fontSize: 10, padding: '1px 3px', border: '1px solid #234093', borderRadius: 4, background: 'var(--bg-input)' }}>{allCats.map(c => <option key={c} value={c}>{c}</option>)}</select></div>
+                                                    : <><div style={{ fontWeight: 600, fontSize: 12.5, color: '#234093', cursor: 'pointer' }} onClick={() => startEditP(p)}>{p.name}</div>{p.category && <span style={{ fontSize: 10, opacity: 0.45, background: 'var(--surface-alt)', borderRadius: 3, padding: '0 4px' }}>{p.category}</span>}</>}</td>
+                                                <td style={{ padding: '4px 4px' }}><div style={{ display: 'flex', alignItems: 'center', gap: 2 }}><span style={{ fontFamily: 'monospace', fontSize: 10.5, opacity: 0.55 }}>{p.code}</span><button onClick={() => copyCode(p.code)} style={{ border: 'none', background: 'none', cursor: 'pointer', fontSize: 10, opacity: 0.3, padding: 0 }} title="Copy mã SP">📋</button></div></td>
+                                                <td style={{ padding: '4px 4px', fontSize: 11 }}>{isQE
+                                                    ? <input value={qe.unit} onChange={e => updateQuickField(p.id, 'unit', e.target.value)} style={{ width: 40, fontSize: 11, padding: '2px 3px', border: '1px solid #234093', borderRadius: 4, background: 'var(--bg-input)' }} />
+                                                    : p.unit}</td>
+                                                <td style={{ fontWeight: 600, padding: '4px 4px' }}>{isQE
+                                                    ? <input type="number" value={qe.salePrice} onChange={e => updateQuickField(p.id, 'salePrice', Number(e.target.value))} style={{ width: 85, fontSize: 12, padding: '2px 4px', border: '1px solid #234093', borderRadius: 4, background: 'var(--bg-input)', fontWeight: 600 }} />
+                                                    : fmtCur(p.salePrice)}</td>
+                                                <td style={{ padding: '4px 4px' }}>{isService(p) ? <span style={{ opacity: 0.3 }}>—</span> : isQE
+                                                    ? <input type="number" value={qe.stock} onChange={e => updateQuickField(p.id, 'stock', Number(e.target.value))} style={{ width: 55, fontSize: 12, padding: '2px 4px', border: '1px solid #234093', borderRadius: 4, background: 'var(--bg-input)' }} />
+                                                    : <div style={{ display: 'flex', alignItems: 'center', gap: 4, cursor: 'pointer' }} onClick={() => { /* StockCell handles click */ }}><span style={{ width: 7, height: 7, borderRadius: '50%', background: sd.color, display: 'inline-block', flexShrink: 0 }} /><StockCell value={p.stock} status={ss} onSave={v => quickUpdateStock(p.id, v)} /></div>}</td>
+                                                <td style={{ padding: '4px 4px' }}>{isQE
+                                                    ? <select value={qe.supplyType} onChange={e => updateQuickField(p.id, 'supplyType', e.target.value)} style={{ fontSize: 10, padding: '2px 3px', border: '1px solid #234093', borderRadius: 4, background: 'var(--bg-input)' }}>{SUPPLY_TYPES.map(t => <option key={t}>{t}</option>)}</select>
+                                                    : <span style={{ fontSize: 10, padding: '2px 8px', borderRadius: 10, background: sc.bg, color: sc.color, fontWeight: 600, whiteSpace: 'nowrap' }}>{normalizeSupply(p.supplyType)}</span>}</td>
+                                                <td style={{ fontSize: 11, padding: '4px 4px' }}>{isQE
+                                                    ? <select value={qe.brand} onChange={e => updateQuickField(p.id, 'brand', e.target.value)} style={{ fontSize: 10, padding: '2px 3px', border: '1px solid #234093', borderRadius: 4, background: 'var(--bg-input)', maxWidth: 80 }}>{BRANDS.map(b => <option key={b.n} value={b.n}>{b.n || '-'}</option>)}</select>
+                                                    : (p.brand || <span style={{ opacity: 0.2 }}>-</span>)}</td>
+                                                <td style={{ padding: '4px 4px' }}>{isQE
+                                                    ? <div style={{ display: 'flex', gap: 2 }}><button className="btn btn-sm" onClick={() => saveQuickP(p.id)} style={{ fontSize: 11, padding: '2px 6px', background: '#234093', color: '#fff', border: 'none', borderRadius: 4 }}>✓</button><button className="btn btn-ghost btn-sm" onClick={() => cancelQuickEditP(p.id)} style={{ fontSize: 11, padding: '2px 4px' }}>✕</button></div>
+                                                    : <div style={{ display: 'flex', gap: 1 }}><button className="btn btn-ghost btn-sm" onClick={() => startQuickEditP(p)} style={{ fontSize: 11, padding: '1px 3px' }} title="Sửa nhanh">✏️</button><button className="btn btn-ghost btn-sm" onClick={() => duplicateP(p)} style={{ fontSize: 11, padding: '1px 3px' }}>📋</button><button className="btn btn-ghost btn-sm" onClick={() => deleteP(p.id)} style={{ fontSize: 11, padding: '1px 3px' }}>🗑️</button></div>}</td>
+                                            </tr>);
+                                        })}</tbody>
+                                    </table>
+                                </>)}
+
+                                {/* ========= GRID/CARD VIEW ========= */}
+                                {viewMode === 'grid' && (
+                                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(195px, 1fr))', gap: 12, padding: 12 }}>
+                                        {filteredP.map(p => {
+                                            const ss = stockStatus(p);
+                                            const sc = SUPPLY_COLOR[normalizeSupply(p.supplyType)] || { bg: '#f5f5f5', color: '#666' };
+                                            const sd = STOCK_DOT[ss] || STOCK_DOT.ok;
                                             return (
-                                                <tr key={p.id} style={{ background: isEditing ? 'rgba(99,102,241,0.04)' : ss === 'out' ? 'rgba(231,76,60,0.04)' : ss === 'low' ? 'rgba(234,88,12,0.03)' : '' }}>
-                                                    <td style={{ padding: '8px 4px', textAlign: 'center' }}>
-                                                        <input type="checkbox" style={{ cursor: 'pointer' }}
-                                                            checked={selectedIds.has(p.id)}
-                                                            onChange={e => {
-                                                                const next = new Set(selectedIds);
-                                                                e.target.checked ? next.add(p.id) : next.delete(p.id);
-                                                                setSelectedIds(next);
-                                                            }} />
-                                                    </td>
-                                                    <td style={{ padding: 4, cursor: 'pointer' }}
-                                                        onClick={() => { imgUpTarget.current = p.id; imgUpRef.current?.click(); }}>
-                                                        <div style={{ width: 36, height: 36, borderRadius: 5, overflow: 'hidden', border: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                                                            {d.image
-                                                                ? <img src={d.image} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="" />
-                                                                : <span style={{ fontSize: 16, opacity: 0.25 }}>📷</span>
-                                                            }
+                                                <div key={p.id} className="product-card" style={{ border: '1px solid var(--border-color)', borderRadius: 10, overflow: 'hidden', background: 'var(--bg-card)', transition: 'box-shadow .15s, transform .15s', cursor: 'default' }}>
+                                                    {/* Image */}
+                                                    <div onClick={() => { imgUpTarget.current = p.id; imgUpRef.current?.click(); }} style={{ width: '100%', aspectRatio: '4/3', background: '#f5f3ef', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', overflow: 'hidden', position: 'relative' }}>
+                                                        {p.image
+                                                            ? <img src={p.image} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                                            : <span style={{ fontSize: 40, opacity: 0.08 }}>📷</span>}
+                                                        <div className="card-img-overlay" style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,.35)', display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: 0, transition: 'opacity .15s', color: '#fff', fontSize: 16 }}>📤 Đổi ảnh</div>
+                                                    </div>
+                                                    {/* Body */}
+                                                    <div style={{ padding: '10px 12px' }}>
+                                                        <div style={{ fontWeight: 700, fontSize: 13, color: '#234093', cursor: 'pointer', lineHeight: 1.3, marginBottom: 4, minHeight: 34 }} onClick={() => startEditP(p)}>{p.name}</div>
+                                                        <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: 6 }}>
+                                                            <span style={{ fontFamily: 'monospace', fontSize: 10.5, opacity: 0.45 }}>{p.code}</span>
+                                                            <button onClick={() => copyCode(p.code)} style={{ border: 'none', background: 'none', cursor: 'pointer', fontSize: 11, opacity: 0.35, padding: 0 }} title="Copy mã">📋</button>
                                                         </div>
-                                                    </td>
-                                                    <td>{isEditing
-                                                        ? <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-                                                            <EditCell value={d.name} onChange={v => setEditingP(e => ({ ...e, data: { ...e.data, name: v } }))} />
-                                                            <EditCell value={d.category} onChange={v => setEditingP(e => ({ ...e, data: { ...e.data, category: v } }))} options={allCats} />
+                                                        <div style={{ marginBottom: 6 }}><span style={{ fontSize: 10, padding: '2px 8px', borderRadius: 10, background: sc.bg, color: sc.color, fontWeight: 600 }}>{normalizeSupply(p.supplyType)}</span></div>
+                                                        <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 4 }}>{fmtCur(p.salePrice)} <span style={{ fontSize: 10, fontWeight: 400, opacity: 0.5 }}>/ {p.unit}</span></div>
+                                                        <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11 }}>
+                                                            <span style={{ width: 8, height: 8, borderRadius: '50%', background: sd.color, display: 'inline-block' }} />
+                                                            <span style={{ color: sd.color, fontWeight: 600 }}>{sd.label}</span>
+                                                            {!isService(p) && <span style={{ opacity: 0.45 }}>({p.stock})</span>}
                                                         </div>
-                                                        : <div>
-                                                            <div style={{ fontWeight: 600, fontSize: 13, color: 'var(--primary)', cursor: 'pointer' }}
-                                                                onClick={() => router.push(`/products/${p.id}`)}>{p.name}</div>
-                                                            <div style={{ fontSize: 11, opacity: 0.45 }}><span style={{ fontFamily: 'monospace' }}>{p.code}</span>{p.category && <span style={{ marginLeft: 6, background: 'var(--surface-alt)', borderRadius: 3, padding: '0 5px' }}>{p.category}</span>}</div>
-                                                        </div>}
-                                                    </td>
-                                                    <td>{isEditing ? <EditCell value={d.unit} onChange={v => setEditingP(e => ({ ...e, data: { ...e.data, unit: v } }))} /> : p.unit}</td>
-                                                    <td style={{ fontWeight: 600 }}>{isEditing ? <EditCell value={d.salePrice} onChange={v => setEditingP(e => ({ ...e, data: { ...e.data, salePrice: v } }))} type="number" /> : fmtCur(p.salePrice)}</td>
-                                                    <td>
-                                                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 2 }}>
-                                                            {isEditing ? <EditCell value={d.stock} onChange={v => setEditingP(e => ({ ...e, data: { ...e.data, stock: v } }))} type="number" /> : <span style={{ color: ss === 'out' ? 'var(--status-danger)' : ss === 'low' ? '#ea580c' : '', fontWeight: ss !== 'ok' ? 600 : 400 }}>{p.stock}</span>}
-                                                            {ss === 'out' && !isEditing && <span style={{ fontSize: 9, background: '#dc2626', color: '#fff', borderRadius: 3, padding: '1px 4px' }}>Hết</span>}
-                                                            {ss === 'low' && !isEditing && <span style={{ fontSize: 9, background: '#ea580c', color: '#fff', borderRadius: 3, padding: '1px 4px' }}>Sắp hết</span>}
-                                                        </div>
-                                                    </td>
-                                                    <td style={{ fontSize: 12 }}>{isEditing ? (<select value={normalizeSupply(d.supplyType)} onChange={e => setEditingP(ep => ({ ...ep, data: { ...ep.data, supplyType: e.target.value } }))} style={{ width: '100%', fontSize: 12, padding: '2px 4px', border: '1px solid var(--primary)', borderRadius: 4, background: 'var(--bg-input)' }}>{SUPPLY_TYPES.map(t => <option key={t}>{t}</option>)}</select>) : <span className={`badge ${SUPPLY_BADGE[p.supplyType] || 'muted'}`}>{normalizeSupply(p.supplyType)}</span>}</td>
-                                                    <td style={{ fontSize: 12 }}>{isEditing ? (<select value={d.brand || ''} onChange={e => setEditingP(ep => ({ ...ep, data: { ...ep.data, brand: e.target.value } }))} style={{ width: '100%', fontSize: 12, padding: '2px 4px', border: '1px solid var(--primary)', borderRadius: 4, background: 'var(--bg-input)' }}>{BRANDS.map(b => <option key={b.n} value={b.n}>{b.n || '-- Không --'}</option>)}</select>) : (() => { const br = BRANDS.find(b => b.n === p.brand); return p.brand ? (<div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>{br?.logo && <img src={br.logo} alt="" style={{ width: 18, height: 18, objectFit: 'contain' }} onError={e => e.target.style.display = 'none'} />}<span>{p.brand}</span></div>) : <span style={{ opacity: 0.3 }}>-</span>; })()}</td>
-                                                    <td><div style={{ display: 'flex', gap: 4 }}>
-                                                        {isEditing
-                                                            ? <><button className="btn btn-primary btn-sm" onClick={saveP} style={{ fontSize: 11 }}>✓ Lưu</button><button className="btn btn-ghost btn-sm" onClick={() => setEditingP(null)} style={{ fontSize: 11 }}>✕</button></>
-                                                            : <><button className="btn btn-ghost btn-sm" onClick={() => startEditP(p)} title="Sửa">✏️</button><button className="btn btn-ghost btn-sm" onClick={() => duplicateP(p)} title="Copy">📋</button><button className="btn btn-ghost btn-sm" onClick={() => deleteP(p.id)} title="Xóa">🗑️</button></>}
-                                                    </div></td>
-                                                </tr>
+                                                    </div>
+                                                    {/* Footer actions */}
+                                                    <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 2, padding: '6px 10px', borderTop: '1px solid var(--border-color)' }}>
+                                                        <button className="btn btn-ghost btn-sm" onClick={() => startEditP(p)} style={{ fontSize: 11 }}>Sửa</button>
+                                                        <button className="btn btn-ghost btn-sm" onClick={() => deleteP(p.id)} style={{ fontSize: 11, color: '#ef4444' }}>Xóa</button>
+                                                    </div>
+                                                </div>
                                             );
                                         })}
-                                    </tbody>
-                                </table>
+                                    </div>
+                                )}
+
+                                {hasMore && <div ref={sentinelRef} style={{ padding: 16, textAlign: 'center', opacity: 0.4, fontSize: 11 }}>Đang tải thêm...</div>}
+                                {!hasMore && filteredP.length > 0 && <div style={{ padding: 10, textAlign: 'center', opacity: 0.25, fontSize: 10 }}>— Hết —</div>}
                             </div>
                         )}
                     </div>
@@ -667,6 +689,170 @@ export default function ProductsPage() {
                 </div>
             )}
 
+            {/* Edit Product Modal — Full */}
+            {editingP && (() => {
+                const ep = editingP;
+                const d = ep.data;
+                const set = (field, value) => setEditingP(prev => ({ ...prev, data: { ...prev.data, [field]: value } }));
+                const isManuf = normalizeSupply(d.supplyType) === 'Sản xuất nội bộ';
+                const isSvc = normalizeSupply(d.supplyType) === 'Dịch vụ';
+                return (
+                    <div className="modal-overlay" onClick={() => setEditingP(null)}>
+                        <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 680, maxHeight: '92vh', display: 'flex', flexDirection: 'column' }}>
+                            <div className="modal-header">
+                                <h3 style={{ margin: 0, fontSize: 15 }}>✏️ Sửa: {d.name || 'Sản phẩm'}</h3>
+                                <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                                    <button className="btn btn-ghost btn-sm" onClick={() => router.push(`/products/${ep.id}`)} style={{ fontSize: 11 }}>🔗 Chi tiết</button>
+                                    <button className="modal-close" onClick={() => setEditingP(null)}>×</button>
+                                </div>
+                            </div>
+                            <div className="modal-body" style={{ overflowY: 'auto', flex: 1 }}>
+                                {/* Image + Name row */}
+                                <div style={{ display: 'flex', gap: 12, marginBottom: 12 }}>
+                                    <div style={{ flexShrink: 0 }}>
+                                        <div onClick={() => { imgUpTarget.current = ep.id; imgUpRef.current?.click(); }}
+                                            style={{ width: 80, height: 80, borderRadius: 8, border: '2px dashed var(--border-color)', overflow: 'hidden', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--surface-alt)', position: 'relative' }}
+                                            title="Click để đổi ảnh">
+                                            {d.image
+                                                ? <img src={d.image} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                                : <span style={{ fontSize: 28, opacity: 0.2 }}>📷</span>}
+                                            <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: 0, transition: 'opacity .15s', color: '#fff', fontSize: 18 }}
+                                                onMouseEnter={e => e.currentTarget.style.opacity = 1}
+                                                onMouseLeave={e => e.currentTarget.style.opacity = 0}>📤</div>
+                                        </div>
+                                    </div>
+                                    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 6 }}>
+                                        <div className="form-group" style={{ margin: 0 }}>
+                                            <label className="form-label">Tên sản phẩm</label>
+                                            <input className="form-input" value={d.name || ''} onChange={e => set('name', e.target.value)} autoFocus style={{ fontWeight: 600 }} />
+                                        </div>
+                                        <div style={{ display: 'flex', gap: 8 }}>
+                                            <div className="form-group" style={{ margin: 0, flex: 1 }}>
+                                                <label className="form-label">ĐVT</label>
+                                                <input className="form-input" value={d.unit || ''} onChange={e => set('unit', e.target.value)} />
+                                            </div>
+                                            <div className="form-group" style={{ margin: 0, flex: 2 }}>
+                                                <label className="form-label">Danh mục</label>
+                                                <select className="form-select" value={d.category || ''} onChange={e => set('category', e.target.value)}>
+                                                    {allCats.map(c => <option key={c}>{c}</option>)}
+                                                </select>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Nguồn cung */}
+                                <div className="form-group" style={{ marginBottom: 10 }}>
+                                    <label className="form-label">Nguồn cung</label>
+                                    <div style={{ display: 'flex', gap: 4 }}>
+                                        {SUPPLY_TYPES.map(t => (
+                                            <button key={t} type="button"
+                                                className={`btn btn-sm ${normalizeSupply(d.supplyType) === t ? `btn-${SUPPLY_BADGE[t] || 'primary'}` : 'btn-ghost'}`}
+                                                style={{ fontSize: 11, flex: 1 }}
+                                                onClick={() => set('supplyType', t)}>
+                                                {SUPPLY_ICON[t]} {t}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+
+                                {/* Giá & Tồn */}
+                                <div className="form-row">
+                                    <div className="form-group">
+                                        <label className="form-label">Giá nhập</label>
+                                        <input className="form-input" type="number" value={d.importPrice || 0} onChange={e => set('importPrice', Number(e.target.value))} />
+                                    </div>
+                                    <div className="form-group">
+                                        <label className="form-label">Giá bán</label>
+                                        <input className="form-input" type="number" value={d.salePrice || 0} onChange={e => set('salePrice', Number(e.target.value))} />
+                                    </div>
+                                    {!isSvc && <>
+                                        <div className="form-group">
+                                            <label className="form-label">Tồn kho</label>
+                                            <input className="form-input" type="number" value={d.stock ?? 0} onChange={e => set('stock', Number(e.target.value))} />
+                                        </div>
+                                        <div className="form-group">
+                                            <label className="form-label">Tồn tối thiểu</label>
+                                            <input className="form-input" type="number" value={d.minStock ?? 0} onChange={e => set('minStock', Number(e.target.value))} />
+                                        </div>
+                                    </>}
+                                </div>
+
+                                {/* Thương hiệu & NCC */}
+                                <div className="form-row">
+                                    <div className="form-group" style={{ flex: 1 }}>
+                                        <label className="form-label">Thương hiệu</label>
+                                        <select className="form-select" value={d.brand || ''} onChange={e => set('brand', e.target.value)}>
+                                            {BRANDS.map(b => <option key={b.n} value={b.n}>{b.n || '-- Không --'}</option>)}
+                                        </select>
+                                    </div>
+                                    <div className="form-group" style={{ flex: 1 }}>
+                                        <label className="form-label">Nhà cung cấp</label>
+                                        <input className="form-input" value={d.supplier || ''} onChange={e => set('supplier', e.target.value)} />
+                                    </div>
+                                </div>
+
+                                {/* Kích thước & Vật liệu */}
+                                <div style={{ borderTop: '1px solid var(--border-color)', marginTop: 8, paddingTop: 10 }}>
+                                    <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', marginBottom: 6, letterSpacing: 0.5 }}>CHI TIẾT</div>
+                                    <div className="form-row">
+                                        <div className="form-group">
+                                            <label className="form-label">Kích thước</label>
+                                            <input className="form-input" value={d.dimensions || ''} onChange={e => set('dimensions', e.target.value)} placeholder="DxRxC" />
+                                        </div>
+                                        <div className="form-group">
+                                            <label className="form-label">Trọng lượng (kg)</label>
+                                            <input className="form-input" type="number" value={d.weight || 0} onChange={e => set('weight', Number(e.target.value))} />
+                                        </div>
+                                        <div className="form-group">
+                                            <label className="form-label">Màu sắc</label>
+                                            <input className="form-input" value={d.color || ''} onChange={e => set('color', e.target.value)} />
+                                        </div>
+                                    </div>
+                                    <div className="form-row">
+                                        <div className="form-group">
+                                            <label className="form-label">Chất liệu</label>
+                                            <input className="form-input" value={d.material || ''} onChange={e => set('material', e.target.value)} />
+                                        </div>
+                                        <div className="form-group">
+                                            <label className="form-label">Xuất xứ</label>
+                                            <input className="form-input" value={d.origin || ''} onChange={e => set('origin', e.target.value)} />
+                                        </div>
+                                        <div className="form-group">
+                                            <label className="form-label">Bảo hành</label>
+                                            <input className="form-input" value={d.warranty || ''} onChange={e => set('warranty', e.target.value)} placeholder="VD: 12 tháng" />
+                                        </div>
+                                    </div>
+                                    {isManuf && (
+                                        <div className="form-row">
+                                            <div className="form-group">
+                                                <label className="form-label">Chất liệu cốt</label>
+                                                <select className="form-select" value={d.coreBoard || ''} onChange={e => set('coreBoard', e.target.value)}>
+                                                    <option value="">-- Chọn --</option>
+                                                    {CORE_BOARD_TYPES.map(c => <option key={c}>{c}</option>)}
+                                                </select>
+                                            </div>
+                                            <div className="form-group">
+                                                <label className="form-label">Mã bề mặt</label>
+                                                <input className="form-input" value={d.surfaceCode || ''} onChange={e => set('surfaceCode', e.target.value)} placeholder="VD: 388EV" />
+                                            </div>
+                                        </div>
+                                    )}
+                                    <div className="form-group">
+                                        <label className="form-label">Mô tả</label>
+                                        <textarea className="form-input" rows={2} value={d.description || ''} onChange={e => set('description', e.target.value)} style={{ resize: 'vertical' }} />
+                                    </div>
+                                </div>
+                            </div>
+                            <div className="modal-footer">
+                                <button className="btn btn-ghost" onClick={() => setEditingP(null)}>Hủy</button>
+                                <button className="btn btn-primary" onClick={saveP}>💾 Lưu thay đổi</button>
+                            </div>
+                        </div>
+                    </div>
+                );
+            })()}
+
             {/* Add Product Modal */}
             {showAddModal && (
                 <div className="modal-overlay" onClick={() => setShowAddModal(false)}>
@@ -773,173 +959,87 @@ export default function ProductsPage() {
 
             {/* Paste from Excel modal */}
             {showPasteModal && (
-                <div className="modal-overlay" onClick={() => { setShowPasteModal(false); setPasteText(''); }}>
-                    <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 580 }}>
+                <div className="modal-overlay" onClick={() => setShowPasteModal(false)}>
+                    <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 600 }}>
                         <div className="modal-header">
-                            <h3>📋 Dán dữ liệu từ Excel</h3>
-                            <button className="modal-close" onClick={() => { setShowPasteModal(false); setPasteText(''); }}>×</button>
+                            <h3 style={{ margin: 0 }}>📋 Paste từ Excel</h3>
+                            <button className="modal-close" onClick={() => setShowPasteModal(false)}>×</button>
                         </div>
                         <div className="modal-body">
-                            <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 10, padding: '8px 12px', background: 'var(--bg-hover)', borderRadius: 6, lineHeight: 1.7 }}>
-                                Copy từ Excel rồi Ctrl+V vào ô bên dưới. <strong>Thứ tự cột:</strong><br />
-                                <code style={{ fontSize: 11 }}>Tên SP* | Danh mục | ĐVT | Giá bán | Giá nhập | Tồn kho | Thương hiệu | Nguồn cung</code>
+                            <div style={{ padding: '8px 12px', background: 'rgba(35,64,147,0.06)', borderRadius: 6, fontSize: 12, color: 'var(--text-secondary)', marginBottom: 10, borderLeft: '3px solid #234093' }}>
+                                💡 Copy các ô từ Excel (bao gồm hàng tiêu đề), rồi <strong>Ctrl+V</strong> vào ô bên dưới.
+                                <br />Header hỗ trợ: <strong>Tên, Danh mục, ĐVT, Giá bán, Giá nhập, Tồn kho, Thương hiệu, Nguồn cung, Nhà cung cấp</strong>
                             </div>
                             <textarea
-                                className="form-input"
-                                rows={10}
-                                placeholder="Ctrl+V để dán từ Excel..."
+                                autoFocus
                                 value={pasteText}
                                 onChange={e => setPasteText(e.target.value)}
-                                autoFocus
-                                style={{ fontFamily: 'monospace', fontSize: 12, resize: 'vertical' }}
+                                placeholder="Ctrl+V paste dữ liệu từ Excel vào đây...&#10;&#10;Ví dụ:&#10;Tên&#9;Danh mục&#9;ĐVT&#9;Giá bán&#10;Bản lề Blum&#9;Phụ kiện nội thất&#9;bộ&#9;350000"
+                                style={{ width: '100%', minHeight: 180, fontSize: 12, fontFamily: 'monospace', padding: 10, border: '1px solid var(--border-color)', borderRadius: 6, resize: 'vertical', background: 'var(--bg-input)' }}
                             />
-                            {pasteText.trim() && (() => {
-                                const count = pasteText.trim().split('\n').filter(r => r.split('\t')[0]?.trim()).length;
-                                return <div style={{ marginTop: 6, fontSize: 12, color: 'var(--status-success)' }}>✅ Đọc được <strong>{count}</strong> dòng</div>;
-                            })()}
+                            {pasteText && <div style={{ fontSize: 11, opacity: 0.5, marginTop: 4 }}>{pasteText.split('\n').filter(l => l.trim()).length} dòng phát hiện</div>}
                         </div>
                         <div className="modal-footer">
-                            <button className="btn btn-ghost" onClick={() => { setShowPasteModal(false); setPasteText(''); }}>Hủy</button>
-                            <button className="btn btn-primary" onClick={parsePasteP} disabled={!pasteText.trim()}>
-                                Xem trước →
-                            </button>
+                            <button className="btn btn-ghost" onClick={() => setShowPasteModal(false)}>Hủy</button>
+                            <button className="btn btn-primary" onClick={() => parsePastedText(pasteText)} disabled={!pasteText.trim()}>🔍 Xử lý & Preview</button>
                         </div>
                     </div>
                 </div>
             )}
 
-            {/* Import preview modal */}
-            {importPreview && (
-                <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.55)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                    <div style={{ background: 'var(--bg-card)', borderRadius: 12, padding: 24, maxWidth: 1100, width: '95%', maxHeight: '80vh', display: 'flex', flexDirection: 'column', gap: 16, boxShadow: '0 20px 60px rgba(0,0,0,.4)' }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <h3 style={{ margin: 0 }}>📥 Preview Import — {importPreview.length} sản phẩm</h3>
-                            <button className="btn btn-ghost btn-sm" onClick={() => setImportPreview(null)}>✕</button>
-                        </div>
-                        <div style={{ overflowY: 'auto', flex: 1, border: '1px solid var(--border-color)', borderRadius: 6 }}>
-                            <table className="data-table" style={{ fontSize: 12 }}>
-                                <thead><tr><th>#</th><th>Tên</th><th>Danh mục</th><th>ĐVT</th><th>Giá bán</th><th>Nguồn cung</th><th>TH</th><th style={{ width: 36 }}></th></tr></thead>
-                                <tbody>{importPreview.map((p, i) => (
-                                    <tr key={i}>
-                                        <td style={{ opacity: .4 }}>{i + 1}</td>
-                                        <td style={{ fontWeight: 600 }}>{p.name}</td>
-                                        <td><span className="badge badge-default">{p.category}</span></td>
-                                        <td>{p.unit}</td>
-                                        <td>{fmtCur(p.salePrice)}</td>
-                                        <td>
-                                            <select value={p.supplyType || 'Mua ngoài'} onChange={e => setImportPreview(prev => prev.map((item, j) => j === i ? { ...item, supplyType: e.target.value } : item))} style={{ fontSize: 11, padding: '2px 4px', border: '1px solid var(--border-color)', borderRadius: 4, background: 'var(--bg-input)' }}>
-                                                {SUPPLY_TYPES.map(t => <option key={t}>{t}</option>)}
-                                            </select>
-                                        </td>
-                                        <td>{p.brand || '-'}</td>
-                                        <td><button onClick={() => setImportPreview(prev => prev.filter((_, j) => j !== i))} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--status-danger)', fontSize: 14, padding: 2, opacity: 0.6 }} title="Xóa dòng này">✕</button></td>
-                                    </tr>
-                                ))}</tbody>
-                            </table>
-                        </div>
-                        <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-                            <button className="btn btn-ghost" onClick={() => setImportPreview(null)}>Hủy</button>
-                            <button className="btn btn-primary" onClick={confirmImport} disabled={importing}>
-                                {importing ? '⏳ Đang import...' : `✅ Xác nhận import ${importPreview.length} SP`}
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
-
-            {/* Delete category modal */}
-            {deletingCat && (() => {
-                const count = products.filter(p => p.category === deletingCat).length;
+            {/* Import preview modal with validation */}
+            {importPreview && (() => {
+                const validCount = importPreview.filter(p => p._enabled && p._errors.length === 0).length;
+                const errorCount = importPreview.filter(p => p._errors.length > 0).length;
                 return (
-                    <div className="modal-overlay" onClick={() => setDeletingCat(null)}>
-                        <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 420 }}>
-                            <div className="modal-header">
-                                <h3>🗑️ Xóa danh mục</h3>
-                                <button className="modal-close" onClick={() => setDeletingCat(null)}>×</button>
+                    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.55)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <div style={{ background: 'var(--bg-card)', borderRadius: 12, padding: 24, maxWidth: 820, width: '95%', maxHeight: '80vh', display: 'flex', flexDirection: 'column', gap: 12, boxShadow: '0 20px 60px rgba(0,0,0,.4)' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                <h3 style={{ margin: 0 }}>📥 Import — {importPreview.length} dòng</h3>
+                                <button className="btn btn-ghost btn-sm" onClick={() => setImportPreview(null)}>✕</button>
                             </div>
-                            <div className="modal-body">
-                                <p style={{ marginBottom: 12 }}>Xóa danh mục <strong>"{deletingCat}"</strong>?</p>
-                                {count > 0 ? (
-                                    <div>
-                                        <p style={{ color: 'var(--text-muted)', fontSize: 13, marginBottom: 8 }}><strong>{count}</strong> sản phẩm sẽ được chuyển sang danh mục:</p>
-                                        <select className="form-select" value={deleteCatTarget} onChange={e => setDeleteCatTarget(e.target.value)}>
-                                            <option value="">— Bỏ phân loại —</option>
-                                            {pCats.filter(c => c !== deletingCat).map(c => <option key={c}>{c}</option>)}
-                                        </select>
-                                    </div>
-                                ) : (
-                                    <p style={{ color: 'var(--text-muted)', fontSize: 13 }}>Danh mục trống, sẽ xóa ngay.</p>
-                                )}
+                            {errorCount > 0 && <div style={{ padding: '8px 12px', background: 'rgba(231,76,60,0.08)', borderRadius: 6, fontSize: 12, color: '#dc2626', borderLeft: '3px solid #dc2626' }}>⚠️ {errorCount} dòng có lỗi (sẽ bị bỏ qua). Các dòng hợp lệ: <strong>{validCount}</strong></div>}
+                            <div style={{ overflowY: 'auto', flex: 1, border: '1px solid var(--border-color)', borderRadius: 6 }}>
+                                <table className="data-table" style={{ fontSize: 11.5 }}>
+                                    <thead><tr><th style={{ width: 30 }}></th><th style={{ width: 35 }}>Row</th><th>Tên</th><th>Danh mục</th><th style={{ width: 45 }}>ĐVT</th><th style={{ width: 85 }}>Giá bán</th><th style={{ width: 45 }}>Tồn</th><th>Lỗi</th></tr></thead>
+                                    <tbody>{importPreview.map((p, i) => (
+                                        <tr key={i} style={{ opacity: p._enabled ? 1 : 0.4, background: p._errors.length > 0 ? 'rgba(231,76,60,0.04)' : '' }}>
+                                            <td style={{ padding: '3px 4px' }}><input type="checkbox" checked={p._enabled} onChange={() => toggleImportRow(i)} disabled={p._errors.length > 0} /></td>
+                                            <td style={{ opacity: .4, fontSize: 10 }}>{p._row}</td>
+                                            <td style={{ fontWeight: 600 }}>{p.name || <span style={{ color: '#dc2626' }}>—</span>}</td>
+                                            <td><span className="badge badge-default" style={{ fontSize: 10 }}>{p.category || '-'}</span></td>
+                                            <td>{p.unit}</td>
+                                            <td>{fmtCur(p.salePrice)}</td>
+                                            <td>{p.stock}</td>
+                                            <td>{p._errors.length > 0 ? <span style={{ color: '#dc2626', fontSize: 10 }}>{p._errors.join(', ')}</span> : <span style={{ color: '#16a34a', fontSize: 10 }}>✓</span>}</td>
+                                        </tr>
+                                    ))}</tbody>
+                                </table>
                             </div>
-                            <div className="modal-footer">
-                                <button className="btn btn-ghost" onClick={() => setDeletingCat(null)}>Hủy</button>
-                                <button className="btn btn-primary" style={{ background: 'var(--status-danger)', borderColor: 'var(--status-danger)' }} onClick={handleDeleteCategory}>Xóa danh mục</button>
+                            <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', alignItems: 'center' }}>
+                                <span style={{ fontSize: 11, opacity: 0.5, marginRight: 'auto' }}>Batch 10/lần • Trùng tên tự bỏ qua</span>
+                                <button className="btn btn-ghost" onClick={() => setImportPreview(null)}>Hủy</button>
+                                <button className="btn btn-primary" onClick={confirmImport} disabled={importing || validCount === 0}>
+                                    {importing ? '⏳ Đang import...' : `✅ Import ${validCount} SP`}
+                                </button>
                             </div>
                         </div>
                     </div>
                 );
             })()}
 
-            {/* Bulk Edit Modal */}
-            {bulkEditModal && (
-                <div className="modal-overlay" onClick={() => setBulkEditModal(null)}>
-                    <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 440 }}>
-                        <div className="modal-header">
-                            <h3>✏️ Sửa hàng loạt — {selectedIds.size} sản phẩm</h3>
-                            <button className="modal-close" onClick={() => setBulkEditModal(null)}>×</button>
-                        </div>
-                        <div className="modal-body">
-                            <p style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 12 }}>Chỉ cập nhật các trường có giá trị. Để trống = giữ nguyên.</p>
-                            <div className="form-group">
-                                <label className="form-label">Danh mục</label>
-                                <select className="form-select" value={bulkEditModal.category} onChange={e => setBulkEditModal(m => ({ ...m, category: e.target.value }))}>
-                                    <option value="">— Giữ nguyên —</option>
-                                    {allCats.map(c => <option key={c}>{c}</option>)}
-                                </select>
-                            </div>
-                            <div className="form-group">
-                                <label className="form-label">Nguồn cung</label>
-                                <select className="form-select" value={bulkEditModal.supplyType} onChange={e => setBulkEditModal(m => ({ ...m, supplyType: e.target.value }))}>
-                                    <option value="">— Giữ nguyên —</option>
-                                    {SUPPLY_TYPES.map(t => <option key={t}>{t}</option>)}
-                                </select>
-                            </div>
-                            <div className="form-group">
-                                <label className="form-label">Thương hiệu</label>
-                                <select className="form-select" value={bulkEditModal.brand} onChange={e => setBulkEditModal(m => ({ ...m, brand: e.target.value }))}>
-                                    <option value="">— Giữ nguyên —</option>
-                                    {BRANDS.filter(b => b.n).map(b => <option key={b.n} value={b.n}>{b.n}</option>)}
-                                </select>
-                            </div>
-                        </div>
-                        <div className="modal-footer">
-                            <button className="btn btn-ghost" onClick={() => setBulkEditModal(null)}>Hủy</button>
-                            <button className="btn btn-primary" onClick={async () => {
-                                const updates = {};
-                                if (bulkEditModal.category) updates.category = bulkEditModal.category;
-                                if (bulkEditModal.supplyType) updates.supplyType = bulkEditModal.supplyType;
-                                if (bulkEditModal.brand) updates.brand = bulkEditModal.brand;
-                                if (Object.keys(updates).length === 0) return alert('Chưa chọn thay đổi nào');
-                                const promises = [...selectedIds].map(id =>
-                                    fetch(`/api/products/${id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(updates) })
-                                );
-                                await Promise.all(promises);
-                                setBulkEditModal(null); setSelectedIds(new Set()); fetchProducts();
-                            }}>
-                                Áp dụng ({selectedIds.size} SP)
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
-
             {/* Hidden image upload input (product images) */}
             <input ref={imgUpRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={handleImgUpload} />
 
             <style>{`
+                @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap');
+                .data-table, .product-card, .form-input, .form-select, .btn { font-family: 'Montserrat', sans-serif; }
                 .thumb-wrap { position: relative; }
                 .thumb-wrap .thumb-overlay { position: absolute; inset: 0; border-radius: 5px; background: rgba(0,0,0,0.45); display: flex; align-items: center; justify-content: center; opacity: 0; transition: opacity 0.15s; font-size: 13px; color: #fff; }
                 .thumb-wrap:hover .thumb-overlay { opacity: 1; }
+                .product-card:hover { box-shadow: 0 4px 16px rgba(35,64,147,0.12); transform: translateY(-2px); }
+                .product-card .card-img-overlay { opacity: 0; }
+                .product-card:hover .card-img-overlay { opacity: 1 !important; }
             `}</style>
         </div>
     );

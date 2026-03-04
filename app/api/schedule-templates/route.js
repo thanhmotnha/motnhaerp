@@ -9,7 +9,6 @@ async function ensureDefaultTemplates() {
     if (seeded) return;
     const count = await prisma.scheduleTemplate.count();
     if (count > 0) { seeded = true; return; }
-    seeded = true; // set before creating to prevent concurrent re-entry
 
     console.log('[schedule-templates] Auto-seeding default templates...');
 

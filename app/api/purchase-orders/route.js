@@ -3,6 +3,7 @@ import prisma from '@/lib/prisma';
 import { parsePagination, paginatedResponse } from '@/lib/pagination';
 import { generateCode } from '@/lib/generateCode';
 import { NextResponse } from 'next/server';
+import { purchaseOrderCreateSchema } from '@/lib/validations/purchaseOrder';
 
 export const GET = withAuth(async (request) => {
     const { searchParams } = new URL(request.url);
@@ -23,8 +24,7 @@ export const GET = withAuth(async (request) => {
             where,
             include: {
                 items: true,
-                project: { select: { name: true, code: true, address: true } },
-                supplierRel: { select: { id: true, name: true, code: true, phone: true, address: true, taxCode: true, bankAccount: true, bankName: true } },
+                project: { select: { name: true, code: true } },
             },
             orderBy: { createdAt: 'desc' },
             skip,
@@ -37,48 +37,24 @@ export const GET = withAuth(async (request) => {
 });
 
 export const POST = withAuth(async (request) => {
-    const data = await request.json();
-    const { items, requisitionIds, ...poData } = data;
+    const body = await request.json();
+    const { items, ...poData } = purchaseOrderCreateSchema.parse(body);
     const code = await generateCode('purchaseOrder', 'PO');
-
-    // Clean items: strip internal fields not in schema
-    const cleanItems = (items || []).map(({ _mpId, ...rest }) => ({
-        ...rest,
-        quantity: Number(rest.quantity) || 0,
-        unitPrice: Number(rest.unitPrice) || 0,
-        amount: Number(rest.amount) || 0,
-        materialPlanId: _mpId || rest.materialPlanId || undefined,
-    }));
-
     const order = await prisma.purchaseOrder.create({
         data: {
             code,
             supplier: poData.supplier,
-            totalAmount: Number(poData.totalAmount) || 0,
-            status: 'Chờ duyệt',
-            deliveryType: poData.deliveryType || 'Giao thẳng dự án',
-            deliveryAddress: poData.deliveryAddress || '',
-            notes: poData.notes || '',
+            totalAmount: poData.totalAmount,
+            paidAmount: poData.paidAmount,
+            status: poData.status,
+            notes: poData.notes,
             projectId: poData.projectId || null,
-            supplierId: poData.supplierId || null,
-            orderDate: poData.orderDate ? new Date(poData.orderDate) : new Date(),
-            deliveryDate: poData.deliveryDate ? new Date(poData.deliveryDate) : null,
-            items: cleanItems.length > 0 ? { create: cleanItems } : undefined,
+            orderDate: poData.orderDate || new Date(),
+            deliveryDate: poData.deliveryDate || null,
+            receivedDate: poData.receivedDate || null,
+            items: items ? { create: items } : undefined,
         },
-        include: {
-            items: true,
-            project: { select: { name: true, code: true, address: true } },
-            supplierRel: { select: { id: true, name: true, code: true, phone: true, address: true, taxCode: true, bankAccount: true, bankName: true } },
-        },
+        include: { items: true, project: { select: { name: true, code: true } } },
     });
-
-    // Link requisitions to this PO if provided
-    if (requisitionIds?.length) {
-        await prisma.materialRequisition.updateMany({
-            where: { id: { in: requisitionIds } },
-            data: { purchaseOrderId: order.id, status: 'Đã lên đơn' },
-        });
-    }
-
     return NextResponse.json(order);
 });

@@ -2,7 +2,6 @@ import { withAuth } from '@/lib/apiHandler';
 import prisma from '@/lib/prisma';
 import { NextResponse } from 'next/server';
 import { scheduleTaskCreateSchema, scheduleTaskBulkUpdateSchema } from '@/lib/validations/scheduleTask';
-import { recalcProjectProgress } from '@/lib/scheduleUtils';
 
 export const GET = withAuth(async (request) => {
     const { searchParams } = new URL(request.url);
@@ -62,29 +61,36 @@ export const POST = withAuth(async (request) => {
     return NextResponse.json(task, { status: 201 });
 });
 
-// Bulk update (for Gantt drag & drop) — wrapped in transaction
+// Bulk update (for Gantt drag & drop)
 export const PUT = withAuth(async (request) => {
     const body = await request.json();
     const updates = scheduleTaskBulkUpdateSchema.parse(body);
 
-    const results = await prisma.$transaction(async (tx) => {
-        const created = [];
-        for (const u of updates) {
+    const results = await prisma.$transaction(
+        updates.map(u => {
             const { id, ...data } = u;
-            // Auto-calc duration if dates changed
             if (data.startDate && data.endDate) {
                 data.duration = Math.max(1, Math.ceil((new Date(data.endDate) - new Date(data.startDate)) / 86400000));
             }
-            const updated = await tx.scheduleTask.update({ where: { id }, data });
-            created.push(updated);
-        }
-        return created;
-    });
+            return prisma.scheduleTask.update({ where: { id }, data });
+        })
+    );
 
-    // Recalc project progress for affected project
     if (results.length > 0) {
         await recalcProjectProgress(results[0].projectId);
     }
 
     return NextResponse.json(results);
 });
+
+async function recalcProjectProgress(projectId) {
+    const tasks = await prisma.scheduleTask.findMany({
+        where: { projectId, parentId: null },
+    });
+    if (tasks.length === 0) return;
+    const totalWeight = tasks.reduce((s, t) => s + t.weight, 0);
+    const progress = totalWeight > 0
+        ? Math.round(tasks.reduce((s, t) => s + t.progress * t.weight, 0) / totalWeight)
+        : 0;
+    await prisma.project.update({ where: { id: projectId }, data: { progress } });
+}
