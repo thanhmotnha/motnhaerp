@@ -4,6 +4,9 @@ import { useParams, useRouter } from 'next/navigation';
 import DocumentManager from '@/components/documents/DocumentManager';
 import ScheduleManager from '@/components/schedule/ScheduleManager';
 import JournalTab from '@/components/journal/JournalTab';
+import BudgetLockBar from '@/components/budget/BudgetLockBar';
+import VarianceTable from '@/components/budget/VarianceTable';
+import ProfitabilityWidget from '@/components/budget/ProfitabilityWidget';
 const fmt = (n) => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(n);
 const fmtDate = (d) => d ? new Date(d).toLocaleDateString('vi-VN') : '—';
 const pct = (a, b) => b > 0 ? Math.round((a / b) * 100) : 0;
@@ -368,6 +371,7 @@ ${po.notes ? `<div class="notes-box"><strong>Ghi chú:</strong> ${po.notes}</div
         { key: 'contractors', label: 'Thầu phụ', icon: '👷', count: p.contractorPays?.length },
         { key: 'finance', label: 'Tài chính', icon: '💰' },
         { key: 'documents', label: 'Tài liệu', icon: '📁', count: p.documents?.length },
+        { key: 'budget', label: 'Dự toán', icon: '💰' },
         { key: 'journal', label: 'Nhật ký AI', icon: '🤖' },
     ];
 
@@ -496,43 +500,64 @@ ${po.notes ? `<div class="notes-box"><strong>Ghi chú:</strong> ${po.notes}</div
                 </div>
             )}
 
+            {/* TAB: Dự toán & Chi phí */}
+            {tab === 'budget' && (
+                <div>
+                    <BudgetLockBar
+                        projectId={id}
+                        budgetStatus={p.budgetStatus}
+                        budgetTotal={p.budgetTotal}
+                        budgetLockedAt={p.budgetLockedAt}
+                        budgetLockedBy={p.budgetLockedBy}
+                        onLocked={() => window.location.reload()}
+                    />
+                    <div className="card" style={{ padding: 20, marginTop: 16 }}>
+                        <h3 style={{ fontSize: 15, fontWeight: 700, marginBottom: 16 }}>📊 Bảng theo dõi Chênh lệch Vật tư</h3>
+                        <VarianceTable projectId={id} />
+                    </div>
+                </div>
+            )}
+
             {/* TAB: Tổng quan */}
             {tab === 'overview' && (
-                <div className="dashboard-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24 }}>
-                    <div className="card">
-                        <div className="card-header"><span className="card-title">👥 Nhân sự</span></div>
-                        {p.employees.map(e => (
-                            <div key={e.employeeId} style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 0', borderBottom: '1px solid var(--border-light)' }}>
-                                <span style={{ fontWeight: 600, fontSize: 13 }}>{e.employee.name}</span>
-                                <span style={{ color: 'var(--text-muted)', fontSize: 12 }}>{e.employee.position}</span>
-                            </div>
-                        ))}
-                        {p.employees.length === 0 && <div style={{ color: 'var(--text-muted)', padding: 20, textAlign: 'center', fontSize: 13 }}>Chưa có nhân sự</div>}
-                    </div>
-                    <div className="card">
-                        <div className="card-header"><span className="card-title">💰 Giao dịch gần đây</span></div>
-                        {p.transactions.map(t => (
-                            <div key={t.id} style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 0', borderBottom: '1px solid var(--border-light)' }}>
-                                <div><span style={{ fontWeight: 600, fontSize: 13 }}>{t.description}</span><div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{fmtDate(t.date)}</div></div>
-                                <span style={{ fontWeight: 700, fontSize: 13, color: t.type === 'Thu' ? 'var(--status-success)' : 'var(--status-danger)' }}>{t.type === 'Thu' ? '+' : '-'}{fmt(t.amount)}</span>
-                            </div>
-                        ))}
-                        {p.transactions.length === 0 && <div style={{ color: 'var(--text-muted)', padding: 20, textAlign: 'center', fontSize: 13 }}>Chưa có giao dịch</div>}
-                    </div>
-                    <div className="card" style={{ gridColumn: '1 / -1' }}>
-                        <div className="card-header"><span className="card-title">📝 Nhật ký theo dõi</span>{p.trackingLogs.length > 5 && <button className="btn btn-ghost btn-sm" onClick={() => setTab('logs')} style={{ fontSize: 12 }}>Xem tất cả ({p.trackingLogs.length}) →</button>}</div>
-                        {p.trackingLogs.slice(0, 5).map(log => (
-                            <div key={log.id} style={{ display: 'flex', gap: 12, padding: '10px 0', borderBottom: '1px solid var(--border-light)' }}>
-                                <div style={{ width: 36, height: 36, borderRadius: 10, background: 'var(--bg-primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, flexShrink: 0 }}>
-                                    {log.type === 'Điện thoại' ? '📞' : log.type === 'Gặp mặt' ? '🤝' : log.type === 'Email' ? '📧' : '💬'}
+                <div>
+                    <ProfitabilityWidget projectId={id} />
+                    <div className="dashboard-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24, marginTop: 20 }}>
+                        <div className="card">
+                            <div className="card-header"><span className="card-title">👥 Nhân sự</span></div>
+                            {p.employees.map(e => (
+                                <div key={e.employeeId} style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 0', borderBottom: '1px solid var(--border-light)' }}>
+                                    <span style={{ fontWeight: 600, fontSize: 13 }}>{e.employee.name}</span>
+                                    <span style={{ color: 'var(--text-muted)', fontSize: 12 }}>{e.employee.position}</span>
                                 </div>
-                                <div style={{ flex: 1 }}>
-                                    <div style={{ fontSize: 13, fontWeight: 600 }}>{log.content}</div>
-                                    <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>{log.createdBy} • {fmtDate(log.createdAt)} • {log.type}</div>
+                            ))}
+                            {p.employees.length === 0 && <div style={{ color: 'var(--text-muted)', padding: 20, textAlign: 'center', fontSize: 13 }}>Chưa có nhân sự</div>}
+                        </div>
+                        <div className="card">
+                            <div className="card-header"><span className="card-title">💰 Giao dịch gần đây</span></div>
+                            {p.transactions.map(t => (
+                                <div key={t.id} style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 0', borderBottom: '1px solid var(--border-light)' }}>
+                                    <div><span style={{ fontWeight: 600, fontSize: 13 }}>{t.description}</span><div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{fmtDate(t.date)}</div></div>
+                                    <span style={{ fontWeight: 700, fontSize: 13, color: t.type === 'Thu' ? 'var(--status-success)' : 'var(--status-danger)' }}>{t.type === 'Thu' ? '+' : '-'}{fmt(t.amount)}</span>
                                 </div>
-                            </div>
-                        ))}
-                        {(!p.trackingLogs || p.trackingLogs.length === 0) && <div style={{ color: 'var(--text-muted)', padding: 20, textAlign: 'center', fontSize: 13 }}>Chưa có nhật ký</div>}
+                            ))}
+                            {p.transactions.length === 0 && <div style={{ color: 'var(--text-muted)', padding: 20, textAlign: 'center', fontSize: 13 }}>Chưa có giao dịch</div>}
+                        </div>
+                        <div className="card" style={{ gridColumn: '1 / -1' }}>
+                            <div className="card-header"><span className="card-title">📝 Nhật ký theo dõi</span>{p.trackingLogs.length > 5 && <button className="btn btn-ghost btn-sm" onClick={() => setTab('logs')} style={{ fontSize: 12 }}>Xem tất cả ({p.trackingLogs.length}) →</button>}</div>
+                            {p.trackingLogs.slice(0, 5).map(log => (
+                                <div key={log.id} style={{ display: 'flex', gap: 12, padding: '10px 0', borderBottom: '1px solid var(--border-light)' }}>
+                                    <div style={{ width: 36, height: 36, borderRadius: 10, background: 'var(--bg-primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, flexShrink: 0 }}>
+                                        {log.type === 'Điện thoại' ? '📞' : log.type === 'Gặp mặt' ? '🤝' : log.type === 'Email' ? '📧' : '💬'}
+                                    </div>
+                                    <div style={{ flex: 1 }}>
+                                        <div style={{ fontSize: 13, fontWeight: 600 }}>{log.content}</div>
+                                        <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>{log.createdBy} • {fmtDate(log.createdAt)} • {log.type}</div>
+                                    </div>
+                                </div>
+                            ))}
+                            {(!p.trackingLogs || p.trackingLogs.length === 0) && <div style={{ color: 'var(--text-muted)', padding: 20, textAlign: 'center', fontSize: 13 }}>Chưa có nhật ký</div>}
+                        </div>
                     </div>
                 </div>
             )}

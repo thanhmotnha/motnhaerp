@@ -1,0 +1,79 @@
+import { withAuth } from '@/lib/apiHandler';
+import prisma from '@/lib/prisma';
+import { NextResponse } from 'next/server';
+
+export const GET = withAuth(async (request) => {
+    const { searchParams } = new URL(request.url);
+    const projectId = searchParams.get('projectId');
+    if (!projectId) return NextResponse.json({ error: 'projectId required' }, { status: 400 });
+
+    // Get all material plans with their PO items
+    const plans = await prisma.materialPlan.findMany({
+        where: { projectId },
+        include: {
+            product: { select: { name: true, code: true, unit: true } },
+            purchaseItems: { select: { unitPrice: true, quantity: true, receivedQty: true } },
+        },
+    });
+
+    const variance = plans.map(plan => {
+        // Avg actual price from PO items (weighted by qty)
+        const totalPOQty = plan.purchaseItems.reduce((s, i) => s + i.quantity, 0);
+        const totalPOValue = plan.purchaseItems.reduce((s, i) => s + i.unitPrice * i.quantity, 0);
+        const avgActualPrice = totalPOQty > 0 ? totalPOValue / totalPOQty : 0;
+
+        // Received qty from PO items
+        const actualReceivedQty = plan.purchaseItems.reduce((s, i) => s + i.receivedQty, 0);
+
+        // Max allowed qty
+        const maxAllowedQty = plan.quantity * (1 + plan.wastePercent / 100);
+
+        // Variance calculations
+        const priceVariance = (avgActualPrice - plan.budgetUnitPrice) * (actualReceivedQty || plan.orderedQty);
+        const qtyVariance = (actualReceivedQty || plan.orderedQty) - plan.quantity;
+        const usagePercent = maxAllowedQty > 0 ? (plan.orderedQty / maxAllowedQty) * 100 : 0;
+
+        // Status: green/yellow/red
+        let status = 'green';
+        if (usagePercent >= 100 || avgActualPrice > plan.budgetUnitPrice * 1.05) {
+            status = 'red';
+        } else if (usagePercent >= 90 || avgActualPrice > plan.budgetUnitPrice) {
+            status = 'yellow';
+        }
+
+        return {
+            id: plan.id,
+            productName: plan.product?.name || '',
+            productCode: plan.product?.code || '',
+            unit: plan.product?.unit || '',
+            category: plan.category,
+            // Budget
+            budgetQty: plan.quantity,
+            budgetUnitPrice: plan.budgetUnitPrice,
+            budgetTotal: plan.quantity * plan.budgetUnitPrice,
+            wastePercent: plan.wastePercent,
+            maxAllowedQty,
+            // Actual
+            orderedQty: plan.orderedQty,
+            receivedQty: actualReceivedQty || plan.receivedQty,
+            avgActualPrice,
+            actualTotal: avgActualPrice * (actualReceivedQty || plan.orderedQty),
+            // Variance
+            priceVariance,
+            qtyVariance,
+            usagePercent: Math.round(usagePercent * 10) / 10,
+            status,
+            isLocked: plan.isLocked,
+        };
+    });
+
+    // Summary
+    const totalBudget = variance.reduce((s, v) => s + v.budgetTotal, 0);
+    const totalActual = variance.reduce((s, v) => s + v.actualTotal, 0);
+    const totalVariance = totalActual - totalBudget;
+
+    return NextResponse.json({
+        items: variance,
+        summary: { totalBudget, totalActual, totalVariance },
+    });
+});

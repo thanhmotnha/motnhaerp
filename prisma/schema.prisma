@@ -77,6 +77,10 @@ model Project {
   designer        String      @default("")
   supervisor      String      @default("")
   notes           String      @default("") @db.Text
+  budgetStatus    String      @default("draft")
+  budgetLockedAt  DateTime?
+  budgetLockedBy  String      @default("")
+  budgetTotal     Float       @default(0)
   customerId      String
   customer        Customer    @relation(fields: [customerId], references: [id])
   @@index([customerId])
@@ -100,6 +104,7 @@ model Project {
   progressReports ProgressReport[]
   journalEntries  JournalEntry[]
   commitments     Commitment[]
+  changeOrders    BudgetChangeOrder[]
   deletedAt       DateTime?
   createdAt       DateTime    @default(now())
   updatedAt       DateTime    @updatedAt
@@ -494,6 +499,10 @@ model MaterialPlan {
   totalAmount     Float    @default(0)
   status          String   @default("Chưa đặt")
   type            String   @default("Chính")
+  category        String   @default("")
+  budgetUnitPrice Float    @default(0)
+  wastePercent    Float    @default(5)
+  isLocked        Boolean  @default(false)
   notes           String   @default("")
   productId       String
   product         Product       @relation(fields: [productId], references: [id])
@@ -504,6 +513,24 @@ model MaterialPlan {
   createdAt       DateTime @default(now())
   @@index([projectId])
   @@index([productId])
+}
+
+model BudgetChangeOrder {
+  id             String   @id @default(cuid())
+  projectId      String
+  project        Project  @relation(fields: [projectId], references: [id])
+  materialPlanId String?
+  reason         String   @db.Text
+  oldQty         Float    @default(0)
+  newQty         Float    @default(0)
+  oldPrice       Float    @default(0)
+  newPrice       Float    @default(0)
+  status         String   @default("pending")
+  requestedBy    String   @default("")
+  approvedBy     String   @default("")
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  @@index([projectId])
 }
 
 model MaterialRequisition {

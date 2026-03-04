@@ -39,14 +39,44 @@ export const GET = withAuth(async (request) => {
 export const POST = withAuth(async (request) => {
     const body = await request.json();
     const { items, ...poData } = purchaseOrderCreateSchema.parse(body);
+    const warnings = [];
+    let needsApproval = false;
+
+    // ====== BUDGET GUARDRAILS ======
+    if (items && poData.projectId) {
+        for (const item of items) {
+            if (!item.materialPlanId) continue;
+            const plan = await prisma.materialPlan.findUnique({ where: { id: item.materialPlanId } });
+            if (!plan || !plan.isLocked) continue;
+
+            // Price check
+            if (plan.budgetUnitPrice > 0 && item.unitPrice > plan.budgetUnitPrice) {
+                const diff = ((item.unitPrice - plan.budgetUnitPrice) / plan.budgetUnitPrice * 100).toFixed(1);
+                warnings.push(`${item.productName}: ĐG ${item.unitPrice.toLocaleString()} > DT ${plan.budgetUnitPrice.toLocaleString()} (+${diff}%)`);
+                needsApproval = true;
+            }
+
+            // Quantity check
+            const maxAllowed = plan.quantity * (1 + plan.wastePercent / 100);
+            const totalOrdered = plan.orderedQty + item.quantity;
+            if (totalOrdered > maxAllowed) {
+                return NextResponse.json({
+                    error: `${item.productName}: Tổng đặt (${totalOrdered}) vượt giới hạn (${maxAllowed}). Cần tạo phiếu điều chỉnh.`,
+                    type: 'QUANTITY_EXCEEDED',
+                }, { status: 422 });
+            }
+        }
+    }
+
     const code = await generateCode('purchaseOrder', 'PO');
+    const status = needsApproval ? 'Chờ duyệt vượt định mức' : (poData.status || 'Chờ duyệt');
     const order = await prisma.purchaseOrder.create({
         data: {
             code,
             supplier: poData.supplier,
             totalAmount: poData.totalAmount,
             paidAmount: poData.paidAmount,
-            status: poData.status,
+            status,
             notes: poData.notes,
             projectId: poData.projectId || null,
             orderDate: poData.orderDate || new Date(),
@@ -56,5 +86,5 @@ export const POST = withAuth(async (request) => {
         },
         include: { items: true, project: { select: { name: true, code: true } } },
     });
-    return NextResponse.json(order);
+    return NextResponse.json({ ...order, warnings, needsApproval });
 });
