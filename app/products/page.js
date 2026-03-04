@@ -88,6 +88,7 @@ export default function ProductsPage() {
     const activeThumb = useRef(null);
     const imgUpRef = useRef(null);
     const imgUpTarget = useRef(null);
+    const [productDragState, setProductDragState] = useState(null);
 
     const fetchCategories = useCallback(() => {
         fetch('/api/product-categories').then(r => r.json()).then(async cats => {
@@ -429,7 +430,6 @@ export default function ProductsPage() {
                     <CategorySidebar categories={categories} activeCatId={activeCatId}
                         onSelect={id => {
                             setActiveCatId(id);
-                            // If it's a fake string category, set name for filtering
                             if (id?.startsWith('__str__')) {
                                 const cat = categories.find(c => c.id === id);
                                 setActiveCatName(cat?.name || null);
@@ -438,7 +438,15 @@ export default function ProductsPage() {
                             }
                             setSelectedIds(new Set());
                         }}
-                        totalCount={products.length} onRefresh={() => { fetchCategories(); fetchProducts(); }} />
+                        totalCount={products.length} onRefresh={() => { fetchCategories(); fetchProducts(); }}
+                        dragState={productDragState} setDragState={setProductDragState}
+                        onProductDrop={async (productIds, catId, catName) => {
+                            await fetch('/api/products', {
+                                method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ action: 'bulkCategory', ids: productIds, categoryId: catId, category: catName }),
+                            });
+                            fetchProducts(); fetchCategories();
+                        }} />
                     <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
                         {/* Toolbar */}
                         <div style={{ padding: '10px 16px', borderBottom: '1px solid var(--border-color)', display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
@@ -496,7 +504,15 @@ export default function ProductsPage() {
                                             const isQE = !!qe;
                                             const sc = SUPPLY_COLOR[normalizeSupply(p.supplyType)] || { bg: '#f5f5f5', color: '#666' };
                                             const sd = STOCK_DOT[ss] || STOCK_DOT.ok;
-                                            return (<tr key={p.id} style={{ background: isQE ? 'rgba(99,102,241,0.06)' : '' }}>
+                                            return (<tr key={p.id} draggable={!isQE}
+                                                onDragStart={(e) => {
+                                                    const ids = selectedIds.has(p.id) && selectedIds.size > 1 ? [...selectedIds] : [p.id];
+                                                    e.dataTransfer.setData('application/product-ids', JSON.stringify(ids));
+                                                    e.dataTransfer.effectAllowed = 'move';
+                                                    setProductDragState({ dragId: p.id, dropId: null, type: 'product', count: ids.length });
+                                                }}
+                                                onDragEnd={() => setProductDragState(null)}
+                                                style={{ background: isQE ? 'rgba(99,102,241,0.06)' : '', cursor: isQE ? 'default' : 'grab' }}>
                                                 <td style={{ padding: 4, textAlign: 'center' }}><input type="checkbox" checked={selectedIds.has(p.id)} onChange={e => { const n = new Set(selectedIds); e.target.checked ? n.add(p.id) : n.delete(p.id); setSelectedIds(n); }} /></td>
                                                 <td style={{ padding: 3, cursor: 'pointer' }} onClick={() => { imgUpTarget.current = p.id; imgUpRef.current?.click(); }}><div style={{ width: 34, height: 34, borderRadius: 5, overflow: 'hidden', border: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f9f9f9' }}>{p.image ? <img src={p.image} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="" /> : <span style={{ fontSize: 14, opacity: 0.15 }}>📷</span>}</div></td>
                                                 <td style={{ padding: '4px 6px' }}>{isQE

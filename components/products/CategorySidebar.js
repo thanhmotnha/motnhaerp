@@ -1,15 +1,18 @@
 'use client';
-import { useState, useRef } from 'react';
+import { useState } from 'react';
 
-function TreeNode({ cat, activeCatId, onSelect, onRename, onDelete, onAdd, onMove, depth = 0, dragState, setDragState }) {
+function TreeNode({ cat, activeCatId, onSelect, onRename, onDelete, onAdd, onMove, onProductDrop, depth = 0, dragState, setDragState }) {
     const [open, setOpen] = useState(true);
     const [editing, setEditing] = useState(false);
     const [name, setName] = useState(cat.name);
     const active = activeCatId === cat.id;
     const count = (cat._count?.products || 0) + (cat.children || []).reduce((s, c) => s + (c._count?.products || 0), 0);
-    const isDragging = dragState?.dragId === cat.id;
+    const isDragging = dragState?.dragId === cat.id && dragState?.type === 'category';
     const isDropTarget = dragState?.dropId === cat.id;
-    const isDropRoot = dragState?.dropId === '__root__';
+    const isProductDrag = dragState?.type === 'product';
+    // Only leaf categories accept product drops
+    const isLeaf = !cat.children || cat.children.length === 0;
+    const canAcceptProduct = isProductDrag && isLeaf;
 
     const save = () => {
         if (name.trim() && name !== cat.name) onRename(cat.id, name.trim());
@@ -20,14 +23,23 @@ function TreeNode({ cat, activeCatId, onSelect, onRename, onDelete, onAdd, onMov
         e.stopPropagation();
         e.dataTransfer.effectAllowed = 'move';
         e.dataTransfer.setData('text/plain', cat.id);
-        setDragState({ dragId: cat.id, dropId: null });
+        setDragState({ dragId: cat.id, dropId: null, type: 'category' });
     };
 
     const handleDragOver = (e) => {
         e.preventDefault();
         e.stopPropagation();
+
+        if (dragState?.type === 'product') {
+            // Product drop: only accept on leaf categories
+            if (!isLeaf) return;
+            e.dataTransfer.dropEffect = 'move';
+            setDragState(prev => prev ? { ...prev, dropId: cat.id } : null);
+            return;
+        }
+
+        // Category drag
         if (dragState?.dragId === cat.id) return;
-        // Don't allow dropping on own children
         if (isChildOf(cat, dragState?.dragId)) return;
         e.dataTransfer.dropEffect = 'move';
         setDragState(prev => prev ? { ...prev, dropId: cat.id } : null);
@@ -43,6 +55,18 @@ function TreeNode({ cat, activeCatId, onSelect, onRename, onDelete, onAdd, onMov
     const handleDrop = (e) => {
         e.preventDefault();
         e.stopPropagation();
+
+        if (dragState?.type === 'product') {
+            // Product drop onto leaf category
+            if (isLeaf && onProductDrop) {
+                const productIds = JSON.parse(e.dataTransfer.getData('application/product-ids') || '[]');
+                if (productIds.length) onProductDrop(productIds, cat.id, cat.name);
+            }
+            setDragState(null);
+            return;
+        }
+
+        // Category drop
         const dragId = dragState?.dragId;
         if (dragId && dragId !== cat.id && !isChildOf(cat, dragId)) {
             onMove(dragId, cat.id);
@@ -50,7 +74,6 @@ function TreeNode({ cat, activeCatId, onSelect, onRename, onDelete, onAdd, onMov
         setDragState(null);
     };
 
-    // Check if node is a child of dragId (prevent dropping parent into its own child)
     function isChildOf(node, dragId) {
         if (!node.children) return false;
         for (const child of node.children) {
@@ -59,6 +82,8 @@ function TreeNode({ cat, activeCatId, onSelect, onRename, onDelete, onAdd, onMov
         }
         return false;
     }
+
+    const dropHighlight = isDropTarget && (dragState?.type === 'category' || canAcceptProduct);
 
     return (
         <div>
@@ -73,11 +98,11 @@ function TreeNode({ cat, activeCatId, onSelect, onRename, onDelete, onAdd, onMov
                 style={{
                     padding: '7px 12px', paddingLeft: 12 + depth * 16, cursor: isDragging ? 'grabbing' : 'pointer', fontSize: 13,
                     display: 'flex', alignItems: 'center', gap: 6, borderRadius: 6, margin: '1px 4px',
-                    background: isDropTarget ? 'rgba(35,64,147,0.15)' : active ? 'var(--accent-primary)' : 'transparent',
+                    background: dropHighlight ? (isProductDrag ? 'rgba(34,197,94,0.15)' : 'rgba(35,64,147,0.15)') : active ? 'var(--accent-primary)' : 'transparent',
                     color: active ? '#fff' : 'var(--text-primary)',
                     fontWeight: active ? 700 : 400, transition: 'all 0.12s',
                     opacity: isDragging ? 0.4 : 1,
-                    border: isDropTarget ? '2px dashed var(--accent-primary)' : '2px solid transparent',
+                    border: dropHighlight ? `2px dashed ${isProductDrag ? '#22c55e' : 'var(--accent-primary)'}` : '2px solid transparent',
                 }}
             >
                 {cat.children?.length > 0 && (
@@ -111,17 +136,30 @@ function TreeNode({ cat, activeCatId, onSelect, onRename, onDelete, onAdd, onMov
             </div>
             {open && cat.children?.map(child => (
                 <TreeNode key={child.id} cat={child} activeCatId={activeCatId} onSelect={onSelect}
-                    onRename={onRename} onDelete={onDelete} onAdd={onAdd} onMove={onMove} depth={depth + 1}
+                    onRename={onRename} onDelete={onDelete} onAdd={onAdd} onMove={onMove}
+                    onProductDrop={onProductDrop} depth={depth + 1}
                     dragState={dragState} setDragState={setDragState} />
             ))}
         </div>
     );
 }
 
-export default function CategorySidebar({ categories, activeCatId, onSelect, totalCount, onRefresh }) {
+export default function CategorySidebar({ categories, activeCatId, onSelect, totalCount, onRefresh, onProductDrop, dragState, setDragState: setDragStateProp }) {
     const [adding, setAdding] = useState(false);
     const [newName, setNewName] = useState('');
-    const [dragState, setDragState] = useState(null);
+    const [localDragState, setLocalDragState] = useState(null);
+
+    // Use external drag state for product drags, internal for category drags
+    const ds = dragState || localDragState;
+    const setDs = (v) => {
+        if (typeof v === 'function') {
+            if (setDragStateProp) setDragStateProp(v);
+            setLocalDragState(v);
+        } else {
+            if (setDragStateProp) setDragStateProp(v);
+            setLocalDragState(v);
+        }
+    };
 
     const createCat = async (parentId = null) => {
         const name = parentId ? prompt('Tên danh mục con:') : newName.trim();
@@ -150,7 +188,6 @@ export default function CategorySidebar({ categories, activeCatId, onSelect, tot
     };
 
     const moveCat = async (dragId, targetParentId) => {
-        // Move category to new parent (or root if targetParentId is null)
         await fetch(`/api/product-categories/${dragId}`, {
             method: 'PUT', headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ parentId: targetParentId }),
@@ -160,18 +197,17 @@ export default function CategorySidebar({ categories, activeCatId, onSelect, tot
 
     const handleRootDragOver = (e) => {
         e.preventDefault();
-        if (dragState?.dragId) {
-            setDragState(prev => prev ? { ...prev, dropId: '__root__' } : null);
+        if (ds?.dragId && ds?.type === 'category') {
+            setDs(prev => prev ? { ...prev, dropId: '__root__' } : null);
         }
     };
 
     const handleRootDrop = (e) => {
         e.preventDefault();
-        const dragId = dragState?.dragId;
-        if (dragId) {
-            moveCat(dragId, null); // Move to root
+        if (ds?.type === 'category' && ds?.dragId) {
+            moveCat(ds.dragId, null);
         }
-        setDragState(null);
+        setDs(null);
     };
 
     return (
@@ -180,7 +216,7 @@ export default function CategorySidebar({ categories, activeCatId, onSelect, tot
             <div style={{ flex: 1, overflowY: 'auto', padding: '4px 0' }}
                 onDragOver={handleRootDragOver}
                 onDrop={handleRootDrop}
-                onDragLeave={() => { if (dragState?.dropId === '__root__') setDragState(prev => prev ? { ...prev, dropId: null } : null); }}
+                onDragLeave={() => { if (ds?.dropId === '__root__') setDs(prev => prev ? { ...prev, dropId: null } : null); }}
             >
                 <div onClick={() => onSelect(null)}
                     style={{ padding: '8px 14px', cursor: 'pointer', fontSize: 13, display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: !activeCatId ? 'var(--accent-primary)' : 'transparent', color: !activeCatId ? '#fff' : 'var(--text-primary)', fontWeight: !activeCatId ? 700 : 400, borderRadius: 6, margin: '0 4px' }}>
@@ -190,18 +226,19 @@ export default function CategorySidebar({ categories, activeCatId, onSelect, tot
                 {categories.map(cat => (
                     <TreeNode key={cat.id} cat={cat} activeCatId={activeCatId} onSelect={onSelect}
                         onRename={renameCat} onDelete={deleteCat} onAdd={(parentId) => createCat(parentId)}
-                        onMove={moveCat} dragState={dragState} setDragState={setDragState} />
+                        onMove={moveCat} onProductDrop={onProductDrop}
+                        dragState={ds} setDragState={setDs} />
                 ))}
-                {/* Drop zone at bottom for moving to root */}
-                {dragState?.dragId && (
+                {/* Drop zone for moving category to root */}
+                {ds?.type === 'category' && ds?.dragId && (
                     <div
-                        onDragOver={(e) => { e.preventDefault(); setDragState(prev => prev ? { ...prev, dropId: '__root__' } : null); }}
-                        onDrop={(e) => { e.preventDefault(); moveCat(dragState.dragId, null); setDragState(null); }}
-                        onDragLeave={() => setDragState(prev => prev ? { ...prev, dropId: null } : null)}
+                        onDragOver={(e) => { e.preventDefault(); setDs(prev => prev ? { ...prev, dropId: '__root__' } : null); }}
+                        onDrop={(e) => { e.preventDefault(); moveCat(ds.dragId, null); setDs(null); }}
+                        onDragLeave={() => setDs(prev => prev ? { ...prev, dropId: null } : null)}
                         style={{
                             margin: '8px 8px', padding: '10px 0', textAlign: 'center', fontSize: 11, color: 'var(--text-muted)',
-                            border: dragState?.dropId === '__root__' ? '2px dashed var(--accent-primary)' : '2px dashed var(--border-color)',
-                            borderRadius: 6, background: dragState?.dropId === '__root__' ? 'rgba(35,64,147,0.08)' : 'transparent',
+                            border: ds?.dropId === '__root__' ? '2px dashed var(--accent-primary)' : '2px dashed var(--border-color)',
+                            borderRadius: 6, background: ds?.dropId === '__root__' ? 'rgba(35,64,147,0.08)' : 'transparent',
                             transition: 'all 0.15s',
                         }}
                     >
