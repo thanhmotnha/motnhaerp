@@ -3,7 +3,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { useToast } from '@/components/ui/Toast';
 import { apiFetch } from '@/lib/fetchClient';
-import { QUOTATION_TYPES, QUOTATION_STATUSES, fmt, emptyMainCategory } from '@/lib/quotation-constants';
+import { QUOTATION_TYPES, QUOTATION_STATUSES, PRESET_CATEGORIES, fmt, emptyMainCategory } from '@/lib/quotation-constants';
 import useQuotationForm from '@/hooks/useQuotationForm';
 import useAutoSaveDraft from '@/hooks/useAutoSaveDraft';
 import TreeSidebar from '@/components/quotation/TreeSidebar';
@@ -25,7 +25,7 @@ export default function EditQuotationPage() {
     const {
         form, setForm, mainCategories, setMainCategories,
         customers, filteredProjects, activeMainIdx, setActiveMainIdx,
-        addMainCategory, removeMainCategory, updateMainCategoryName, recalc, buildPayload,
+        addMainCategory, removeMainCategory, updateMainCategoryName, applyPresetCategory, recalc, buildPayload,
     } = hook;
 
     // Load quotation data → convert flat categories (with group) into 3-level mainCategories
@@ -240,12 +240,18 @@ export default function EditQuotationPage() {
                         <button className="btn btn-ghost btn-sm" onClick={addMainCategory} style={{ fontSize: 18, padding: '2px 10px' }}>+</button>
                     </div>
 
-                    {/* Main category name input */}
-                    <div style={{ marginBottom: 4 }}>
-                        <input className="form-input" placeholder="Tên hạng mục chính (VD: Thiết kế kiến trúc, Phòng ngủ 1...)"
+                    {/* Main category name — preset selector + free input */}
+                    <div style={{ marginBottom: 4, display: 'flex', gap: 8, alignItems: 'center' }}>
+                        <select className="form-select" style={{ width: 220, fontSize: 13, flexShrink: 0 }}
+                            value={PRESET_CATEGORIES.some(p => p.name === mainCategories[activeMainIdx]?.name) ? mainCategories[activeMainIdx]?.name : ''}
+                            onChange={e => { if (e.target.value) applyPresetCategory(activeMainIdx, e.target.value); }}>
+                            <option value="">— Chọn nhóm mẫu —</option>
+                            {PRESET_CATEGORIES.map(p => <option key={p.name} value={p.name}>{p.name}</option>)}
+                        </select>
+                        <input className="form-input" placeholder="Hoặc nhập tên hạng mục tùy chỉnh..."
                             value={mainCategories[activeMainIdx]?.name || ''}
                             onChange={e => updateMainCategoryName(activeMainIdx, e.target.value)}
-                            style={{ fontWeight: 600, fontSize: 15 }} />
+                            style={{ fontWeight: 600, fontSize: 15, flex: 1 }} />
                     </div>
                 </div>
 

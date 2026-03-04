@@ -1,7 +1,7 @@
 'use client';
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { apiFetch } from '@/lib/fetchClient';
-import { emptyItem, emptySubcategory, emptyMainCategory } from '@/lib/quotation-constants';
+import { emptyItem, emptySubcategory, emptyMainCategory, PRESET_CATEGORIES } from '@/lib/quotation-constants';
 
 export default function useQuotationForm() {
     // Reference data
@@ -129,6 +129,20 @@ export default function useQuotationForm() {
         const mcs = [...mainCategories];
         mcs[mi] = { ...mcs[mi], name };
         setMainCategories(mcs);
+    };
+
+    // Apply preset category → set name + auto-create subcategories
+    const applyPresetCategory = (mi, presetName) => {
+        const preset = PRESET_CATEGORIES.find(p => p.name === presetName);
+        if (!preset) return;
+        const mcs = [...mainCategories];
+        mcs[mi] = {
+            ...mcs[mi],
+            name: preset.name,
+            subcategories: preset.subcategories.map(subName => emptySubcategory(subName)),
+        };
+        setMainCategories(mcs);
+        setActiveSubIdx(0);
     };
 
     // ========================================
@@ -493,7 +507,7 @@ export default function useQuotationForm() {
         activeMainIdx, setActiveMainIdx,
         activeSubIdx, setActiveSubIdx,
         // Main category handlers
-        addMainCategory, removeMainCategory, updateMainCategoryName,
+        addMainCategory, removeMainCategory, updateMainCategoryName, applyPresetCategory,
         // Subcategory handlers
         addSubcategory, removeSubcategory, updateSubcategoryName, updateSubcategoryImage,
         // Item handlers
