@@ -32,6 +32,9 @@ export default function useQuotationForm() {
     const [activeMainIdx, setActiveMainIdx] = useState(0);
     const [activeSubIdx, setActiveSubIdx] = useState(0);
 
+    // Deductions / Promotions
+    const [deductions, setDeductions] = useState([]);
+
     // Load reference data
     useEffect(() => {
         apiFetch('/api/customers?limit=1000').then(d => setCustomers(d.data || [])).catch(() => { });
@@ -507,6 +510,19 @@ export default function useQuotationForm() {
     };
 
     // ========================================
+    // DEDUCTION handlers
+    // ========================================
+    const addDeduction = (type = 'khuyến mại') => {
+        setDeductions(prev => [...prev, { _key: Date.now() + Math.random(), type, name: '', amount: 0, productId: null }]);
+    };
+    const removeDeduction = (idx) => {
+        setDeductions(prev => prev.filter((_, i) => i !== idx));
+    };
+    const updateDeduction = (idx, field, value) => {
+        setDeductions(prev => prev.map((d, i) => i === idx ? { ...d, [field]: value } : d));
+    };
+
+    // ========================================
     // CALCULATIONS
     // ========================================
     const directCost = mainCategories.reduce((s, mc) => s + mc.subtotal, 0);
@@ -519,7 +535,8 @@ export default function useQuotationForm() {
     const discountAmount = total * (form.discount || 0) / 100;
     const afterDiscount = total - discountAmount;
     const vatAmount = afterDiscount * (form.vat || 0) / 100;
-    const grandTotal = afterDiscount + vatAmount;
+    const totalDeductions = deductions.reduce((s, d) => s + (d.amount || 0), 0);
+    const grandTotal = afterDiscount + vatAmount - totalDeductions;
 
     // ========================================
     // BUILD PAYLOAD for API (flatten 3-level → categories with group)
@@ -557,6 +574,7 @@ export default function useQuotationForm() {
         return {
             ...form,
             categories,
+            deductions: deductions.map(d => ({ type: d.type, name: d.name, amount: d.amount || 0, productId: d.productId || null })),
             directCost, managementFee, adjustmentAmount, total,
             discount: form.discount, vat: form.vat,
             grandTotal,
@@ -605,6 +623,9 @@ export default function useQuotationForm() {
         recalc,
         directCost, managementFee, adjustmentAmount, total,
         discountAmount, afterDiscount, vatAmount, grandTotal,
+        totalDeductions,
+        // Deductions
+        deductions, setDeductions, addDeduction, removeDeduction, updateDeduction,
         // Build
         buildPayload,
     };
