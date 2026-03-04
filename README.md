@@ -44,10 +44,31 @@ npm run dev                    # http://localhost:3000
 
 ```env
 # .env (development)
-DATABASE_URL="postgresql://postgres:postgres@localhost:5432/motnhaerp?schema=public"
+DATABASE_URL="postgresql://postgres:laprifRoAXRDGRaEH8eq@localhost:5433/motnhaerp?schema=public"
 NEXTAUTH_SECRET="motnha-erp-secret-key-change-in-production"
 NEXTAUTH_URL="http://localhost:3000"
 ```
+
+### Remote Database (via Cloudflare Tunnel)
+
+Team dùng chung database production qua Cloudflare Tunnel, không cần Docker PostgreSQL local.
+
+**1. Cài cloudflared** (chỉ cần lần đầu):
+- Windows: `winget install Cloudflare.cloudflared`
+- macOS: `brew install cloudflared`
+- Linux: https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/downloads/
+
+**2. Chạy proxy** (mở terminal riêng, giữ chạy nền):
+```bash
+cloudflared access tcp --hostname db.tiktak.vn --url localhost:5433
+```
+
+**3. Dùng bình thường**: Code, DBeaver, psql... đều kết nối `localhost:5433`:
+```
+postgresql://postgres:laprifRoAXRDGRaEH8eq@localhost:5433/motnhaerp
+```
+
+> **Lưu ý:** Không cần `docker compose up` cho database nữa. Chỉ cần cloudflared proxy đang chạy.
 
 ### NPM Scripts
 
