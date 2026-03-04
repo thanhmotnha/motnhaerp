@@ -55,6 +55,7 @@ export default function ProductsPage() {
     const [filterSupplyType, setFilterSupplyType] = useState('');
     const [filterStockStatus, setFilterStockStatus] = useState('');
     const [editingP, setEditingP] = useState(null);
+    const [quickEditP, setQuickEditP] = useState(null);
     const [newProduct, setNewProduct] = useState(null);
     const [selectedIds, setSelectedIds] = useState(new Set());
     const [showAddModal, setShowAddModal] = useState(false);
@@ -184,6 +185,15 @@ export default function ProductsPage() {
         const res = await fetch(`/api/products/${id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
         if (!res.ok) { const err = await res.json(); return alert(err.error || 'Lỗi cập nhật'); }
         setEditingP(null); fetchProducts(); fetchCategories();
+    };
+    const startQuickEditP = (p) => {
+        setQuickEditP({ id: p.id, salePrice: p.salePrice || 0, importPrice: p.importPrice || 0, stock: p.stock ?? 0, minStock: p.minStock ?? 0, supplyType: normalizeSupply(p.supplyType), brand: p.brand || '', supplier: p.supplier || '' });
+    };
+    const saveQuickP = async () => {
+        const { id, ...data } = quickEditP;
+        const res = await fetch(`/api/products/${id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
+        if (!res.ok) { const err = await res.json(); return alert(err.error || 'Lỗi cập nhật'); }
+        setQuickEditP(null); fetchProducts(); fetchCategories();
     };
     const deleteP = async (id) => { if (!confirm('Xóa sản phẩm?')) return; await fetch(`/api/products/${id}`, { method: 'DELETE' }); fetchProducts(); fetchCategories(); };
     const duplicateP = async (p) => {
@@ -386,13 +396,13 @@ export default function ProductsPage() {
                                         return (<tr key={p.id} style={{ background: ss === 'out' ? 'rgba(231,76,60,0.03)' : ss === 'low' ? 'rgba(234,88,12,0.02)' : '' }}>
                                             <td style={{ padding: 4, textAlign: 'center' }}><input type="checkbox" checked={selectedIds.has(p.id)} onChange={e => { const n = new Set(selectedIds); e.target.checked ? n.add(p.id) : n.delete(p.id); setSelectedIds(n); }} /></td>
                                             <td style={{ padding: 3, cursor: 'pointer' }} onClick={() => { imgUpTarget.current = p.id; imgUpRef.current?.click(); }}><div style={{ width: 30, height: 30, borderRadius: 4, overflow: 'hidden', border: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{p.image ? <img src={p.image} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="" /> : <span style={{ fontSize: 12, opacity: 0.2 }}>📷</span>}</div></td>
-                                            <td style={{ padding: '3px 6px' }}><div><div style={{ fontWeight: 600, fontSize: 12, color: 'var(--primary)', cursor: 'pointer' }} onClick={() => router.push(`/products/${p.id}`)}>{p.name}</div><div style={{ fontSize: 10, opacity: 0.4 }}><span style={{ fontFamily: 'monospace' }}>{p.code}</span>{p.category && <span style={{ marginLeft: 4, background: 'var(--surface-alt)', borderRadius: 3, padding: '0 4px' }}>{p.category}</span>}</div></div></td>
+                                            <td style={{ padding: '3px 6px' }}><div><div style={{ fontWeight: 600, fontSize: 12, color: 'var(--primary)', cursor: 'pointer' }} onClick={() => startEditP(p)}>{p.name}</div><div style={{ fontSize: 10, opacity: 0.4 }}><span style={{ fontFamily: 'monospace' }}>{p.code}</span>{p.category && <span style={{ marginLeft: 4, background: 'var(--surface-alt)', borderRadius: 3, padding: '0 4px' }}>{p.category}</span>}</div></div></td>
                                             <td style={{ padding: '3px 4px' }}>{p.unit}</td>
                                             <td style={{ fontWeight: 600, padding: '3px 4px' }}>{fmtCur(p.salePrice)}</td>
                                             <td style={{ padding: '3px 4px' }}>{isService(p) ? <span style={{ opacity: 0.3 }}>—</span> : <StockCell value={p.stock} status={ss} onSave={v => quickUpdateStock(p.id, v)} />}</td>
                                             <td style={{ padding: '3px 4px' }}><span className={`badge ${SUPPLY_BADGE[p.supplyType] || 'muted'}`} style={{ fontSize: 10 }}>{normalizeSupply(p.supplyType)}</span></td>
                                             <td style={{ fontSize: 11, padding: '3px 4px' }}>{p.brand || <span style={{ opacity: 0.2 }}>-</span>}</td>
-                                            <td style={{ padding: '3px 4px' }}><div style={{ display: 'flex', gap: 1 }}><button className="btn btn-ghost btn-sm" onClick={() => startEditP(p)} style={{ fontSize: 11, padding: '1px 3px' }}>✏️</button><button className="btn btn-ghost btn-sm" onClick={() => duplicateP(p)} style={{ fontSize: 11, padding: '1px 3px' }}>📋</button><button className="btn btn-ghost btn-sm" onClick={() => deleteP(p.id)} style={{ fontSize: 11, padding: '1px 3px' }}>🗑️</button></div></td>
+                                            <td style={{ padding: '3px 4px' }}><div style={{ display: 'flex', gap: 1 }}><button className="btn btn-ghost btn-sm" onClick={() => startQuickEditP(p)} style={{ fontSize: 11, padding: '1px 3px' }} title="Sửa nhanh">✏️</button><button className="btn btn-ghost btn-sm" onClick={() => duplicateP(p)} style={{ fontSize: 11, padding: '1px 3px' }}>📋</button><button className="btn btn-ghost btn-sm" onClick={() => deleteP(p.id)} style={{ fontSize: 11, padding: '1px 3px' }}>🗑️</button></div></td>
                                         </tr>);
                                     })}</tbody>
                                 </table>
@@ -690,6 +700,58 @@ export default function ProductsPage() {
                     </div>
                 );
             })()}
+
+            {/* Quick Edit Modal (pencil button) */}
+            {quickEditP && (
+                <div className="modal-overlay" onClick={() => setQuickEditP(null)}>
+                    <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 420 }}>
+                        <div className="modal-header">
+                            <h3 style={{ margin: 0, fontSize: 14 }}>✏️ Sửa nhanh</h3>
+                            <button className="modal-close" onClick={() => setQuickEditP(null)}>×</button>
+                        </div>
+                        <div className="modal-body">
+                            <div className="form-row">
+                                <div className="form-group">
+                                    <label className="form-label">Giá nhập</label>
+                                    <input className="form-input" type="number" value={quickEditP.importPrice} onChange={e => setQuickEditP(q => ({ ...q, importPrice: Number(e.target.value) }))} />
+                                </div>
+                                <div className="form-group">
+                                    <label className="form-label">Giá bán</label>
+                                    <input className="form-input" type="number" value={quickEditP.salePrice} onChange={e => setQuickEditP(q => ({ ...q, salePrice: Number(e.target.value) }))} autoFocus />
+                                </div>
+                            </div>
+                            <div className="form-row">
+                                <div className="form-group">
+                                    <label className="form-label">Tồn kho</label>
+                                    <input className="form-input" type="number" value={quickEditP.stock} onChange={e => setQuickEditP(q => ({ ...q, stock: Number(e.target.value) }))} />
+                                </div>
+                                <div className="form-group">
+                                    <label className="form-label">Tồn tối thiểu</label>
+                                    <input className="form-input" type="number" value={quickEditP.minStock} onChange={e => setQuickEditP(q => ({ ...q, minStock: Number(e.target.value) }))} />
+                                </div>
+                            </div>
+                            <div className="form-row">
+                                <div className="form-group">
+                                    <label className="form-label">Nguồn cung</label>
+                                    <select className="form-select" value={quickEditP.supplyType} onChange={e => setQuickEditP(q => ({ ...q, supplyType: e.target.value }))}>
+                                        {SUPPLY_TYPES.map(t => <option key={t}>{t}</option>)}
+                                    </select>
+                                </div>
+                                <div className="form-group">
+                                    <label className="form-label">Thương hiệu</label>
+                                    <select className="form-select" value={quickEditP.brand} onChange={e => setQuickEditP(q => ({ ...q, brand: e.target.value }))}>
+                                        {BRANDS.map(b => <option key={b.n} value={b.n}>{b.n || '-- Không --'}</option>)}
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                        <div className="modal-footer">
+                            <button className="btn btn-ghost" onClick={() => setQuickEditP(null)}>Hủy</button>
+                            <button className="btn btn-primary" onClick={saveQuickP}>Lưu</button>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {/* Add Product Modal */}
             {showAddModal && (
