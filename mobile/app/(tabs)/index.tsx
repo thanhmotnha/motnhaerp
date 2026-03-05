@@ -6,6 +6,7 @@ import {
   RefreshControl,
   StyleSheet,
   TouchableOpacity,
+  ActivityIndicator,
 } from 'react-native';
 import { router } from 'expo-router';
 import {
@@ -14,7 +15,8 @@ import {
   FolderKanban,
   ClipboardList,
   AlertTriangle,
-  ShoppingCart,
+  Camera,
+  ClipboardEdit,
 } from 'lucide-react-native';
 import { useDashboard } from '@/hooks/useApi';
 import { useAuth } from '@/contexts/AuthContext';
@@ -22,19 +24,22 @@ import { KPICard } from '@/components/KPICard';
 import { ErrorState } from '@/components/ErrorState';
 import { Card } from '@/components/ui/Card';
 import { Badge, getStatusVariant } from '@/components/ui/Badge';
+import { Button } from '@/components/ui/Button';
 import { COLORS } from '@/lib/constants';
 import { formatCurrencyShort } from '@/lib/format';
 
 const fmt = formatCurrencyShort;
 
 export default function DashboardScreen() {
-  const { user, canViewFinance } = useAuth();
+  const { user, role, canViewFinance, canApprove } = useAuth();
   const { data, isLoading, isError, refetch, isRefetching } = useDashboard();
   const stats = data?.stats;
 
   if (isError) {
     return <ErrorState message="Không thể tải dashboard" onRetry={refetch} />;
   }
+
+  const isFieldWorker = role === 'ky_thuat' || role === 'nhan_vien' || role === 'quan_ly_du_an';
 
   return (
     <ScrollView
@@ -43,6 +48,26 @@ export default function DashboardScreen() {
       refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={refetch} />}
     >
       <Text style={styles.greeting}>Xin chào, {user?.name}!</Text>
+
+      {/* Quick Actions for field workers */}
+      {isFieldWorker && (
+        <View style={styles.quickActions}>
+          <TouchableOpacity
+            style={[styles.quickBtn, { backgroundColor: COLORS.primary }]}
+            onPress={() => router.push('/progress/report')}
+          >
+            <Camera size={20} color={COLORS.white} />
+            <Text style={styles.quickBtnText}>Báo cáo tiến độ</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.quickBtn, { backgroundColor: COLORS.success }]}
+            onPress={() => router.push('/daily-logs/create')}
+          >
+            <ClipboardEdit size={20} color={COLORS.white} />
+            <Text style={styles.quickBtnText}>Nhật ký hôm nay</Text>
+          </TouchableOpacity>
+        </View>
+      )}
 
       {/* KPI Grid */}
       <View style={styles.kpiRow}>
@@ -78,8 +103,8 @@ export default function DashboardScreen() {
         </View>
       )}
 
-      {/* Pending POs */}
-      {data?.pendingPOs && data.pendingPOs.length > 0 && (
+      {/* Pending POs — show for approvers */}
+      {canApprove && data?.pendingPOs && data.pendingPOs.length > 0 && (
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>PO chờ duyệt</Text>
           {data.pendingPOs.slice(0, 5).map((po: any) => (
@@ -151,6 +176,22 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.background },
   content: { padding: 16, paddingBottom: 32 },
   greeting: { fontSize: 20, fontWeight: '700', color: COLORS.text, marginBottom: 16 },
+  quickActions: { flexDirection: 'row', gap: 12, marginBottom: 16 },
+  quickBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 16,
+    borderRadius: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  quickBtnText: { color: COLORS.white, fontSize: 14, fontWeight: '600' },
   kpiRow: { flexDirection: 'row', gap: 12, marginBottom: 12 },
   section: { marginTop: 20 },
   sectionHeader: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 10 },

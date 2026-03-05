@@ -96,13 +96,27 @@ export default function ProjectDetailScreen() {
           </Card>
         )}
 
-        {/* Action */}
+        {/* Actions */}
         <Button
           title="Báo cáo tiến độ"
           onPress={() => router.push({ pathname: '/progress/report', params: { projectId: id, projectName: project.name } })}
           size="lg"
           style={{ marginTop: 20 }}
           icon={<Camera size={18} color={COLORS.white} />}
+        />
+        <Button
+          title="Lịch trình dự án"
+          onPress={() => router.push({ pathname: '/schedule/index' as any, params: { projectId: id, projectName: project.name } })}
+          size="lg"
+          variant="secondary"
+          style={{ marginTop: 10 }}
+        />
+        <Button
+          title="Nhật ký công trường"
+          onPress={() => router.push({ pathname: '/daily-logs/create', params: { projectId: id, projectName: project.name } })}
+          size="lg"
+          variant="secondary"
+          style={{ marginTop: 10 }}
         />
       </ScrollView>
     </>

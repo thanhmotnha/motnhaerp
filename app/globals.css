@@ -2,31 +2,32 @@
 
 :root {
   /* === MỘT NHÀ BRAND COLORS === */
-  /* Navy Blue: #1C3A6B | Gold: #C9A84C */
+  /* Primary Navy: #234093 (R35 G64 B147) | Gold: #DBB35E (R219 G179 B94) */
+  /* Secondary Blue: #2D5CA3 (R45 G92 B163) | Gray: #C6C6C6 */
 
   --bg-primary: #F4F6FA;
   --bg-secondary: #FFFFFF;
   --bg-card: #FFFFFF;
   --bg-card-hover: #F7F9FD;
-  --bg-sidebar: #1C3A6B;
+  --bg-sidebar: #1C3580;
   --bg-input: #F4F6FA;
   --bg-modal: #FFFFFF;
 
   /* Brand accent - Navy + Gold */
-  --primary: #1C3A6B;
-  --accent-primary: #1C3A6B;
-  --accent-primary-hover: #163060;
-  --accent-secondary: #C9A84C;
-  --accent-gradient: linear-gradient(135deg, #1C3A6B 0%, #2A5298 100%);
-  --accent-gradient-hover: linear-gradient(135deg, #163060 0%, #1E3F7A 100%);
-  --gold: #C9A84C;
-  --gold-light: rgba(201, 168, 76, 0.15);
+  --primary: #234093;
+  --accent-primary: #234093;
+  --accent-primary-hover: #1D3580;
+  --accent-secondary: #DBB35E;
+  --accent-gradient: linear-gradient(135deg, #234093 0%, #2D5CA3 100%);
+  --accent-gradient-hover: linear-gradient(135deg, #1D3580 0%, #234093 100%);
+  --gold: #DBB35E;
+  --gold-light: rgba(219, 179, 94, 0.15);
 
   /* Text */
   --text-primary: #1A202C;
   --text-secondary: #4A5568;
-  --text-muted: #A0AEC0;
-  --text-accent: #1C3A6B;
+  --text-muted: #6B7280;
+  --text-accent: #234093;
 
   /* Status */
   --status-success: #38A169;
@@ -40,10 +41,10 @@
   --border-light: rgba(0, 0, 0, 0.05);
 
   /* Shadows */
-  --shadow-sm: 0 1px 3px rgba(28, 58, 107, 0.06);
-  --shadow-md: 0 2px 8px rgba(28, 58, 107, 0.08);
-  --shadow-lg: 0 4px 20px rgba(28, 58, 107, 0.12);
-  --shadow-glow: 0 0 0 3px rgba(28, 58, 107, 0.12);
+  --shadow-sm: 0 1px 3px rgba(35, 64, 147, 0.06);
+  --shadow-md: 0 2px 8px rgba(35, 64, 147, 0.08);
+  --shadow-lg: 0 4px 20px rgba(35, 64, 147, 0.12);
+  --shadow-glow: 0 0 0 3px rgba(35, 64, 147, 0.12);
 
   /* Layout */
   --sidebar-width: 260px;
@@ -76,11 +77,11 @@
   --primary: #4A90D9;
   --accent-primary: #4A90D9;
   --accent-primary-hover: #6BA8E5;
-  --accent-secondary: #C9A84C;
-  --accent-gradient: linear-gradient(135deg, #1C3A6B 0%, #2A5298 100%);
-  --accent-gradient-hover: linear-gradient(135deg, #2A5298 0%, #4A90D9 100%);
-  --gold: #D4AF5A;
-  --gold-light: rgba(201, 168, 76, 0.12);
+  --accent-secondary: #DBB35E;
+  --accent-gradient: linear-gradient(135deg, #234093 0%, #2D5CA3 100%);
+  --accent-gradient-hover: linear-gradient(135deg, #2D5CA3 0%, #4A90D9 100%);
+  --gold: #DBB35E;
+  --gold-light: rgba(219, 179, 94, 0.12);
 
   --text-primary: #EDF2F7;
   --text-secondary: #94A3B8;
@@ -179,7 +180,7 @@ body {
   top: 0;
   bottom: 0;
   width: var(--sidebar-width);
-  background: linear-gradient(180deg, #1C3A6B 0%, #162E58 60%, #112348 100%);
+  background: linear-gradient(180deg, #234093 0%, #1C3580 60%, #152A6D 100%);
   border-right: 1px solid rgba(255, 255, 255, 0.06);
   display: flex;
   flex-direction: column;
@@ -199,7 +200,7 @@ body {
 .sidebar-brand .brand-icon {
   width: 42px;
   height: 42px;
-  background: linear-gradient(135deg, #C9A84C 0%, #E8C96A 100%);
+  background: linear-gradient(135deg, #DBB35E 0%, #F0D080 100%);
   border-radius: 12px;
   display: flex;
   align-items: center;
@@ -207,7 +208,7 @@ body {
   font-size: 20px;
   font-weight: 800;
   color: #0D1F3C;
-  box-shadow: 0 4px 12px rgba(201, 168, 76, 0.4);
+  box-shadow: 0 4px 12px rgba(219, 179, 94, 0.4);
   letter-spacing: -1px;
 }
 
@@ -272,7 +273,7 @@ body {
 }
 
 .nav-item.active {
-  background: linear-gradient(135deg, rgba(201, 168, 76, 0.12) 0%, rgba(74, 144, 217, 0.08) 100%);
+  background: linear-gradient(135deg, rgba(219, 179, 94, 0.15) 0%, rgba(45, 92, 163, 0.10) 100%);
   color: #FFFFFF;
 }
 
@@ -284,9 +285,9 @@ body {
   transform: translateY(-50%);
   width: 3px;
   height: 22px;
-  background: linear-gradient(180deg, #C9A84C, #E8C96A);
+  background: linear-gradient(180deg, #DBB35E, #F0D080);
   border-radius: 0 4px 4px 0;
-  box-shadow: 0 0 8px rgba(201, 168, 76, 0.5);
+  box-shadow: 0 0 8px rgba(219, 179, 94, 0.5);
 }
 
 .nav-item .nav-icon {
@@ -305,21 +306,20 @@ body {
 }
 
 .nav-item.active .nav-icon {
-  color: #C9A84C;
+  color: #DBB35E;
 }
 
 .nav-item .nav-badge {
   margin-left: auto;
-  background: linear-gradient(135deg, #C9A84C, #E8C96A);
+  background: linear-gradient(135deg, #DBB35E, #F0D080);
   color: #0D1F3C !important;
-  color: white;
   font-size: 10px;
   font-weight: 700;
   padding: 2px 8px;
   border-radius: 10px;
   min-width: 20px;
   text-align: center;
-  box-shadow: 0 2px 6px rgba(28, 58, 107, 0.15);
+  box-shadow: 0 2px 6px rgba(35, 64, 147, 0.15);
 }
 
 .nav-item .nav-arrow {

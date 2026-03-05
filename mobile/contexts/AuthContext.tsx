@@ -7,7 +7,7 @@ import {
   clearAuth,
   isTokenExpiringSoon,
 } from '@/lib/auth';
-import { APPROVAL_ROLES, FINANCE_ROLES, type RoleKey } from '@/lib/constants';
+import { APPROVAL_ROLES, CUSTOMER_ROLES, FINANCE_ROLES, type RoleKey } from '@/lib/constants';
 import type { User, AuthResponse } from '@/lib/types';
 
 interface AuthContextType {
@@ -20,6 +20,7 @@ interface AuthContextType {
   // Permission helpers
   canApprove: boolean;
   canViewFinance: boolean;
+  isCustomer: boolean;
 }
 
 const AuthContext = createContext<AuthContextType>({
@@ -27,10 +28,11 @@ const AuthContext = createContext<AuthContextType>({
   role: null,
   isAuthenticated: false,
   isLoading: true,
-  login: async () => {},
-  logout: async () => {},
+  login: async () => { },
+  logout: async () => { },
   canApprove: false,
   canViewFinance: false,
+  isCustomer: false,
 });
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
@@ -92,6 +94,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const role = user?.role ?? null;
   const canApprove = role ? APPROVAL_ROLES.includes(role) : false;
   const canViewFinance = role ? FINANCE_ROLES.includes(role) : false;
+  const isCustomer = role ? CUSTOMER_ROLES.includes(role) : false;
 
   return (
     <AuthContext.Provider
@@ -104,6 +107,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         logout,
         canApprove,
         canViewFinance,
+        isCustomer,
       }}
     >
       {children}

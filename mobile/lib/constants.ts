@@ -30,9 +30,11 @@ export const ROLES = {
   ky_thuat: { label: 'Kỹ thuật', icon: '🔧', color: '#27ae60' },
   quan_ly_du_an: { label: 'Quản lý dự án', icon: '📋', color: '#8e44ad' },
   nhan_vien: { label: 'Nhân viên', icon: '👤', color: '#7f8c8d' },
+  khach_hang: { label: 'Khách hàng', icon: '🏠', color: '#16a085' },
 } as const;
 
 export const FINANCE_ROLES = ['giam_doc', 'pho_gd', 'ke_toan'];
 export const APPROVAL_ROLES = ['giam_doc', 'pho_gd'];
+export const CUSTOMER_ROLES = ['khach_hang'];
 
 export type RoleKey = keyof typeof ROLES;

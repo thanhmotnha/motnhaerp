@@ -4,7 +4,7 @@ import { View, ActivityIndicator, StyleSheet } from 'react-native';
 import { COLORS } from '@/lib/constants';
 
 export default function Index() {
-  const { isAuthenticated, isLoading } = useAuth();
+  const { isAuthenticated, isLoading, isCustomer } = useAuth();
 
   if (isLoading) {
     return (
@@ -15,6 +15,9 @@ export default function Index() {
   }
 
   if (isAuthenticated) {
+    if (isCustomer) {
+      return <Redirect href="/customer/index" />;
+    }
     return <Redirect href="/(tabs)" />;
   }
 
