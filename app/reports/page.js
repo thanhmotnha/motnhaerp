@@ -96,6 +96,14 @@ export default function ReportsPage() {
     const [portfolio, setPortfolio] = useState(null);
     const [loadingPortfolio, setLoadingPortfolio] = useState(false);
 
+    // New tabs state
+    const [profitData, setProfitData] = useState(null);
+    const [loadingProfit, setLoadingProfit] = useState(false);
+    const [apData, setApData] = useState(null);
+    const [loadingAp, setLoadingAp] = useState(false);
+    const [reminders, setReminders] = useState(null);
+    const [loadingReminders, setLoadingReminders] = useState(false);
+
     useEffect(() => {
         Promise.all([
             fetch('/api/reports/debt').then(r => r.ok ? r.json() : null).catch(() => null),
@@ -135,6 +143,24 @@ export default function ReportsPage() {
         fetch('/api/reports/portfolio').then(r => r.json()).then(d => { setPortfolio(d); setLoadingPortfolio(false); });
     }, [tab]);
 
+    useEffect(() => {
+        if (tab !== 'profit_project' || profitData) return;
+        setLoadingProfit(true);
+        fetch('/api/reports/profit-by-project').then(r => r.ok ? r.json() : null).then(d => { setProfitData(d); setLoadingProfit(false); }).catch(() => setLoadingProfit(false));
+    }, [tab]);
+
+    useEffect(() => {
+        if (tab !== 'ap' || apData) return;
+        setLoadingAp(true);
+        fetch('/api/reports/accounts-payable').then(r => r.ok ? r.json() : null).then(d => { setApData(d); setLoadingAp(false); }).catch(() => setLoadingAp(false));
+    }, [tab]);
+
+    useEffect(() => {
+        if (tab !== 'reminders' || reminders) return;
+        setLoadingReminders(true);
+        fetch('/api/reports/payment-reminders').then(r => r.ok ? r.json() : null).then(d => { setReminders(d); setLoadingReminders(false); }).catch(() => setLoadingReminders(false));
+    }, [tab]);
+
     if (loading) return <div style={{ padding: 60, textAlign: 'center', color: 'var(--text-muted)' }}>Đang tải báo cáo...</div>;
 
     const totalPayable = (debt?.supplierTotal || 0) + (debt?.contractorTotal || 0);
@@ -150,9 +176,14 @@ export default function ReportsPage() {
             { key: 'cashflow', label: '💸 Dòng tiền' },
             { key: 'supplier_debt', label: '🏭 Công nợ NCC' },
             { key: 'contractor_debt', label: '👷 Công nợ thầu' },
+            { key: 'reminders', label: '🔔 Nhắc TT' },
         ] : []),
         { key: 'projects', label: '🏗️ Thu chi dự án' },
-        ...(canSeeFinance ? [{ key: 'portfolio', label: '🎯 Portfolio' }] : []),
+        ...(canSeeFinance ? [
+            { key: 'profit_project', label: '📊 Lãi/lỗ DA' },
+            { key: 'ap', label: '💳 Công nợ NCC v2' },
+            { key: 'portfolio', label: '🎯 Portfolio' },
+        ] : []),
     ];
 
     const handleExportProjects = () => exportCSV('du-an.csv',
@@ -759,6 +790,197 @@ export default function ReportsPage() {
                                 </div>
                             </>
                         ) : null}
+                    </div>
+                )}
+
+                {tab === 'profit_project' && canSeeFinance && (
+                    <div style={{ padding: 24 }}>
+                        {loadingProfit ? <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-muted)' }}>Đang tải...</div> : profitData && (
+                            <>
+                                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 12, marginBottom: 20 }}>
+                                    {[
+                                        { label: 'Tổng doanh thu', val: profitData.summary.totalRevenue, color: 'var(--status-success)' },
+                                        { label: 'Tổng chi phí', val: profitData.summary.totalCost, color: 'var(--status-danger)' },
+                                        { label: 'Tổng lợi nhuận', val: profitData.summary.totalProfit, color: profitData.summary.totalProfit >= 0 ? 'var(--status-success)' : 'var(--status-danger)' },
+                                        { label: 'DA có lãi', val: profitData.summary.profitableCount, color: 'var(--status-success)' },
+                                        { label: 'DA lỗ', val: profitData.summary.lossCount, color: 'var(--status-danger)' },
+                                    ].map(k => (
+                                        <div key={k.label} style={{ background: 'var(--bg-secondary)', borderRadius: 8, padding: '12px 16px' }}>
+                                            <div style={{ fontSize: 10, color: 'var(--text-muted)', marginBottom: 4 }}>{k.label}</div>
+                                            <div style={{ fontSize: 16, fontWeight: 700, color: k.color }}>{typeof k.val === 'number' && k.val > 999 ? fmtShort(k.val) : k.val}</div>
+                                        </div>
+                                    ))}
+                                </div>
+                                <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 8 }}>
+                                    <button className="btn btn-ghost btn-sm" onClick={() => exportCSV('lai-lo-du-an.csv',
+                                        ['Mã DA', 'Tên', 'Khách hàng', 'Trạng thái', 'Doanh thu', 'Chi phí', 'PO', 'Thầu phụ', 'Tổng chi', 'Lãi/lỗ', 'Margin %'],
+                                        profitData.data.map(r => [r.code, r.name, r.customer, r.status, r.revenue, r.expenses, r.purchaseOrders, r.contractorCosts, r.totalCost, r.profit, r.margin]))}>📥 Xuất CSV</button>
+                                </div>
+                                <div style={{ overflowX: 'auto' }}>
+                                    <table className="data-table" style={{ margin: 0 }}>
+                                        <thead><tr>
+                                            <th>Dự án</th><th>Trạng thái</th>
+                                            <th style={{ textAlign: 'right' }}>Doanh thu</th>
+                                            <th style={{ textAlign: 'right' }}>Chi phí PS</th>
+                                            <th style={{ textAlign: 'right' }}>PO</th>
+                                            <th style={{ textAlign: 'right' }}>Thầu phụ</th>
+                                            <th style={{ textAlign: 'right' }}>Tổng chi</th>
+                                            <th style={{ textAlign: 'right' }}>Lãi/lỗ</th>
+                                            <th style={{ textAlign: 'right' }}>Margin</th>
+                                            <th></th>
+                                        </tr></thead>
+                                        <tbody>
+                                            {profitData.data.map(r => (
+                                                <tr key={r.id} style={{ background: r.profit < 0 ? 'rgba(220,38,38,0.03)' : undefined }}>
+                                                    <td><div style={{ fontWeight: 600, fontSize: 13 }}>{r.name}</div><div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{r.code} · {r.customer}</div></td>
+                                                    <td><span className="badge muted">{r.status}</span></td>
+                                                    <td style={{ textAlign: 'right', color: 'var(--status-success)', fontSize: 12 }}>{r.revenue > 0 ? fmt(r.revenue) : '—'}</td>
+                                                    <td style={{ textAlign: 'right', fontSize: 12 }}>{r.expenses > 0 ? fmt(r.expenses) : '—'}</td>
+                                                    <td style={{ textAlign: 'right', fontSize: 12 }}>{r.purchaseOrders > 0 ? fmt(r.purchaseOrders) : '—'}</td>
+                                                    <td style={{ textAlign: 'right', fontSize: 12 }}>{r.contractorCosts > 0 ? fmt(r.contractorCosts) : '—'}</td>
+                                                    <td style={{ textAlign: 'right', fontSize: 12, color: 'var(--status-danger)', fontWeight: 600 }}>{r.totalCost > 0 ? fmt(r.totalCost) : '—'}</td>
+                                                    <td style={{ textAlign: 'right', fontWeight: 700, color: r.profit >= 0 ? 'var(--status-success)' : 'var(--status-danger)' }}>{fmt(r.profit)}</td>
+                                                    <td style={{ textAlign: 'right' }}>
+                                                        <span style={{ fontWeight: 700, fontSize: 13, color: r.margin < 0 ? 'var(--status-danger)' : r.margin < 10 ? 'var(--status-warning)' : 'var(--status-success)' }}>{r.margin}%</span>
+                                                    </td>
+                                                    <td><button className="btn btn-ghost btn-sm" onClick={() => router.push(`/projects/${r.id}`)}>→</button></td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </>
+                        )}
+                    </div>
+                )}
+
+                {tab === 'ap' && canSeeFinance && (
+                    <div style={{ padding: 24 }}>
+                        {loadingAp ? <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-muted)' }}>Đang tải...</div> : apData && (
+                            <>
+                                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, marginBottom: 20 }}>
+                                    {[
+                                        { label: 'Nợ NCC', val: apData.summary.totalSupplierDebt, color: 'var(--status-warning)' },
+                                        { label: 'Nợ thầu phụ', val: apData.summary.totalContractorDebt, color: 'var(--status-danger)' },
+                                        { label: 'Số NCC còn nợ', val: apData.summary.supplierCount, color: 'var(--accent-primary)' },
+                                        { label: 'Số thầu còn nợ', val: apData.summary.contractorCount, color: 'var(--accent-primary)' },
+                                    ].map(k => (
+                                        <div key={k.label} style={{ background: 'var(--bg-secondary)', borderRadius: 8, padding: '12px 16px' }}>
+                                            <div style={{ fontSize: 10, color: 'var(--text-muted)', marginBottom: 4 }}>{k.label}</div>
+                                            <div style={{ fontSize: 16, fontWeight: 700, color: k.color }}>{typeof k.val === 'number' && k.val > 999 ? fmtShort(k.val) : k.val}</div>
+                                        </div>
+                                    ))}
+                                </div>
+                                {apData.suppliers.length > 0 && (
+                                    <div style={{ marginBottom: 28 }}>
+                                        <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 12 }}>🏭 Nhà cung cấp ({apData.suppliers.length})</div>
+                                        <table className="data-table" style={{ margin: 0 }}>
+                                            <thead><tr><th>NCC</th><th style={{ textAlign: 'right' }}>Tổng nợ</th><th>Đơn hàng chưa TT</th></tr></thead>
+                                            <tbody>
+                                                {apData.suppliers.map(s => (
+                                                    <tr key={s.name}>
+                                                        <td><div style={{ fontWeight: 600 }}>{s.name}</div>{s.phone && <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{s.phone}</div>}</td>
+                                                        <td style={{ textAlign: 'right', fontWeight: 700, color: 'var(--status-danger)' }}>{fmt(s.totalOwed)}</td>
+                                                        <td style={{ fontSize: 12 }}>{s.orders.map(o => <div key={o.id} style={{ marginBottom: 2 }}><span style={{ fontWeight: 600 }}>{o.code}</span> · {o.project?.name || '—'} · còn {fmt(o.remaining)}</div>)}</td>
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                )}
+                                {apData.contractors.length > 0 && (
+                                    <div>
+                                        <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 12 }}>👷 Thầu phụ ({apData.contractors.length})</div>
+                                        <table className="data-table" style={{ margin: 0 }}>
+                                            <thead><tr><th>Thầu phụ</th><th style={{ textAlign: 'right' }}>Tổng nợ</th><th>Chi tiết</th></tr></thead>
+                                            <tbody>
+                                                {apData.contractors.map(c => (
+                                                    <tr key={c.name}>
+                                                        <td><div style={{ fontWeight: 600 }}>{c.name}</div>{c.phone && <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{c.phone}</div>}</td>
+                                                        <td style={{ textAlign: 'right', fontWeight: 700, color: 'var(--status-danger)' }}>{fmt(c.totalOwed)}</td>
+                                                        <td style={{ fontSize: 12 }}>{c.payments.map(p => <div key={p.id} style={{ marginBottom: 2 }}>{p.phase} · {p.project?.name || '—'} · còn {fmt(p.remaining)}</div>)}</td>
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                )}
+                            </>
+                        )}
+                    </div>
+                )}
+
+                {tab === 'reminders' && canSeeFinance && (
+                    <div style={{ padding: 24 }}>
+                        {loadingReminders ? <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-muted)' }}>Đang tải...</div> : reminders && (
+                            <>
+                                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginBottom: 20 }}>
+                                    {[
+                                        { label: '🔴 Quá hạn', count: reminders.summary.overdueCount, val: reminders.summary.overdueAmount, color: 'var(--status-danger)' },
+                                        { label: '🟡 Sắp đến hạn (7 ngày)', count: reminders.summary.dueSoonCount, val: reminders.summary.dueSoonAmount, color: 'var(--status-warning)' },
+                                        { label: '🟢 Sắp tới (30 ngày)', count: reminders.summary.upcomingCount, val: reminders.summary.upcomingAmount, color: 'var(--status-success)' },
+                                    ].map(k => (
+                                        <div key={k.label} style={{ background: 'var(--bg-secondary)', borderRadius: 8, padding: '14px 16px', borderTop: `3px solid ${k.color}` }}>
+                                            <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 4 }}>{k.label}</div>
+                                            <div style={{ fontSize: 20, fontWeight: 700, color: k.color }}>{k.count}</div>
+                                            <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>{fmtShort(k.val)}</div>
+                                        </div>
+                                    ))}
+                                </div>
+                                {reminders.overdue.length > 0 && (
+                                    <div style={{ marginBottom: 24 }}>
+                                        <div style={{ fontWeight: 700, fontSize: 14, color: 'var(--status-danger)', marginBottom: 10 }}>🔴 Quá hạn ({reminders.overdue.length})</div>
+                                        {reminders.overdue.map(p => (
+                                            <div key={p.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 14px', background: 'rgba(220,38,38,0.04)', borderRadius: 8, border: '1px solid rgba(220,38,38,0.15)', marginBottom: 6 }}>
+                                                <div>
+                                                    <div style={{ fontWeight: 600, fontSize: 13 }}>{p.phase}</div>
+                                                    <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{p.contract} · {p.customer} · {p.projectCode}</div>
+                                                    {p.customerPhone && <div style={{ fontSize: 11, color: 'var(--accent-primary)' }}>📞 {p.customerPhone}</div>}
+                                                </div>
+                                                <div style={{ textAlign: 'right' }}>
+                                                    <div style={{ fontWeight: 700, color: 'var(--status-danger)' }}>{fmt(p.remaining)}</div>
+                                                    <div style={{ fontSize: 11, color: 'var(--status-danger)' }}>Trễ {Math.abs(p.daysUntilDue)} ngày</div>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                                {reminders.dueSoon.length > 0 && (
+                                    <div style={{ marginBottom: 24 }}>
+                                        <div style={{ fontWeight: 700, fontSize: 14, color: 'var(--status-warning)', marginBottom: 10 }}>🟡 Sắp đến hạn ({reminders.dueSoon.length})</div>
+                                        {reminders.dueSoon.map(p => (
+                                            <div key={p.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 14px', background: 'rgba(217,119,6,0.04)', borderRadius: 8, border: '1px solid rgba(217,119,6,0.15)', marginBottom: 6 }}>
+                                                <div>
+                                                    <div style={{ fontWeight: 600, fontSize: 13 }}>{p.phase}</div>
+                                                    <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{p.contract} · {p.customer} · {p.projectCode}</div>
+                                                </div>
+                                                <div style={{ textAlign: 'right' }}>
+                                                    <div style={{ fontWeight: 700, color: 'var(--status-warning)' }}>{fmt(p.remaining)}</div>
+                                                    <div style={{ fontSize: 11 }}>{p.daysUntilDue === 0 ? 'Hôm nay' : `Còn ${p.daysUntilDue} ngày`}</div>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                                {reminders.upcoming.length > 0 && (
+                                    <div>
+                                        <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 10 }}>🟢 Sắp tới ({reminders.upcoming.length})</div>
+                                        <table className="data-table" style={{ margin: 0, fontSize: 12 }}>
+                                            <thead><tr><th>Đợt TT</th><th>KH</th><th>Dự án</th><th style={{ textAlign: 'right' }}>Số tiền</th><th>Hạn</th></tr></thead>
+                                            <tbody>{reminders.upcoming.map(p => (
+                                                <tr key={p.id}>
+                                                    <td style={{ fontWeight: 600 }}>{p.phase}</td>
+                                                    <td>{p.customer}</td>
+                                                    <td>{p.projectCode}</td>
+                                                    <td style={{ textAlign: 'right', fontWeight: 600 }}>{fmt(p.remaining)}</td>
+                                                    <td>{p.dueDate ? new Date(p.dueDate).toLocaleDateString('vi-VN') : '—'}</td>
+                                                </tr>
+                                            ))}</tbody>
+                                        </table>
+                                    </div>
+                                )}
+                            </>
+                        )}
                     </div>
                 )}
             </div>
