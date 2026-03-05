@@ -28,9 +28,13 @@ const borderColors = {
 export function ToastProvider({ children }) {
     const [toasts, setToasts] = useState([]);
 
+    const MAX_TOASTS = 3;
     const addToast = useCallback((message, type = 'info', duration = 4000) => {
         const id = Date.now() + Math.random();
-        setToasts(prev => [...prev, { id, message, type }]);
+        setToasts(prev => {
+            const next = [...prev, { id, message, type }];
+            return next.length > MAX_TOASTS ? next.slice(next.length - MAX_TOASTS) : next;
+        });
         if (duration > 0) {
             setTimeout(() => {
                 setToasts(prev => prev.filter(t => t.id !== id));
@@ -76,7 +80,9 @@ export function ToastProvider({ children }) {
                         <span style={{ flex: 1, fontSize: 14 }}>{t.message}</span>
                         <button
                             onClick={() => removeToast(t.id)}
-                            style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 2, color: '#9CA3AF' }}
+                            style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px', borderRadius: 4, color: '#9CA3AF', display: 'flex', alignItems: 'center', transition: 'color 0.15s, background 0.15s' }}
+                            onMouseEnter={e => { e.currentTarget.style.background = 'rgba(0,0,0,0.08)'; e.currentTarget.style.color = '#374151'; }}
+                            onMouseLeave={e => { e.currentTarget.style.background = 'none'; e.currentTarget.style.color = '#9CA3AF'; }}
                             aria-label="Đóng thông báo"
                         >
                             <X size={14} />

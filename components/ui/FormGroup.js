@@ -11,7 +11,7 @@ export default function FormGroup({ label, required, children, error }) {
             )}
             {children}
             {error && (
-                <p style={{ margin: '4px 0 0', fontSize: 12, color: '#DC2626' }}>{error}</p>
+                <span className="form-error-text">{error}</span>
             )}
         </div>
     );

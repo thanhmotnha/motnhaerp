@@ -533,12 +533,12 @@ body {
 .btn-primary {
   background: var(--accent-gradient);
   color: white;
-  box-shadow: 0 2px 8px rgba(28, 58, 107, 0.3);
+  box-shadow: 0 2px 8px rgba(35, 64, 147, 0.3);
 }
 
 .btn-primary:hover {
   background: var(--accent-gradient-hover);
-  box-shadow: 0 4px 16px rgba(28, 58, 107, 0.4);
+  box-shadow: 0 4px 16px rgba(35, 64, 147, 0.4);
   transform: translateY(-1px);
 }
 
@@ -585,40 +585,6 @@ body {
 .btn-icon:hover {
   background: var(--bg-card-hover);
   color: var(--text-primary);
-}
-
-/* Button variants */
-.btn-success {
-  background: rgba(22, 163, 74, 0.12);
-  color: #16A34A;
-  border: 1px solid rgba(22, 163, 74, 0.2);
-}
-.btn-success:hover {
-  background: rgba(22, 163, 74, 0.2);
-}
-.btn-warning {
-  background: rgba(217, 119, 6, 0.12);
-  color: #D97706;
-  border: 1px solid rgba(217, 119, 6, 0.2);
-}
-.btn-warning:hover {
-  background: rgba(217, 119, 6, 0.2);
-}
-.btn-info {
-  background: rgba(45, 92, 163, 0.12);
-  color: #2D5CA3;
-  border: 1px solid rgba(45, 92, 163, 0.2);
-}
-.btn-info:hover {
-  background: rgba(45, 92, 163, 0.2);
-}
-.btn-purple {
-  background: rgba(107, 79, 175, 0.12);
-  color: var(--status-purple);
-  border: 1px solid rgba(107, 79, 175, 0.2);
-}
-.btn-purple:hover {
-  background: rgba(107, 79, 175, 0.2);
 }
 
 /* Focus-visible for keyboard accessibility */
@@ -2734,6 +2700,14 @@ select.form-input-compact {
 }
 
 /* ======= ANIMATIONS ======= */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
 @keyframes slideInRight {
   from {
     transform: translateX(100%);
