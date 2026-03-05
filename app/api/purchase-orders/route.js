@@ -96,5 +96,22 @@ export const POST = withAuth(async (request) => {
         },
         include: { items: true, project: { select: { name: true, code: true } } },
     });
+    // Auto-link pending MaterialRequisitions for items that have a materialPlanId
+    const planIds = (items || []).map(i => i.materialPlanId).filter(Boolean);
+    if (planIds.length > 0) {
+        await prisma.materialRequisition.updateMany({
+            where: {
+                materialPlanId: { in: planIds },
+                projectId: poData.projectId || undefined,
+                purchaseOrderId: null,
+                status: { in: ['Chờ xử lý', 'Vượt dự toán - Chờ duyệt'] },
+            },
+            data: {
+                purchaseOrderId: order.id,
+                status: 'Đã tạo PO',
+            },
+        });
+    }
+
     return NextResponse.json({ ...order, warnings, needsApproval });
 });

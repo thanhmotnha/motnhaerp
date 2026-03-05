@@ -24,9 +24,47 @@ function PurchasingContent() {
     const [poItems, setPoItems] = useState([{ productName: '', unit: 'cái', quantity: 1, unitPrice: 0, amount: 0, productId: null }]);
     const [saving, setSaving] = useState(false);
 
+    // GRN (Goods Receipt Note) state
+    const [grnPO, setGrnPO] = useState(null);
+    const [grnItems, setGrnItems] = useState([]);
+    const [grnNote, setGrnNote] = useState('');
+    const [grnSaving, setGrnSaving] = useState(false);
+
     const fetchOrders = () => {
         setLoading(true);
         fetch('/api/purchase-orders?limit=1000').then(r => r.json()).then(d => { setOrders(d.data || []); setLoading(false); });
+    };
+
+    const openGrn = async (poId, e) => {
+        e.stopPropagation();
+        const res = await fetch(`/api/purchase-orders/${poId}`);
+        const po = await res.json();
+        setGrnPO(po);
+        setGrnItems((po.items || []).map(it => ({
+            id: it.id,
+            productName: it.productName,
+            unit: it.unit,
+            quantity: it.quantity,
+            receivedQty: it.receivedQty || 0,
+            toReceive: Math.max(0, it.quantity - (it.receivedQty || 0)),
+        })));
+        setGrnNote('');
+    };
+
+    const submitGrn = async () => {
+        const validItems = grnItems.filter(it => (it.toReceive || 0) > 0);
+        if (!validItems.length) return alert('Nhập số lượng cần nhận cho ít nhất 1 sản phẩm');
+        setGrnSaving(true);
+        const res = await fetch(`/api/purchase-orders/${grnPO.id}/receive`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ items: validItems.map(it => ({ id: it.id, receivedQty: Number(it.toReceive) })), note: grnNote }),
+        });
+        setGrnSaving(false);
+        if (!res.ok) { const e = await res.json(); return alert(e.error || 'Lỗi nhận hàng'); }
+        alert('Đã ghi nhận hàng thành công!');
+        setGrnPO(null);
+        fetchOrders();
     };
 
     useEffect(() => {
@@ -120,9 +158,10 @@ function PurchasingContent() {
                 </div>
                 {loading ? <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-muted)' }}>Đang tải...</div> : (
                     <div className="table-container"><table className="data-table">
-                        <thead><tr><th>Mã PO</th><th>NCC</th><th>Dự án</th><th>Tổng tiền</th><th>Đã TT</th><th>Số SP</th><th>Ngày đặt</th><th>Giao hàng</th><th>Trạng thái</th></tr></thead>
+                        <thead><tr><th>Mã PO</th><th>NCC</th><th>Dự án</th><th>Tổng tiền</th><th>Đã TT</th><th>Số SP</th><th>Ngày đặt</th><th>Giao hàng</th><th>Trạng thái</th><th></th></tr></thead>
                         <tbody>{filtered.map(o => {
                             const rate = pct(o.paidAmount, o.totalAmount);
+                            const canReceive = !['Hoàn thành', 'Hủy'].includes(o.status);
                             return (
                                 <tr key={o.id} onClick={() => o.projectId && router.push(`/projects/${o.projectId}`)} style={{ cursor: o.projectId ? 'pointer' : 'default' }}>
                                     <td className="accent">{o.code}</td>
@@ -139,6 +178,12 @@ function PurchasingContent() {
                                     <td style={{ fontSize: 12 }}>{fmtDate(o.orderDate)}</td>
                                     <td style={{ fontSize: 12 }}>{fmtDate(o.deliveryDate)}</td>
                                     <td><span className={`badge ${STATUS_BADGE[o.status] || 'badge-default'}`}>{o.status}</span></td>
+                                    <td onClick={e => e.stopPropagation()}>
+                                        {canReceive && (
+                                            <button className="btn btn-ghost btn-sm" style={{ fontSize: 11, whiteSpace: 'nowrap' }}
+                                                onClick={e => openGrn(o.id, e)}>📦 Nhận hàng</button>
+                                        )}
+                                    </td>
                                 </tr>
                             );
                         })}</tbody>
@@ -280,6 +325,66 @@ function PurchasingContent() {
                         <div className="modal-footer">
                             <button className="btn btn-ghost" onClick={() => setShowModal(false)}>Hủy</button>
                             <button className="btn btn-primary" onClick={createPO} disabled={saving || suppliers.find(s => s.id === poForm.supplierId)?.isBlacklisted}>{saving ? 'Đang tạo...' : 'Tạo đơn hàng'}</button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* GRN Modal */}
+            {grnPO && (
+                <div className="modal-overlay" onClick={() => setGrnPO(null)}>
+                    <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 680, width: '95%' }}>
+                        <div className="modal-header">
+                            <h3>📦 Nhận hàng — {grnPO.code}</h3>
+                            <button className="modal-close" onClick={() => setGrnPO(null)}>×</button>
+                        </div>
+                        <div className="modal-body">
+                            <div style={{ marginBottom: 8, fontSize: 13, color: 'var(--text-muted)' }}>
+                                NCC: <strong>{grnPO.supplier}</strong>
+                                {grnPO.project && <> &nbsp;|&nbsp; Dự án: <strong>{grnPO.project.code}</strong></>}
+                            </div>
+                            <table className="data-table" style={{ margin: 0 }}>
+                                <thead><tr>
+                                    <th>Sản phẩm</th>
+                                    <th style={{ width: 55, textAlign: 'center' }}>ĐVT</th>
+                                    <th style={{ width: 80, textAlign: 'center' }}>Đặt</th>
+                                    <th style={{ width: 80, textAlign: 'center' }}>Đã nhận</th>
+                                    <th style={{ width: 100, textAlign: 'center' }}>Nhận lần này</th>
+                                </tr></thead>
+                                <tbody>
+                                    {grnItems.map((it, i) => (
+                                        <tr key={it.id}>
+                                            <td style={{ fontSize: 13 }}>{it.productName}</td>
+                                            <td style={{ textAlign: 'center', fontSize: 12 }}>{it.unit}</td>
+                                            <td style={{ textAlign: 'center', fontSize: 13 }}>{fmtNum(it.quantity)}</td>
+                                            <td style={{ textAlign: 'center', fontSize: 13, color: it.receivedQty >= it.quantity ? 'var(--status-success)' : 'var(--text-muted)' }}>
+                                                {fmtNum(it.receivedQty)}
+                                            </td>
+                                            <td style={{ textAlign: 'center' }}>
+                                                <input
+                                                    className="form-input form-input-compact"
+                                                    type="number" min="0"
+                                                    max={it.quantity - it.receivedQty}
+                                                    value={it.toReceive}
+                                                    onChange={e => setGrnItems(prev => prev.map((x, idx) => idx === i ? { ...x, toReceive: Number(e.target.value) || 0 } : x))}
+                                                    style={{ width: 80, textAlign: 'center' }}
+                                                    disabled={it.receivedQty >= it.quantity}
+                                                />
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                            <div className="form-group" style={{ marginTop: 12 }}>
+                                <label className="form-label">Ghi chú nhận hàng</label>
+                                <input className="form-input" value={grnNote} onChange={e => setGrnNote(e.target.value)} placeholder="Tình trạng hàng, ghi chú thêm..." />
+                            </div>
+                        </div>
+                        <div className="modal-footer">
+                            <button className="btn btn-ghost" onClick={() => setGrnPO(null)}>Hủy</button>
+                            <button className="btn btn-primary" onClick={submitGrn} disabled={grnSaving}>
+                                {grnSaving ? '⏳ Đang lưu...' : '✅ Xác nhận nhận hàng'}
+                            </button>
                         </div>
                     </div>
                 </div>

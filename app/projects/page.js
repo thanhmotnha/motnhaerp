@@ -1,6 +1,7 @@
 'use client';
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { exportToCsv } from '@/lib/exportCsv';
 const fmt = (n) => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(n);
 export default function ProjectsPage() {
     const [projects, setProjects] = useState([]);
@@ -44,7 +45,19 @@ export default function ProjectsPage() {
                 <div className="stat-card"><div className="stat-icon">⚠️</div><div><div className="stat-value" style={{ color: totalContract - totalPaid > 0 ? 'var(--status-danger)' : '' }}>{fmt(totalContract - totalPaid)}</div><div className="stat-label">Công nợ KH</div></div></div>
             </div>
             <div className="card" style={{ marginTop: 24 }}>
-                <div className="card-header"><h3>Danh sách dự án</h3><button className="btn btn-primary" onClick={() => setShowModal(true)}>+ Thêm DA</button></div>
+                <div className="card-header">
+                    <h3>Danh sách dự án</h3>
+                    <div style={{ display: 'flex', gap: 8 }}>
+                        <button className="btn btn-ghost btn-sm" onClick={() => exportToCsv(projects, [
+                            { key: 'code', label: 'Mã' }, { key: 'name', label: 'Tên dự án' },
+                            { key: 'customer.name', label: 'Khách hàng' }, { key: 'type', label: 'Loại' },
+                            { key: 'status', label: 'Trạng thái' }, { key: 'contractValue', label: 'Giá trị HĐ' },
+                            { key: 'paidAmount', label: 'Đã thu' }, { key: 'progress', label: 'Tiến độ (%)' },
+                            { key: 'startDate', label: 'Ngày BD' }, { key: 'endDate', label: 'Ngày KT' },
+                        ], 'du-an')}>⬇ Xuất CSV</button>
+                        <button className="btn btn-primary" onClick={() => setShowModal(true)}>+ Thêm DA</button>
+                    </div>
+                </div>
                 <div className="filter-bar">
                     <input type="text" className="form-input" placeholder="Tìm kiếm..." value={search} onChange={e => setSearch(e.target.value)} style={{ maxWidth: 250 }} />
                     <select className="form-select" value={filterType} onChange={e => setFilterType(e.target.value)}><option value="">Tất cả loại</option><option>Thiết kế kiến trúc</option><option>Thiết kế nội thất</option><option>Thi công thô</option><option>Thi công hoàn thiện</option><option>Thi công nội thất</option></select>

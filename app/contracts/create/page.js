@@ -1,6 +1,6 @@
 'use client';
-import { useState, useEffect, useMemo } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, useEffect, useRef } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 
 const fmt = (n) => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(n);
 
@@ -38,6 +38,8 @@ const PAYMENT_TEMPLATES = {
 
 export default function CreateContractPage() {
     const router = useRouter();
+    const searchParams = useSearchParams();
+    const autoFilledRef = useRef(false);
     const [customers, setCustomers] = useState([]);
     const [projects, setProjects] = useState([]);
     const [quotations, setQuotations] = useState([]);
@@ -54,6 +56,41 @@ export default function CreateContractPage() {
         fetch('/api/projects?limit=1000').then(r => r.json()).then(d => setProjects(d.data || []));
         fetch('/api/quotations?limit=1000').then(r => r.json()).then(d => setQuotations(d.data || []));
     }, []);
+
+    // Auto-fill from URL params (when navigating from quotations page)
+    useEffect(() => {
+        if (autoFilledRef.current || quotations.length === 0) return;
+        const qId = searchParams.get('quotationId');
+        const customerId = searchParams.get('customerId');
+        const projectId = searchParams.get('projectId');
+        const type = searchParams.get('type');
+        const value = searchParams.get('value');
+        if (!qId && !customerId) return;
+        autoFilledRef.current = true;
+        if (qId) {
+            const q = quotations.find(x => x.id === qId);
+            if (q) {
+                setForm(f => ({
+                    ...f,
+                    quotationId: qId,
+                    customerId: q.customerId || customerId || f.customerId,
+                    projectId: q.projectId || projectId || f.projectId,
+                    type: q.type || type || f.type,
+                    contractValue: q.grandTotal || q.total || Number(value) || f.contractValue,
+                    name: `HĐ ${q.type} - ${q.customer?.name || ''}`.trim(),
+                }));
+                return;
+            }
+        }
+        // Fallback: fill from individual params
+        setForm(f => ({
+            ...f,
+            customerId: customerId || f.customerId,
+            projectId: projectId || f.projectId,
+            type: type || f.type,
+            contractValue: Number(value) || f.contractValue,
+        }));
+    }, [quotations, searchParams]);
 
     // Auto-load template when type changes
     useEffect(() => {

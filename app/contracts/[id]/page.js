@@ -151,6 +151,10 @@ export default function ContractDetailPage() {
     const removePhase = (idx) => setPaymentPhases(prev => prev.filter((_, i) => i !== idx));
 
     const savePayments = async () => {
+        if (paymentPhases.length > 0) {
+            const total = paymentPhases.reduce((s, p) => s + (p.pct || 0), 0);
+            if (total !== 100) return alert(`Tổng tỷ lệ các đợt đang là ${total}% — phải bằng 100% mới lưu được.`);
+        }
         setSavingPayments(true);
         const res = await fetch(`/api/contracts/${id}/payments`, {
             method: 'PUT',
@@ -167,6 +171,59 @@ export default function ContractDetailPage() {
 
     const totalPhasePct = paymentPhases.reduce((s, p) => s + (p.pct || 0), 0);
     const totalPhaseAmount = paymentPhases.reduce((s, p) => s + (p.amount || 0), 0);
+
+    const [creatingProject, setCreatingProject] = useState(false);
+    const signAndCreateProject = async () => {
+        if (!confirm('Ký hợp đồng và tự động tạo Dự án thi công từ HĐ này?')) return;
+        setCreatingProject(true);
+        try {
+            // Derive project type from contract type
+            const typeMap = {
+                'Thiết kế kiến trúc': 'Thiết kế',
+                'Thiết kế nội thất': 'Thiết kế',
+                'Thi công thô': 'Thi công',
+                'Thi công hoàn thiện': 'Thi công',
+                'Thi công nội thất': 'Thi công',
+            };
+            const projName = data.name.replace(/^HĐ\s*/i, '').trim() || data.name;
+            const projRes = await fetch('/api/projects', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    name: projName,
+                    type: typeMap[form.type] || 'Thi công',
+                    customerId: data.customerId,
+                    budget: parseFloat(form.contractValue) || 0,
+                    startDate: form.startDate ? new Date(form.startDate) : null,
+                    endDate: form.endDate ? new Date(form.endDate) : null,
+                    status: 'Đang thi công',
+                    notes: `Tạo tự động từ hợp đồng ${data.code}`,
+                }),
+            });
+            if (!projRes.ok) {
+                const e = await projRes.json();
+                return alert('Lỗi tạo dự án: ' + (e.error || 'Unknown'));
+            }
+            const newProject = await projRes.json();
+            // Update contract: sign + link project
+            const today = new Date().toISOString().slice(0, 10);
+            const contractRes = await fetch(`/api/contracts/${id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    status: 'Đã ký',
+                    signDate: form.signDate || today,
+                    projectId: newProject.id,
+                }),
+            });
+            if (contractRes.ok) {
+                alert(`Đã ký hợp đồng và tạo dự án "${newProject.name}" (${newProject.code}) thành công!`);
+                reload();
+            }
+        } finally {
+            setCreatingProject(false);
+        }
+    };
 
     if (!data || !form) return <div style={{ padding: 40, textAlign: 'center' }}>⏳ Đang tải...</div>;
 
@@ -445,6 +502,27 @@ export default function ContractDetailPage() {
                             </div>
                         </div>
                     </div>
+
+                    {/* Ký HĐ & tạo dự án */}
+                    {data.status === 'Nháp' && (
+                        <div className="card" style={{ border: '1px solid var(--status-warning)', background: 'var(--bg-warning, #fffbeb)' }}>
+                            <div className="card-body" style={{ textAlign: 'center', padding: 20 }}>
+                                <div style={{ fontSize: 28, marginBottom: 8 }}>🏗️</div>
+                                <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 6 }}>Ký & Khởi động Dự án</div>
+                                <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 14 }}>
+                                    Ký hợp đồng và tự động tạo dự án thi công từ thông tin HĐ này
+                                </div>
+                                <button
+                                    className="btn btn-primary"
+                                    style={{ width: '100%' }}
+                                    onClick={signAndCreateProject}
+                                    disabled={creatingProject}
+                                >
+                                    {creatingProject ? '⏳ Đang xử lý...' : '✅ Ký HĐ & Tạo Dự án'}
+                                </button>
+                            </div>
+                        </div>
+                    )}
 
                     {/* Progress thu tiền */}
                     <div className="card">

@@ -25,6 +25,11 @@ function FinanceContent() {
     const [uploading, setUploading] = useState(false);
     const proofRef = useRef();
 
+    // Sprint 3: AR Aging, Cash Flow, Retention data
+    const [aging, setAging] = useState(null);
+    const [cashflow, setCashflow] = useState(null);
+    const [retentions, setRetentions] = useState([]);
+
     const fetchAll = async () => {
         setLoading(true);
         const [finRes, recRes] = await Promise.all([
@@ -35,6 +40,27 @@ function FinanceContent() {
         setTransactions(finRes.transactions?.data || []);
         setReceivables(recRes);
         setLoading(false);
+    };
+
+    const fetchAging = async () => {
+        if (aging) return;
+        const res = await fetch('/api/finance/ar-aging');
+        setAging(await res.json());
+    };
+
+    const fetchCashflow = async () => {
+        if (cashflow) return;
+        const res = await fetch('/api/finance/cashflow');
+        setCashflow(await res.json());
+    };
+
+    const fetchRetentions = async () => {
+        if (retentions.length) return;
+        const res = await fetch('/api/contractor-payments?retentionOnly=1&limit=500');
+        if (res.ok) {
+            const data = await res.json();
+            setRetentions((data.data || []).filter(p => (p.retentionAmount || 0) > 0 && !p.retentionReleased));
+        }
     };
 
     useEffect(() => { fetchAll(); }, []);
@@ -206,11 +232,21 @@ ${[1, 2].map(copy => `
     });
 
     const TABS = [
-        { key: 'overview', label: '📊 Tổng quan', icon: '' },
-        { key: 'receivables', label: '📈 Công nợ phải thu', icon: '' },
-        { key: 'payables', label: '📉 Công nợ phải trả', icon: '' },
-        { key: 'transactions', label: '💳 Thu chi khác', icon: '' },
+        { key: 'overview', label: '📊 Tổng quan' },
+        { key: 'receivables', label: '📈 Phải thu' },
+        { key: 'ar_aging', label: '⏳ AR Aging' },
+        { key: 'cashflow', label: '💧 Dòng tiền' },
+        { key: 'payables', label: '📉 Phải trả' },
+        { key: 'retentions', label: '🔒 Giữ lại BH' },
+        { key: 'transactions', label: '💳 Thu chi khác' },
     ];
+
+    const handleTabChange = (key) => {
+        setActiveTab(key);
+        if (key === 'ar_aging') fetchAging();
+        if (key === 'cashflow') fetchCashflow();
+        if (key === 'retentions') fetchRetentions();
+    };
 
     return (
         <div>
@@ -259,7 +295,7 @@ ${[1, 2].map(copy => `
                     <div className="tab-bar">
                         {TABS.map(t => (
                             <button key={t.key} className={`tab-item ${activeTab === t.key ? 'active' : ''}`}
-                                onClick={() => setActiveTab(t.key)}>{t.label}</button>
+                                onClick={() => handleTabChange(t.key)}>{t.label}</button>
                         ))}
                     </div>
                     {activeTab === 'transactions' && (
@@ -461,6 +497,140 @@ ${[1, 2].map(copy => `
                         <div style={{ marginTop: 16, textAlign: 'center' }}>
                             <a href="/expenses" style={{ color: 'var(--accent-primary)', fontWeight: 600, fontSize: 13 }}>📋 Xem chi tiết chi phí →</a>
                         </div>
+                    </div>
+                )}
+
+                {/* TAB: AR Aging */}
+                {activeTab === 'ar_aging' && (
+                    <div className="card-body">
+                        {!aging ? (
+                            <div style={{ textAlign: 'center', padding: 40, color: 'var(--text-muted)' }}>Đang tải...</div>
+                        ) : (
+                            <>
+                                <div style={{ display: 'flex', gap: 12, marginBottom: 20, flexWrap: 'wrap' }}>
+                                    {Object.entries(aging.brackets).map(([key, b]) => (
+                                        b.total > 0 && (
+                                            <div key={key} className="stat-card" style={{ flex: '1 1 160px', minWidth: 140 }}>
+                                                <div>
+                                                    <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 4 }}>{b.label}</div>
+                                                    <div style={{ fontSize: 18, fontWeight: 700, color: key === '90plus' ? 'var(--status-danger)' : key === '61_90' ? 'var(--status-warning)' : 'var(--text)' }}>{fmt(b.total)}</div>
+                                                    <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>{b.items.length} đợt</div>
+                                                </div>
+                                            </div>
+                                        )
+                                    ))}
+                                </div>
+                                {Object.entries(aging.brackets).map(([key, b]) => b.items.length > 0 && (
+                                    <div key={key} style={{ marginBottom: 20 }}>
+                                        <h4 style={{ marginBottom: 8, color: key === '90plus' ? 'var(--status-danger)' : key.includes('61') ? 'var(--status-warning)' : 'var(--text)' }}>
+                                            {key === '90plus' ? '🔴' : key === '61_90' ? '🟠' : key === '31_60' ? '🟡' : '🟢'} {b.label} — {fmt(b.total)}
+                                        </h4>
+                                        <table className="data-table" style={{ margin: 0 }}>
+                                            <thead><tr><th>Đợt TT</th><th>HĐ</th><th>KH</th><th>Dự án</th><th>Số tiền</th><th>Còn lại</th><th>Hạn TT</th><th>Quá hạn</th></tr></thead>
+                                            <tbody>
+                                                {b.items.map(item => (
+                                                    <tr key={item.id}>
+                                                        <td>{item.phase}</td>
+                                                        <td><span className="badge info">{item.contractCode}</span></td>
+                                                        <td>{item.customerName || '—'}</td>
+                                                        <td>{item.projectCode || '—'}</td>
+                                                        <td className="amount">{fmt(item.amount)}</td>
+                                                        <td style={{ fontWeight: 700, color: 'var(--status-danger)' }}>{fmt(item.outstanding)}</td>
+                                                        <td style={{ fontSize: 12 }}>{item.dueDate ? fmtDate(item.dueDate) : '—'}</td>
+                                                        <td style={{ color: (item.daysOverdue || 0) > 60 ? 'var(--status-danger)' : (item.daysOverdue || 0) > 30 ? 'var(--status-warning)' : 'var(--text-muted)', fontSize: 12 }}>
+                                                            {item.daysOverdue > 0 ? `${item.daysOverdue} ngày` : 'Chưa đến'}
+                                                        </td>
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                ))}
+                                <div style={{ textAlign: 'right', fontWeight: 700, fontSize: 16, paddingTop: 12, borderTop: '2px solid var(--border)', color: 'var(--status-danger)' }}>
+                                    Tổng tồn đọng: {fmt(aging.grandTotal)}
+                                </div>
+                            </>
+                        )}
+                    </div>
+                )}
+
+                {/* TAB: Dòng tiền */}
+                {activeTab === 'cashflow' && (
+                    <div className="card-body">
+                        {!cashflow ? (
+                            <div style={{ textAlign: 'center', padding: 40, color: 'var(--text-muted)' }}>Đang tải...</div>
+                        ) : (
+                            <>
+                                <div style={{ display: 'flex', gap: 16, marginBottom: 20 }}>
+                                    {[
+                                        { label: 'Tổng thu', val: cashflow.totals.inflow, color: 'var(--status-success)' },
+                                        { label: 'Tổng chi', val: cashflow.totals.outflow, color: 'var(--status-danger)' },
+                                        { label: 'Dòng tiền ròng', val: cashflow.totals.net, color: cashflow.totals.net >= 0 ? 'var(--status-success)' : 'var(--status-danger)' },
+                                    ].map(({ label, val, color }) => (
+                                        <div key={label} className="stat-card" style={{ flex: 1 }}>
+                                            <div>
+                                                <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 4 }}>{label}</div>
+                                                <div style={{ fontSize: 18, fontWeight: 700, color }}>{fmt(val)}</div>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                                <table className="data-table" style={{ margin: 0 }}>
+                                    <thead><tr><th>Tháng</th><th style={{ textAlign: 'right' }}>Thu vào</th><th style={{ textAlign: 'right' }}>Chi ra</th><th style={{ textAlign: 'right' }}>Ròng</th><th style={{ textAlign: 'right' }}>Luỹ kế</th></tr></thead>
+                                    <tbody>
+                                        {cashflow.months.map(m => (
+                                            <tr key={m.key}>
+                                                <td style={{ fontWeight: 600 }}>{m.label}</td>
+                                                <td style={{ textAlign: 'right', color: 'var(--status-success)', fontWeight: 600 }}>{fmt(m.inflow)}</td>
+                                                <td style={{ textAlign: 'right', color: 'var(--status-danger)' }}>{fmt(m.outflow)}</td>
+                                                <td style={{ textAlign: 'right', fontWeight: 700, color: m.net >= 0 ? 'var(--status-success)' : 'var(--status-danger)' }}>{fmt(m.net)}</td>
+                                                <td style={{ textAlign: 'right', color: m.runningBalance >= 0 ? 'var(--primary)' : 'var(--status-danger)' }}>{fmt(m.runningBalance)}</td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </>
+                        )}
+                    </div>
+                )}
+
+                {/* TAB: Giữ lại bảo hành */}
+                {activeTab === 'retentions' && (
+                    <div className="card-body">
+                        {retentions.length === 0 ? (
+                            <div style={{ textAlign: 'center', padding: 40, color: 'var(--text-muted)' }}>
+                                Không có khoản giữ lại bảo hành nào đang chờ hoàn trả.
+                            </div>
+                        ) : (
+                            <>
+                                <div style={{ marginBottom: 12, fontSize: 13, color: 'var(--text-muted)' }}>
+                                    Các khoản giữ lại bảo hành chưa hoàn trả cho nhà thầu:
+                                </div>
+                                <table className="data-table" style={{ margin: 0 }}>
+                                    <thead><tr><th>Nhà thầu</th><th>Dự án</th><th>Giai đoạn</th><th>Hợp đồng NT</th><th>% Giữ lại</th><th>Số tiền GLL</th><th>Trạng thái</th></tr></thead>
+                                    <tbody>
+                                        {retentions.map(p => (
+                                            <tr key={p.id}>
+                                                <td style={{ fontWeight: 600 }}>{p.contractor?.name || '—'}</td>
+                                                <td>{p.project?.name || '—'}</td>
+                                                <td>{p.phase || '—'}</td>
+                                                <td className="amount">{fmt(p.contractAmount)}</td>
+                                                <td style={{ textAlign: 'center' }}>{p.retentionRate}%</td>
+                                                <td style={{ fontWeight: 700, color: 'var(--status-warning)' }}>{fmt(p.retentionAmount)}</td>
+                                                <td><span className="badge warning">Chưa hoàn trả</span></td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                    <tfoot>
+                                        <tr style={{ background: 'var(--bg-hover)', fontWeight: 700 }}>
+                                            <td colSpan={5}>Tổng giữ lại</td>
+                                            <td style={{ color: 'var(--status-warning)', fontWeight: 800 }}>{fmt(retentions.reduce((s, p) => s + (p.retentionAmount || 0), 0))}</td>
+                                            <td></td>
+                                        </tr>
+                                    </tfoot>
+                                </table>
+                            </>
+                        )}
                     </div>
                 )}
 

@@ -1,6 +1,37 @@
 import { withAuth } from '@/lib/apiHandler';
 import prisma from '@/lib/prisma';
 import { NextResponse } from 'next/server';
+import { parsePagination, paginatedResponse } from '@/lib/pagination';
+
+export const GET = withAuth(async (request) => {
+    const { searchParams } = new URL(request.url);
+    const { page, limit, skip } = parsePagination(searchParams);
+    const projectId = searchParams.get('projectId');
+    const retentionOnly = searchParams.get('retentionOnly') === '1';
+
+    const where = {};
+    if (projectId) where.projectId = projectId;
+    if (retentionOnly) {
+        where.retentionAmount = { gt: 0 };
+        where.retentionReleased = false;
+    }
+
+    const [data, total] = await Promise.all([
+        prisma.contractorPayment.findMany({
+            where,
+            include: {
+                contractor: { select: { name: true, code: true } },
+                project: { select: { name: true, code: true } },
+            },
+            orderBy: { createdAt: 'desc' },
+            skip,
+            take: limit,
+        }),
+        prisma.contractorPayment.count({ where }),
+    ]);
+
+    return NextResponse.json(paginatedResponse(data, total, { page, limit }));
+});
 
 export const POST = withAuth(async (request) => {
     const body = await request.json();

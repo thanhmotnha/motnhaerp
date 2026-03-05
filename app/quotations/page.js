@@ -3,6 +3,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/components/ui/Toast';
 import { apiFetch } from '@/lib/fetchClient';
+import { exportToCsv } from '@/lib/exportCsv';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import Pagination from '@/components/ui/Pagination';
 import { QUOTATION_STATUSES, STATUS_BADGE, fmtCurrency } from '@/lib/quotation-constants';
@@ -85,7 +86,15 @@ export default function QuotationsPage() {
             <div className="card" style={{ marginTop: 24 }}>
                 <div className="card-header">
                     <h3>Danh sách báo giá</h3>
-                    <button className="btn btn-primary" onClick={() => router.push('/quotations/create')}>+ Tạo báo giá mới</button>
+                    <div style={{ display: 'flex', gap: 8 }}>
+                        <button className="btn btn-ghost btn-sm" onClick={() => exportToCsv(quotations, [
+                            { key: 'code', label: 'Mã BG' }, { key: 'customer.name', label: 'Khách hàng' },
+                            { key: 'type', label: 'Loại' }, { key: 'status', label: 'Trạng thái' },
+                            { key: 'grandTotal', label: 'Tổng BG' }, { key: 'approvalStatus', label: 'Duyệt nội bộ' },
+                            { key: 'createdAt', label: 'Ngày tạo' },
+                        ], 'bao-gia')}>⬇ Xuất CSV</button>
+                        <button className="btn btn-primary" onClick={() => router.push('/quotations/create')}>+ Tạo báo giá mới</button>
+                    </div>
                 </div>
                 <div className="filter-bar">
                     <input type="text" className="form-input" placeholder="Tìm mã BG, khách hàng..." value={search}

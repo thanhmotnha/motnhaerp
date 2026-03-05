@@ -1,6 +1,7 @@
 'use client';
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { exportToCsv } from '@/lib/exportCsv';
 const fmt = (n) => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(n);
 const fmtDate = (d) => d ? new Date(d).toLocaleDateString('vi-VN') : '—';
 const pct = (a, b) => b > 0 ? Math.round((a / b) * 100) : 0;
@@ -62,7 +63,19 @@ export default function ContractsPage() {
             </div>
 
             <div className="card" style={{ marginTop: 24 }}>
-                <div className="card-header"><span className="card-title">Danh sách hợp đồng</span><button className="btn btn-primary" onClick={() => router.push('/contracts/create')}>➕ Tạo hợp đồng</button></div>
+                <div className="card-header">
+                    <span className="card-title">Danh sách hợp đồng</span>
+                    <div style={{ display: 'flex', gap: 8 }}>
+                        <button className="btn btn-ghost btn-sm" onClick={() => exportToCsv(contracts, [
+                            { key: 'code', label: 'Mã HĐ' }, { key: 'name', label: 'Tên HĐ' },
+                            { key: 'customer.name', label: 'Khách hàng' }, { key: 'project.name', label: 'Dự án' },
+                            { key: 'type', label: 'Loại' }, { key: 'status', label: 'Trạng thái' },
+                            { key: 'contractValue', label: 'Giá trị HĐ' }, { key: 'paidAmount', label: 'Đã thu' },
+                            { key: 'signDate', label: 'Ngày ký' }, { key: 'startDate', label: 'Ngày BD' }, { key: 'endDate', label: 'Ngày KT' },
+                        ], 'hop-dong')}>⬇ Xuất CSV</button>
+                        <button className="btn btn-primary" onClick={() => router.push('/contracts/create')}>➕ Tạo hợp đồng</button>
+                    </div>
+                </div>
                 <div className="filter-bar">
                     <input type="text" className="form-input" placeholder="Tìm kiếm..." value={search} onChange={e => setSearch(e.target.value)} style={{ maxWidth: 250 }} />
                     <select className="form-select" value={filterType} onChange={e => setFilterType(e.target.value)}>

@@ -124,6 +124,70 @@ function AttendanceTab() {
         win.document.close();
     };
 
+    const printAllPayslips = () => {
+        if (!data?.employees?.length) return;
+        const fmtN = (n) => new Intl.NumberFormat('vi-VN').format(Math.round(n || 0));
+        const slips = data.employees.map(emp => {
+            const ov = editing[emp.id] || {};
+            const workDays = parseFloat(ov.workDays ?? emp.workDays ?? emp.totalWorkdays);
+            const leaveDays = parseFloat(ov.leaveDays ?? emp.leaveDays ?? 0);
+            const unpaidDays = parseFloat(ov.unpaidDays ?? emp.unpaidDays ?? 0);
+            const overtimeHrs = parseFloat(ov.overtimeHrs ?? emp.overtimeHrs ?? 0);
+            const bonus = parseFloat(ov.bonus ?? emp.bonus ?? 0);
+            const deduction = parseFloat(ov.deduction ?? emp.deduction ?? 0);
+            const daily = (emp.salary || 0) / emp.totalWorkdays;
+            const bhxh = calcBHXH(emp);
+            const net = Math.round((daily * workDays) - (daily * unpaidDays) + (daily / 8 * 1.5 * overtimeHrs) + bonus - deduction - bhxh);
+            return `<div class="slip">
+<h2>Phiếu Lương Tháng ${month}/${year}</h2>
+<p class="sub">Ngày in: ${new Date().toLocaleDateString('vi-VN')}</p>
+<div class="info">
+  <div class="info-item"><span class="lbl">Họ tên:</span> ${emp.name}</div>
+  <div class="info-item"><span class="lbl">Mã NV:</span> ${emp.code}</div>
+  <div class="info-item"><span class="lbl">Chức vụ:</span> ${emp.position || '—'}</div>
+  <div class="info-item"><span class="lbl">Phòng ban:</span> ${emp.department?.name || '—'}</div>
+</div>
+<table><tbody>
+  <tr><td>Lương cứng</td><td>${fmtN(emp.salary)} đ</td></tr>
+  <tr><td>Ngày công thực tế</td><td>${workDays} ngày</td></tr>
+  ${leaveDays > 0 ? `<tr><td>Ngày nghỉ phép</td><td>${leaveDays} ngày</td></tr>` : ''}
+  ${unpaidDays > 0 ? `<tr><td>Nghỉ không lương</td><td>${unpaidDays} ngày</td></tr>` : ''}
+  ${overtimeHrs > 0 ? `<tr><td>Tăng ca</td><td>${overtimeHrs} giờ</td></tr>` : ''}
+  ${bonus > 0 ? `<tr><td>Thưởng</td><td>+${fmtN(bonus)} đ</td></tr>` : ''}
+  ${deduction > 0 ? `<tr><td>Khấu trừ</td><td>-${fmtN(deduction)} đ</td></tr>` : ''}
+  <tr><td>BHXH/BHYT/BHTN (10.5%)</td><td>-${fmtN(bhxh)} đ</td></tr>
+  <tr class="total"><td>Thực lĩnh</td><td>${fmtN(net)} đ</td></tr>
+</tbody></table>
+<div class="sig">
+  <div><h4>Nhân viên</h4><p>(Ký, ghi rõ họ tên)</p></div>
+  <div><h4>Giám đốc</h4><p>(Ký, đóng dấu)</p></div>
+</div>
+</div>`;
+        }).join('');
+
+        const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Bảng lương T${month}/${year}</title>
+<style>
+  *{box-sizing:border-box}body{font-family:Arial,sans-serif;font-size:13px;color:#000;margin:0}
+  .slip{margin:15mm 20mm;page-break-after:always}
+  h2{text-align:center;font-size:16px;text-transform:uppercase;margin:0 0 4px}
+  p.sub{text-align:center;font-size:11px;color:#666;margin:0 0 14px}
+  .info{display:grid;grid-template-columns:1fr 1fr;gap:6px 16px;background:#f5f5f5;padding:10px 14px;border-radius:4px;margin-bottom:14px}
+  .info-item{font-size:12px}.lbl{font-weight:700;margin-right:4px}
+  table{width:100%;border-collapse:collapse;margin-bottom:16px}
+  td{padding:6px 8px;border-bottom:1px solid #eee;font-size:13px}
+  td:last-child{text-align:right;font-weight:600}
+  tr.total td{border-top:2px solid #1a3a8f;font-size:14px;font-weight:700;color:#1a3a8f}
+  .sig{display:flex;justify-content:space-around;margin-top:20px;text-align:center}
+  .sig h4{font-size:12px;margin:0 0 4px}.sig p{font-size:11px;color:#888;margin:0 0 50px}
+  @media print{.slip{margin:10mm 15mm}}
+</style></head><body>${slips}
+<script>window.onload=()=>window.print();<\/script>
+</body></html>`;
+        const win = window.open('', '_blank', 'width=800,height=900');
+        win.document.write(html);
+        win.document.close();
+    };
+
     return (
         <div>
             <div style={{ display: 'flex', gap: 12, alignItems: 'center', marginBottom: 16, flexWrap: 'wrap' }}>
@@ -136,6 +200,7 @@ function AttendanceTab() {
                 {data && <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>Ngày công chuẩn: <strong>{data.totalWorkdays}</strong> ngày</span>}
                 <span style={{ marginLeft: 'auto', fontWeight: 700, color: 'var(--accent-primary)', fontSize: 14 }}>Tổng lương: {fmt(totalPayroll)}</span>
                 <button className="btn btn-ghost btn-sm" onClick={exportCSV}>📥 Xuất CSV</button>
+                <button className="btn btn-ghost btn-sm" onClick={printAllPayslips} title="In tất cả phiếu lương">🖨️ In tất cả</button>
             </div>
             {loading ? <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-muted)' }}>Đang tải...</div> : (
                 <div style={{ overflowX: 'auto' }}>

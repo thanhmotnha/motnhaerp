@@ -44,6 +44,13 @@ const menuItems = [
             { href: '/reports', icon: BarChart3, label: 'Báo cáo', roles: ['giam_doc', 'pho_gd', 'ke_toan'] },
         ]
     },
+    {
+        section: 'Hệ thống', items: [
+            { href: '/admin/users', icon: Shield, label: 'Tài khoản', roles: ['giam_doc'] },
+            { href: '/admin/activity-log', icon: BarChart3, label: 'Nhật ký HĐ', roles: ['giam_doc', 'pho_gd'] },
+            { href: '/admin/system-health', icon: LayoutDashboard, label: 'Hệ thống', roles: ['giam_doc'] },
+        ]
+    },
 ];
 
 export default function Sidebar({ isOpen, onClose }) {

@@ -93,6 +93,8 @@ export default function ReportsPage() {
     const [loadingCashflow, setLoadingCashflow] = useState(false);
 
     const [funnel, setFunnel] = useState(null);
+    const [portfolio, setPortfolio] = useState(null);
+    const [loadingPortfolio, setLoadingPortfolio] = useState(false);
 
     useEffect(() => {
         Promise.all([
@@ -127,6 +129,12 @@ export default function ReportsPage() {
         fetch('/api/reports/cashflow-forecast?days=90').then(r => r.json()).then(d => { setCashflow(d); setLoadingCashflow(false); });
     }, [tab]);
 
+    useEffect(() => {
+        if (tab !== 'portfolio' || portfolio) return;
+        setLoadingPortfolio(true);
+        fetch('/api/reports/portfolio').then(r => r.json()).then(d => { setPortfolio(d); setLoadingPortfolio(false); });
+    }, [tab]);
+
     if (loading) return <div style={{ padding: 60, textAlign: 'center', color: 'var(--text-muted)' }}>Đang tải báo cáo...</div>;
 
     const totalPayable = (debt?.supplierTotal || 0) + (debt?.contractorTotal || 0);
@@ -144,6 +152,7 @@ export default function ReportsPage() {
             { key: 'contractor_debt', label: '👷 Công nợ thầu' },
         ] : []),
         { key: 'projects', label: '🏗️ Thu chi dự án' },
+        ...(canSeeFinance ? [{ key: 'portfolio', label: '🎯 Portfolio' }] : []),
     ];
 
     const handleExportProjects = () => exportCSV('du-an.csv',
@@ -653,6 +662,103 @@ export default function ReportsPage() {
                                 )}
                             </table>
                         )}
+                    </div>
+                )}
+                {tab === 'portfolio' && (
+                    <div style={{ padding: 24 }}>
+                        {loadingPortfolio ? (
+                            <div style={{ textAlign: 'center', padding: 40, color: 'var(--text-muted)' }}>Đang tải...</div>
+                        ) : portfolio ? (
+                            <>
+                                {/* Portfolio KPIs */}
+                                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: 14, marginBottom: 24 }}>
+                                    {[
+                                        { label: 'Tổng dự án', value: portfolio.kpis.total, color: 'var(--accent-primary)' },
+                                        { label: 'Đang thi công', value: portfolio.kpis.active, color: 'var(--status-warning)' },
+                                        { label: 'Tổng doanh thu', value: fmtShort(portfolio.kpis.portfolioRevenue), color: 'var(--status-success)' },
+                                        { label: 'Tổng chi phí', value: fmtShort(portfolio.kpis.portfolioCost), color: 'var(--status-danger)' },
+                                        { label: 'Lợi nhuận gộp', value: fmtShort(portfolio.kpis.portfolioProfit), color: portfolio.kpis.portfolioProfit >= 0 ? 'var(--status-success)' : 'var(--status-danger)' },
+                                        { label: 'Biên LN TB', value: `${portfolio.kpis.avgMargin}%`, color: 'var(--accent-secondary)' },
+                                    ].map(k => (
+                                        <div key={k.label} style={{ background: 'var(--bg-secondary)', borderRadius: 10, padding: '14px 16px' }}>
+                                            <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 4 }}>{k.label}</div>
+                                            <div style={{ fontSize: 18, fontWeight: 700, color: k.color }}>{k.value}</div>
+                                        </div>
+                                    ))}
+                                </div>
+
+                                {/* Cost Benchmark by type */}
+                                {portfolio.benchmark?.length > 0 && (
+                                    <div style={{ marginBottom: 28 }}>
+                                        <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 12 }}>Chi phí/m² theo loại dự án</div>
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                                            {portfolio.benchmark.map(b => {
+                                                const maxBm = portfolio.benchmark[0].avgCostPerSqm || 1;
+                                                return (
+                                                    <div key={b.type} style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                                                        <div style={{ width: 140, fontSize: 13, fontWeight: 600, flexShrink: 0 }}>{b.type}</div>
+                                                        <div style={{ flex: 1, height: 24, background: 'var(--bg-secondary)', borderRadius: 6, overflow: 'hidden' }}>
+                                                            <div style={{ width: `${(b.avgCostPerSqm / maxBm) * 100}%`, height: '100%', background: 'var(--accent-primary)', opacity: 0.7, borderRadius: 6, minWidth: 4 }} />
+                                                        </div>
+                                                        <div style={{ width: 120, textAlign: 'right', fontSize: 13, fontWeight: 700 }}>
+                                                            {new Intl.NumberFormat('vi-VN').format(b.avgCostPerSqm)} đ/m²
+                                                        </div>
+                                                        <div style={{ width: 60, textAlign: 'right', fontSize: 12, color: 'var(--text-muted)' }}>{b.count} DA</div>
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* Per-project table */}
+                                <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 12 }}>Chi tiết từng dự án</div>
+                                <div style={{ overflowX: 'auto' }}>
+                                    <table className="data-table" style={{ margin: 0 }}>
+                                        <thead><tr>
+                                            <th>Dự án</th><th>Loại</th><th>Tiến độ</th>
+                                            <th style={{ textAlign: 'right' }}>Doanh thu</th>
+                                            <th style={{ textAlign: 'right' }}>Chi phí</th>
+                                            <th style={{ textAlign: 'right' }}>LN gộp</th>
+                                            <th style={{ textAlign: 'right' }}>Biên LN</th>
+                                            <th style={{ textAlign: 'right' }}>Chi/m²</th>
+                                            <th></th>
+                                        </tr></thead>
+                                        <tbody>
+                                            {portfolio.projects.map(p => (
+                                                <tr key={p.id}>
+                                                    <td>
+                                                        <div style={{ fontWeight: 600, fontSize: 13 }}>{p.name}</div>
+                                                        <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{p.code} · {p.customer?.name}</div>
+                                                    </td>
+                                                    <td style={{ fontSize: 12 }}>{p.type}</td>
+                                                    <td>
+                                                        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                                                            <div style={{ flex: 1, height: 6, background: 'var(--bg-secondary)', borderRadius: 3 }}>
+                                                                <div style={{ width: `${p.progress}%`, height: '100%', background: 'var(--accent-primary)', borderRadius: 3 }} />
+                                                            </div>
+                                                            <span style={{ fontSize: 11, color: 'var(--text-muted)', width: 28 }}>{p.progress}%</span>
+                                                        </div>
+                                                    </td>
+                                                    <td style={{ textAlign: 'right', fontSize: 12 }}>{p.contractValue > 0 ? fmtShort(p.contractValue) : '—'}</td>
+                                                    <td style={{ textAlign: 'right', fontSize: 12 }}>{p.totalCost > 0 ? fmtShort(p.totalCost) : '—'}</td>
+                                                    <td style={{ textAlign: 'right', fontSize: 12, fontWeight: 700, color: p.grossProfit >= 0 ? 'var(--status-success)' : 'var(--status-danger)' }}>
+                                                        {p.contractValue > 0 ? fmtShort(p.grossProfit) : '—'}
+                                                    </td>
+                                                    <td style={{ textAlign: 'right', fontSize: 12, fontWeight: 600, color: p.margin >= 20 ? 'var(--status-success)' : p.margin >= 10 ? 'var(--status-warning)' : 'var(--status-danger)' }}>
+                                                        {p.contractValue > 0 ? `${p.margin}%` : '—'}
+                                                    </td>
+                                                    <td style={{ textAlign: 'right', fontSize: 12, color: 'var(--text-muted)' }}>
+                                                        {p.costPerSqm > 0 ? `${new Intl.NumberFormat('vi-VN').format(p.costPerSqm)}` : '—'}
+                                                    </td>
+                                                    <td><button className="btn btn-ghost btn-sm" onClick={() => router.push(`/projects/${p.id}`)}>→</button></td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </>
+                        ) : null}
                     </div>
                 )}
             </div>
