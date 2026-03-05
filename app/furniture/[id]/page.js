@@ -398,7 +398,7 @@ function ItemsTab({ order, onRefresh, toast, role }) {
                     })}
                 </tbody>
                 <tfoot>
-                    <tr style={{ fontWeight: 700, borderTop: '2px solid var(--border)' }}>
+                    <tr style={{ fontWeight: 700, borderTop: '2px solid var(--border-color)' }}>
                         <td colSpan={5} style={{ fontSize: 13, textAlign: 'right', paddingRight: 12 }}>Tổng xác nhận</td>
                         <td style={{ fontSize: 14, color: 'var(--accent-primary)' }}>{fmtMoney(order.confirmedAmount)}đ</td>
                         <td colSpan={2}></td>
@@ -471,7 +471,7 @@ function DesignsTab({ order, onRefresh, toast, role }) {
             {(order.designs || []).length === 0
                 ? <div style={{ padding: 30, textAlign: 'center', color: 'var(--text-muted)' }}>Chưa có bản vẽ nào</div>
                 : (order.designs || []).map(d => (
-                    <div key={d.id} style={{ border: '1px solid var(--border)', borderRadius: 10, padding: 16, marginBottom: 12 }}>
+                    <div key={d.id} style={{ border: '1px solid var(--border-color)', borderRadius: 10, padding: 16, marginBottom: 12 }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
                             <div>
                                 <span style={{ fontWeight: 700, fontSize: 14 }}>v{d.versionNumber} — {d.versionLabel}</span>
@@ -526,8 +526,8 @@ function DesignsTab({ order, onRefresh, toast, role }) {
 /* ───────── Materials Tab ───────── */
 function MaterialsTab({ order, onRefresh, toast }) {
     const selections = order.materialSelections || [];
-    const MSTATUS = { draft: 'Nháp', submitted: 'Chờ duyệt', confirmed: 'Đã chốt', rejected: 'Từ chối' };
-    const MCOLOR = { draft: 'muted', submitted: 'warning', confirmed: 'success', rejected: 'danger' };
+    const MSTATUS = { pending: 'Chờ xác nhận', reviewing: 'Đang xem xét', confirmed: 'Đã chốt', changed: 'Đã thay đổi' };
+    const MCOLOR = { pending: 'muted', reviewing: 'warning', confirmed: 'success', changed: 'info' };
 
     return (
         <div className="card">
@@ -535,7 +535,7 @@ function MaterialsTab({ order, onRefresh, toast }) {
             {selections.length === 0
                 ? <div style={{ padding: 30, textAlign: 'center', color: 'var(--text-muted)' }}>Chưa có đợt chọn vật liệu</div>
                 : selections.map(sel => (
-                    <div key={sel.id} style={{ border: '1px solid var(--border)', borderRadius: 10, padding: 16, marginBottom: 12 }}>
+                    <div key={sel.id} style={{ border: '1px solid var(--border-color)', borderRadius: 10, padding: 16, marginBottom: 12 }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
                             <div style={{ fontWeight: 600 }}>Đợt {sel.selectionRound}</div>
                             <span className={`badge ${MCOLOR[sel.status]}`} style={{ fontSize: 10 }}>{MSTATUS[sel.status]}</span>
@@ -659,7 +659,7 @@ function ProductionTab({ order, onRefresh, toast, role }) {
                     const isExpanded = expandedBatch === batch.id;
                     const hasQcEdits = Object.keys(qcEdits).length > 0;
                     return (
-                        <div key={batch.id} style={{ border: '1px solid var(--border)', borderRadius: 10, marginBottom: 12, overflow: 'hidden' }}>
+                        <div key={batch.id} style={{ border: '1px solid var(--border-color)', borderRadius: 10, marginBottom: 12, overflow: 'hidden' }}>
                             {/* Batch header */}
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 16px', background: 'var(--bg-secondary)', cursor: 'pointer' }}
                                 onClick={() => setExpandedBatch(isExpanded ? null : batch.id)}>
@@ -756,7 +756,7 @@ function ProductionTab({ order, onRefresh, toast, role }) {
                                         </>
                                     )}
 
-                                    {batch.notes && <div style={{ marginTop: 10, fontSize: 12, color: 'var(--text-muted)', borderTop: '1px solid var(--border)', paddingTop: 8 }}>Ghi chú: {batch.notes}</div>}
+                                    {batch.notes && <div style={{ marginTop: 10, fontSize: 12, color: 'var(--text-muted)', borderTop: '1px solid var(--border-color)', paddingTop: 8 }}>Ghi chú: {batch.notes}</div>}
                                 </div>
                             )}
                         </div>
@@ -865,8 +865,8 @@ function PaymentsTab({ order, onRefresh, toast, paidPct }) {
 /* ───────── Handover Tab ───────── */
 function HandoverTab({ order, onRefresh, toast }) {
     const tickets = order.warrantyTickets || [];
-    const TSTATUS = { open: 'Mở', in_progress: 'Xử lý', resolved: 'Đã xử lý', closed: 'Đóng' };
-    const TCOLOR = { open: 'warning', in_progress: 'info', resolved: 'success', closed: 'muted' };
+    const TSTATUS = { 'Mới': 'Mới', 'Đang xử lý': 'Đang xử lý', 'Đã xử lý': 'Đã xử lý', 'Đóng': 'Đóng' };
+    const TCOLOR = { 'Mới': 'warning', 'Đang xử lý': 'info', 'Đã xử lý': 'success', 'Đóng': 'muted' };
 
     return (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
