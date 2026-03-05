@@ -14,9 +14,9 @@ export const GET = withAuth(async (request) => {
         prisma.contractPayment.findMany({
             where: {
                 status: { in: ['Đã thu', 'Đã thanh toán'] },
-                paidAt: { gte: startOfYear, lt: endOfYear },
+                paidDate: { gte: startOfYear, lt: endOfYear },
             },
-            select: { paidAmount: true, paidAt: true },
+            select: { paidAmount: true, paidDate: true },
         }),
         prisma.transaction.findMany({
             where: { date: { gte: startOfYear, lt: endOfYear } },
@@ -55,8 +55,8 @@ export const GET = withAuth(async (request) => {
 
     // Revenue from contract payments
     for (const cp of contractPayments) {
-        if (!cp.paidAt) continue;
-        const m = new Date(cp.paidAt).getMonth();
+        if (!cp.paidDate) continue;
+        const m = new Date(cp.paidDate).getMonth();
         months[m].revenue += cp.paidAmount || 0;
     }
 

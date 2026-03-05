@@ -16,7 +16,7 @@ export const GET = withAuth(async (request) => {
         include: {
             customer: { select: { name: true } },
             expenses: { select: { amount: true, paidAmount: true, status: true }, where: { deletedAt: null } },
-            contractorPays: { select: { amount: true, paidAmount: true } },
+            contractorPays: { select: { contractAmount: true, paidAmount: true } },
             purchaseOrders: { select: { totalAmount: true, paidAmount: true }, where: { status: { not: 'Hủy' } } },
         },
         orderBy: { createdAt: 'desc' },
@@ -25,7 +25,7 @@ export const GET = withAuth(async (request) => {
     const rows = projects.map(p => {
         const totalCost =
             p.expenses.reduce((s, e) => s + e.amount, 0) +
-            p.contractorPays.reduce((s, c) => s + c.amount, 0) +
+            p.contractorPays.reduce((s, c) => s + c.contractAmount, 0) +
             p.purchaseOrders.reduce((s, o) => s + o.totalAmount, 0);
 
         const totalPaid =

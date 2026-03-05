@@ -41,7 +41,7 @@ function MonthlyBarChart({ months }) {
         <svg viewBox={`0 0 ${W} ${H}`} style={{ width: '100%', maxWidth: W, height: 'auto' }}>
             {yTicks.map(t => (
                 <g key={t.v}>
-                    <line x1={PAD.left} y1={t.y} x2={W - PAD.right} y2={t.y} stroke="var(--border)" strokeWidth={0.5} />
+                    <line x1={PAD.left} y1={t.y} x2={W - PAD.right} y2={t.y} stroke="var(--border-color)" strokeWidth={0.5} />
                     <text x={PAD.left - 6} y={t.y + 4} textAnchor="end" fontSize={9} fill="var(--text-muted)">{fmtShort(t.v)}</text>
                 </g>
             ))}
@@ -199,7 +199,7 @@ export default function ReportsPage() {
             </div>
 
             <div className="card">
-                <div style={{ display: 'flex', gap: 0, borderBottom: '2px solid var(--border)', paddingLeft: 16 }}>
+                <div style={{ display: 'flex', gap: 0, borderBottom: '2px solid var(--border-color)', paddingLeft: 16 }}>
                     {TABS.map(t => (
                         <button key={t.key} onClick={() => setTab(t.key)}
                             style={{ padding: '10px 18px', fontWeight: 600, fontSize: 13, cursor: 'pointer', border: 'none', borderBottom: tab === t.key ? '3px solid var(--accent-primary)' : '3px solid transparent', background: 'none', color: tab === t.key ? 'var(--accent-primary)' : 'var(--text-muted)', transition: '0.2s' }}>
@@ -358,7 +358,7 @@ export default function ReportsPage() {
 
                 {tab === 'supplier_debt' && canSeeFinance && (
                     <div>
-                        <div style={{ padding: '14px 20px', borderBottom: '1px solid var(--border)', display: 'flex', gap: 20, flexWrap: 'wrap', alignItems: 'center' }}>
+                        <div style={{ padding: '14px 20px', borderBottom: '1px solid var(--border-color)', display: 'flex', gap: 20, flexWrap: 'wrap', alignItems: 'center' }}>
                             <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-muted)' }}>Tổng nợ NCC:</span>
                             <span style={{ fontWeight: 700, fontSize: 15, color: 'var(--status-danger)' }}>{fmt(debt?.supplierTotal)}</span>
                             {BUCKETS.filter(b => (debt?.supplierAging?.[b] || 0) > 0).map(b => (
@@ -393,7 +393,7 @@ export default function ReportsPage() {
 
                 {tab === 'contractor_debt' && canSeeFinance && (
                     <div>
-                        <div style={{ padding: '14px 20px', borderBottom: '1px solid var(--border)', display: 'flex', gap: 20, flexWrap: 'wrap', alignItems: 'center' }}>
+                        <div style={{ padding: '14px 20px', borderBottom: '1px solid var(--border-color)', display: 'flex', gap: 20, flexWrap: 'wrap', alignItems: 'center' }}>
                             <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-muted)' }}>Tổng nợ thầu:</span>
                             <span style={{ fontWeight: 700, fontSize: 15, color: 'var(--status-danger)' }}>{fmt(debt?.contractorTotal)}</span>
                             {BUCKETS.filter(b => (debt?.contractorAging?.[b] || 0) > 0).map(b => (
@@ -617,7 +617,7 @@ export default function ReportsPage() {
 
                 {tab === 'projects' && (
                     <div style={{ overflowX: 'auto' }}>
-                        <div style={{ padding: '10px 16px', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'flex-end' }}>
+                        <div style={{ padding: '10px 16px', borderBottom: '1px solid var(--border-color)', display: 'flex', justifyContent: 'flex-end' }}>
                             <button className="btn btn-ghost btn-sm" onClick={handleExportProjects}>📥 Xuất CSV</button>
                         </div>
                         {!projects.length ? <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-muted)' }}>Không có dữ liệu</div> : (
