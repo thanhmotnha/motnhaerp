@@ -7,6 +7,7 @@ import JournalTab from '@/components/journal/JournalTab';
 import BudgetLockBar from '@/components/budget/BudgetLockBar';
 import VarianceTable from '@/components/budget/VarianceTable';
 import ProfitabilityWidget from '@/components/budget/ProfitabilityWidget';
+import BudgetQuickAdd from '@/components/budget/BudgetQuickAdd';
 import MeasurementSheet, { MeasurementActions } from '@/components/contractor/MeasurementSheet';
 const fmt = (n) => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(n);
 const fmtDate = (d) => d ? new Date(d).toLocaleDateString('vi-VN') : '—';
@@ -540,6 +541,19 @@ ${po.notes ? `<div class="notes-box"><strong>Ghi chú:</strong> ${po.notes}</div
                         budgetLockedBy={p.budgetLockedBy}
                         onLocked={() => window.location.reload()}
                     />
+                    {p.budgetStatus !== 'locked' && (
+                        <div style={{ display: 'flex', gap: 8, marginTop: 12, flexWrap: 'wrap' }}>
+                            <button className="btn btn-primary btn-sm" onClick={async () => {
+                                if (mpProducts.length === 0) {
+                                    const res = await fetch('/api/products?limit=500');
+                                    const json = await res.json();
+                                    setMpProducts(json.data || json || []);
+                                }
+                                setModal('budget_quick');
+                            }}>📋 Thêm dự toán vật tư</button>
+                            {p.quotations?.length > 0 && <button className="btn btn-ghost btn-sm" onClick={importMPFromQuotation}>📄 Tạo từ Báo giá</button>}
+                        </div>
+                    )}
                     <div className="card" style={{ padding: 20, marginTop: 16 }}>
                         <h3 style={{ fontSize: 15, fontWeight: 700, marginBottom: 16 }}>📊 Bảng theo dõi Chênh lệch Vật tư</h3>
                         <VarianceTable projectId={id} />
@@ -1433,6 +1447,16 @@ ${po.notes ? `<div class="notes-box"><strong>Ghi chú:</strong> ${po.notes}</div
                         <div className="modal-footer"><button className="btn btn-ghost" onClick={() => setModal(null)}>Hủy</button><button className="btn btn-primary btn-success" onClick={confirmGRN}>✓ Xác nhận đã nhận hàng</button></div>
                     </div>
                 </div>
+            )}
+
+            {/* Modal: Budget Quick Add */}
+            {modal === 'budget_quick' && (
+                <BudgetQuickAdd
+                    projectId={id}
+                    products={mpProducts}
+                    onClose={() => setModal(null)}
+                    onDone={() => { setModal(null); fetchData(); }}
+                />
             )}
         </div>
     );
