@@ -111,6 +111,7 @@ model Project {
   warrantyTickets WarrantyTicket[]
   siteLogs        SiteLog[]
   furnitureOrders FurnitureOrder[]
+  acceptanceReports AcceptanceReport[]
   deletedAt       DateTime?
   createdAt       DateTime    @default(now())
   updatedAt       DateTime    @updatedAt
@@ -331,6 +332,7 @@ model Employee {
   projects        ProjectEmployee[]
   attendances     Attendance[]
   leaveRequests   LeaveRequest[]
+  payrollRecords  PayrollRecord[]
   deletedAt       DateTime?
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
@@ -440,6 +442,7 @@ model ProjectMilestone {
   order     Int      @default(0)
   projectId String
   project   Project  @relation(fields: [projectId], references: [id])
+  acceptanceReports AcceptanceReport[]
   createdAt DateTime @default(now())
   @@index([projectId])
 }
@@ -1393,5 +1396,62 @@ model FurniturePayment {
 
   @@index([furnitureOrderId])
   @@index([paidAt])
+}
+
+// ── Biên bản Nghiệm thu ────────────────────────────────────
+model AcceptanceReport {
+  id           String   @id @default(cuid())
+  code         String   @unique
+  title        String
+  projectId    String
+  project      Project  @relation(fields: [projectId], references: [id])
+  milestoneId  String?
+  milestone    ProjectMilestone? @relation(fields: [milestoneId], references: [id])
+  items        Json     @default("[]") // [{name, status: 'pass'|'fail'|'na', note}]
+  notes        String   @default("") @db.Text
+  inspector    String   @default("")
+  customerRep  String   @default("")
+  status       String   @default("Chờ duyệt") // Chờ duyệt, Đạt, Không đạt
+  signedAt     DateTime?
+  signedByCustomer String @default("")
+  createdBy    String   @default("")
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  @@index([projectId])
+  @@index([milestoneId])
+}
+
+// ── Bảng lương chi tiết ─────────────────────────────────────
+model PayrollRecord {
+  id              String   @id @default(cuid())
+  employeeId      String
+  employee        Employee @relation(fields: [employeeId], references: [id])
+  month           Int
+  year            Int
+  baseSalary      Float    @default(0)
+  workDays        Float    @default(0)
+  actualDays      Float    @default(0)
+  overtimeHours   Float    @default(0)
+  overtimePay     Float    @default(0)
+  allowances      Float    @default(0) // phụ cấp
+  bonus           Float    @default(0)
+  bhxhEmployee    Float    @default(0) // BHXH phần NV
+  bhxhCompany     Float    @default(0) // BHXH phần cty
+  bhytEmployee    Float    @default(0)
+  bhtnEmployee    Float    @default(0)
+  taxableIncome   Float    @default(0)
+  personalTax     Float    @default(0) // Thuế TNCN
+  deductions      Float    @default(0) // khấu trừ khác
+  advances        Float    @default(0) // tạm ứng
+  netSalary       Float    @default(0) // thực lĩnh
+  notes           String   @default("")
+  status          String   @default("Nháp") // Nháp, Đã duyệt, Đã chi
+  approvedBy      String   @default("")
+  paidAt          DateTime?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  @@unique([employeeId, month, year])
+  @@index([employeeId])
+  @@index([month, year])
 }
 
