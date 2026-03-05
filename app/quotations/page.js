@@ -38,6 +38,17 @@ export default function QuotationsPage() {
     // Reset to page 1 when filters change
     useEffect(() => { setPage(1); }, [filterStatus, search]);
 
+    const handleApproval = async (q, approvalStatus, e) => {
+        e.stopPropagation();
+        const approvedBy = approvalStatus === 'approved' ? 'Giám đốc' : '';
+        const approvedAt = approvalStatus === 'approved' ? new Date().toISOString() : null;
+        try {
+            await apiFetch(`/api/quotations/${q.id}`, { method: 'PUT', body: { approvalStatus, approvedBy, approvedAt } });
+            toast.success(approvalStatus === 'approved' ? 'Đã duyệt' : approvalStatus === 'pending' ? 'Đã gửi duyệt' : 'Đã từ chối duyệt');
+            fetchData();
+        } catch (err) { toast.error(err.message); }
+    };
+
     const handleDelete = async () => {
         if (!deleteTarget) return;
         try {
@@ -109,13 +120,36 @@ export default function QuotationsPage() {
                                         <td>{q.discount}%</td>
                                         <td>{q.vat}%</td>
                                         <td style={{ fontWeight: 700 }}>{fmtCurrency(q.grandTotal)}</td>
-                                        <td><span className={`badge ${STATUS_BADGE[q.status] || 'muted'}`}>{q.status}</span></td>
+                                        <td>
+                                            <span className={`badge ${STATUS_BADGE[q.status] || 'muted'}`}>{q.status}</span>
+                                            {q.approvalStatus && q.approvalStatus !== 'draft' && (
+                                                <div style={{ fontSize: 10, marginTop: 3 }}>
+                                                    {q.approvalStatus === 'pending' && <span style={{ color: 'var(--status-warning)' }}>⏳ Chờ duyệt</span>}
+                                                    {q.approvalStatus === 'approved' && <span style={{ color: 'var(--status-success)' }}>✅ Đã duyệt</span>}
+                                                    {q.approvalStatus === 'rejected' && <span style={{ color: 'var(--status-danger)' }}>❌ Từ chối</span>}
+                                                </div>
+                                            )}
+                                        </td>
                                         <td style={{ display: 'flex', gap: 4 }}>
                                             {q.status === 'Xác nhận' && (
                                                 <button className="btn btn-primary btn-sm" title="Tạo hợp đồng"
                                                     onClick={(e) => handleCreateContract(q, e)}>
                                                     Tạo HĐ
                                                 </button>
+                                            )}
+                                            {(!q.approvalStatus || q.approvalStatus === 'draft' || q.approvalStatus === 'rejected') && !['Hợp đồng', 'Từ chối'].includes(q.status) && (
+                                                <button className="btn btn-ghost btn-sm" title="Gửi duyệt nội bộ"
+                                                    onClick={(e) => handleApproval(q, 'pending', e)}>
+                                                    Gửi duyệt
+                                                </button>
+                                            )}
+                                            {q.approvalStatus === 'pending' && (
+                                                <>
+                                                    <button className="btn btn-primary btn-sm" style={{ background: 'var(--status-success)' }} title="Duyệt BG"
+                                                        onClick={(e) => handleApproval(q, 'approved', e)}>✓ Duyệt</button>
+                                                    <button className="btn btn-ghost btn-sm" style={{ color: 'var(--status-danger)' }} title="Từ chối"
+                                                        onClick={(e) => handleApproval(q, 'rejected', e)}>✕</button>
+                                                </>
                                             )}
                                             <button className="btn btn-ghost" title="Xem PDF"
                                                 onClick={(e) => { e.stopPropagation(); window.open(`/quotations/${q.id}/pdf`, '_blank'); }}>

@@ -11,7 +11,7 @@ export const GET = withAuth(async (request) => {
     const departmentId = searchParams.get('departmentId');
     const search = searchParams.get('search');
 
-    const where = {};
+    const where = { deletedAt: null };
     if (departmentId) where.departmentId = departmentId;
     if (search) where.name = { contains: search, mode: 'insensitive' };
 

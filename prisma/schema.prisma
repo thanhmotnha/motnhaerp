@@ -105,6 +105,9 @@ model Project {
   journalEntries  JournalEntry[]
   commitments     Commitment[]
   changeOrders    BudgetChangeOrder[]
+  punchListItems  PunchListItem[]
+  warrantyTickets WarrantyTicket[]
+  siteLogs        SiteLog[]
   deletedAt       DateTime?
   createdAt       DateTime    @default(now())
   updatedAt       DateTime    @updatedAt
@@ -185,6 +188,9 @@ model Quotation {
   adjustmentAmount  Float           @default(0)
   deductions        Json?           @default("[]")
   revision          Int             @default(1)
+  approvalStatus    String          @default("draft")   // draft | pending | approved | rejected
+  approvedBy        String          @default("")
+  approvedAt        DateTime?
   parentId          String?
   parent            Quotation?      @relation("QuotationRevisions", fields: [parentId], references: [id])
   children          Quotation[]     @relation("QuotationRevisions")
@@ -297,21 +303,24 @@ model Department {
 }
 
 model Employee {
-  id           String   @id @default(cuid())
-  code         String   @unique
-  name         String
-  position     String   @default("")
-  phone        String   @default("")
-  email        String   @default("")
-  salary       Float    @default(0)
-  status       String   @default("Đang làm")
-  joinDate     DateTime?
-  departmentId String
-  department   Department @relation(fields: [departmentId], references: [id])
-  projects     ProjectEmployee[]
-  deletedAt    DateTime?
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  id              String   @id @default(cuid())
+  code            String   @unique
+  name            String
+  position        String   @default("")
+  phone           String   @default("")
+  email           String   @default("")
+  salary          Float    @default(0)
+  insuranceSalary Float    @default(0)  // Mức lương đóng BHXH/BHYT
+  status          String   @default("Đang làm")
+  joinDate        DateTime?
+  departmentId    String
+  department      Department @relation(fields: [departmentId], references: [id])
+  projects        ProjectEmployee[]
+  attendances     Attendance[]
+  leaveRequests   LeaveRequest[]
+  deletedAt       DateTime?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 }
 
 model ProjectEmployee {
@@ -436,6 +445,22 @@ model ProjectBudget {
 
 // ============ NEW MODELS ============
 
+model ContractAddendum {
+  id          String   @id @default(cuid())
+  code        String   @unique
+  title       String
+  description String   @default("") @db.Text
+  amount      Float    @default(0)   // Giá trị thay đổi (+ hoặc -)
+  signDate    DateTime?
+  status      String   @default("Nháp")  // Nháp | Đã ký | Hủy
+  fileUrl     String   @default("")
+  contractId  String
+  contract    Contract @relation(fields: [contractId], references: [id], onDelete: Cascade)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  @@index([contractId])
+}
+
 model Contract {
   id              String   @id @default(cuid())
   code            String   @unique
@@ -458,6 +483,7 @@ model Contract {
   quotationId     String?
   quotation       Quotation? @relation(fields: [quotationId], references: [id])
   payments        ContractPayment[]
+  addenda         ContractAddendum[]
   deletedAt       DateTime?
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
@@ -492,13 +518,17 @@ model WorkOrder {
   assignee    String   @default("")
   dueDate     DateTime?
   completedAt DateTime?
-  category    String   @default("")
-  projectId   String
-  project     Project  @relation(fields: [projectId], references: [id])
-  deletedAt   DateTime?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  category        String   @default("")
+  images          String   @default("[]") @db.Text
+  scheduleTaskId  String?
+  scheduleTask    ScheduleTask? @relation("TaskWorkOrders", fields: [scheduleTaskId], references: [id])
+  projectId       String
+  project         Project  @relation(fields: [projectId], references: [id])
+  deletedAt       DateTime?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
   @@index([projectId])
+  @@index([scheduleTaskId])
 }
 
 model MaterialPlan {
@@ -847,6 +877,7 @@ model ScheduleTask {
   predecessorId String?
   predecessor   ScheduleTask?  @relation("TaskDep", fields: [predecessorId], references: [id])
   successors    ScheduleTask[] @relation("TaskDep")
+  workOrders    WorkOrder[]    @relation("TaskWorkOrders")
   projectId     String
   project       Project  @relation(fields: [projectId], references: [id])
   progressReports ProgressReport[]
@@ -936,4 +967,121 @@ model Commitment {
   @@index([projectId])
   @@index([journalEntryId])
   @@index([status])
+}
+
+// ============ AUDIT TRAIL ============
+
+model ActivityLog {
+  id          String   @id @default(cuid())
+  actor       String   @default("")
+  action      String
+  entityType  String
+  entityId    String
+  entityLabel String   @default("")
+  diff        Json?
+  createdAt   DateTime @default(now())
+  @@index([entityType, entityId])
+  @@index([createdAt])
+}
+
+// ============ PUNCH LIST — DANH SÁCH LỖI BÀN GIAO ============
+
+model PunchListItem {
+  id          String   @id @default(cuid())
+  projectId   String
+  project     Project  @relation(fields: [projectId], references: [id])
+  area        String   @default("")
+  description String   @db.Text
+  images      String   @default("[]") @db.Text
+  assignee    String   @default("")
+  deadline    DateTime?
+  status      String   @default("Mở")  // Mở | Đang sửa | Đã sửa | KH xác nhận
+  resolvedAt  DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  @@index([projectId])
+}
+
+// ============ HR CHẤM CÔNG ============
+
+model Attendance {
+  id          String   @id @default(cuid())
+  employeeId  String
+  employee    Employee @relation(fields: [employeeId], references: [id])
+  month       Int
+  year        Int
+  workDays    Float    @default(0)
+  leaveDays   Float    @default(0)
+  unpaidDays  Float    @default(0)
+  overtimeHrs Float    @default(0)
+  bonus       Float    @default(0)
+  deduction   Float    @default(0)
+  netSalary   Float    @default(0)
+  notes       String   @default("")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  @@unique([employeeId, month, year])
+  @@index([employeeId])
+}
+
+// ============ ĐƠN NGHỈ PHÉP ============
+
+model LeaveRequest {
+  id          String   @id @default(cuid())
+  employeeId  String
+  employee    Employee @relation(fields: [employeeId], references: [id])
+  type        String   @default("Nghỉ phép năm")  // Nghỉ phép năm | Nghỉ bù | Nghỉ bệnh | Nghỉ không lương
+  startDate   DateTime
+  endDate     DateTime
+  days        Float    @default(1)
+  reason      String   @default("") @db.Text
+  status      String   @default("Chờ duyệt")  // Chờ duyệt | Đã duyệt | Từ chối
+  approvedBy  String   @default("")
+  approvedAt  DateTime?
+  rejectNote  String   @default("")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  @@index([employeeId])
+  @@index([status])
+}
+
+// ============ BẢO HÀNH (AFTER-SALES) ============
+
+model WarrantyTicket {
+  id          String   @id @default(cuid())
+  code        String   @unique
+  projectId   String
+  project     Project  @relation(fields: [projectId], references: [id])
+  title       String
+  description String   @default("") @db.Text
+  reportedBy  String   @default("")
+  assignee    String   @default("")
+  priority    String   @default("Trung bình")  // Thấp | Trung bình | Cao | Khẩn cấp
+  status      String   @default("Mới")  // Mới | Đang xử lý | Đã xử lý | Đóng
+  resolvedAt  DateTime?
+  images      String   @default("[]") @db.Text
+  notes       String   @default("") @db.Text
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  @@index([projectId])
+  @@index([status])
+}
+
+// ============ NHẬT KÝ CÔNG TRÌNH ============
+
+model SiteLog {
+  id           String   @id @default(cuid())
+  projectId    String
+  project      Project  @relation(fields: [projectId], references: [id])
+  date         DateTime @default(now())
+  weather      String   @default("Nắng")  // Nắng | Mưa | Âm u | Gió
+  workerCount  Int      @default(0)
+  progress     String   @default("") @db.Text
+  issues       String   @default("") @db.Text
+  images       String   @default("[]") @db.Text
+  createdBy    String   @default("")
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  @@index([projectId])
+  @@index([date])
 }

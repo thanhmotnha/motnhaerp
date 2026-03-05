@@ -14,6 +14,450 @@ const fmt = (n) => new Intl.NumberFormat('vi-VN', { style: 'currency', currency:
 const fmtDate = (d) => d ? new Date(d).toLocaleDateString('vi-VN') : '—';
 const pct = (a, b) => b > 0 ? Math.round((a / b) * 100) : 0;
 
+const PUNCH_STATUS = ['Mở', 'Đang sửa', 'Đã sửa', 'KH xác nhận'];
+const PUNCH_COLOR = { 'Mở': 'var(--status-danger)', 'Đang sửa': 'var(--status-warning)', 'Đã sửa': 'var(--accent-primary)', 'KH xác nhận': 'var(--status-success)' };
+
+function PunchListTab({ projectId, projectName }) {
+    const [items, setItems] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [form, setForm] = useState({ area: '', description: '', assignee: '', deadline: '' });
+    const [showForm, setShowForm] = useState(false);
+    const [saving, setSaving] = useState(false);
+
+    const load = () => {
+        setLoading(true);
+        fetch(`/api/punch-list?projectId=${projectId}`).then(r => r.json()).then(d => { setItems(d); setLoading(false); });
+    };
+    useEffect(load, [projectId]);
+
+    const handleAdd = async () => {
+        if (!form.description.trim()) return alert('Nhập mô tả lỗi/thiếu sót!');
+        setSaving(true);
+        await fetch('/api/punch-list', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ projectId, ...form }) });
+        setSaving(false);
+        setForm({ area: '', description: '', assignee: '', deadline: '' });
+        setShowForm(false);
+        load();
+    };
+
+    const updateStatus = async (item, status) => {
+        await fetch(`/api/punch-list/${item.id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status }) });
+        load();
+    };
+
+    const deleteItem = async (id) => {
+        if (!confirm('Xóa mục này?')) return;
+        await fetch(`/api/punch-list/${id}`, { method: 'DELETE' });
+        load();
+    };
+
+    const total = items.length;
+    const resolved = items.filter(i => i.status === 'KH xác nhận' || i.status === 'Đã sửa').length;
+    const pctDone = total > 0 ? Math.round((resolved / total) * 100) : 0;
+
+    return (
+        <div className="card" style={{ padding: 24 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+                <div>
+                    <h3 style={{ margin: 0 }}>Punch List — {projectName}</h3>
+                    {total > 0 && (
+                        <div style={{ marginTop: 8, display: 'flex', alignItems: 'center', gap: 12 }}>
+                            <div style={{ flex: 1, minWidth: 200, height: 8, background: 'var(--bg-secondary)', borderRadius: 4, overflow: 'hidden' }}>
+                                <div style={{ width: `${pctDone}%`, height: '100%', background: pctDone === 100 ? 'var(--status-success)' : 'var(--accent-primary)', transition: '0.3s' }} />
+                            </div>
+                            <span style={{ fontSize: 13, fontWeight: 600 }}>{resolved}/{total} ({pctDone}%)</span>
+                            {pctDone === 100 && <span style={{ fontSize: 12, color: 'var(--status-success)', fontWeight: 700 }}>✅ Sẵn sàng bàn giao!</span>}
+                        </div>
+                    )}
+                </div>
+                <button className="btn btn-primary" onClick={() => setShowForm(v => !v)}>+ Thêm lỗi</button>
+            </div>
+
+            {showForm && (
+                <div style={{ background: 'var(--bg-secondary)', borderRadius: 8, padding: 16, marginBottom: 20 }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 10 }}>
+                        <div>
+                            <label style={{ fontSize: 12, color: 'var(--text-muted)' }}>Khu vực / Phòng</label>
+                            <input className="form-input" placeholder="VD: Phòng khách, Bếp..." value={form.area} onChange={e => setForm({ ...form, area: e.target.value })} />
+                        </div>
+                        <div>
+                            <label style={{ fontSize: 12, color: 'var(--text-muted)' }}>Người sửa</label>
+                            <input className="form-input" placeholder="Tên thợ / thầu phụ" value={form.assignee} onChange={e => setForm({ ...form, assignee: e.target.value })} />
+                        </div>
+                    </div>
+                    <div style={{ marginBottom: 10 }}>
+                        <label style={{ fontSize: 12, color: 'var(--text-muted)' }}>Mô tả lỗi / thiếu sót *</label>
+                        <textarea className="form-input" rows={2} placeholder="VD: Sơn bong khu vực cửa sổ, chưa lắp thanh chắn..." value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} style={{ resize: 'vertical' }} />
+                    </div>
+                    <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+                        <div>
+                            <label style={{ fontSize: 12, color: 'var(--text-muted)' }}>Hạn sửa</label>
+                            <input type="date" className="form-input" value={form.deadline} onChange={e => setForm({ ...form, deadline: e.target.value })} style={{ width: 150 }} />
+                        </div>
+                        <div style={{ marginTop: 18, display: 'flex', gap: 8 }}>
+                            <button className="btn btn-primary" onClick={handleAdd} disabled={saving}>{saving ? 'Đang lưu...' : 'Thêm'}</button>
+                            <button className="btn btn-ghost" onClick={() => setShowForm(false)}>Hủy</button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {loading ? <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-muted)' }}>Đang tải...</div> : items.length === 0 ? (
+                <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-muted)' }}>
+                    <div style={{ fontSize: 32, marginBottom: 8 }}>✅</div>
+                    <div>Không có lỗi nào — hoặc bấm "Thêm lỗi" để bắt đầu</div>
+                </div>
+            ) : (
+                <div style={{ overflowX: 'auto' }}>
+                    <table className="data-table">
+                        <thead><tr>
+                            <th>#</th>
+                            <th>Khu vực</th>
+                            <th>Mô tả</th>
+                            <th>Người sửa</th>
+                            <th>Hạn</th>
+                            <th>Trạng thái</th>
+                            <th></th>
+                        </tr></thead>
+                        <tbody>
+                            {items.map((item, i) => (
+                                <tr key={item.id}>
+                                    <td style={{ fontSize: 12, color: 'var(--text-muted)' }}>{i + 1}</td>
+                                    <td style={{ fontSize: 12 }}><span className="badge muted">{item.area || '—'}</span></td>
+                                    <td style={{ fontSize: 13, maxWidth: 320 }}>{item.description}</td>
+                                    <td style={{ fontSize: 12 }}>{item.assignee || '—'}</td>
+                                    <td style={{ fontSize: 12 }}>{fmtDate(item.deadline)}</td>
+                                    <td>
+                                        <select value={item.status} onChange={e => updateStatus(item, e.target.value)}
+                                            className="form-select" style={{ padding: '3px 24px 3px 8px', fontSize: 12, color: PUNCH_COLOR[item.status], fontWeight: 600, minWidth: 130 }}>
+                                            {PUNCH_STATUS.map(s => <option key={s}>{s}</option>)}
+                                        </select>
+                                    </td>
+                                    <td>
+                                        <button className="btn btn-ghost btn-sm" onClick={() => deleteItem(item.id)}>🗑️</button>
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+            )}
+        </div>
+    );
+}
+
+function AddendumSection({ contracts, onDone }) {
+    const [selectedContract, setSelectedContract] = useState(contracts[0]?.id || '');
+    const [addenda, setAddenda] = useState([]);
+    const [showForm, setShowForm] = useState(false);
+    const [form, setForm] = useState({ title: '', description: '', amount: '', signDate: '' });
+    const [saving, setSaving] = useState(false);
+
+    const loadAddenda = (cId) => {
+        fetch(`/api/contracts/${cId}/addenda`).then(r => r.json()).then(setAddenda);
+    };
+    useEffect(() => { if (selectedContract) loadAddenda(selectedContract); }, [selectedContract]);
+
+    const handleAdd = async () => {
+        if (!form.title.trim()) return alert('Nhập tiêu đề phụ lục!');
+        setSaving(true);
+        await fetch(`/api/contracts/${selectedContract}/addenda`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ ...form, amount: Number(form.amount) || 0 }),
+        });
+        setSaving(false);
+        setForm({ title: '', description: '', amount: '', signDate: '' });
+        setShowForm(false);
+        loadAddenda(selectedContract);
+        onDone();
+    };
+
+    const contract = contracts.find(c => c.id === selectedContract);
+
+    return (
+        <div className="card" style={{ marginTop: 20, padding: 20 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                    <h4 style={{ margin: 0 }}>📎 Phụ lục hợp đồng</h4>
+                    {contracts.length > 1 && (
+                        <select className="form-select" style={{ width: 200, padding: '4px 8px' }} value={selectedContract} onChange={e => setSelectedContract(e.target.value)}>
+                            {contracts.map(c => <option key={c.id} value={c.id}>{c.code} — {c.name}</option>)}
+                        </select>
+                    )}
+                </div>
+                <button className="btn btn-ghost btn-sm" onClick={() => setShowForm(v => !v)}>+ Thêm phụ lục</button>
+            </div>
+            {showForm && (
+                <div style={{ background: 'var(--bg-secondary)', borderRadius: 8, padding: 14, marginBottom: 14 }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 10 }}>
+                        <div><label style={{ fontSize: 12, color: 'var(--text-muted)' }}>Tiêu đề phụ lục *</label>
+                            <input className="form-input" value={form.title} onChange={e => setForm({ ...form, title: e.target.value })} placeholder="VD: Phụ lục bổ sung hạng mục bếp" /></div>
+                        <div><label style={{ fontSize: 12, color: 'var(--text-muted)' }}>Giá trị thay đổi (±VND)</label>
+                            <input className="form-input" type="number" value={form.amount} onChange={e => setForm({ ...form, amount: e.target.value })} placeholder="0 = không thay đổi giá" /></div>
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 10, marginBottom: 10 }}>
+                        <div><label style={{ fontSize: 12, color: 'var(--text-muted)' }}>Nội dung thay đổi</label>
+                            <textarea className="form-input" rows={2} value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} style={{ resize: 'vertical' }} /></div>
+                        <div><label style={{ fontSize: 12, color: 'var(--text-muted)' }}>Ngày ký phụ lục</label>
+                            <input type="date" className="form-input" value={form.signDate} onChange={e => setForm({ ...form, signDate: e.target.value })} /></div>
+                    </div>
+                    <div style={{ display: 'flex', gap: 8 }}>
+                        <button className="btn btn-primary" onClick={handleAdd} disabled={saving}>{saving ? 'Đang lưu...' : 'Thêm phụ lục'}</button>
+                        <button className="btn btn-ghost" onClick={() => setShowForm(false)}>Hủy</button>
+                    </div>
+                </div>
+            )}
+            {addenda.length === 0 ? (
+                <div style={{ padding: 16, textAlign: 'center', color: 'var(--text-muted)', fontSize: 13 }}>Chưa có phụ lục nào</div>
+            ) : (
+                <table className="data-table" style={{ margin: 0 }}>
+                    <thead><tr><th>Mã PL</th><th>Tiêu đề</th><th style={{ textAlign: 'right' }}>Giá trị ±</th><th>Ngày ký</th><th>TT</th></tr></thead>
+                    <tbody>{addenda.map(a => (
+                        <tr key={a.id}>
+                            <td className="accent" style={{ fontSize: 12 }}>{a.code}</td>
+                            <td><div style={{ fontWeight: 600, fontSize: 13 }}>{a.title}</div>{a.description && <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{a.description}</div>}</td>
+                            <td style={{ textAlign: 'right', fontWeight: 700, color: a.amount > 0 ? 'var(--status-success)' : a.amount < 0 ? 'var(--status-danger)' : 'var(--text-muted)' }}>
+                                {a.amount !== 0 ? `${a.amount > 0 ? '+' : ''}${fmt(a.amount)}` : '—'}
+                            </td>
+                            <td style={{ fontSize: 12 }}>{fmtDate(a.signDate)}</td>
+                            <td><span className={`badge ${a.status === 'Đã ký' ? 'success' : 'muted'}`}>{a.status}</span></td>
+                        </tr>
+                    ))}</tbody>
+                </table>
+            )}
+        </div>
+    );
+}
+
+const WARRANTY_STATUS = ['Mới', 'Đang xử lý', 'Đã xử lý', 'Đóng'];
+const WARRANTY_COLOR = { 'Mới': 'var(--status-danger)', 'Đang xử lý': 'var(--status-warning)', 'Đã xử lý': 'var(--accent-primary)', 'Đóng': 'var(--text-muted)' };
+const WARRANTY_PRIORITY_COLOR = { 'Thấp': 'muted', 'Trung bình': 'info', 'Cao': 'warning', 'Khẩn cấp': 'danger' };
+
+function WarrantyTab({ projectId }) {
+    const [tickets, setTickets] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [form, setForm] = useState({ title: '', description: '', reportedBy: '', assignee: '', priority: 'Trung bình' });
+    const [showForm, setShowForm] = useState(false);
+    const [saving, setSaving] = useState(false);
+
+    const load = () => {
+        setLoading(true);
+        fetch(`/api/warranty?projectId=${projectId}`).then(r => r.json()).then(d => { setTickets(d); setLoading(false); });
+    };
+    useEffect(load, [projectId]);
+
+    const handleAdd = async () => {
+        if (!form.title.trim()) return alert('Nhập tiêu đề!');
+        setSaving(true);
+        await fetch('/api/warranty', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ projectId, ...form }) });
+        setSaving(false);
+        setForm({ title: '', description: '', reportedBy: '', assignee: '', priority: 'Trung bình' });
+        setShowForm(false);
+        load();
+    };
+
+    const updateStatus = async (id, status) => {
+        await fetch(`/api/warranty/${id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status }) });
+        load();
+    };
+
+    const deleteTicket = async (id) => {
+        if (!confirm('Xóa ticket này?')) return;
+        await fetch(`/api/warranty/${id}`, { method: 'DELETE' });
+        load();
+    };
+
+    const open = tickets.filter(t => t.status === 'Mới' || t.status === 'Đang xử lý').length;
+
+    return (
+        <div className="card" style={{ padding: 24 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+                <div>
+                    <span style={{ fontWeight: 700, fontSize: 16 }}>🛡️ Bảo hành / After-sales</span>
+                    {open > 0 && <span className="badge danger" style={{ marginLeft: 8 }}>{open} đang mở</span>}
+                </div>
+                <button className="btn btn-primary btn-sm" onClick={() => setShowForm(!showForm)}>+ Tạo ticket</button>
+            </div>
+
+            {showForm && (
+                <div style={{ background: 'var(--bg-secondary)', borderRadius: 10, padding: 16, marginBottom: 16 }}>
+                    <div className="form-row">
+                        <div className="form-group" style={{ flex: 2 }}>
+                            <label className="form-label">Tiêu đề *</label>
+                            <input className="form-input" placeholder="Mô tả vấn đề bảo hành" value={form.title} onChange={e => setForm({ ...form, title: e.target.value })} />
+                        </div>
+                        <div className="form-group">
+                            <label className="form-label">Ưu tiên</label>
+                            <select className="form-select" value={form.priority} onChange={e => setForm({ ...form, priority: e.target.value })}>
+                                {['Thấp', 'Trung bình', 'Cao', 'Khẩn cấp'].map(p => <option key={p}>{p}</option>)}
+                            </select>
+                        </div>
+                    </div>
+                    <div className="form-row">
+                        <div className="form-group">
+                            <label className="form-label">KH báo / Người báo</label>
+                            <input className="form-input" placeholder="Tên người báo lỗi" value={form.reportedBy} onChange={e => setForm({ ...form, reportedBy: e.target.value })} />
+                        </div>
+                        <div className="form-group">
+                            <label className="form-label">Người xử lý</label>
+                            <input className="form-input" placeholder="Giao cho ai" value={form.assignee} onChange={e => setForm({ ...form, assignee: e.target.value })} />
+                        </div>
+                    </div>
+                    <div className="form-group">
+                        <label className="form-label">Chi tiết</label>
+                        <textarea className="form-input" rows={2} style={{ resize: 'vertical' }} value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} />
+                    </div>
+                    <div style={{ display: 'flex', gap: 8 }}>
+                        <button className="btn btn-primary btn-sm" onClick={handleAdd} disabled={saving}>{saving ? 'Đang lưu...' : 'Tạo ticket'}</button>
+                        <button className="btn btn-ghost btn-sm" onClick={() => setShowForm(false)}>Hủy</button>
+                    </div>
+                </div>
+            )}
+
+            {loading ? <div style={{ padding: 30, textAlign: 'center', color: 'var(--text-muted)' }}>Đang tải...</div> : tickets.length === 0 ? (
+                <div style={{ padding: 30, textAlign: 'center', color: 'var(--text-muted)', fontSize: 13 }}>Chưa có ticket bảo hành nào.</div>
+            ) : (
+                <div className="table-container">
+                    <table className="data-table">
+                        <thead><tr><th>Mã</th><th>Tiêu đề</th><th>Người báo</th><th>Người xử lý</th><th>Ưu tiên</th><th>Trạng thái</th><th></th></tr></thead>
+                        <tbody>
+                            {tickets.map(t => (
+                                <tr key={t.id}>
+                                    <td style={{ fontSize: 12, color: 'var(--accent-primary)', fontWeight: 600 }}>{t.code}</td>
+                                    <td>
+                                        <div style={{ fontWeight: 600, fontSize: 13 }}>{t.title}</div>
+                                        {t.description && <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>{t.description.slice(0, 80)}{t.description.length > 80 ? '...' : ''}</div>}
+                                    </td>
+                                    <td style={{ fontSize: 12 }}>{t.reportedBy || '—'}</td>
+                                    <td style={{ fontSize: 12 }}>{t.assignee || '—'}</td>
+                                    <td><span className={`badge ${WARRANTY_PRIORITY_COLOR[t.priority] || 'muted'}`}>{t.priority}</span></td>
+                                    <td>
+                                        <select value={t.status} onChange={e => updateStatus(t.id, e.target.value)} className="form-select" style={{ padding: '4px 28px 4px 8px', fontSize: 12, minWidth: 110, color: WARRANTY_COLOR[t.status] }}>
+                                            {WARRANTY_STATUS.map(s => <option key={s}>{s}</option>)}
+                                        </select>
+                                    </td>
+                                    <td><button className="btn btn-ghost btn-sm" style={{ color: 'var(--status-danger)' }} onClick={() => deleteTicket(t.id)}>🗑</button></td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+            )}
+        </div>
+    );
+}
+
+const WEATHER_OPTS = ['Nắng', 'Mưa', 'Âm u', 'Gió mạnh'];
+
+function SiteLogTab({ projectId }) {
+    const [logs, setLogs] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [form, setForm] = useState({ date: new Date().toISOString().split('T')[0], weather: 'Nắng', workerCount: '', progress: '', issues: '' });
+    const [showForm, setShowForm] = useState(false);
+    const [saving, setSaving] = useState(false);
+    const [expanded, setExpanded] = useState(null);
+
+    const load = () => {
+        setLoading(true);
+        fetch(`/api/site-logs?projectId=${projectId}`).then(r => r.json()).then(d => { setLogs(d); setLoading(false); });
+    };
+    useEffect(load, [projectId]);
+
+    const handleAdd = async () => {
+        if (!form.progress.trim() && !form.issues.trim()) return alert('Nhập tiến độ hoặc vấn đề trong ngày!');
+        setSaving(true);
+        await fetch('/api/site-logs', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ projectId, ...form }) });
+        setSaving(false);
+        setForm({ date: new Date().toISOString().split('T')[0], weather: 'Nắng', workerCount: '', progress: '', issues: '' });
+        setShowForm(false);
+        load();
+    };
+
+    const deleteLog = async (id) => {
+        if (!confirm('Xóa nhật ký này?')) return;
+        await fetch(`/api/site-logs/${id}`, { method: 'DELETE' });
+        load();
+    };
+
+    const weatherIcon = { 'Nắng': '☀️', 'Mưa': '🌧️', 'Âm u': '☁️', 'Gió mạnh': '💨' };
+
+    return (
+        <div className="card" style={{ padding: 24 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+                <span style={{ fontWeight: 700, fontSize: 16 }}>📒 Nhật ký công trình ({logs.length} ngày)</span>
+                <button className="btn btn-primary btn-sm" onClick={() => setShowForm(!showForm)}>+ Ghi nhật ký</button>
+            </div>
+
+            {showForm && (
+                <div style={{ background: 'var(--bg-secondary)', borderRadius: 10, padding: 16, marginBottom: 16 }}>
+                    <div className="form-row">
+                        <div className="form-group">
+                            <label className="form-label">Ngày</label>
+                            <input className="form-input" type="date" value={form.date} onChange={e => setForm({ ...form, date: e.target.value })} />
+                        </div>
+                        <div className="form-group">
+                            <label className="form-label">Thời tiết</label>
+                            <select className="form-select" value={form.weather} onChange={e => setForm({ ...form, weather: e.target.value })}>
+                                {WEATHER_OPTS.map(w => <option key={w}>{w}</option>)}
+                            </select>
+                        </div>
+                        <div className="form-group">
+                            <label className="form-label">Số CN</label>
+                            <input className="form-input" type="number" min={0} placeholder="0" value={form.workerCount} onChange={e => setForm({ ...form, workerCount: e.target.value })} />
+                        </div>
+                    </div>
+                    <div className="form-group">
+                        <label className="form-label">Tiến độ hôm nay</label>
+                        <textarea className="form-input" rows={2} style={{ resize: 'vertical' }} placeholder="Công việc đã hoàn thành..." value={form.progress} onChange={e => setForm({ ...form, progress: e.target.value })} />
+                    </div>
+                    <div className="form-group">
+                        <label className="form-label">Vấn đề / Ghi chú</label>
+                        <textarea className="form-input" rows={2} style={{ resize: 'vertical' }} placeholder="Sự cố, phát sinh, vật tư thiếu..." value={form.issues} onChange={e => setForm({ ...form, issues: e.target.value })} />
+                    </div>
+                    <div style={{ display: 'flex', gap: 8 }}>
+                        <button className="btn btn-primary btn-sm" onClick={handleAdd} disabled={saving}>{saving ? 'Đang lưu...' : 'Lưu nhật ký'}</button>
+                        <button className="btn btn-ghost btn-sm" onClick={() => setShowForm(false)}>Hủy</button>
+                    </div>
+                </div>
+            )}
+
+            {loading ? <div style={{ padding: 30, textAlign: 'center', color: 'var(--text-muted)' }}>Đang tải...</div> : logs.length === 0 ? (
+                <div style={{ padding: 30, textAlign: 'center', color: 'var(--text-muted)', fontSize: 13 }}>Chưa có nhật ký. Bấm "Ghi nhật ký" để bắt đầu.</div>
+            ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                    {logs.map(log => (
+                        <div key={log.id} style={{ border: '1px solid var(--border)', borderRadius: 8, overflow: 'hidden' }}>
+                            <div onClick={() => setExpanded(expanded === log.id ? null : log.id)}
+                                style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 16px', cursor: 'pointer', background: expanded === log.id ? 'var(--bg-secondary)' : 'transparent' }}>
+                                <span style={{ fontSize: 20 }}>{weatherIcon[log.weather] || '🌤️'}</span>
+                                <div style={{ flex: 1 }}>
+                                    <span style={{ fontWeight: 600, fontSize: 13 }}>{fmtDate(log.date)}</span>
+                                    <span style={{ fontSize: 12, color: 'var(--text-muted)', marginLeft: 10 }}>{log.weather} · {log.workerCount} công nhân</span>
+                                    {log.progress && <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 400 }}>{log.progress}</div>}
+                                </div>
+                                <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>{expanded === log.id ? '▲' : '▼'}</span>
+                                <button className="btn btn-ghost btn-sm" style={{ color: 'var(--status-danger)' }} onClick={e => { e.stopPropagation(); deleteLog(log.id); }}>🗑</button>
+                            </div>
+                            {expanded === log.id && (
+                                <div style={{ padding: '12px 16px', borderTop: '1px solid var(--border)', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                                    <div>
+                                        <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', marginBottom: 4 }}>TIẾN ĐỘ</div>
+                                        <div style={{ fontSize: 13, whiteSpace: 'pre-wrap' }}>{log.progress || '—'}</div>
+                                    </div>
+                                    <div>
+                                        <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--status-warning)', marginBottom: 4 }}>VẤN ĐỀ / GHI CHÚ</div>
+                                        <div style={{ fontSize: 13, whiteSpace: 'pre-wrap', color: log.issues ? 'inherit' : 'var(--text-muted)' }}>{log.issues || '—'}</div>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    ))}
+                </div>
+            )}
+        </div>
+    );
+}
+
 const PIPELINE = [
     { key: 'Khảo sát', label: 'CRM', icon: '📊' },
     { key: 'Thiết kế', label: 'Thiết kế', icon: '🎨' },
@@ -404,6 +848,9 @@ ${po.notes ? `<div class="notes-box"><strong>Ghi chú:</strong> ${po.notes}</div
         { key: 'documents', label: 'Tài liệu', icon: '📁', count: p.documents?.length },
         { key: 'budget', label: 'Dự toán', icon: '💰' },
         { key: 'journal', label: 'Nhật ký AI', icon: '🤖' },
+        { key: 'punchlist', label: 'Punch List', icon: '✅' },
+        { key: 'warranty', label: 'Bảo hành', icon: '🛡️' },
+        { key: 'sitelog', label: 'Nhật ký CT', icon: '📒' },
     ];
 
     return (
@@ -650,6 +1097,9 @@ ${po.notes ? `<div class="notes-box"><strong>Ghi chú:</strong> ${po.notes}</div
                         </table></div>
                         {p.contracts.length === 0 && <div style={{ color: 'var(--text-muted)', padding: 24, textAlign: 'center' }}>Chưa có hợp đồng</div>}
                     </div>
+
+                    {/* Phụ lục hợp đồng */}
+                    {p.contracts.length > 0 && <AddendumSection contracts={p.contracts} onDone={fetchData} />}
                 </div>
             )}
 
@@ -1453,6 +1903,15 @@ ${po.notes ? `<div class="notes-box"><strong>Ghi chú:</strong> ${po.notes}</div
                     </div>
                 </div>
             )}
+
+            {/* TAB: Punch List */}
+            {tab === 'punchlist' && <PunchListTab projectId={id} projectName={p.name} />}
+
+            {/* TAB: Bảo hành */}
+            {tab === 'warranty' && <WarrantyTab projectId={id} />}
+
+            {/* TAB: Nhật ký công trình */}
+            {tab === 'sitelog' && <SiteLogTab projectId={id} />}
 
             {/* Modal: Budget Quick Add */}
             {modal === 'budget_quick' && (

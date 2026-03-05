@@ -23,7 +23,7 @@ export const GET = withAuth(async (request) => {
     const [data, total] = await Promise.all([
         prisma.workOrder.findMany({
             where,
-            include: { project: { select: { name: true, code: true } } },
+            include: { project: { select: { name: true, code: true } }, scheduleTask: { select: { id: true, name: true, startDate: true, endDate: true, status: true } } },
             skip,
             take: limit,
             orderBy: { createdAt: 'desc' },

@@ -10,7 +10,6 @@ async function ensureDefaultTemplates() {
     const count = await prisma.scheduleTemplate.count();
     if (count > 0) { seeded = true; return; }
 
-    console.log('[schedule-templates] Auto-seeding default templates...');
 
     // Template 1: Thi công xây thô
     const tpl1 = await prisma.scheduleTemplate.create({
@@ -65,7 +64,6 @@ async function ensureDefaultTemplates() {
     ];
     await createTemplateItems(tpl2.id, items2);
 
-    console.log('[schedule-templates] Seeded 2 default templates');
 }
 
 async function createTemplateItems(templateId, items) {
