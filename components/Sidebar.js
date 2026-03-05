@@ -6,7 +6,7 @@ import {
     LayoutDashboard, GitBranch, Users, Building2, FileText,
     Package, ClipboardList, Wrench, CreditCard, Receipt,
     ShoppingCart, Truck, Warehouse, Wallet, UserCog,
-    BarChart3, ChevronRight, Shield, X, CalendarDays
+    BarChart3, ChevronRight, Shield, X, CalendarDays, Armchair, Factory
 } from 'lucide-react';
 import { useRole, ROLES } from '@/contexts/RoleContext';
 
@@ -37,6 +37,12 @@ const menuItems = [
             { href: '/inventory', icon: Warehouse, label: 'Kho & Tồn kho' },
             { href: '/finance', icon: Wallet, label: 'Tài chính', roles: ['giam_doc', 'pho_gd', 'ke_toan'] },
             { href: '/hr', icon: UserCog, label: 'Nhân sự', roles: ['giam_doc', 'pho_gd'] },
+        ]
+    },
+    {
+        section: 'Sản Xuất', items: [
+            { href: '/furniture', icon: Armchair, label: 'Nội Thất May Đo' },
+            { href: '/workshops', icon: Factory, label: 'Xưởng SX', roles: ['giam_doc', 'pho_gd', 'quan_ly_du_an'] },
         ]
     },
     {
