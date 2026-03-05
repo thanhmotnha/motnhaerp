@@ -14,6 +14,7 @@ const STATUS_MAP = {
 export default function MeasurementSheet({ projectId, contractorId, contractorName, onSaved, onClose }) {
     const [phase, setPhase] = useState('');
     const [description, setDescription] = useState('');
+    const [retentionRate, setRetentionRate] = useState(5);
     const [items, setItems] = useState([{ description: '', unit: '', quantity: 0, unitPrice: 0, amount: 0, notes: '' }]);
     const [saving, setSaving] = useState(false);
 
@@ -32,6 +33,8 @@ export default function MeasurementSheet({ projectId, contractorId, contractorNa
     const removeRow = (i) => setItems(prev => prev.filter((_, idx) => idx !== i));
 
     const total = items.reduce((s, i) => s + (i.amount || 0), 0);
+    const retentionAmount = Math.round(total * (retentionRate || 0) / 100);
+    const netAmount = total - retentionAmount;
 
     const handleSave = async () => {
         const validItems = items.filter(i => i.description?.trim() && i.quantity > 0);
@@ -45,7 +48,9 @@ export default function MeasurementSheet({ projectId, contractorId, contractorNa
                     contractorId,
                     projectId,
                     contractAmount: total,
-                    netAmount: total,
+                    netAmount,
+                    retentionRate: Number(retentionRate) || 0,
+                    retentionAmount,
                     phase,
                     description,
                     status: 'pending_technical',
@@ -78,11 +83,18 @@ export default function MeasurementSheet({ projectId, contractorId, contractorNa
                     <button className="btn btn-ghost" onClick={onClose}>✕</button>
                 </div>
                 <div style={{ padding: 20 }}>
-                    <div style={{ display: 'flex', gap: 12, marginBottom: 16 }}>
+                    <div style={{ display: 'flex', gap: 12, marginBottom: 16, flexWrap: 'wrap' }}>
                         <input className="form-input" placeholder="Giai đoạn (VD: Đợt 1, Tuần 3)" value={phase}
-                            onChange={e => setPhase(e.target.value)} style={{ flex: 1, fontSize: 13 }} />
+                            onChange={e => setPhase(e.target.value)} style={{ flex: 1, fontSize: 13, minWidth: 160 }} />
                         <input className="form-input" placeholder="Mô tả" value={description}
-                            onChange={e => setDescription(e.target.value)} style={{ flex: 2, fontSize: 13 }} />
+                            onChange={e => setDescription(e.target.value)} style={{ flex: 2, fontSize: 13, minWidth: 200 }} />
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 140 }}>
+                            <label style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 600, whiteSpace: 'nowrap' }}>Giữ lại BH:</label>
+                            <input className="form-input" type="number" value={retentionRate} min={0} max={20} step={0.5}
+                                onChange={e => setRetentionRate(e.target.value)}
+                                style={{ width: 55, fontSize: 13, textAlign: 'right', padding: '4px 6px' }} />
+                            <span style={{ fontSize: 13, fontWeight: 600 }}>%</span>
+                        </div>
                     </div>
 
                     {/* Grid table */}
@@ -124,11 +136,21 @@ export default function MeasurementSheet({ projectId, contractorId, contractorNa
                         </table>
                     </div>
 
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 12 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginTop: 12 }}>
                         <button className="btn btn-ghost btn-sm" onClick={addRow}>+ Thêm dòng</button>
                         <div style={{ textAlign: 'right' }}>
                             <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>Tổng cộng</div>
                             <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--accent-primary)' }}>{fmt(total)}đ</div>
+                            {retentionRate > 0 && (
+                                <>
+                                    <div style={{ fontSize: 11, color: '#f59e0b', marginTop: 4 }}>
+                                        Giữ lại BH ({retentionRate}%): <strong>-{fmt(retentionAmount)}đ</strong>
+                                    </div>
+                                    <div style={{ fontSize: 14, fontWeight: 700, color: '#10b981', marginTop: 2 }}>
+                                        Thực thanh toán: {fmt(netAmount)}đ
+                                    </div>
+                                </>
+                            )}
                         </div>
                     </div>
 

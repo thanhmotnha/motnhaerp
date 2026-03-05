@@ -33,6 +33,9 @@ export const GET = withAuth(async (request) => {
         const qtyVariance = (actualReceivedQty || plan.orderedQty) - plan.quantity;
         const usagePercent = maxAllowedQty > 0 ? (plan.orderedQty / maxAllowedQty) * 100 : 0;
 
+        // CPI = Budget / Actual (>1 = saving, <1 = overspending)
+        const cpi = avgActualPrice > 0 ? Math.round((plan.budgetUnitPrice / avgActualPrice) * 100) / 100 : null;
+
         // Status: green/yellow/red
         let status = 'green';
         if (usagePercent >= 100 || avgActualPrice > plan.budgetUnitPrice * 1.05) {
@@ -47,6 +50,12 @@ export const GET = withAuth(async (request) => {
             productCode: plan.product?.code || '',
             unit: plan.product?.unit || '',
             category: plan.category,
+            // V2 fields
+            costType: plan.costType || 'Vật tư',
+            group1: plan.group1 || '',
+            group2: plan.group2 || '',
+            drawingUrl: plan.drawingUrl || '',
+            supplierTag: plan.supplierTag || '',
             // Budget
             budgetQty: plan.quantity,
             budgetUnitPrice: plan.budgetUnitPrice,
@@ -62,6 +71,7 @@ export const GET = withAuth(async (request) => {
             priceVariance,
             qtyVariance,
             usagePercent: Math.round(usagePercent * 10) / 10,
+            cpi,
             status,
             isLocked: plan.isLocked,
         };
@@ -71,9 +81,25 @@ export const GET = withAuth(async (request) => {
     const totalBudget = variance.reduce((s, v) => s + v.budgetTotal, 0);
     const totalActual = variance.reduce((s, v) => s + v.actualTotal, 0);
     const totalVariance = totalActual - totalBudget;
+    const overallCpi = totalActual > 0 ? Math.round((totalBudget / totalActual) * 100) / 100 : null;
+
+    // Group summaries
+    const groups = {};
+    variance.forEach(v => {
+        const key = v.group1 || 'Chưa phân loại';
+        if (!groups[key]) groups[key] = { budget: 0, actual: 0, items: 0 };
+        groups[key].budget += v.budgetTotal;
+        groups[key].actual += v.actualTotal;
+        groups[key].items += 1;
+    });
 
     return NextResponse.json({
         items: variance,
-        summary: { totalBudget, totalActual, totalVariance },
+        summary: { totalBudget, totalActual, totalVariance, overallCpi },
+        groupSummary: Object.entries(groups).map(([name, d]) => ({
+            name, ...d, variance: d.actual - d.budget,
+            cpi: d.actual > 0 ? Math.round((d.budget / d.actual) * 100) / 100 : null,
+        })),
     });
 });
+

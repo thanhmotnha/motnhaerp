@@ -357,6 +357,10 @@ model ContractorPayment {
   approvedBy      String   @default("")
   approvedAt      DateTime?
   attachments     Json?
+  // V2: Retention management
+  retentionRate     Float    @default(5)       // % giữ lại bảo hành
+  retentionAmount   Float    @default(0)       // Số tiền giữ lại
+  retentionReleased Boolean  @default(false)   // Đã trả lại bảo hành chưa
   contractorId    String
   contractor      Contractor @relation(fields: [contractorId], references: [id])
   projectId       String
@@ -511,6 +515,13 @@ model MaterialPlan {
   wastePercent    Float    @default(5)
   isLocked        Boolean  @default(false)
   notes           String   @default("")
+  // V2: Hierarchical BOQ
+  costType        String   @default("Vật tư")     // Vật tư | Nhân công | Thầu phụ | Khác
+  group1          String   @default("")            // Level 1: Phần thô, Hoàn thiện, Nội thất gỗ
+  group2          String   @default("")            // Level 2: Phòng khách, Tủ bếp, Ban công
+  drawingUrl      String   @default("")            // Bản vẽ kỹ thuật đính kèm
+  drawingNote     String   @default("")
+  supplierTag     String   @default("")            // Công ty cấp | Thầu phụ cấp
   productId       String
   product         Product       @relation(fields: [productId], references: [id])
   projectId       String

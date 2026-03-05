@@ -61,6 +61,10 @@ export const POST = withAuth(async (request) => {
                     budgetUnitPrice: Number(i.unitPrice) || 0,
                     type: i.type || 'Chính',
                     category: i.category || '',
+                    costType: i.costType || 'Vật tư',
+                    group1: i.group1 || '',
+                    group2: i.group2 || '',
+                    supplierTag: i.supplierTag || '',
                     status: 'Chưa đặt',
                     notes: i.notes || (source ? `Từ ${source}` : ''),
                 }));

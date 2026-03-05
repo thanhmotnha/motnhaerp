@@ -8,6 +8,7 @@ import BudgetLockBar from '@/components/budget/BudgetLockBar';
 import VarianceTable from '@/components/budget/VarianceTable';
 import ProfitabilityWidget from '@/components/budget/ProfitabilityWidget';
 import BudgetQuickAdd from '@/components/budget/BudgetQuickAdd';
+import SCurveChart from '@/components/budget/SCurveChart';
 import MeasurementSheet, { MeasurementActions } from '@/components/contractor/MeasurementSheet';
 const fmt = (n) => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(n);
 const fmtDate = (d) => d ? new Date(d).toLocaleDateString('vi-VN') : '—';
@@ -557,6 +558,10 @@ ${po.notes ? `<div class="notes-box"><strong>Ghi chú:</strong> ${po.notes}</div
                     <div className="card" style={{ padding: 20, marginTop: 16 }}>
                         <h3 style={{ fontSize: 15, fontWeight: 700, marginBottom: 16 }}>📊 Bảng theo dõi Chênh lệch Vật tư</h3>
                         <VarianceTable projectId={id} />
+                    </div>
+                    <div className="card" style={{ padding: 20, marginTop: 16 }}>
+                        <h3 style={{ fontSize: 15, fontWeight: 700, marginBottom: 16 }}>📈 S-Curve — Tiến độ Chi phí</h3>
+                        <SCurveChart projectId={id} />
                     </div>
                 </div>
             )}

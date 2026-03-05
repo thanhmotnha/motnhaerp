@@ -1,50 +1,60 @@
 'use client';
-import { useState, useEffect, useRef } from 'react';
+import { useState, useRef } from 'react';
 
 const fmt = (n) => new Intl.NumberFormat('vi-VN').format(Math.round(n));
+
+const COST_TYPES = ['Vật tư', 'Nhân công', 'Thầu phụ', 'Khác'];
+const SUPPLIER_TAGS = ['', 'Công ty cấp', 'Thầu phụ cấp'];
+const GROUP1_PRESETS = ['Phần thô', 'Phần hoàn thiện', 'Nội thất gỗ', 'M&E (Điện nước)', 'Ngoại thất'];
+const GROUP2_PRESETS = ['Phòng khách', 'Phòng ngủ 01', 'Phòng ngủ 02', 'Phòng bếp', 'Phòng tắm', 'Ban công', 'Tủ bếp', 'Tủ áo', 'Cầu thang', 'Sân vườn'];
 
 // Budget templates for common construction types
 const BUDGET_TEMPLATES = {
     'Nhà phố 3 tầng': [
-        { name: 'Xi măng', unit: 'bao', qty: 800, category: 'Vật liệu thô' },
-        { name: 'Cát xây', unit: 'm³', qty: 40, category: 'Vật liệu thô' },
-        { name: 'Đá 1x2', unit: 'm³', qty: 30, category: 'Vật liệu thô' },
-        { name: 'Thép Ø10', unit: 'kg', qty: 2000, category: 'Sắt thép' },
-        { name: 'Thép Ø12', unit: 'kg', qty: 1500, category: 'Sắt thép' },
-        { name: 'Thép Ø16', unit: 'kg', qty: 800, category: 'Sắt thép' },
-        { name: 'Gạch xây', unit: 'viên', qty: 25000, category: 'Vật liệu thô' },
-        { name: 'Gạch ốp lát 60x60', unit: 'm²', qty: 200, category: 'Hoàn thiện' },
-        { name: 'Sơn nước ngoại thất', unit: 'thùng', qty: 15, category: 'Hoàn thiện' },
-        { name: 'Sơn nước nội thất', unit: 'thùng', qty: 20, category: 'Hoàn thiện' },
-        { name: 'Ống nước PPR Ø25', unit: 'm', qty: 100, category: 'M&E' },
-        { name: 'Dây điện 2.5mm²', unit: 'm', qty: 500, category: 'M&E' },
-        { name: 'CB 2P 20A', unit: 'cái', qty: 15, category: 'M&E' },
+        { name: 'Xi măng', unit: 'bao', qty: 800, category: 'Vật liệu thô', costType: 'Vật tư', group1: 'Phần thô' },
+        { name: 'Cát xây', unit: 'm³', qty: 40, category: 'Vật liệu thô', costType: 'Vật tư', group1: 'Phần thô' },
+        { name: 'Đá 1x2', unit: 'm³', qty: 30, category: 'Vật liệu thô', costType: 'Vật tư', group1: 'Phần thô' },
+        { name: 'Thép Ø10', unit: 'kg', qty: 2000, category: 'Sắt thép', costType: 'Vật tư', group1: 'Phần thô' },
+        { name: 'Thép Ø12', unit: 'kg', qty: 1500, category: 'Sắt thép', costType: 'Vật tư', group1: 'Phần thô' },
+        { name: 'Thép Ø16', unit: 'kg', qty: 800, category: 'Sắt thép', costType: 'Vật tư', group1: 'Phần thô' },
+        { name: 'Gạch xây', unit: 'viên', qty: 25000, category: 'Vật liệu thô', costType: 'Vật tư', group1: 'Phần thô' },
+        { name: 'Nhân công xây thô', unit: 'm²', qty: 350, costType: 'Nhân công', group1: 'Phần thô', supplierTag: 'Thầu phụ cấp' },
+        { name: 'Gạch ốp lát 60x60', unit: 'm²', qty: 200, category: 'Hoàn thiện', costType: 'Vật tư', group1: 'Phần hoàn thiện' },
+        { name: 'Sơn nước ngoại thất', unit: 'thùng', qty: 15, category: 'Hoàn thiện', costType: 'Vật tư', group1: 'Phần hoàn thiện' },
+        { name: 'Sơn nước nội thất', unit: 'thùng', qty: 20, category: 'Hoàn thiện', costType: 'Vật tư', group1: 'Phần hoàn thiện' },
+        { name: 'Nhân công hoàn thiện', unit: 'm²', qty: 350, costType: 'Nhân công', group1: 'Phần hoàn thiện', supplierTag: 'Thầu phụ cấp' },
+        { name: 'Ống nước PPR Ø25', unit: 'm', qty: 100, category: 'M&E', costType: 'Vật tư', group1: 'M&E (Điện nước)' },
+        { name: 'Dây điện 2.5mm²', unit: 'm', qty: 500, category: 'M&E', costType: 'Vật tư', group1: 'M&E (Điện nước)' },
+        { name: 'CB 2P 20A', unit: 'cái', qty: 15, category: 'M&E', costType: 'Vật tư', group1: 'M&E (Điện nước)' },
+        { name: 'Nhân công M&E', unit: 'công', qty: 60, costType: 'Nhân công', group1: 'M&E (Điện nước)', supplierTag: 'Thầu phụ cấp' },
     ],
     'Biệt thự 2 tầng': [
-        { name: 'Xi măng', unit: 'bao', qty: 1200, category: 'Vật liệu thô' },
-        { name: 'Cát xây', unit: 'm³', qty: 60, category: 'Vật liệu thô' },
-        { name: 'Đá 1x2', unit: 'm³', qty: 45, category: 'Vật liệu thô' },
-        { name: 'Thép Ø10', unit: 'kg', qty: 3000, category: 'Sắt thép' },
-        { name: 'Thép Ø12', unit: 'kg', qty: 2000, category: 'Sắt thép' },
-        { name: 'Thép Ø16', unit: 'kg', qty: 1200, category: 'Sắt thép' },
-        { name: 'Thép Ø20', unit: 'kg', qty: 600, category: 'Sắt thép' },
-        { name: 'Gạch xây', unit: 'viên', qty: 35000, category: 'Vật liệu thô' },
-        { name: 'Gạch ốp lát 80x80', unit: 'm²', qty: 350, category: 'Hoàn thiện' },
-        { name: 'Đá granite mặt tiền', unit: 'm²', qty: 60, category: 'Hoàn thiện' },
-        { name: 'Sơn nước ngoại thất', unit: 'thùng', qty: 25, category: 'Hoàn thiện' },
-        { name: 'Sơn nước nội thất', unit: 'thùng', qty: 30, category: 'Hoàn thiện' },
-        { name: 'Ống nước PPR Ø25', unit: 'm', qty: 200, category: 'M&E' },
-        { name: 'Dây điện 2.5mm²', unit: 'm', qty: 800, category: 'M&E' },
+        { name: 'Xi măng', unit: 'bao', qty: 1200, costType: 'Vật tư', group1: 'Phần thô' },
+        { name: 'Cát xây', unit: 'm³', qty: 60, costType: 'Vật tư', group1: 'Phần thô' },
+        { name: 'Đá 1x2', unit: 'm³', qty: 45, costType: 'Vật tư', group1: 'Phần thô' },
+        { name: 'Thép Ø10', unit: 'kg', qty: 3000, costType: 'Vật tư', group1: 'Phần thô' },
+        { name: 'Thép Ø12', unit: 'kg', qty: 2000, costType: 'Vật tư', group1: 'Phần thô' },
+        { name: 'Thép Ø16', unit: 'kg', qty: 1200, costType: 'Vật tư', group1: 'Phần thô' },
+        { name: 'Thép Ø20', unit: 'kg', qty: 600, costType: 'Vật tư', group1: 'Phần thô' },
+        { name: 'Gạch xây', unit: 'viên', qty: 35000, costType: 'Vật tư', group1: 'Phần thô' },
+        { name: 'Nhân công thô', unit: 'm²', qty: 500, costType: 'Nhân công', group1: 'Phần thô', supplierTag: 'Thầu phụ cấp' },
+        { name: 'Gạch ốp lát 80x80', unit: 'm²', qty: 350, costType: 'Vật tư', group1: 'Phần hoàn thiện' },
+        { name: 'Đá granite mặt tiền', unit: 'm²', qty: 60, costType: 'Vật tư', group1: 'Phần hoàn thiện' },
+        { name: 'Sơn nước ngoại thất', unit: 'thùng', qty: 25, costType: 'Vật tư', group1: 'Phần hoàn thiện' },
+        { name: 'Sơn nước nội thất', unit: 'thùng', qty: 30, costType: 'Vật tư', group1: 'Phần hoàn thiện' },
+        { name: 'Ống nước PPR Ø25', unit: 'm', qty: 200, costType: 'Vật tư', group1: 'M&E (Điện nước)' },
+        { name: 'Dây điện 2.5mm²', unit: 'm', qty: 800, costType: 'Vật tư', group1: 'M&E (Điện nước)' },
     ],
     'Nội thất căn hộ': [
-        { name: 'Gỗ MDF chống ẩm', unit: 'm²', qty: 80, category: 'Gỗ' },
-        { name: 'Vách phẳng MDF', unit: 'm²', qty: 40, category: 'Gỗ' },
-        { name: 'Bản lề giảm chấn', unit: 'bộ', qty: 30, category: 'Phụ kiện' },
-        { name: 'Ray trượt ngăn kéo', unit: 'bộ', qty: 20, category: 'Phụ kiện' },
-        { name: 'Đèn LED panel', unit: 'cái', qty: 15, category: 'Điện' },
-        { name: 'Đèn downlight spotlight', unit: 'cái', qty: 25, category: 'Điện' },
-        { name: 'Đá thạch anh countertop', unit: 'm dài', qty: 6, category: 'Đá' },
-        { name: 'Kính cường lực 10mm', unit: 'm²', qty: 10, category: 'Kính' },
+        { name: 'Gỗ MDF chống ẩm', unit: 'm²', qty: 80, costType: 'Vật tư', group1: 'Nội thất gỗ', group2: 'Phòng khách' },
+        { name: 'Vách phẳng MDF', unit: 'm²', qty: 40, costType: 'Vật tư', group1: 'Nội thất gỗ', group2: 'Phòng ngủ 01' },
+        { name: 'Bản lề giảm chấn', unit: 'bộ', qty: 30, costType: 'Vật tư', group1: 'Nội thất gỗ' },
+        { name: 'Ray trượt ngăn kéo', unit: 'bộ', qty: 20, costType: 'Vật tư', group1: 'Nội thất gỗ' },
+        { name: 'Đèn LED panel', unit: 'cái', qty: 15, costType: 'Vật tư', group1: 'M&E (Điện nước)' },
+        { name: 'Đèn downlight spotlight', unit: 'cái', qty: 25, costType: 'Vật tư', group1: 'M&E (Điện nước)' },
+        { name: 'Đá thạch anh countertop', unit: 'm dài', qty: 6, costType: 'Vật tư', group1: 'Nội thất gỗ', group2: 'Phòng bếp' },
+        { name: 'Kính cường lực 10mm', unit: 'm²', qty: 10, costType: 'Vật tư', group1: 'Nội thất gỗ' },
+        { name: 'Nhân công lắp đặt', unit: 'công', qty: 40, costType: 'Nhân công', group1: 'Nội thất gỗ', supplierTag: 'Thầu phụ cấp' },
     ],
 };
 
@@ -57,10 +67,9 @@ export default function BudgetQuickAdd({ projectId, products, onDone, onClose })
     const fileRef = useRef(null);
 
     function emptyRow() {
-        return { productId: '', productName: '', unit: '', quantity: 1, unitPrice: 0, category: '', _key: Date.now() + Math.random() };
+        return { productId: '', productName: '', unit: '', quantity: 1, unitPrice: 0, category: '', costType: 'Vật tư', group1: '', group2: '', supplierTag: '', _key: Date.now() + Math.random() };
     }
 
-    // Filter products for search
     const filteredProducts = productSearch.length >= 1
         ? products.filter(p =>
             p.name.toLowerCase().includes(productSearch.toLowerCase()) ||
@@ -106,7 +115,6 @@ export default function BudgetQuickAdd({ projectId, products, onDone, onClose })
         const ws = wb.Sheets[wb.SheetNames[0]];
         const json = XLSX.utils.sheet_to_json(ws);
 
-        // Map Excel columns to our format, be flexible with column names
         const imported = [];
         for (const row of json) {
             const name = row['Tên vật tư'] || row['Vật tư'] || row['name'] || row['Tên'] || '';
@@ -114,10 +122,13 @@ export default function BudgetQuickAdd({ projectId, products, onDone, onClose })
             const qty = Number(row['Số lượng'] || row['SL'] || row['quantity'] || row['Qty'] || 0);
             const price = Number(row['Đơn giá'] || row['unitPrice'] || row['Giá'] || 0);
             const category = row['Hạng mục'] || row['Loại'] || row['category'] || '';
+            const costType = row['Loại chi phí'] || row['costType'] || 'Vật tư';
+            const group1 = row['Giai đoạn'] || row['group1'] || '';
+            const group2 = row['Không gian'] || row['group2'] || '';
+            const supplierTag = row['NCC'] || row['supplierTag'] || '';
 
             if (!name || qty <= 0) continue;
 
-            // Try to match product from DB by name
             const match = products.find(p =>
                 p.name.toLowerCase() === name.toLowerCase() ||
                 p.code.toLowerCase() === name.toLowerCase()
@@ -130,6 +141,8 @@ export default function BudgetQuickAdd({ projectId, products, onDone, onClose })
                 quantity: qty,
                 unitPrice: match?.importPrice || price,
                 category,
+                costType: COST_TYPES.includes(costType) ? costType : 'Vật tư',
+                group1, group2, supplierTag,
                 _key: Date.now() + Math.random(),
             });
         }
@@ -140,7 +153,7 @@ export default function BudgetQuickAdd({ projectId, products, onDone, onClose })
         }
 
         setRows(imported);
-        setMode('quick'); // switch to quick view to review
+        setMode('quick');
         alert(`Đã import ${imported.length} dòng. Kiểm tra và bấm "Tạo tất cả" để lưu.`);
         if (fileRef.current) fileRef.current.value = '';
     };
@@ -157,10 +170,14 @@ export default function BudgetQuickAdd({ projectId, products, onDone, onClose })
             return {
                 productId: match?.id || '',
                 productName: match?.name || t.name,
-                unit: match?.unit || t.unit,
+                unit: match?.unit || t.unit || '',
                 quantity: t.qty,
                 unitPrice: match?.importPrice || 0,
-                category: t.category,
+                category: t.category || '',
+                costType: t.costType || 'Vật tư',
+                group1: t.group1 || '',
+                group2: t.group2 || '',
+                supplierTag: t.supplierTag || '',
                 _key: Date.now() + Math.random(),
             };
         });
@@ -187,6 +204,10 @@ export default function BudgetQuickAdd({ projectId, products, onDone, onClose })
                         quantity: Number(r.quantity),
                         unitPrice: Number(r.unitPrice),
                         category: r.category,
+                        costType: r.costType,
+                        group1: r.group1,
+                        group2: r.group2,
+                        supplierTag: r.supplierTag,
                     })),
                 }),
             });
@@ -200,13 +221,16 @@ export default function BudgetQuickAdd({ projectId, products, onDone, onClose })
         setSaving(false);
     };
 
+    // Batch set group1 for all rows
+    const batchSetGroup1 = (val) => setRows(prev => prev.map(r => ({ ...r, group1: val })));
+
     const totalAmount = rows.reduce((s, r) => s + (Number(r.quantity) || 0) * (Number(r.unitPrice) || 0), 0);
     const validCount = rows.filter(r => r.productId && r.quantity > 0).length;
     const unmatchedCount = rows.filter(r => !r.productId && r.productName).length;
 
     return (
         <div className="modal-overlay" onClick={onClose}>
-            <div className="modal" style={{ maxWidth: 900, width: '95vw', maxHeight: '90vh', display: 'flex', flexDirection: 'column' }} onClick={e => e.stopPropagation()}>
+            <div className="modal" style={{ maxWidth: 1100, width: '97vw', maxHeight: '93vh', display: 'flex', flexDirection: 'column' }} onClick={e => e.stopPropagation()}>
                 <div className="modal-header">
                     <h3 style={{ margin: 0 }}>📋 Dự toán vật tư</h3>
                     <button onClick={onClose} style={{ background: 'none', border: 'none', fontSize: 18, cursor: 'pointer', color: 'var(--text-muted)' }}>✕</button>
@@ -215,9 +239,9 @@ export default function BudgetQuickAdd({ projectId, products, onDone, onClose })
                 {/* Mode tabs */}
                 <div style={{ display: 'flex', gap: 4, padding: '8px 20px 0', borderBottom: '1px solid var(--border-light)' }}>
                     {[
-                        { key: 'quick', label: '✏️ Nhập nhanh', desc: 'Thêm từng dòng' },
-                        { key: 'excel', label: '📊 Import Excel', desc: 'Upload file .xlsx' },
-                        { key: 'template', label: '📁 Template', desc: 'Chọn mẫu có sẵn' },
+                        { key: 'quick', label: '✏️ Nhập nhanh' },
+                        { key: 'excel', label: '📊 Import Excel' },
+                        { key: 'template', label: '📁 Template' },
                     ].map(m => (
                         <button key={m.key} onClick={() => setMode(m.key)}
                             style={{
@@ -239,68 +263,82 @@ export default function BudgetQuickAdd({ projectId, products, onDone, onClose })
                             <div style={{ fontSize: 40, marginBottom: 12 }}>📊</div>
                             <div style={{ fontWeight: 600, fontSize: 15, marginBottom: 6 }}>Kéo thả file Excel hoặc bấm chọn</div>
                             <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 16 }}>
-                                Cần ít nhất cột: <strong>Tên vật tư</strong> + <strong>Số lượng</strong>
-                                <br />Tùy chọn: ĐVT, Đơn giá, Hạng mục
+                                Cột bắt buộc: <strong>Tên vật tư</strong> + <strong>Số lượng</strong><br />
+                                Tùy chọn: ĐVT, Đơn giá, Hạng mục, <strong>Loại chi phí</strong>, <strong>Giai đoạn</strong>, <strong>Không gian</strong>, NCC
                             </div>
                             <input ref={fileRef} type="file" accept=".xlsx,.xls,.csv"
                                 onChange={handleExcelFile}
                                 style={{ display: 'none' }} id="excel-upload" />
-                            <label htmlFor="excel-upload" className="btn btn-primary"
-                                style={{ cursor: 'pointer' }}>
-                                📁 Chọn file Excel
+                            <label htmlFor="excel-upload" className="btn btn-primary" style={{ cursor: 'pointer' }}>
+                                📁 Chọn file Excel / file Thiết kế
                             </label>
-                        </div>
-                        <div style={{ marginTop: 16, fontSize: 12, color: 'var(--text-muted)' }}>
-                            <strong>Mẹo:</strong> Hệ thống sẽ tự khớp tên vật tư với sản phẩm trong kho.
-                            Nếu không khớp, bạn có thể sửa sau khi import.
                         </div>
                     </div>
                 )}
 
                 {/* Template picker */}
                 {mode === 'template' && (
-                    <div style={{ padding: 20, display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 12 }}>
-                        {Object.entries(BUDGET_TEMPLATES).map(([name, items]) => (
-                            <div key={name} onClick={() => applyTemplate(name)}
-                                style={{
-                                    border: '1px solid var(--border-light)', borderRadius: 12, padding: 16,
-                                    cursor: 'pointer', transition: 'all 0.2s',
-                                    background: 'var(--bg-card)',
-                                }}
-                                onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--accent-primary)'; e.currentTarget.style.background = 'rgba(59,130,246,0.05)'; }}
-                                onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border-light)'; e.currentTarget.style.background = 'var(--bg-card)'; }}>
-                                <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 6 }}>🏗️ {name}</div>
-                                <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 8 }}>{items.length} hạng mục vật tư</div>
-                                <div style={{ fontSize: 11, color: 'var(--text-secondary)' }}>
-                                    {[...new Set(items.map(i => i.category))].join(' · ')}
+                    <div style={{ padding: 20, display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: 12 }}>
+                        {Object.entries(BUDGET_TEMPLATES).map(([name, items]) => {
+                            const costTypes = [...new Set(items.map(i => i.costType))];
+                            const groups = [...new Set(items.map(i => i.group1).filter(Boolean))];
+                            return (
+                                <div key={name} onClick={() => applyTemplate(name)}
+                                    style={{
+                                        border: '1px solid var(--border-light)', borderRadius: 12, padding: 16,
+                                        cursor: 'pointer', transition: 'all 0.2s', background: 'var(--bg-card)',
+                                    }}
+                                    onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--accent-primary)'; e.currentTarget.style.transform = 'translateY(-2px)'; }}
+                                    onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border-light)'; e.currentTarget.style.transform = 'none'; }}>
+                                    <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 6 }}>🏗️ {name}</div>
+                                    <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 4 }}>{items.length} hạng mục</div>
+                                    <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginBottom: 4 }}>
+                                        📁 {groups.join(' · ')}
+                                    </div>
+                                    <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+                                        {costTypes.map(ct => (
+                                            <span key={ct} style={{ fontSize: 9, padding: '1px 6px', borderRadius: 4, background: ct === 'Nhân công' ? '#ede9fe' : ct === 'Thầu phụ' ? '#fff7ed' : '#f0f9ff', color: ct === 'Nhân công' ? '#7c3aed' : ct === 'Thầu phụ' ? '#ea580c' : '#0284c7' }}>{ct}</span>
+                                        ))}
+                                    </div>
                                 </div>
-                            </div>
-                        ))}
+                            );
+                        })}
                     </div>
                 )}
 
-                {/* Quick add table (also shows after excel/template import) */}
+                {/* Quick add table */}
                 {mode === 'quick' && (
                     <div style={{ flex: 1, overflow: 'auto', padding: '12px 20px' }}>
-                        {/* Summary bar */}
                         {unmatchedCount > 0 && (
                             <div style={{ background: 'rgba(245,158,11,0.1)', border: '1px solid rgba(245,158,11,0.3)', borderRadius: 8, padding: '8px 12px', marginBottom: 12, fontSize: 12, color: '#d97706' }}>
                                 ⚠️ {unmatchedCount} dòng chưa khớp sản phẩm — cần chọn sản phẩm để lưu
                             </div>
                         )}
 
+                        {/* Batch actions */}
+                        <div style={{ display: 'flex', gap: 6, marginBottom: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+                            <span style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 600 }}>Gán nhanh giai đoạn:</span>
+                            {GROUP1_PRESETS.map(g => (
+                                <button key={g} className="btn btn-ghost" style={{ fontSize: 10, padding: '2px 8px' }}
+                                    onClick={() => batchSetGroup1(g)}>{g}</button>
+                            ))}
+                        </div>
+
                         <div style={{ overflowX: 'auto' }}>
                             <table className="data-table" style={{ fontSize: 12, width: '100%' }}>
                                 <thead>
                                     <tr>
-                                        <th style={{ width: 30 }}>#</th>
-                                        <th style={{ minWidth: 200 }}>Sản phẩm</th>
-                                        <th style={{ width: 60 }}>ĐVT</th>
-                                        <th style={{ width: 80 }}>SL</th>
-                                        <th style={{ width: 110 }}>Đơn giá</th>
-                                        <th style={{ width: 110 }}>Thành tiền</th>
-                                        <th style={{ width: 100 }}>Hạng mục</th>
-                                        <th style={{ width: 30 }}></th>
+                                        <th style={{ width: 28 }}>#</th>
+                                        <th style={{ minWidth: 180 }}>Sản phẩm</th>
+                                        <th style={{ width: 55 }}>ĐVT</th>
+                                        <th style={{ width: 70 }}>SL</th>
+                                        <th style={{ width: 100 }}>Đơn giá</th>
+                                        <th style={{ width: 100 }}>Thành tiền</th>
+                                        <th style={{ width: 85 }}>Loại CP</th>
+                                        <th style={{ width: 100 }}>Giai đoạn</th>
+                                        <th style={{ width: 95 }}>Không gian</th>
+                                        <th style={{ width: 85 }}>NCC</th>
+                                        <th style={{ width: 28 }}></th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -310,21 +348,18 @@ export default function BudgetQuickAdd({ projectId, products, onDone, onClose })
                                             <td style={{ position: 'relative' }}>
                                                 {row.productId ? (
                                                     <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                                                        <span style={{ fontWeight: 600 }}>{row.productName}</span>
+                                                        <span style={{ fontWeight: 600, fontSize: 11 }}>{row.productName}</span>
                                                         <button onClick={() => updateRow(idx, 'productId', '')}
-                                                            style={{ background: 'none', border: 'none', fontSize: 12, cursor: 'pointer', color: 'var(--text-muted)', padding: 0 }}>✕</button>
+                                                            style={{ background: 'none', border: 'none', fontSize: 11, cursor: 'pointer', color: 'var(--text-muted)', padding: 0 }}>✕</button>
                                                     </div>
                                                 ) : (
                                                     <div style={{ position: 'relative' }}>
-                                                        <input
-                                                            type="text"
-                                                            className="form-input"
-                                                            placeholder={row.productName || 'Tìm sản phẩm...'}
+                                                        <input type="text" className="form-input"
+                                                            placeholder={row.productName || 'Tìm SP...'}
                                                             value={activeRowIdx === idx ? productSearch : ''}
                                                             onChange={e => { setProductSearch(e.target.value); setActiveRowIdx(idx); }}
                                                             onFocus={() => setActiveRowIdx(idx)}
-                                                            style={{ padding: '4px 8px', fontSize: 12, width: '100%' }}
-                                                        />
+                                                            style={{ padding: '3px 6px', fontSize: 11, width: '100%' }} />
                                                         {activeRowIdx === idx && filteredProducts.length > 0 && (
                                                             <div style={{
                                                                 position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 100,
@@ -333,11 +368,11 @@ export default function BudgetQuickAdd({ projectId, products, onDone, onClose })
                                                             }}>
                                                                 {filteredProducts.map(p => (
                                                                     <div key={p.id} onClick={() => selectProduct(idx, p)}
-                                                                        style={{ padding: '6px 10px', cursor: 'pointer', fontSize: 12, borderBottom: '1px solid var(--border-light)' }}
+                                                                        style={{ padding: '5px 8px', cursor: 'pointer', fontSize: 11, borderBottom: '1px solid var(--border-light)' }}
                                                                         onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-hover)'}
                                                                         onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
                                                                         <span style={{ fontWeight: 600 }}>{p.name}</span>
-                                                                        <span style={{ color: 'var(--text-muted)', marginLeft: 6 }}>{p.code} · {p.unit}</span>
+                                                                        <span style={{ color: 'var(--text-muted)', marginLeft: 4 }}>{p.code}</span>
                                                                     </div>
                                                                 ))}
                                                             </div>
@@ -345,39 +380,38 @@ export default function BudgetQuickAdd({ projectId, products, onDone, onClose })
                                                     </div>
                                                 )}
                                             </td>
+                                            <td><input type="text" className="form-input" value={row.unit} onChange={e => updateRow(idx, 'unit', e.target.value)} style={{ padding: '3px 4px', fontSize: 11, width: '100%', textAlign: 'center' }} /></td>
+                                            <td><input type="number" className="form-input" value={row.quantity} onChange={e => updateRow(idx, 'quantity', e.target.value)} style={{ padding: '3px 4px', fontSize: 11, width: '100%', textAlign: 'right' }} /></td>
+                                            <td><input type="number" className="form-input" value={row.unitPrice} onChange={e => updateRow(idx, 'unitPrice', e.target.value)} style={{ padding: '3px 4px', fontSize: 11, width: '100%', textAlign: 'right' }} /></td>
+                                            <td style={{ textAlign: 'right', fontWeight: 600, fontSize: 11 }}>{fmt((Number(row.quantity) || 0) * (Number(row.unitPrice) || 0))}</td>
                                             <td>
-                                                <input type="text" className="form-input" value={row.unit}
-                                                    onChange={e => updateRow(idx, 'unit', e.target.value)}
-                                                    style={{ padding: '4px 6px', fontSize: 12, width: '100%', textAlign: 'center' }} />
+                                                <select className="form-input" value={row.costType} onChange={e => updateRow(idx, 'costType', e.target.value)} style={{ padding: '3px 2px', fontSize: 10, width: '100%' }}>
+                                                    {COST_TYPES.map(ct => <option key={ct} value={ct}>{ct}</option>)}
+                                                </select>
                                             </td>
                                             <td>
-                                                <input type="number" className="form-input" value={row.quantity}
-                                                    onChange={e => updateRow(idx, 'quantity', e.target.value)}
-                                                    style={{ padding: '4px 6px', fontSize: 12, width: '100%', textAlign: 'right' }} />
+                                                <input type="text" className="form-input" list="group1-list" value={row.group1} onChange={e => updateRow(idx, 'group1', e.target.value)} style={{ padding: '3px 4px', fontSize: 10, width: '100%' }} placeholder="VD: Phần thô" />
                                             </td>
                                             <td>
-                                                <input type="number" className="form-input" value={row.unitPrice}
-                                                    onChange={e => updateRow(idx, 'unitPrice', e.target.value)}
-                                                    style={{ padding: '4px 6px', fontSize: 12, width: '100%', textAlign: 'right' }} />
-                                            </td>
-                                            <td style={{ textAlign: 'right', fontWeight: 600, fontSize: 12 }}>
-                                                {fmt((Number(row.quantity) || 0) * (Number(row.unitPrice) || 0))}
+                                                <input type="text" className="form-input" list="group2-list" value={row.group2} onChange={e => updateRow(idx, 'group2', e.target.value)} style={{ padding: '3px 4px', fontSize: 10, width: '100%' }} placeholder="VD: P.Khách" />
                                             </td>
                                             <td>
-                                                <input type="text" className="form-input" value={row.category}
-                                                    onChange={e => updateRow(idx, 'category', e.target.value)}
-                                                    style={{ padding: '4px 6px', fontSize: 11, width: '100%' }} />
+                                                <select className="form-input" value={row.supplierTag} onChange={e => updateRow(idx, 'supplierTag', e.target.value)} style={{ padding: '3px 2px', fontSize: 10, width: '100%' }}>
+                                                    {SUPPLIER_TAGS.map(t => <option key={t} value={t}>{t || '—'}</option>)}
+                                                </select>
                                             </td>
                                             <td>
                                                 <button onClick={() => removeRow(idx)}
-                                                    style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#ef4444', fontSize: 14, padding: 0 }}>🗑</button>
+                                                    style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#ef4444', fontSize: 13, padding: 0 }}>🗑</button>
                                             </td>
                                         </tr>
                                     ))}
                                 </tbody>
                             </table>
                         </div>
-
+                        {/* Datalists for autocomplete */}
+                        <datalist id="group1-list">{GROUP1_PRESETS.map(g => <option key={g} value={g} />)}</datalist>
+                        <datalist id="group2-list">{GROUP2_PRESETS.map(g => <option key={g} value={g} />)}</datalist>
                         <button onClick={addRow} className="btn btn-ghost btn-sm" style={{ marginTop: 8 }}>+ Thêm dòng</button>
                     </div>
                 )}
@@ -386,7 +420,7 @@ export default function BudgetQuickAdd({ projectId, products, onDone, onClose })
                 {mode === 'quick' && (
                     <div style={{ padding: '12px 20px', borderTop: '1px solid var(--border-light)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                         <div style={{ fontSize: 13 }}>
-                            <strong>{validCount}</strong> sản phẩm hợp lệ · Tổng: <strong style={{ color: 'var(--accent-primary)' }}>{fmt(totalAmount)}đ</strong>
+                            <strong>{validCount}</strong> SP hợp lệ · Tổng: <strong style={{ color: 'var(--accent-primary)' }}>{fmt(totalAmount)}đ</strong>
                         </div>
                         <div style={{ display: 'flex', gap: 8 }}>
                             <button className="btn btn-secondary btn-sm" onClick={onClose}>Hủy</button>

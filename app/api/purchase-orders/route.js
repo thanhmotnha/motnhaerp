@@ -42,21 +42,24 @@ export const POST = withAuth(async (request) => {
     const warnings = [];
     let needsApproval = false;
 
-    // ====== BUDGET GUARDRAILS ======
+    // ====== TRIPLE-CONSTRAINT BUDGET GUARDRAILS ======
     if (items && poData.projectId) {
         for (const item of items) {
             if (!item.materialPlanId) continue;
-            const plan = await prisma.materialPlan.findUnique({ where: { id: item.materialPlanId } });
+            const plan = await prisma.materialPlan.findUnique({
+                where: { id: item.materialPlanId },
+                include: { product: { select: { name: true, code: true } } },
+            });
             if (!plan || !plan.isLocked) continue;
 
-            // Price check
+            // 1. Price check — đơn giá vượt dự toán
             if (plan.budgetUnitPrice > 0 && item.unitPrice > plan.budgetUnitPrice) {
                 const diff = ((item.unitPrice - plan.budgetUnitPrice) / plan.budgetUnitPrice * 100).toFixed(1);
-                warnings.push(`${item.productName}: ĐG ${item.unitPrice.toLocaleString()} > DT ${plan.budgetUnitPrice.toLocaleString()} (+${diff}%)`);
+                warnings.push(`💰 ${item.productName}: ĐG ${item.unitPrice.toLocaleString()} > DT ${plan.budgetUnitPrice.toLocaleString()} (+${diff}%)`);
                 needsApproval = true;
             }
 
-            // Quantity check
+            // 2. Quantity check — khối lượng vượt giới hạn
             const maxAllowed = plan.quantity * (1 + plan.wastePercent / 100);
             const totalOrdered = plan.orderedQty + item.quantity;
             if (totalOrdered > maxAllowed) {
@@ -64,6 +67,13 @@ export const POST = withAuth(async (request) => {
                     error: `${item.productName}: Tổng đặt (${totalOrdered}) vượt giới hạn (${maxAllowed}). Cần tạo phiếu điều chỉnh.`,
                     type: 'QUANTITY_EXCEEDED',
                 }, { status: 422 });
+            }
+
+            // 3. Material substitution check — thay đổi chủng loại vật tư
+            if (item.productId && plan.productId && item.productId !== plan.productId) {
+                const planProduct = plan.product?.name || plan.productId;
+                warnings.push(`🔄 Thay VT: DT "${planProduct}" → PO "${item.productName || item.productId}". Kiểm tra lại chủng loại.`);
+                needsApproval = true;
             }
         }
     }
