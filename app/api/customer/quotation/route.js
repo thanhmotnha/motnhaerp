@@ -3,8 +3,8 @@ import prisma from '@/lib/prisma';
 import { NextResponse } from 'next/server';
 
 // GET /api/customer/quotation — Báo giá cho khách hàng
-export const GET = withAuth(async (request) => {
-    const user = request.user;
+export const GET = withAuth(async (request, context, session) => {
+    const user = session.user;
 
     const customer = await prisma.customer.findFirst({
         where: {

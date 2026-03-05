@@ -3,10 +3,11 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
-    LayoutDashboard, GitBranch, Users, Building2, FileText,
+    LayoutDashboard, TrendingUp, Users, Building2, FileText,
     Package, ClipboardList, Wrench, CreditCard, Receipt,
     ShoppingCart, Truck, Warehouse, Wallet, UserCog,
-    BarChart3, ChevronRight, Shield, X, CalendarDays, Armchair, Factory
+    BarChart3, ChevronRight, Shield, X, CalendarDays, Armchair, Factory,
+    ScrollText, Activity
 } from 'lucide-react';
 import { useRole, ROLES } from '@/contexts/RoleContext';
 
@@ -14,7 +15,7 @@ const menuItems = [
     {
         section: 'Tổng quan', items: [
             { href: '/', icon: LayoutDashboard, label: 'Dashboard' },
-            { href: '/pipeline', icon: GitBranch, label: 'Pipeline' },
+            { href: '/pipeline', icon: TrendingUp, label: 'Pipeline' },
         ]
     },
     {
@@ -53,8 +54,8 @@ const menuItems = [
     {
         section: 'Hệ thống', items: [
             { href: '/admin/users', icon: Shield, label: 'Tài khoản', roles: ['giam_doc'] },
-            { href: '/admin/activity-log', icon: BarChart3, label: 'Nhật ký HĐ', roles: ['giam_doc', 'pho_gd'] },
-            { href: '/admin/system-health', icon: LayoutDashboard, label: 'Hệ thống', roles: ['giam_doc'] },
+            { href: '/admin/activity-log', icon: ScrollText, label: 'Nhật ký HĐ', roles: ['giam_doc', 'pho_gd'] },
+            { href: '/admin/system-health', icon: Activity, label: 'Hệ thống', roles: ['giam_doc'] },
         ]
     },
 ];

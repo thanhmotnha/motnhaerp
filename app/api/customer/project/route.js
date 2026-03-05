@@ -3,8 +3,8 @@ import prisma from '@/lib/prisma';
 import { NextResponse } from 'next/server';
 
 // GET /api/customer/project — Lấy thông tin dự án cho khách hàng đã login
-export const GET = withAuth(async (request) => {
-    const user = request.user;
+export const GET = withAuth(async (request, context, session) => {
+    const user = session.user;
 
     // Tìm customer theo email user
     const customer = await prisma.customer.findFirst({

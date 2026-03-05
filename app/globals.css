@@ -587,6 +587,57 @@ body {
   color: var(--text-primary);
 }
 
+/* Button variants */
+.btn-success {
+  background: rgba(22, 163, 74, 0.12);
+  color: #16A34A;
+  border: 1px solid rgba(22, 163, 74, 0.2);
+}
+.btn-success:hover {
+  background: rgba(22, 163, 74, 0.2);
+}
+.btn-warning {
+  background: rgba(217, 119, 6, 0.12);
+  color: #D97706;
+  border: 1px solid rgba(217, 119, 6, 0.2);
+}
+.btn-warning:hover {
+  background: rgba(217, 119, 6, 0.2);
+}
+.btn-info {
+  background: rgba(45, 92, 163, 0.12);
+  color: #2D5CA3;
+  border: 1px solid rgba(45, 92, 163, 0.2);
+}
+.btn-info:hover {
+  background: rgba(45, 92, 163, 0.2);
+}
+.btn-purple {
+  background: rgba(107, 79, 175, 0.12);
+  color: var(--status-purple);
+  border: 1px solid rgba(107, 79, 175, 0.2);
+}
+.btn-purple:hover {
+  background: rgba(107, 79, 175, 0.2);
+}
+
+/* Focus-visible for keyboard accessibility */
+.btn:focus-visible,
+.btn-icon:focus-visible {
+  outline: 2px solid var(--accent-primary);
+  outline-offset: 2px;
+}
+
+/* Disabled state */
+.btn:disabled,
+.btn-icon:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  pointer-events: none;
+  transform: none !important;
+  box-shadow: none !important;
+}
+
 /* ========================================
    CARDS
    ======================================== */
@@ -599,7 +650,7 @@ body {
 }
 
 .card:hover {
-  border-color: rgba(28, 58, 107, 0.15);
+  border-color: rgba(35, 64, 147, 0.12);
   box-shadow: var(--shadow-glow);
 }
 
@@ -643,13 +694,13 @@ body {
   left: 0;
   right: 0;
   height: 3px;
-  background: linear-gradient(90deg, #1C3A6B, #C9A84C);
+  background: linear-gradient(90deg, #234093, #DBB35E);
   opacity: 0;
   transition: opacity var(--transition-normal);
 }
 
 .stat-card:hover {
-  border-color: rgba(28, 58, 107, 0.15);
+  border-color: rgba(35, 64, 147, 0.12);
   box-shadow: var(--shadow-glow);
   transform: translateY(-2px);
 }
@@ -676,7 +727,7 @@ body {
 }
 
 .stat-card-icon.revenue {
-  background: rgba(28, 58, 107, 0.12);
+  background: rgba(35, 64, 147, 0.10);
   color: var(--accent-primary-hover);
 }
 
@@ -734,6 +785,12 @@ body {
 .table-container {
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;
+  border-radius: var(--border-radius-sm);
+}
+
+.table-container.sticky-header {
+  max-height: 480px;
+  overflow-y: auto;
 }
 
 .data-table {
@@ -751,10 +808,14 @@ body {
   color: var(--text-muted);
   border-bottom: 1px solid var(--border-color);
   white-space: nowrap;
+  background: var(--bg-secondary);
+  position: sticky;
+  top: 0;
+  z-index: 1;
 }
 
 .data-table td {
-  padding: 14px 16px;
+  padding: 13px 16px;
   font-size: 13px;
   color: var(--text-secondary);
   border-bottom: 1px solid var(--border-light);
@@ -766,7 +827,14 @@ body {
 }
 
 .data-table tbody tr:hover {
-  background: rgba(28, 58, 107, 0.04);
+  background: rgba(35, 64, 147, 0.04);
+}
+
+/* Keyboard focus on clickable rows */
+.data-table tbody tr[role="button"]:focus-visible {
+  outline: 2px solid var(--accent-primary);
+  outline-offset: -2px;
+  background: rgba(35, 64, 147, 0.06);
 }
 
 .data-table td.primary {
@@ -896,7 +964,7 @@ body {
 }
 
 .chart-bar.expense {
-  background: rgba(28, 58, 107, 0.25);
+  background: rgba(35, 64, 147, 0.2);
 }
 
 .chart-bar:hover {
@@ -1062,11 +1130,32 @@ body {
 .form-input:focus,
 .form-select:focus {
   border-color: var(--accent-primary);
-  box-shadow: 0 0 0 3px rgba(28, 58, 107, 0.08);
+  box-shadow: 0 0 0 3px rgba(35, 64, 147, 0.10);
 }
 
 .form-input::placeholder {
   color: var(--text-muted);
+}
+
+/* Error state */
+.form-input.error,
+.form-input[aria-invalid="true"] {
+  border-color: #DC2626;
+  box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.10);
+}
+.form-error-text {
+  display: block;
+  font-size: 11px;
+  color: #DC2626;
+  margin-top: 4px;
+}
+
+/* Disabled state */
+.form-input:disabled,
+.form-select:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  background: var(--border-color);
 }
 
 .form-select {
@@ -1206,6 +1295,11 @@ body {
   box-shadow: var(--shadow-sm);
 }
 
+.tab:focus-visible {
+  outline: 2px solid var(--accent-primary);
+  outline-offset: 2px;
+}
+
 .filter-bar {
   display: flex;
   align-items: center;
@@ -1300,7 +1394,7 @@ body {
 }
 
 .warehouse-card:hover {
-  border-color: rgba(28, 58, 107, 0.25);
+  border-color: rgba(35, 64, 147, 0.2);
   transform: translateY(-2px);
 }
 
@@ -1433,7 +1527,7 @@ body {
 }
 
 .dept-card:hover {
-  border-color: rgba(28, 58, 107, 0.15);
+  border-color: rgba(35, 64, 147, 0.12);
   box-shadow: var(--shadow-glow);
 }
 
@@ -1441,7 +1535,7 @@ body {
   width: 48px;
   height: 48px;
   border-radius: 12px;
-  background: rgba(28, 58, 107, 0.08);
+  background: rgba(35, 64, 147, 0.08);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1488,7 +1582,7 @@ body {
 }
 
 .report-card:hover {
-  border-color: rgba(28, 58, 107, 0.15);
+  border-color: rgba(35, 64, 147, 0.12);
   box-shadow: var(--shadow-glow);
 }
 
@@ -1691,7 +1785,7 @@ body {
 .project-tab.active {
   background: var(--accent-gradient);
   color: white;
-  box-shadow: 0 2px 8px rgba(28, 58, 107, 0.25);
+  box-shadow: 0 2px 8px rgba(35, 64, 147, 0.2);
 }
 
 .project-tab .tab-count {
@@ -2166,7 +2260,7 @@ body {
 }
 
 .quotation-detail-table tbody tr:hover {
-  background: rgba(28, 58, 107, 0.15);
+  background: rgba(35, 64, 147, 0.12);
 }
 
 .form-input-compact {
@@ -2179,7 +2273,7 @@ body {
 
 .form-input-compact:focus {
   border-color: var(--accent-primary);
-  box-shadow: 0 0 0 2px rgba(28, 58, 107, 0.15);
+  box-shadow: 0 0 0 2px rgba(35, 64, 147, 0.12);
 }
 
 select.form-input-compact {
@@ -2373,7 +2467,7 @@ select.form-input-compact {
 }
 
 .tree-leaf:hover {
-  background: rgba(28, 58, 107, 0.15);
+  background: rgba(35, 64, 147, 0.12);
   color: var(--text-primary);
 }
 
@@ -2436,7 +2530,7 @@ select.form-input-compact {
 
 /* Tree: selected leaf (multi-select mode) */
 .tree-leaf-selected {
-  background: rgba(28, 58, 107, 0.12) !important;
+  background: rgba(35, 64, 147, 0.10) !important;
   border-left: 3px solid var(--accent-primary);
   padding-left: 29px;
 }
@@ -2589,7 +2683,7 @@ select.form-input-compact {
 
 .quick-add-option:hover,
 .quick-add-option-active {
-  background: rgba(28, 58, 107, 0.08);
+  background: rgba(35, 64, 147, 0.08);
 }
 
 .quick-add-type {

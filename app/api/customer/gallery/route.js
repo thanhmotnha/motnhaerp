@@ -3,8 +3,8 @@ import prisma from '@/lib/prisma';
 import { NextResponse } from 'next/server';
 
 // GET /api/customer/gallery — Ảnh công trường cho khách hàng
-export const GET = withAuth(async (request) => {
-    const user = request.user;
+export const GET = withAuth(async (request, context, session) => {
+    const user = session.user;
 
     const customer = await prisma.customer.findFirst({
         where: {
@@ -50,7 +50,7 @@ export const GET = withAuth(async (request) => {
         orderBy: { date: 'desc' },
         select: {
             id: true,
-            photos: true,
+            images: true,
             date: true,
         },
         take: 50,
@@ -75,11 +75,11 @@ export const GET = withAuth(async (request) => {
     }
 
     for (const log of siteLogs) {
-        const photos = typeof log.photos === 'string'
-            ? JSON.parse(log.photos || '[]')
-            : (log.photos || []);
+        const imgs = typeof log.images === 'string'
+            ? JSON.parse(log.images || '[]')
+            : (log.images || []);
 
-        for (const url of photos) {
+        for (const url of imgs) {
             allPhotos.push({
                 url: typeof url === 'string' ? url : url.url,
                 date: log.date?.toISOString(),

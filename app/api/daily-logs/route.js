@@ -3,7 +3,7 @@ import prisma from '@/lib/prisma';
 import { NextResponse } from 'next/server';
 
 // POST /api/daily-logs — Tạo nhật ký công trường
-export const POST = withAuth(async (request) => {
+export const POST = withAuth(async (request, context, session) => {
     const body = await request.json();
     const { projectId, weather, workforce, workDone, issues, tomorrowPlan, date } = body;
 
@@ -34,7 +34,7 @@ export const POST = withAuth(async (request) => {
             progress: workDone.trim(),
             issues: issues?.trim() || '',
             images: JSON.stringify([]),
-            createdBy: request.user?.name || request.user?.email || '',
+            createdBy: session.user?.name || session.user?.email || '',
         },
     });
 
@@ -42,7 +42,7 @@ export const POST = withAuth(async (request) => {
 });
 
 // GET /api/daily-logs — Lấy danh sách nhật ký
-export const GET = withAuth(async (request) => {
+export const GET = withAuth(async (request, context, session) => {
     const { searchParams } = new URL(request.url);
     const projectId = searchParams.get('projectId');
     const limit = parseInt(searchParams.get('limit') || '20');
