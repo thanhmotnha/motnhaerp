@@ -19,21 +19,22 @@ import {
 import { useDashboard } from '@/hooks/useApi';
 import { useAuth } from '@/contexts/AuthContext';
 import { KPICard } from '@/components/KPICard';
+import { ErrorState } from '@/components/ErrorState';
 import { Card } from '@/components/ui/Card';
 import { Badge, getStatusVariant } from '@/components/ui/Badge';
 import { COLORS } from '@/lib/constants';
+import { formatCurrencyShort } from '@/lib/format';
 
-function fmt(n: number) {
-  if (n >= 1_000_000_000) return (n / 1_000_000_000).toFixed(1) + ' tỷ';
-  if (n >= 1_000_000) return (n / 1_000_000).toFixed(0) + ' tr';
-  if (n >= 1_000) return (n / 1_000).toFixed(0) + 'k';
-  return String(n);
-}
+const fmt = formatCurrencyShort;
 
 export default function DashboardScreen() {
   const { user, canViewFinance } = useAuth();
-  const { data, isLoading, refetch, isRefetching } = useDashboard();
+  const { data, isLoading, isError, refetch, isRefetching } = useDashboard();
   const stats = data?.stats;
+
+  if (isError) {
+    return <ErrorState message="Không thể tải dashboard" onRetry={refetch} />;
+  }
 
   return (
     <ScrollView

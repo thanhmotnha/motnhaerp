@@ -9,7 +9,7 @@ export const GET = withAuth(async (request) => {
     const { searchParams } = new URL(request.url);
     const { page, limit, skip } = parsePagination(searchParams);
 
-    const where = {};
+    const where = { deletedAt: null };
 
     const [data, total] = await Promise.all([
         prisma.contractor.findMany({

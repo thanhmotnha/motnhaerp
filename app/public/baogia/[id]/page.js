@@ -54,6 +54,23 @@ export default function PublicQuotationPage() {
     const { id } = useParams();
     const [data, setData] = useState(null);
     const [error, setError] = useState(null);
+    const [acceptModal, setAcceptModal] = useState(false);
+    const [acceptForm, setAcceptForm] = useState({ customerName: '', notes: '' });
+    const [accepting, setAccepting] = useState(false);
+    const [accepted, setAccepted] = useState(false);
+
+    const handleAccept = async () => {
+        if (!acceptForm.customerName.trim()) return alert('Vui lòng nhập tên xác nhận');
+        setAccepting(true);
+        const res = await fetch(`/api/public/quotations/${id}/accept`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(acceptForm),
+        });
+        setAccepting(false);
+        if (res.ok) { setAccepted(true); setAcceptModal(false); }
+        else { const d = await res.json(); alert(d.error || 'Lỗi hệ thống'); }
+    };
 
     useEffect(() => {
         fetch(`/api/public/quotations/${id}`)
@@ -163,9 +180,18 @@ export default function PublicQuotationPage() {
                     <img src="https://pub-1e1be66737b446708af785e6cc8fe673.r2.dev/assets/motnha-header.jpg" alt="Một Nhà" style={{ height: 28, width: 'auto' }} />
                     <span style={{ color: BRAND.gold, fontSize: 11, fontWeight: 500, fontFamily: 'Montserrat' }}>— Báo giá {q.code}</span>
                 </div>
-                <button onClick={() => window.print()} style={{ padding: '8px 24px', background: BRAND.gold, color: BRAND.blue, border: 'none', borderRadius: 6, fontSize: 13, fontWeight: 800, cursor: 'pointer', fontFamily: 'Montserrat' }}>
-                    🖨️ In / Tải PDF
-                </button>
+                <div style={{ display: 'flex', gap: 10 }}>
+                    {accepted ? (
+                        <span style={{ padding: '8px 16px', background: '#16a34a', color: '#fff', borderRadius: 6, fontSize: 13, fontWeight: 700 }}>✅ Đã chấp nhận báo giá</span>
+                    ) : q.status !== 'Hợp đồng' && (
+                        <button onClick={() => setAcceptModal(true)} style={{ padding: '8px 20px', background: '#16a34a', color: '#fff', border: 'none', borderRadius: 6, fontSize: 13, fontWeight: 800, cursor: 'pointer', fontFamily: 'Montserrat' }}>
+                            ✅ Chấp nhận báo giá
+                        </button>
+                    )}
+                    <button onClick={() => window.print()} style={{ padding: '8px 24px', background: BRAND.gold, color: BRAND.blue, border: 'none', borderRadius: 6, fontSize: 13, fontWeight: 800, cursor: 'pointer', fontFamily: 'Montserrat' }}>
+                        🖨️ In / Tải PDF
+                    </button>
+                </div>
             </div>
 
             <div className="pdf-page">
@@ -339,6 +365,36 @@ export default function PublicQuotationPage() {
                         </div>
                     </div>
                 </div>
+
+                {/* Accept Modal */}
+                {acceptModal && (
+                    <div className="no-print" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <div style={{ background: '#fff', borderRadius: 12, padding: 32, maxWidth: 420, width: '90%', fontFamily: 'Montserrat, sans-serif' }}>
+                            <div style={{ fontSize: 18, fontWeight: 800, color: BRAND.blue, marginBottom: 8 }}>✅ Xác nhận chấp nhận báo giá</div>
+                            <div style={{ fontSize: 13, color: BRAND.textMid, marginBottom: 20 }}>Báo giá <strong>{q.code}</strong> — {fmt(q.grandTotal)}</div>
+                            <div style={{ marginBottom: 14 }}>
+                                <label style={{ fontSize: 12, fontWeight: 700, color: BRAND.blue, display: 'block', marginBottom: 4 }}>Họ tên xác nhận *</label>
+                                <input value={acceptForm.customerName} onChange={e => setAcceptForm(f => ({ ...f, customerName: e.target.value }))}
+                                    placeholder="Nhập tên của bạn" style={{ width: '100%', padding: '10px 12px', border: `1.5px solid ${BRAND.grey}`, borderRadius: 6, fontSize: 13, fontFamily: 'Montserrat' }} />
+                            </div>
+                            <div style={{ marginBottom: 20 }}>
+                                <label style={{ fontSize: 12, fontWeight: 700, color: BRAND.blue, display: 'block', marginBottom: 4 }}>Ghi chú</label>
+                                <textarea value={acceptForm.notes} onChange={e => setAcceptForm(f => ({ ...f, notes: e.target.value }))}
+                                    rows={3} placeholder="Ghi chú thêm (nếu có)..." style={{ width: '100%', padding: '10px 12px', border: `1.5px solid ${BRAND.grey}`, borderRadius: 6, fontSize: 13, fontFamily: 'Montserrat', resize: 'vertical' }} />
+                            </div>
+                            <div style={{ display: 'flex', gap: 10 }}>
+                                <button onClick={handleAccept} disabled={accepting}
+                                    style={{ flex: 1, padding: '12px 0', background: '#16a34a', color: '#fff', border: 'none', borderRadius: 6, fontSize: 14, fontWeight: 800, cursor: 'pointer' }}>
+                                    {accepting ? 'Đang gửi...' : '✅ Xác nhận'}
+                                </button>
+                                <button onClick={() => setAcceptModal(false)}
+                                    style={{ padding: '12px 20px', background: BRAND.grey, color: BRAND.dark, border: 'none', borderRadius: 6, fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
+                                    Hủy
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )}
 
                 {/* BRAND STRIP */}
                 <div className="mn-brand-strip">

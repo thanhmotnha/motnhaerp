@@ -21,6 +21,11 @@ export async function middleware(request) {
         return NextResponse.next();
     }
 
+    // API requests with Bearer token (mobile app) — let withAuth() handle auth
+    if (pathname.startsWith('/api/') && request.headers.get('authorization')?.startsWith('Bearer ')) {
+        return NextResponse.next();
+    }
+
     const token = await getToken({ req: request, secret: process.env.NEXTAUTH_SECRET });
 
     if (!token) {

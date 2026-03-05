@@ -81,7 +81,7 @@ export default function PaymentsPage() {
         if (file && file.type.startsWith('image/')) setConfirmModal(prev => ({ ...prev, file, preview: URL.createObjectURL(file) }));
     };
     const confirmCollect = async () => {
-        if (!confirmModal) return;
+        if (!confirmModal || uploading) return;
         const { payment, file, amount } = confirmModal;
         if (!file) return alert('Bắt buộc tải lên ảnh xác nhận thanh toán!');
         if (!amount || amount <= 0) return alert('Nhập số tiền hợp lệ!');
@@ -112,6 +112,7 @@ export default function PaymentsPage() {
     };
 
     // === In phiếu thu ===
+    const esc = (s) => String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
     const printReceipt = (payment) => {
         const c = payment.contract;
         const today = new Date().toLocaleDateString('vi-VN');
@@ -164,15 +165,15 @@ ${[1, 2].map(copy => `
         <div class="mn-brand"><div class="mn-brand-name">CÔNG TY TNHH THIẾT KẾ & XÂY DỰNG MỘT NHÀ</div><div class="mn-brand-web">🌐 motnha.vn &nbsp;|&nbsp; 📞 0944 886 989</div></div>
         <div class="mn-info"><div><b>Trụ sở:</b> R6 Royal City, Thanh Xuân, HN</div><div><b>Showroom HN:</b> 10 Chương Dương Độ, Hoàn Kiếm</div><div><b>Showroom SL:</b> 105C Tô Hiệu, Sơn La</div><div><b>Nhà máy SX:</b> KĐT Picenza, Chiềng An, Sơn La</div></div>
     </div>
-    <div class="receipt-title"><h1>Phiếu Thu Tiền</h1><div class="date">Ngày ${today} — Mã HĐ: ${c?.code || '...'}</div></div>
+    <div class="receipt-title"><h1>Phiếu Thu Tiền</h1><div class="date">Ngày ${esc(today)} — Mã HĐ: ${esc(c?.code)}</div></div>
     <div class="info">
-        <div class="row"><span class="label">Người nộp tiền:</span><span class="value" contenteditable="true">${c?.customer?.name || '...'}</span></div>
-        <div class="row"><span class="label">Hợp đồng:</span><span class="value">${c?.code || ''} — ${c?.name || ''}</span></div>
-        <div class="row"><span class="label">Dự án:</span><span class="value">${c?.project?.name || '—'}</span></div>
-        <div class="row"><span class="label">Loại HĐ:</span><span class="value">${c?.type || ''}</span></div>
-        <div class="row"><span class="label">Đợt thanh toán:</span><span class="value">${payment.phase}</span></div>
-        <div class="row"><span class="label">Tỷ lệ:</span><span class="value">${receiptPct}% giá trị HĐ</span></div>
-        <div class="row"><span class="label">Lý do thu:</span><span class="value" contenteditable="true">Thanh toán đợt "${payment.phase}" theo HĐ ${c?.code || ''}</span></div>
+        <div class="row"><span class="label">Người nộp tiền:</span><span class="value" contenteditable="true">${esc(c?.customer?.name) || '...'}</span></div>
+        <div class="row"><span class="label">Hợp đồng:</span><span class="value">${esc(c?.code)} — ${esc(c?.name)}</span></div>
+        <div class="row"><span class="label">Dự án:</span><span class="value">${esc(c?.project?.name) || '—'}</span></div>
+        <div class="row"><span class="label">Loại HĐ:</span><span class="value">${esc(c?.type)}</span></div>
+        <div class="row"><span class="label">Đợt thanh toán:</span><span class="value">${esc(payment.phase)}</span></div>
+        <div class="row"><span class="label">Tỷ lệ:</span><span class="value">${esc(receiptPct)}% giá trị HĐ</span></div>
+        <div class="row"><span class="label">Lý do thu:</span><span class="value" contenteditable="true">Thanh toán đợt &ldquo;${esc(payment.phase)}&rdquo; theo HĐ ${esc(c?.code)}</span></div>
     </div>
     <div class="amount-box"><div class="label">SỐ TIỀN THU</div><div class="value">${amountText}</div></div>
     ${payment.proofUrl ? `<div style="text-align:center;margin:10px 0"><div style="font-size:10px;color:#888;margin-bottom:4px">Ảnh xác nhận:</div><img class="proof-img" src="${payment.proofUrl}" /></div>` : ''}

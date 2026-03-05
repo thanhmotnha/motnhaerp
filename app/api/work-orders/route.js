@@ -14,7 +14,7 @@ export const GET = withAuth(async (request) => {
     const search = searchParams.get('search');
     const projectId = searchParams.get('projectId');
 
-    const where = {};
+    const where = { deletedAt: null };
     if (status) where.status = status;
     if (priority) where.priority = priority;
     if (projectId) where.projectId = projectId;

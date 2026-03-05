@@ -13,7 +13,7 @@ export const GET = withAuth(async (request) => {
     const status = searchParams.get('status');
     const search = searchParams.get('search');
 
-    const where = {};
+    const where = { deletedAt: null };
     if (type) where.type = type;
     if (status) where.status = status;
     if (search) where.name = { contains: search, mode: 'insensitive' };

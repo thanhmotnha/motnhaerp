@@ -38,7 +38,7 @@ export const GET = withAuth(async (request) => {
     const type = searchParams.get('type');
     const search = searchParams.get('search');
 
-    const where = {};
+    const where = { deletedAt: null };
     if (status) where.status = status;
     if (type) where.type = type;
     if (search) {

@@ -3,6 +3,7 @@ import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { Card } from './ui/Card';
 import { Badge, getStatusVariant } from './ui/Badge';
 import { COLORS } from '@/lib/constants';
+import { formatCurrency, formatDate } from '@/lib/format';
 
 interface ApprovalCardProps {
   code: string;
@@ -16,13 +17,7 @@ interface ApprovalCardProps {
   onReject?: () => void;
 }
 
-function formatCurrency(n: number) {
-  return n.toLocaleString('vi-VN') + 'đ';
-}
 
-function formatDate(d: string) {
-  return new Date(d).toLocaleDateString('vi-VN');
-}
 
 export function ApprovalCard({
   code,

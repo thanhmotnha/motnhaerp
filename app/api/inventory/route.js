@@ -53,6 +53,15 @@ export const POST = withAuth(async (request) => {
     const code = await generateCode('inventoryTransaction', prefix);
     const qty = Number(data.quantity) || 0;
 
+    // Validate xuất kho không vượt tồn kho
+    if (data.type !== 'Nhập') {
+        const product = await prisma.product.findUnique({ where: { id: data.productId }, select: { stock: true, name: true } });
+        if (!product) return NextResponse.json({ error: 'Sản phẩm không tồn tại' }, { status: 400 });
+        if ((product.stock || 0) < qty) {
+            return NextResponse.json({ error: `Tồn kho không đủ. Hiện có: ${product.stock} — Cần xuất: ${qty}` }, { status: 400 });
+        }
+    }
+
     const tx = await prisma.inventoryTransaction.create({
         data: {
             code,

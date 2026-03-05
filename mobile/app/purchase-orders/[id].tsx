@@ -15,14 +15,8 @@ import { Card } from '@/components/ui/Card';
 import { Badge, getStatusVariant } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { COLORS } from '@/lib/constants';
+import { formatCurrency, formatDate } from '@/lib/format';
 
-function formatCurrency(n: number) {
-  return n.toLocaleString('vi-VN') + 'đ';
-}
-
-function formatDate(d: string) {
-  return new Date(d).toLocaleDateString('vi-VN');
-}
 
 export default function PODetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();

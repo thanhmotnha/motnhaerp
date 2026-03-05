@@ -15,16 +15,9 @@ import { Card } from '@/components/ui/Card';
 import { Badge, getStatusVariant } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { COLORS } from '@/lib/constants';
+import { formatCurrency, formatDate } from '@/lib/format';
 
-function formatDate(d?: string) {
-  if (!d) return '-';
-  return new Date(d).toLocaleDateString('vi-VN');
-}
 
-function formatCurrency(n?: number) {
-  if (!n) return '-';
-  return n.toLocaleString('vi-VN') + 'đ';
-}
 
 export default function ProjectDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();

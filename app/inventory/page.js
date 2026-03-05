@@ -64,12 +64,18 @@ export default function InventoryPage() {
 
     const handleSubmit = async () => {
         if (!form.productId || !form.warehouseId || !form.quantity) return;
+        if (Number(form.quantity) <= 0) return alert('Số lượng phải lớn hơn 0');
         setSaving(true);
-        await fetch('/api/inventory', {
+        const res = await fetch('/api/inventory', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ ...form, quantity: Number(form.quantity) }),
         });
+        if (!res.ok) {
+            const err = await res.json();
+            setSaving(false);
+            return alert(err.error || 'Lỗi khi tạo giao dịch kho');
+        }
         setSaving(false);
         setShowModal(false);
         fetchStock();

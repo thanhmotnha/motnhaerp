@@ -11,6 +11,7 @@ import {
 import { router } from 'expo-router';
 import { usePurchaseOrders, useExpenses, useContractorPayments, useApprovePO } from '@/hooks/useApi';
 import { ApprovalCard } from '@/components/ApprovalCard';
+import { ErrorState } from '@/components/ErrorState';
 import { COLORS } from '@/lib/constants';
 
 export default function ApprovalsScreen() {
@@ -21,6 +22,7 @@ export default function ApprovalsScreen() {
 
   const isRefreshing = poQuery.isRefetching || expenseQuery.isRefetching || paymentQuery.isRefetching;
   const isLoading = poQuery.isLoading || expenseQuery.isLoading || paymentQuery.isLoading;
+  const isError = poQuery.isError || expenseQuery.isError || paymentQuery.isError;
 
   function refresh() {
     poQuery.refetch();
@@ -75,11 +77,15 @@ export default function ApprovalsScreen() {
     );
   }
 
+  if (isError) {
+    return <ErrorState message="Không thể tải danh sách phê duyệt" onRetry={refresh} />;
+  }
+
   return (
     <SectionList
       style={styles.container}
       contentContainerStyle={styles.content}
-      sections={sections}
+      sections={sections as any}
       keyExtractor={(item) => item.id}
       renderSectionHeader={({ section }) => (
         <Text style={styles.sectionTitle}>{section.title}</Text>
@@ -109,7 +115,7 @@ export default function ApprovalsScreen() {
               amount={item.amount}
               status={item.status}
               date={item.createdAt}
-              onPress={() => {}}
+              onPress={() => { }}
             />
           );
         }
@@ -120,7 +126,7 @@ export default function ApprovalsScreen() {
             amount={item.amount}
             status={item.status}
             date={item.createdAt}
-            onPress={() => {}}
+            onPress={() => { }}
           />
         );
       }}
