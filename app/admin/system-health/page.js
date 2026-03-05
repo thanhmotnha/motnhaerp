@@ -20,15 +20,16 @@ export default function SystemHealthPage() {
     const [error, setError] = useState(null);
 
     useEffect(() => {
-        if (role && role !== 'giam_doc') { router.replace('/'); return; }
+        if (!role) return; // chờ role load
+        if (role !== 'giam_doc') { router.replace('/'); return; }
         fetch('/api/admin/system-health', { credentials: 'include' })
-            .then(r => r.json())
+            .then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
             .then(d => { setHealth(d); setLoading(false); })
             .catch(e => { setError(e.message); setLoading(false); });
     }, [role]);
 
-    if (role && role !== 'giam_doc') return null;
-    if (loading) return <div style={{ padding: 60, textAlign: 'center', color: 'var(--text-muted)' }}>Đang kiểm tra hệ thống...</div>;
+    if (!role || loading) return <div style={{ padding: 60, textAlign: 'center', color: 'var(--text-muted)' }}>Đang kiểm tra hệ thống...</div>;
+    if (role !== 'giam_doc') return null;
     if (error) return <div style={{ padding: 40, color: 'var(--status-danger)' }}>Lỗi: {error}</div>;
 
     const fmtDate = (d) => d ? new Date(d).toLocaleString('vi-VN') : '—';
