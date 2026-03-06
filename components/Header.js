@@ -26,11 +26,23 @@ const pageTitles = {
     '/hr/payroll': 'Bảng lương',
 };
 
-export default function Header({ onMenuToggle }) {
+export default function Header({ onMenuToggle, onSearchOpen }) {
     const pathname = usePathname();
     const { data: session } = useSession();
-    const title = pageTitles[pathname] || 'HomeERP';
+    const title = pageTitles[pathname] || pageTitles[Object.keys(pageTitles).find(k => k !== '/' && pathname.startsWith(k))] || 'HomeERP';
     const [dark, setDark] = useState(false);
+
+    // Ctrl+K shortcut
+    useEffect(() => {
+        const handler = (e) => {
+            if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+                e.preventDefault();
+                onSearchOpen?.();
+            }
+        };
+        window.addEventListener('keydown', handler);
+        return () => window.removeEventListener('keydown', handler);
+    }, [onSearchOpen]);
 
     useEffect(() => {
         const saved = localStorage.getItem('theme');
@@ -62,9 +74,12 @@ export default function Header({ onMenuToggle }) {
                     <Menu size={22} />
                 </button>
                 <h2 className="header-title">{title}</h2>
-                <div className="header-search">
+                <div className="header-search" onClick={() => onSearchOpen?.()}
+                    style={{ cursor: 'pointer' }}>
                     <span className="search-icon"><Search size={16} /></span>
-                    <input type="text" placeholder="Tìm kiếm dự án, khách hàng, vật tư..." aria-label="Tìm kiếm" />
+                    <input type="text" placeholder="Tìm kiếm... (Ctrl+K)" readOnly
+                        style={{ cursor: 'pointer' }}
+                        aria-label="Tìm kiếm" />
                 </div>
             </div>
             <div className="header-right">

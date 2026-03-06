@@ -5,11 +5,14 @@ import { usePathname } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import Sidebar from '@/components/Sidebar';
 import Header from '@/components/Header';
+import Breadcrumbs from '@/components/ui/Breadcrumbs';
+import GlobalSearch from '@/components/ui/GlobalSearch';
 
 export default function AppShell({ children }) {
     const pathname = usePathname();
     const { status } = useSession();
     const [sidebarOpen, setSidebarOpen] = useState(false);
+    const [searchOpen, setSearchOpen] = useState(false);
 
     const toggleSidebar = useCallback(() => setSidebarOpen(prev => !prev), []);
     const closeSidebar = useCallback(() => setSidebarOpen(false), []);
@@ -39,11 +42,14 @@ export default function AppShell({ children }) {
             <Sidebar isOpen={sidebarOpen} onClose={closeSidebar} />
             <div className={`sidebar-overlay ${sidebarOpen ? 'visible' : ''}`} onClick={closeSidebar} />
             <div className="main-content">
-                <Header onMenuToggle={toggleSidebar} />
+                <Header onMenuToggle={toggleSidebar} onSearchOpen={() => setSearchOpen(true)} />
                 <main className="page-content">
+                    <Breadcrumbs />
                     {children}
                 </main>
             </div>
+            <GlobalSearch isOpen={searchOpen} onClose={() => setSearchOpen(false)} />
         </div>
     );
 }
+
