@@ -7,7 +7,7 @@ import {
     Package, ClipboardList, Wrench, CreditCard, Receipt,
     ShoppingCart, Truck, Warehouse, Wallet, UserCog,
     BarChart3, ChevronRight, Shield, X, CalendarDays, Armchair, Factory,
-    ScrollText, Activity, ClipboardCheck, Banknote
+    ScrollText, Activity, ClipboardCheck, Banknote, Settings
 } from 'lucide-react';
 import { useRole, ROLES } from '@/contexts/RoleContext';
 
@@ -51,6 +51,7 @@ const menuItems = [
     },
     {
         section: 'Hệ thống', items: [
+            { href: '/admin/settings', icon: Settings, label: 'Cài đặt', roles: ['giam_doc'] },
             { href: '/admin/users', icon: Shield, label: 'Tài khoản', roles: ['giam_doc'] },
             { href: '/admin/activity-log', icon: ScrollText, label: 'Nhật ký HĐ', roles: ['giam_doc', 'pho_gd'] },
             { href: '/admin/system-health', icon: Activity, label: 'Sức khỏe HT', roles: ['giam_doc'] },
