@@ -6,6 +6,7 @@ import { apiFetch } from '@/lib/fetchClient';
 import { useToast } from '@/components/ui/Toast';
 import { CONTRACT_TYPES, PAYMENT_TEMPLATES, CONTRACT_STATUSES, TYPE_ICONS } from '@/lib/contractTemplates';
 import { PRESET_CATEGORIES, QUOTATION_TYPES, UNIT_OPTIONS } from '@/lib/quotation-constants';
+import { BUDGET_TEMPLATES_DEFAULT, COST_TYPES, GROUP1_PRESETS } from '@/lib/budgetTemplates';
 
 // ========= Company Settings Keys =========
 const SETTING_KEYS = [
@@ -26,6 +27,7 @@ const SETTING_KEYS = [
 const TABS = [
     { key: 'company', label: '🏢 Thông tin công ty', icon: '🏢' },
     { key: 'payment', label: '💵 Mẫu thanh toán', icon: '💵' },
+    { key: 'budget', label: '🧱 Mẫu dự toán', icon: '🧱' },
     { key: 'schedule', label: '📅 Mẫu tiến độ', icon: '📅' },
     { key: 'quotation', label: '📋 Mẫu báo giá', icon: '📋' },
 ];
@@ -50,6 +52,8 @@ export default function SettingsPage() {
         terms: 'Thanh toán theo tiến độ thi công',
     });
     const [quotationCategories, setQuotationCategories] = useState([]);
+    // Budget templates
+    const [budgetTemplates, setBudgetTemplates] = useState({});
 
     useEffect(() => {
         if (role && role !== 'giam_doc') { router.replace('/'); return; }
@@ -76,6 +80,12 @@ export default function SettingsPage() {
                 try { setQuotationCategories(JSON.parse(data.quotation_categories)); } catch { setQuotationCategories([...PRESET_CATEGORIES]); }
             } else {
                 setQuotationCategories([...PRESET_CATEGORIES]);
+            }
+            // Load budget templates
+            if (data?.budget_templates) {
+                try { setBudgetTemplates(JSON.parse(data.budget_templates)); } catch { setBudgetTemplates({ ...BUDGET_TEMPLATES_DEFAULT }); }
+            } else {
+                setBudgetTemplates({ ...BUDGET_TEMPLATES_DEFAULT });
             }
         } catch {
             const defaults = {};
@@ -106,6 +116,7 @@ export default function SettingsPage() {
                 payment_templates: JSON.stringify(paymentTemplates),
                 quotation_defaults: JSON.stringify(quotationDefaults),
                 quotation_categories: JSON.stringify(quotationCategories),
+                budget_templates: JSON.stringify(budgetTemplates),
             };
             await apiFetch('/api/admin/settings', {
                 method: 'PUT',
@@ -260,6 +271,75 @@ export default function SettingsPage() {
                                     </div>
                                 );
                             })}
+                        </>
+                    )}
+
+                    {/* ========== TAB: Budget Templates ========== */}
+                    {tab === 'budget' && (
+                        <>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+                                <div>
+                                    <SectionTitle icon="🧱" title="Mẫu dự toán vật tư" />
+                                    <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: '-8px 0 0 0' }}>Khi tạo dự toán nhanh → tab Template, hệ thống dùng mẫu này.</p>
+                                </div>
+                                <div style={{ display: 'flex', gap: 6 }}>
+                                    <button className="btn btn-ghost btn-sm" style={{ fontSize: 11 }} onClick={() => setBudgetTemplates({ ...BUDGET_TEMPLATES_DEFAULT })}>🔄 Reset</button>
+                                    <button className="btn btn-primary btn-sm" onClick={() => {
+                                        const name = prompt('Tên mẫu dự toán mới:');
+                                        if (!name || budgetTemplates[name]) return;
+                                        setBudgetTemplates(prev => ({ ...prev, [name]: [{ name: 'Vật tư mới', unit: 'cái', qty: 1, costType: 'Vật tư', group1: 'Phần thô' }] }));
+                                    }}>➕ Thêm mẫu</button>
+                                </div>
+                            </div>
+
+                            {Object.entries(budgetTemplates).map(([tplName, items]) => {
+                                const groups = [...new Set(items.map(i => i.group1).filter(Boolean))];
+                                return (
+                                    <div key={tplName} style={{ marginBottom: 20, border: '1px solid var(--border)', borderRadius: 10, overflow: 'hidden' }}>
+                                        <div style={{ padding: '10px 16px', background: 'var(--bg-secondary)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                            <div>
+                                                <span style={{ fontWeight: 700, fontSize: 14 }}>🏗️ {tplName}</span>
+                                                <span style={{ fontSize: 11, color: 'var(--text-muted)', marginLeft: 8 }}>{items.length} hạng mục</span>
+                                                {groups.length > 0 && <span style={{ fontSize: 10, color: 'var(--text-secondary)', marginLeft: 8 }}>📁 {groups.join(' · ')}</span>}
+                                            </div>
+                                            <button className="btn btn-ghost btn-sm" style={{ fontSize: 11, color: 'var(--status-danger)' }}
+                                                onClick={() => { if (confirm(`Xoá mẫu "${tplName}"?`)) setBudgetTemplates(prev => { const c = { ...prev }; delete c[tplName]; return c; }); }}>
+                                                🗑️
+                                            </button>
+                                        </div>
+                                        <div style={{ overflowX: 'auto' }}>
+                                            <table className="data-table" style={{ margin: 0, fontSize: 12 }}>
+                                                <thead><tr><th style={{ width: 30 }}>#</th><th>Tên vật tư</th><th style={{ width: 60 }}>ĐVT</th><th style={{ width: 70 }}>SL</th><th style={{ width: 90 }}>Loại CP</th><th style={{ width: 130 }}>Giai đoạn</th><th style={{ width: 35 }}></th></tr></thead>
+                                                <tbody>
+                                                    {items.map((item, i) => (
+                                                        <tr key={i}>
+                                                            <td style={{ color: 'var(--text-muted)', fontSize: 11 }}>{i + 1}</td>
+                                                            <td><input className="form-input" value={item.name} onChange={e => setBudgetTemplates(prev => ({ ...prev, [tplName]: prev[tplName].map((it, j) => j === i ? { ...it, name: e.target.value } : it) }))} style={{ fontSize: 12 }} /></td>
+                                                            <td><input className="form-input" value={item.unit} onChange={e => setBudgetTemplates(prev => ({ ...prev, [tplName]: prev[tplName].map((it, j) => j === i ? { ...it, unit: e.target.value } : it) }))} style={{ fontSize: 11, textAlign: 'center' }} /></td>
+                                                            <td><input className="form-input" type="number" value={item.qty} onChange={e => setBudgetTemplates(prev => ({ ...prev, [tplName]: prev[tplName].map((it, j) => j === i ? { ...it, qty: Number(e.target.value) } : it) }))} style={{ fontSize: 11, textAlign: 'right' }} /></td>
+                                                            <td>
+                                                                <select className="form-input" value={item.costType} onChange={e => setBudgetTemplates(prev => ({ ...prev, [tplName]: prev[tplName].map((it, j) => j === i ? { ...it, costType: e.target.value } : it) }))} style={{ fontSize: 10 }}>
+                                                                    {COST_TYPES.map(ct => <option key={ct} value={ct}>{ct}</option>)}
+                                                                </select>
+                                                            </td>
+                                                            <td>
+                                                                <input className="form-input" list="budget-group1-list" value={item.group1 || ''} onChange={e => setBudgetTemplates(prev => ({ ...prev, [tplName]: prev[tplName].map((it, j) => j === i ? { ...it, group1: e.target.value } : it) }))} style={{ fontSize: 11 }} />
+                                                            </td>
+                                                            <td><button className="btn btn-ghost btn-sm" style={{ color: 'var(--status-danger)', fontSize: 11 }} onClick={() => setBudgetTemplates(prev => ({ ...prev, [tplName]: prev[tplName].filter((_, j) => j !== i) }))}>✕</button></td>
+                                                        </tr>
+                                                    ))}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                        <div style={{ padding: '8px 16px', borderTop: '1px solid var(--border)' }}>
+                                            <button className="btn btn-ghost btn-sm" style={{ fontSize: 11 }} onClick={() => setBudgetTemplates(prev => ({ ...prev, [tplName]: [...prev[tplName], { name: '', unit: 'cái', qty: 1, costType: 'Vật tư', group1: '' }] }))}>
+                                                ➕ Thêm hạng mục
+                                            </button>
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                            <datalist id="budget-group1-list">{GROUP1_PRESETS.map(g => <option key={g} value={g} />)}</datalist>
                         </>
                     )}
 
