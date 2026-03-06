@@ -44,6 +44,9 @@ COPY --from=builder /app/.next/standalone ./
 COPY --from=builder /app/.next/static ./.next/static
 COPY --from=builder /app/public ./public
 
+# Seed copy: product images that need to survive volume mount
+COPY --from=builder /app/public/uploads ./public-seed/uploads
+
 # Copy entrypoint
 COPY scripts/entrypoint.sh ./entrypoint.sh
 RUN chmod +x ./entrypoint.sh
@@ -51,6 +54,7 @@ RUN chmod +x ./entrypoint.sh
 # Fix permissions
 RUN mkdir -p .next/cache && chown -R nextjs:nodejs .next/cache
 RUN mkdir -p public/uploads && chown -R nextjs:nodejs public/uploads
+RUN chown -R nextjs:nodejs public-seed
 
 USER nextjs
 
