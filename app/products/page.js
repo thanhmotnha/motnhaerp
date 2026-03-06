@@ -645,55 +645,38 @@ export default function ProductsPage() {
                                     return (
                                         <div style={{ padding: '8px 12px' }}>
                                             {sortedGroups.map(([catName, prods]) => (
-                                                <div key={catName} style={{ marginBottom: 16 }}>
+                                                <div key={catName} style={{ marginBottom: 20 }}>
                                                     {/* Category header */}
                                                     <div style={{
                                                         display: 'flex', alignItems: 'center', gap: 8,
-                                                        padding: '8px 12px', marginBottom: 4,
+                                                        padding: '8px 14px', marginBottom: 8,
                                                         background: 'linear-gradient(90deg, #234093 0%, #3b5998 100%)',
                                                         borderRadius: 8, color: '#fff',
                                                     }}>
                                                         <span style={{ fontSize: 13, fontWeight: 700 }}>▼ {catName}</span>
                                                         <span style={{ fontSize: 11, opacity: 0.7 }}>({prods.length})</span>
                                                     </div>
-                                                    {/* Product rows */}
-                                                    {prods.map(p => (
-                                                        <div key={p.id} onClick={() => setDrawerProduct(p)} style={{
-                                                            display: 'flex', alignItems: 'center', gap: 10,
-                                                            padding: '8px 12px',
-                                                            borderBottom: '1px solid var(--border-color)',
-                                                            cursor: 'pointer', transition: 'background .1s',
-                                                            borderRadius: 4,
-                                                        }}
-                                                            onMouseEnter={e => e.currentTarget.style.background = 'var(--surface-alt, #f8f9fa)'}
-                                                            onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
-                                                            {/* Thumbnail */}
-                                                            <div style={{
-                                                                width: 40, height: 40, borderRadius: 6, overflow: 'hidden', flexShrink: 0,
-                                                                border: '1px solid var(--border-color)',
-                                                                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                                                background: '#f9f9f9',
-                                                            }}>
-                                                                {p.image
-                                                                    ? <img src={p.image} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="" />
-                                                                    : <span style={{ fontSize: 16, opacity: 0.1 }}>📷</span>}
+                                                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 10 }}>
+                                                        {prods.map(p => (
+                                                            <div key={p.id} onClick={() => setDrawerProduct(p)} style={{
+                                                                border: '1px solid var(--border-color)', borderRadius: 10,
+                                                                overflow: 'hidden', background: 'var(--bg-card, #fff)',
+                                                                cursor: 'pointer', transition: 'box-shadow .15s, transform .15s',
+                                                            }}
+                                                                onMouseEnter={e => { e.currentTarget.style.boxShadow = '0 4px 16px rgba(0,0,0,0.12)'; e.currentTarget.style.transform = 'translateY(-2px)'; }}
+                                                                onMouseLeave={e => { e.currentTarget.style.boxShadow = 'none'; e.currentTarget.style.transform = 'none'; }}>
+                                                                <div style={{ width: '100%', aspectRatio: '4/3', background: '#f5f3ef', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', position: 'relative' }}>
+                                                                    {p.image ? <img src={p.image} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="" /> : <span style={{ fontSize: 32, opacity: 0.08 }}>📷</span>}
+                                                                    <div style={{ position: 'absolute', top: 6, right: 6, width: 10, height: 10, borderRadius: '50%', border: '2px solid #fff', background: p.stock === 0 ? '#ef4444' : p.stock <= (p.minStock || 5) ? '#eab308' : '#22c55e' }} title={`Tồn: ${p.stock}`} />
+                                                                </div>
+                                                                <div style={{ padding: '8px 10px' }}>
+                                                                    <div style={{ fontSize: 12, fontWeight: 600, color: '#234093', lineHeight: 1.3, minHeight: 32, overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>{p.name}</div>
+                                                                    <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 2 }}>{p.unit}{p.brand ? ` · ${p.brand}` : ''}</div>
+                                                                    <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)', marginTop: 4 }}>{fmt(p.salePrice)} <span style={{ fontSize: 10, fontWeight: 400, opacity: 0.5 }}>đ</span></div>
+                                                                </div>
                                                             </div>
-                                                            {/* Name */}
-                                                            <div style={{ flex: 1, minWidth: 0 }}>
-                                                                <div style={{ fontSize: 13, fontWeight: 600, color: '#234093', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name}</div>
-                                                                <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>{p.unit}{p.brand ? ` · ${p.brand}` : ''}</div>
-                                                            </div>
-                                                            {/* Price */}
-                                                            <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)', whiteSpace: 'nowrap' }}>
-                                                                {fmt(p.salePrice)} <span style={{ fontSize: 10, fontWeight: 400, opacity: 0.5 }}>đ</span>
-                                                            </div>
-                                                            {/* Stock dot */}
-                                                            <div style={{
-                                                                width: 8, height: 8, borderRadius: '50%', flexShrink: 0,
-                                                                background: p.stock === 0 ? '#ef4444' : p.stock <= (p.minStock || 5) ? '#eab308' : '#22c55e',
-                                                            }} title={`Tồn: ${p.stock}`} />
-                                                        </div>
-                                                    ))}
+                                                        ))}
+                                                    </div>
                                                 </div>
                                             ))}
                                         </div>
