@@ -2,7 +2,8 @@
 import { useState, useEffect } from 'react';
 import { usePathname } from 'next/navigation';
 import { useSession, signOut } from 'next-auth/react';
-import { Sun, Moon, Bell, Settings, LogOut, Search, Menu } from 'lucide-react';
+import { Sun, Moon, Settings, LogOut, Search, Menu } from 'lucide-react';
+import NotificationBell from '@/components/ui/NotificationBell';
 
 const pageTitles = {
     '/': 'Dashboard',
@@ -21,6 +22,8 @@ const pageTitles = {
     '/contracts': 'Hợp đồng',
     '/work-orders': 'Phiếu công việc',
     '/partners': 'Đối tác',
+    '/acceptance': 'Biên bản Nghiệm thu',
+    '/hr/payroll': 'Bảng lương',
 };
 
 export default function Header({ onMenuToggle }) {
@@ -68,10 +71,7 @@ export default function Header({ onMenuToggle }) {
                 <button className="header-btn" title={dark ? 'Chuyển sang sáng' : 'Chuyển sang tối'} onClick={toggleTheme} aria-label="Chuyển đổi giao diện">
                     {dark ? <Sun size={20} /> : <Moon size={20} />}
                 </button>
-                <button className="header-btn" title="Thông báo" aria-label="Thông báo">
-                    <Bell size={20} />
-                    <span className="badge-dot"></span>
-                </button>
+                <NotificationBell />
                 <button className="header-btn" title="Cài đặt" aria-label="Cài đặt">
                     <Settings size={20} />
                 </button>

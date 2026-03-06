@@ -7,7 +7,7 @@ import {
     Package, ClipboardList, Wrench, CreditCard, Receipt,
     ShoppingCart, Truck, Warehouse, Wallet, UserCog,
     BarChart3, ChevronRight, Shield, X, CalendarDays, Armchair, Factory,
-    ScrollText, Activity
+    ScrollText, Activity, ClipboardCheck, Banknote
 } from 'lucide-react';
 import { useRole, ROLES } from '@/contexts/RoleContext';
 
@@ -26,6 +26,7 @@ const menuItems = [
             { href: '/quotations', icon: ClipboardList, label: 'Báo giá', roles: ['giam_doc', 'pho_gd', 'ke_toan'] },
             { href: '/contracts', icon: FileText, label: 'Hợp đồng', roles: ['giam_doc', 'pho_gd', 'ke_toan'] },
             { href: '/work-orders', icon: Wrench, label: 'Phiếu công việc' },
+            { href: '/acceptance', icon: ClipboardCheck, label: 'Nghiệm thu', roles: ['giam_doc', 'pho_gd', 'quan_ly_du_an'] },
         ]
     },
     {
@@ -44,6 +45,7 @@ const menuItems = [
             { href: '/furniture', icon: Armchair, label: 'Nội Thất May Đo' },
             { href: '/workshops', icon: Factory, label: 'Xưởng SX', roles: ['giam_doc', 'pho_gd', 'quan_ly_du_an'] },
             { href: '/hr', icon: UserCog, label: 'Nhân sự', roles: ['giam_doc', 'pho_gd'] },
+            { href: '/hr/payroll', icon: Banknote, label: 'Bảng lương', roles: ['giam_doc', 'ke_toan'] },
             { href: '/schedule-templates', icon: CalendarDays, label: 'Mẫu tiến độ', roles: ['giam_doc', 'pho_gd'] },
         ]
     },

@@ -1,5 +1,6 @@
 'use client';
 import { useState, useEffect, useCallback } from 'react';
+import { SkeletonDashboard } from '@/components/ui/Skeleton';
 
 const fmt = (n) => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(n || 0);
 const fmtShort = (n) => {
@@ -135,11 +136,7 @@ export default function Dashboard() {
 
     useEffect(() => { load(); }, [load]);
 
-    if (loading) return (
-        <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 400, color: 'var(--text-muted)' }}>
-            Đang tải dữ liệu...
-        </div>
-    );
+    if (loading) return <SkeletonDashboard />;
 
     const s = data.stats;
     const collectionRate = s.totalContractValue > 0 ? Math.round(s.totalPaid / s.totalContractValue * 100) : 0;
