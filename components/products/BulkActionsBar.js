@@ -35,9 +35,11 @@ export default function BulkActionsBar({ selectedIds, onDone, categories }) {
                     onClick={async () => {
                         if (!confirm(`Xóa ${count} sản phẩm đã chọn? Hành động này không thể hoàn tác.`)) return;
                         setLoading(true);
-                        await Promise.all([...selectedIds].map(id =>
-                            fetch(`/api/products/${id}`, { method: 'DELETE' })
-                        ));
+                        await fetch('/api/products', {
+                            method: 'PATCH',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ action: 'bulkDelete', ids: [...selectedIds] }),
+                        });
                         setLoading(false);
                         onDone();
                     }}

@@ -182,6 +182,19 @@ export const PATCH = withAuth(async (request) => {
         return NextResponse.json({ updated: result.count });
     }
 
+    // Bulk delete
+    if (action === 'bulkDelete') {
+        const { ids } = body;
+        if (!ids?.length) return NextResponse.json({ error: 'ids required' }, { status: 400 });
+        await prisma.$transaction([
+            prisma.inventoryTransaction.deleteMany({ where: { productId: { in: ids } } }),
+            prisma.materialPlan.deleteMany({ where: { productId: { in: ids } } }),
+            prisma.quotationItem.updateMany({ where: { productId: { in: ids } }, data: { productId: null } }),
+            prisma.product.deleteMany({ where: { id: { in: ids } } }),
+        ]);
+        return NextResponse.json({ deleted: ids.length });
+    }
+
     return NextResponse.json({ error: 'Action not recognized' }, { status: 400 });
 });
 
