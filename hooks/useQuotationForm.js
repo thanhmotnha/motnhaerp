@@ -40,7 +40,7 @@ export default function useQuotationForm() {
     useEffect(() => {
         apiFetch('/api/customers?limit=1000').then(d => setCustomers(d.data || [])).catch(() => { });
         apiFetch('/api/projects?limit=1000').then(d => setProjects(d.data || [])).catch(() => { });
-        apiFetch('/api/products?limit=1000').then(d => setProducts(d.data || [])).catch(() => { });
+        apiFetch('/api/products?limit=5000').then(d => setProducts(d.data || [])).catch(() => { });
         apiFetch('/api/work-item-library?limit=1000').then(d => setLibrary(d.data || d || [])).catch(() => { });
         apiFetch('/api/product-categories').then(cats => setProdCategories(cats || [])).catch(() => { });
     }, []);
@@ -89,13 +89,24 @@ export default function useQuotationForm() {
             });
             return Object.values(tree);
         }
-        // Build from ProductCategory hierarchy
+        // Build name→id map for all categories (including children)
+        const nameToCatId = {};
+        const collectNames = (cats) => {
+            cats.forEach(c => {
+                nameToCatId[c.name] = c.id;
+                if (c.children) collectNames(c.children);
+            });
+        };
+        collectNames(prodCategories);
+
+        // Assign products by categoryId, else by category name match
         const prodByCatId = {};
         const prodNoCat = [];
         filteredProducts.forEach(p => {
-            if (p.categoryId) {
-                if (!prodByCatId[p.categoryId]) prodByCatId[p.categoryId] = [];
-                prodByCatId[p.categoryId].push(p);
+            const catId = p.categoryId || nameToCatId[p.category];
+            if (catId) {
+                if (!prodByCatId[catId]) prodByCatId[catId] = [];
+                prodByCatId[catId].push(p);
             } else {
                 prodNoCat.push(p);
             }
