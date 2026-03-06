@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { apiFetch } from '@/lib/fetchClient';
 import { useToast } from '@/components/ui/Toast';
 import { CONTRACT_TYPES, PAYMENT_TEMPLATES, CONTRACT_STATUSES, TYPE_ICONS } from '@/lib/contractTemplates';
+import { PRESET_CATEGORIES, QUOTATION_TYPES, UNIT_OPTIONS } from '@/lib/quotation-constants';
 
 // ========= Company Settings Keys =========
 const SETTING_KEYS = [
@@ -43,11 +44,12 @@ export default function SettingsPage() {
     // Schedule templates from DB
     const [scheduleTemplates, setScheduleTemplates] = useState([]);
     const [scheduleLoading, setScheduleLoading] = useState(false);
-    // Quotation defaults
+    // Quotation defaults + category templates
     const [quotationDefaults, setQuotationDefaults] = useState({
         vat: 10, managementFeeRate: 5, designFeeRate: 0, warranty: '12 tháng',
         terms: 'Thanh toán theo tiến độ thi công',
     });
+    const [quotationCategories, setQuotationCategories] = useState([]);
 
     useEffect(() => {
         if (role && role !== 'giam_doc') { router.replace('/'); return; }
@@ -68,6 +70,12 @@ export default function SettingsPage() {
             // Load quotation defaults from settings
             if (data?.quotation_defaults) {
                 try { setQuotationDefaults(JSON.parse(data.quotation_defaults)); } catch { }
+            }
+            // Load quotation category templates
+            if (data?.quotation_categories) {
+                try { setQuotationCategories(JSON.parse(data.quotation_categories)); } catch { setQuotationCategories([...PRESET_CATEGORIES]); }
+            } else {
+                setQuotationCategories([...PRESET_CATEGORIES]);
             }
         } catch {
             const defaults = {};
@@ -97,6 +105,7 @@ export default function SettingsPage() {
                 ...settings,
                 payment_templates: JSON.stringify(paymentTemplates),
                 quotation_defaults: JSON.stringify(quotationDefaults),
+                quotation_categories: JSON.stringify(quotationCategories),
             };
             await apiFetch('/api/admin/settings', {
                 method: 'PUT',
@@ -291,7 +300,7 @@ export default function SettingsPage() {
                         </>
                     )}
 
-                    {/* ========== TAB: Quotation Defaults ========== */}
+                    {/* ========== TAB: Quotation ========== */}
                     {tab === 'quotation' && (
                         <>
                             <SectionTitle icon="📋" title="Giá trị mặc định báo giá" />
@@ -323,9 +332,63 @@ export default function SettingsPage() {
                                 </div>
                             </div>
 
-                            <SectionTitle icon="🎨" title="Mẫu hạng mục báo giá" />
-                            <p style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 12 }}>Quản lý trong module Báo giá → khi tạo báo giá mới, chọn từ mẫu có sẵn.</p>
-                            <button className="btn btn-ghost" onClick={() => router.push('/quotations/create')}>📋 Tạo báo giá mới →</button>
+                            {/* Quotation Category Templates */}
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+                                <div>
+                                    <SectionTitle icon="🗂️" title="Mẫu hạng mục báo giá" />
+                                    <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: '-8px 0 0 0' }}>Cây hạng mục mặc định khi tạo báo giá mới. Gồm Nhóm chính → Phân nhóm con.</p>
+                                </div>
+                                <div style={{ display: 'flex', gap: 6 }}>
+                                    <button className="btn btn-ghost btn-sm" style={{ fontSize: 11 }} onClick={() => setQuotationCategories([...PRESET_CATEGORIES])}>🔄 Reset mặc định</button>
+                                    <button className="btn btn-primary btn-sm" onClick={() => setQuotationCategories(prev => [...prev, { name: 'Nhóm mới', subcategories: ['Phân nhóm 1'] }])}>
+                                        ➕ Thêm nhóm
+                                    </button>
+                                </div>
+                            </div>
+
+                            {quotationCategories.map((cat, ci) => (
+                                <div key={ci} style={{ marginBottom: 16, border: '1px solid var(--border)', borderRadius: 10, overflow: 'hidden' }}>
+                                    <div style={{ padding: '10px 16px', background: 'var(--bg-secondary)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 1 }}>
+                                            <span style={{ fontSize: 16 }}>📁</span>
+                                            <input className="form-input" value={cat.name}
+                                                onChange={e => setQuotationCategories(prev => prev.map((c, i) => i === ci ? { ...c, name: e.target.value } : c))}
+                                                style={{ fontSize: 14, fontWeight: 700, border: 'none', background: 'transparent', padding: '4px 8px' }} />
+                                        </div>
+                                        <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+                                            <span className="badge muted" style={{ fontSize: 10 }}>{cat.subcategories?.length || 0} phân nhóm</span>
+                                            <button className="btn btn-ghost btn-sm" style={{ color: 'var(--status-danger)', fontSize: 11 }}
+                                                onClick={() => { if (confirm(`Xoá nhóm "${cat.name}"?`)) setQuotationCategories(prev => prev.filter((_, i) => i !== ci)); }}>
+                                                🗑️
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <div style={{ padding: '8px 16px 12px' }}>
+                                        {(cat.subcategories || []).map((sub, si) => (
+                                            <div key={si} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                                                <span style={{ color: 'var(--text-muted)', fontSize: 12, width: 20, textAlign: 'center' }}>{si + 1}</span>
+                                                <span style={{ fontSize: 12 }}>📄</span>
+                                                <input className="form-input" value={sub}
+                                                    onChange={e => setQuotationCategories(prev => prev.map((c, i) => i === ci ? { ...c, subcategories: c.subcategories.map((s, j) => j === si ? e.target.value : s) } : c))}
+                                                    style={{ fontSize: 13, flex: 1 }} />
+                                                <button className="btn btn-ghost btn-sm" style={{ color: 'var(--status-danger)', fontSize: 11, padding: '2px 6px' }}
+                                                    onClick={() => setQuotationCategories(prev => prev.map((c, i) => i === ci ? { ...c, subcategories: c.subcategories.filter((_, j) => j !== si) } : c))}>
+                                                    ✕
+                                                </button>
+                                            </div>
+                                        ))}
+                                        <button className="btn btn-ghost btn-sm" style={{ fontSize: 11, marginTop: 4 }}
+                                            onClick={() => setQuotationCategories(prev => prev.map((c, i) => i === ci ? { ...c, subcategories: [...(c.subcategories || []), ''] } : c))}>
+                                            ➕ Thêm phân nhóm
+                                        </button>
+                                    </div>
+                                </div>
+                            ))}
+
+                            <SectionTitle icon="📐" title="Loại báo giá" />
+                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                                {QUOTATION_TYPES.map(t => <span key={t} className="badge info" style={{ fontSize: 12 }}>{t}</span>)}
+                            </div>
                         </>
                     )}
                 </div>
