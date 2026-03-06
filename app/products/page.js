@@ -60,7 +60,7 @@ export default function ProductsPage() {
     const [filterStockStatus, setFilterStockStatus] = useState('');
     const [sortBy, setSortBy] = useState('newest');
     const [drawerProduct, setDrawerProduct] = useState(null);
-    const [viewMode, setViewMode] = useState('list');
+    const [viewMode, setViewMode] = useState('grouped');
     const [editingP, setEditingP] = useState(null);
     const [quickEditP, setQuickEditP] = useState(new Map());
     const [newProduct, setNewProduct] = useState(null);
@@ -645,37 +645,46 @@ export default function ProductsPage() {
                                     return (
                                         <div style={{ padding: '8px 12px' }}>
                                             {sortedGroups.map(([catName, prods]) => (
-                                                <div key={catName} style={{ marginBottom: 20 }}>
-                                                    {/* Category header */}
+                                                <div key={catName} style={{ marginBottom: 28 }}>
+                                                    {/* Category header — clean text + border */}
                                                     <div style={{
-                                                        display: 'flex', alignItems: 'center', gap: 8,
-                                                        padding: '8px 14px', marginBottom: 8,
-                                                        background: 'linear-gradient(90deg, #234093 0%, #3b5998 100%)',
-                                                        borderRadius: 8, color: '#fff',
+                                                        display: 'flex', alignItems: 'baseline', gap: 8,
+                                                        padding: '12px 4px 8px', marginBottom: 12,
+                                                        borderBottom: '2px solid var(--border-color, #e5e7eb)',
                                                     }}>
-                                                        <span style={{ fontSize: 13, fontWeight: 700 }}>▼ {catName}</span>
-                                                        <span style={{ fontSize: 11, opacity: 0.7 }}>({prods.length})</span>
+                                                        <span style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-primary, #1a1a1a)' }}>{catName}</span>
+                                                        <span style={{ fontSize: 12, color: 'var(--text-muted, #9ca3af)', fontWeight: 400 }}>({prods.length})</span>
                                                     </div>
-                                                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 10 }}>
-                                                        {prods.map(p => (
-                                                            <div key={p.id} onClick={() => setDrawerProduct(p)} style={{
-                                                                border: '1px solid var(--border-color)', borderRadius: 10,
-                                                                overflow: 'hidden', background: 'var(--bg-card, #fff)',
-                                                                cursor: 'pointer', transition: 'box-shadow .15s, transform .15s',
-                                                            }}
-                                                                onMouseEnter={e => { e.currentTarget.style.boxShadow = '0 4px 16px rgba(0,0,0,0.12)'; e.currentTarget.style.transform = 'translateY(-2px)'; }}
-                                                                onMouseLeave={e => { e.currentTarget.style.boxShadow = 'none'; e.currentTarget.style.transform = 'none'; }}>
-                                                                <div style={{ width: '100%', aspectRatio: '4/3', background: '#f5f3ef', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', position: 'relative' }}>
-                                                                    {p.image ? <img src={p.image} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="" /> : <span style={{ fontSize: 32, opacity: 0.08 }}>📷</span>}
-                                                                    <div style={{ position: 'absolute', top: 6, right: 6, width: 10, height: 10, borderRadius: '50%', border: '2px solid #fff', background: p.stock === 0 ? '#ef4444' : p.stock <= (p.minStock || 5) ? '#eab308' : '#22c55e' }} title={`Tồn: ${p.stock}`} />
-                                                                </div>
-                                                                <div style={{ padding: '8px 10px' }}>
-                                                                    <div style={{ fontSize: 12, fontWeight: 600, color: '#234093', lineHeight: 1.3, minHeight: 32, overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>{p.name}</div>
-                                                                    <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 2 }}>{p.unit}{p.brand ? ` · ${p.brand}` : ''}</div>
-                                                                    <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)', marginTop: 4 }}>{fmt(p.salePrice)} <span style={{ fontSize: 10, fontWeight: 400, opacity: 0.5 }}>đ</span></div>
-                                                                </div>
-                                                            </div>
-                                                        ))}
+                                                    {/* Product card grid */}
+                                                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 12 }}>
+                                                        {prods.map(p => {
+                                                            const sd = p.stock === 0 ? '#ef4444' : p.stock <= (p.minStock || 5) ? '#eab308' : '#22c55e';
+                                                            return (
+                                                                <div key={p.id} onClick={() => setDrawerProduct(p)} style={{
+                                                                    borderRadius: 12, overflow: 'hidden',
+                                                                    background: 'var(--bg-card, #fff)',
+                                                                    border: '1px solid var(--border-color, #e5e7eb)',
+                                                                    cursor: 'pointer', transition: 'box-shadow .2s, transform .2s',
+                                                                    position: 'relative',
+                                                                }}
+                                                                    onMouseEnter={e => { e.currentTarget.style.boxShadow = '0 8px 24px rgba(0,0,0,0.1)'; e.currentTarget.style.transform = 'translateY(-3px)'; }}
+                                                                    onMouseLeave={e => { e.currentTarget.style.boxShadow = 'none'; e.currentTarget.style.transform = 'none'; }}>
+                                                                    {/* Image */}
+                                                                    <div style={{ width: '100%', aspectRatio: '4/3', background: '#f8f6f2', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
+                                                                        {p.image ? <img src={p.image} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="" /> : <span style={{ fontSize: 36, opacity: 0.06 }}>📷</span>}
+                                                                    </div>
+                                                                    {/* Stock dot — top right corner */}
+                                                                    <div style={{ position: 'absolute', top: 8, right: 8, width: 10, height: 10, borderRadius: '50%', background: sd, border: '2px solid #fff', boxShadow: '0 1px 3px rgba(0,0,0,0.2)' }} title={`Tồn: ${p.stock}`} />
+                                                                    {/* Card body */}
+                                                                    <div style={{ padding: '10px 12px 12px' }}>
+                                                                        <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary, #1a1a1a)', lineHeight: 1.35, minHeight: 35, overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>{p.name}</div>
+                                                                        <div style={{ fontSize: 11, color: 'var(--text-muted, #9ca3af)', marginTop: 3 }}>{p.unit}{p.brand ? ` · ${p.brand}` : ''}</div>
+                                                                        <div style={{ fontSize: 16, fontWeight: 700, color: '#e65100', marginTop: 6 }}>
+                                                                            {fmt(p.salePrice)}<span style={{ fontSize: 11, fontWeight: 500 }}>đ</span>
+                                                                        </div>
+                                                                    </div>
+                                                                </div>);
+                                                        })}
                                                     </div>
                                                 </div>
                                             ))}
