@@ -89,10 +89,10 @@ export default function PaymentsPage() {
 
         setUploading(true);
         try {
-            // Upload image file to server instead of base64
+            // Upload image file to server
             const fd = new FormData();
             fd.append('file', file);
-            fd.append('type', 'payment-proofs');
+            fd.append('type', 'proofs');
             const uploadRes = await fetch('/api/upload', { method: 'POST', body: fd });
             const uploadJson = await uploadRes.json();
 
