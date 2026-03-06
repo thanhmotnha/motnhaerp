@@ -7,11 +7,11 @@ import BulkActionsBar from '@/components/products/BulkActionsBar';
 
 const fmt = (n) => new Intl.NumberFormat('vi-VN').format(n);
 const fmtCur = (n) => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(n);
-const SUPPLY_TYPES = ['Mua ngoài', 'Sản xuất nội bộ', 'Dịch vụ'];
-const SUPPLY_BADGE = { 'Sản xuất nội bộ': 'info', 'Mua ngoài': 'success', 'Dịch vụ': 'purple', 'Mua thương mại': 'success', 'Vật tư lưu kho': 'success' };
-const SUPPLY_COLOR = { 'Sản xuất nội bộ': { bg: '#234093', color: '#fff' }, 'Mua ngoài': { bg: '#f0ebe3', color: '#8a7350' }, 'Dịch vụ': { bg: '#f3eeff', color: '#7c3aed' } };
+const SUPPLY_TYPES = ['Mua ngoài', 'Vật tư đặt hàng', 'Vật tư sản xuất', 'Sản xuất nội bộ', 'Dịch vụ'];
+const SUPPLY_BADGE = { 'Sản xuất nội bộ': 'info', 'Mua ngoài': 'success', 'Dịch vụ': 'purple', 'Vật tư đặt hàng': 'success', 'Vật tư sản xuất': 'warning', 'Mua thương mại': 'success', 'Vật tư lưu kho': 'success' };
+const SUPPLY_COLOR = { 'Sản xuất nội bộ': { bg: '#234093', color: '#fff' }, 'Mua ngoài': { bg: '#f0ebe3', color: '#8a7350' }, 'Dịch vụ': { bg: '#f3eeff', color: '#7c3aed' }, 'Vật tư đặt hàng': { bg: '#fef3c7', color: '#92400e' }, 'Vật tư sản xuất': { bg: '#dbeafe', color: '#1e40af' } };
 const STOCK_DOT = { ok: { color: '#22c55e', label: 'Còn hàng' }, low: { color: '#eab308', label: 'Sắp hết' }, out: { color: '#ef4444', label: 'Hết hàng' }, service: { color: '#a3a3a3', label: 'Dịch vụ' } };
-const SUPPLY_ICON = { 'Mua ngoài': '🛒', 'Sản xuất nội bộ': '🔨', 'Dịch vụ': '🧠' };
+const SUPPLY_ICON = { 'Mua ngoài': '🛒', 'Vật tư đặt hàng': '📦', 'Vật tư sản xuất': '🏭', 'Sản xuất nội bộ': '🔨', 'Dịch vụ': '🧠' };
 const normalizeSupply = (t) => (t === 'Mua thương mại' || t === 'Vật tư lưu kho') ? 'Mua ngoài' : (t || 'Mua ngoài');
 const CORE_BOARD_TYPES = ['MDF thường', 'MDF chống ẩm', 'MFC', 'Gỗ tự nhiên', 'Nhựa', 'Kính', 'Khác'];
 const isService = (p) => normalizeSupply(p.supplyType) === 'Dịch vụ';
@@ -88,6 +88,13 @@ export default function ProductsPage() {
     const activeThumb = useRef(null);
     const imgUpRef = useRef(null);
     const imgUpTarget = useRef(null);
+    const DEFAULT_COLS = { image: true, name: true, code: true, unit: true, importPrice: false, salePrice: true, stock: true, supply: true, brand: true };
+    const [visibleCols, setVisibleCols] = useState(() => {
+        if (typeof window !== 'undefined') { try { const s = localStorage.getItem('productCols'); if (s) return JSON.parse(s); } catch { } }
+        return DEFAULT_COLS;
+    });
+    const [showColSettings, setShowColSettings] = useState(false);
+    const toggleCol = (col) => setVisibleCols(prev => { const n = { ...prev, [col]: !prev[col] }; localStorage.setItem('productCols', JSON.stringify(n)); return n; });
     const [productDragState, setProductDragState] = useState(null);
 
     const fetchCategories = useCallback(() => {
@@ -197,7 +204,7 @@ export default function ProductsPage() {
         setQuickEditP(prev => {
             const m = new Map(prev);
             if (m.has(p.id)) { m.delete(p.id); } else {
-                m.set(p.id, { name: p.name || '', unit: p.unit || 'cái', category: p.category || '', salePrice: p.salePrice || 0, importPrice: p.importPrice || 0, stock: p.stock ?? 0, minStock: p.minStock ?? 0, supplyType: normalizeSupply(p.supplyType), brand: p.brand || '', supplier: p.supplier || '' });
+                m.set(p.id, { name: p.name || '', unit: p.unit || 'cái', category: p.category || '', categoryId: p.categoryId || null, salePrice: p.salePrice || 0, importPrice: p.importPrice || 0, stock: p.stock ?? 0, minStock: p.minStock ?? 0, supplyType: p.supplyType || 'Mua ngoài', brand: p.brand || '', supplier: p.supplier || '' });
             }
             return m;
         });
@@ -475,6 +482,17 @@ export default function ProductsPage() {
                                 <button className="btn btn-ghost btn-sm" onClick={() => excelInputRef.current?.click()} title="Import Excel">📥</button>
                                 <input ref={excelInputRef} type="file" accept=".xlsx,.xls,.csv" style={{ display: 'none' }} onChange={handleExcelFile} />
                                 <button className="btn btn-ghost btn-sm" onClick={() => { setPasteText(''); setShowPasteModal(true); }} title="Paste từ Excel">📋 Paste</button>
+                                <div style={{ position: 'relative' }}>
+                                    <button className="btn btn-ghost btn-sm" onClick={() => setShowColSettings(!showColSettings)} title="Hiện/ẩn cột">⚙️</button>
+                                    {showColSettings && <div style={{ position: 'absolute', right: 0, top: '100%', zIndex: 100, background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: 8, padding: '8px 0', boxShadow: '0 4px 12px rgba(0,0,0,.15)', minWidth: 160 }}>
+                                        {Object.entries({ image: 'Ảnh', name: 'Tên SP', code: 'Mã SP', unit: 'ĐVT', importPrice: 'Giá nhập', salePrice: 'Giá bán', stock: 'Tồn kho', supply: 'Nguồn', brand: 'TH' }).map(([k, label]) => (
+                                            <label key={k} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '4px 12px', fontSize: 12, cursor: 'pointer' }}>
+                                                <input type="checkbox" checked={visibleCols[k] !== false} onChange={() => toggleCol(k)} />
+                                                {label}
+                                            </label>
+                                        ))}
+                                    </div>}
+                                </div>
                             </div>
                         </div>
                         <BulkActionsBar selectedIds={selectedIds} categories={leafCats} onDone={() => { setSelectedIds(new Set()); fetchProducts(); fetchCategories(); }} />
@@ -493,8 +511,16 @@ export default function ProductsPage() {
                                     <table className="data-table" style={{ fontSize: 12 }}>
                                         <thead><tr>
                                             <th style={{ width: 30, padding: '4px' }}><input type="checkbox" checked={filteredP.length > 0 && filteredP.every(p => selectedIds.has(p.id))} onChange={e => setSelectedIds(e.target.checked ? new Set(filteredP.map(p => p.id)) : new Set())} /></th>
-                                            <th style={{ width: 38 }}>Ảnh</th><th style={{ minWidth: 160 }}>Tên SP</th><th style={{ width: 70 }}>Mã SP</th><th style={{ width: 45 }}>ĐVT</th>
-                                            <th style={{ width: 100 }}>Giá bán</th><th style={{ width: 70 }}>Tồn kho</th><th style={{ width: 100 }}>Nguồn</th><th style={{ width: 85 }}>TH</th><th style={{ width: 75 }}></th>
+                                            {visibleCols.image !== false && <th style={{ width: 38 }}>Ảnh</th>}
+                                            {visibleCols.name !== false && <th style={{ minWidth: 160 }}>Tên SP</th>}
+                                            {visibleCols.code !== false && <th style={{ width: 70 }}>Mã SP</th>}
+                                            {visibleCols.unit !== false && <th style={{ width: 45 }}>ĐVT</th>}
+                                            {visibleCols.importPrice && <th style={{ width: 100 }}>Giá nhập</th>}
+                                            {visibleCols.salePrice !== false && <th style={{ width: 100 }}>Giá bán</th>}
+                                            {visibleCols.stock !== false && <th style={{ width: 70 }}>Tồn kho</th>}
+                                            {visibleCols.supply !== false && <th style={{ width: 100 }}>Nguồn</th>}
+                                            {visibleCols.brand !== false && <th style={{ width: 85 }}>TH</th>}
+                                            <th style={{ width: 75 }}></th>
                                         </tr></thead>
                                         <tbody>{filteredP.map(p => {
                                             const ss = stockStatus(p);
@@ -512,26 +538,29 @@ export default function ProductsPage() {
                                                 onDragEnd={() => setProductDragState(null)}
                                                 style={{ background: isQE ? 'rgba(99,102,241,0.06)' : '', cursor: isQE ? 'default' : 'grab' }}>
                                                 <td style={{ padding: 4, textAlign: 'center' }}><input type="checkbox" checked={selectedIds.has(p.id)} onChange={e => { const n = new Set(selectedIds); e.target.checked ? n.add(p.id) : n.delete(p.id); setSelectedIds(n); }} /></td>
-                                                <td style={{ padding: 3, cursor: 'pointer' }} onClick={() => { imgUpTarget.current = p.id; imgUpRef.current?.click(); }}><div style={{ width: 34, height: 34, borderRadius: 5, overflow: 'hidden', border: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f9f9f9' }}>{p.image ? <img src={p.image} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="" /> : <span style={{ fontSize: 14, opacity: 0.15 }}>📷</span>}</div></td>
-                                                <td style={{ padding: '4px 6px' }}>{isQE
+                                                {visibleCols.image !== false && <td style={{ padding: 3, cursor: 'pointer' }} onClick={() => { imgUpTarget.current = p.id; imgUpRef.current?.click(); }}><div style={{ width: 34, height: 34, borderRadius: 5, overflow: 'hidden', border: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f9f9f9' }}>{p.image ? <img src={p.image} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="" /> : <span style={{ fontSize: 14, opacity: 0.15 }}>📷</span>}</div></td>}
+                                                {visibleCols.name !== false && <td style={{ padding: '4px 6px' }}>{isQE
                                                     ? <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}><input value={qe.name} onChange={e => updateQuickField(p.id, 'name', e.target.value)} style={{ width: '100%', fontSize: 12, padding: '2px 4px', border: '1px solid #234093', borderRadius: 4, background: 'var(--bg-input)', fontWeight: 600 }} /><select value={qe.category} onChange={e => updateQuickField(p.id, 'category', e.target.value)} style={{ fontSize: 10, padding: '1px 3px', border: '1px solid #234093', borderRadius: 4, background: 'var(--bg-input)' }}>{allCats.map(c => <option key={c} value={c}>{c}</option>)}</select></div>
-                                                    : <><div style={{ fontWeight: 600, fontSize: 12.5, color: '#234093', cursor: 'pointer' }} onClick={() => startEditP(p)}>{p.name}</div>{p.category && <span style={{ fontSize: 10, opacity: 0.45, background: 'var(--surface-alt)', borderRadius: 3, padding: '0 4px' }}>{p.category}</span>}</>}</td>
-                                                <td style={{ padding: '4px 4px' }}><div style={{ display: 'flex', alignItems: 'center', gap: 2 }}><span style={{ fontFamily: 'monospace', fontSize: 10.5, opacity: 0.55 }}>{p.code}</span><button onClick={() => copyCode(p.code)} style={{ border: 'none', background: 'none', cursor: 'pointer', fontSize: 10, opacity: 0.3, padding: 0 }} title="Copy mã SP">📋</button></div></td>
-                                                <td style={{ padding: '4px 4px', fontSize: 11 }}>{isQE
+                                                    : <><div style={{ fontWeight: 600, fontSize: 12.5, color: '#234093', cursor: 'pointer' }} onClick={() => startEditP(p)}>{p.name}</div>{p.category && <span style={{ fontSize: 10, opacity: 0.45, background: 'var(--surface-alt)', borderRadius: 3, padding: '0 4px' }}>{p.category}</span>}</>}</td>}
+                                                {visibleCols.code !== false && <td style={{ padding: '4px 4px' }}><div style={{ display: 'flex', alignItems: 'center', gap: 2 }}><span style={{ fontFamily: 'monospace', fontSize: 10.5, opacity: 0.55 }}>{p.code}</span><button onClick={() => copyCode(p.code)} style={{ border: 'none', background: 'none', cursor: 'pointer', fontSize: 10, opacity: 0.3, padding: 0 }} title="Copy mã SP">📋</button></div></td>}
+                                                {visibleCols.unit !== false && <td style={{ padding: '4px 4px', fontSize: 11 }}>{isQE
                                                     ? <input value={qe.unit} onChange={e => updateQuickField(p.id, 'unit', e.target.value)} style={{ width: 40, fontSize: 11, padding: '2px 3px', border: '1px solid #234093', borderRadius: 4, background: 'var(--bg-input)' }} />
-                                                    : p.unit}</td>
-                                                <td style={{ fontWeight: 600, padding: '4px 4px' }}>{isQE
+                                                    : p.unit}</td>}
+                                                {visibleCols.importPrice && <td style={{ padding: '4px 4px', fontSize: 12, color: '#92400e' }}>{isQE
+                                                    ? <input type="number" value={qe.importPrice} onChange={e => updateQuickField(p.id, 'importPrice', Number(e.target.value))} style={{ width: 85, fontSize: 12, padding: '2px 4px', border: '1px solid #234093', borderRadius: 4, background: 'var(--bg-input)' }} />
+                                                    : (p.importPrice > 0 ? fmtCur(p.importPrice) : <span style={{ opacity: 0.2 }}>-</span>)}</td>}
+                                                {visibleCols.salePrice !== false && <td style={{ fontWeight: 600, padding: '4px 4px' }}>{isQE
                                                     ? <input type="number" value={qe.salePrice} onChange={e => updateQuickField(p.id, 'salePrice', Number(e.target.value))} style={{ width: 85, fontSize: 12, padding: '2px 4px', border: '1px solid #234093', borderRadius: 4, background: 'var(--bg-input)', fontWeight: 600 }} />
-                                                    : fmtCur(p.salePrice)}</td>
-                                                <td style={{ padding: '4px 4px' }}>{isService(p) ? <span style={{ opacity: 0.3 }}>—</span> : isQE
+                                                    : fmtCur(p.salePrice)}</td>}
+                                                {visibleCols.stock !== false && <td style={{ padding: '4px 4px' }}>{isService(p) ? <span style={{ opacity: 0.3 }}>—</span> : isQE
                                                     ? <input type="number" value={qe.stock} onChange={e => updateQuickField(p.id, 'stock', Number(e.target.value))} style={{ width: 55, fontSize: 12, padding: '2px 4px', border: '1px solid #234093', borderRadius: 4, background: 'var(--bg-input)' }} />
-                                                    : <div style={{ display: 'flex', alignItems: 'center', gap: 4, cursor: 'pointer' }} onClick={() => { /* StockCell handles click */ }}><span style={{ width: 7, height: 7, borderRadius: '50%', background: sd.color, display: 'inline-block', flexShrink: 0 }} /><StockCell value={p.stock} status={ss} onSave={v => quickUpdateStock(p.id, v)} /></div>}</td>
-                                                <td style={{ padding: '4px 4px' }}>{isQE
+                                                    : <div style={{ display: 'flex', alignItems: 'center', gap: 4, cursor: 'pointer' }} onClick={() => { /* StockCell handles click */ }}><span style={{ width: 7, height: 7, borderRadius: '50%', background: sd.color, display: 'inline-block', flexShrink: 0 }} /><StockCell value={p.stock} status={ss} onSave={v => quickUpdateStock(p.id, v)} /></div>}</td>}
+                                                {visibleCols.supply !== false && <td style={{ padding: '4px 4px' }}>{isQE
                                                     ? <select value={qe.supplyType} onChange={e => updateQuickField(p.id, 'supplyType', e.target.value)} style={{ fontSize: 10, padding: '2px 3px', border: '1px solid #234093', borderRadius: 4, background: 'var(--bg-input)' }}>{SUPPLY_TYPES.map(t => <option key={t}>{t}</option>)}</select>
-                                                    : <span style={{ fontSize: 10, padding: '2px 8px', borderRadius: 10, background: sc.bg, color: sc.color, fontWeight: 600, whiteSpace: 'nowrap' }}>{normalizeSupply(p.supplyType)}</span>}</td>
-                                                <td style={{ fontSize: 11, padding: '4px 4px' }}>{isQE
+                                                    : <span style={{ fontSize: 10, padding: '2px 8px', borderRadius: 10, background: sc.bg, color: sc.color, fontWeight: 600, whiteSpace: 'nowrap' }}>{p.supplyType || 'Mua ngoài'}</span>}</td>}
+                                                {visibleCols.brand !== false && <td style={{ fontSize: 11, padding: '4px 4px' }}>{isQE
                                                     ? <select value={qe.brand} onChange={e => updateQuickField(p.id, 'brand', e.target.value)} style={{ fontSize: 10, padding: '2px 3px', border: '1px solid #234093', borderRadius: 4, background: 'var(--bg-input)', maxWidth: 80 }}>{BRANDS.map(b => <option key={b.n} value={b.n}>{b.n || '-'}</option>)}</select>
-                                                    : (p.brand || <span style={{ opacity: 0.2 }}>-</span>)}</td>
+                                                    : (p.brand || <span style={{ opacity: 0.2 }}>-</span>)}</td>}
                                                 <td style={{ padding: '4px 4px' }}>{isQE
                                                     ? <div style={{ display: 'flex', gap: 2 }}><button className="btn btn-sm" onClick={() => saveQuickP(p.id)} style={{ fontSize: 11, padding: '2px 6px', background: '#234093', color: '#fff', border: 'none', borderRadius: 4 }}>✓</button><button className="btn btn-ghost btn-sm" onClick={() => cancelQuickEditP(p.id)} style={{ fontSize: 11, padding: '2px 4px' }}>✕</button></div>
                                                     : <div style={{ display: 'flex', gap: 1 }}><button className="btn btn-ghost btn-sm" onClick={() => startQuickEditP(p)} style={{ fontSize: 11, padding: '1px 3px' }} title="Sửa nhanh">✏️</button><button className="btn btn-ghost btn-sm" onClick={() => duplicateP(p)} style={{ fontSize: 11, padding: '1px 3px' }}>📋</button><button className="btn btn-ghost btn-sm" onClick={() => deleteP(p.id)} style={{ fontSize: 11, padding: '1px 3px' }}>🗑️</button></div>}</td>
