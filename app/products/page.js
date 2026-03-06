@@ -634,10 +634,14 @@ export default function ProductsPage() {
 
                                 {/* ========= GROUPED CATEGORY VIEW ========= */}
                                 {viewMode === 'grouped' && (() => {
-                                    // Group products by category
+                                    // Build categoryId→name map from sidebar tree for consistent grouping
+                                    const catMap = {};
+                                    const walk = (cats) => { (cats || []).forEach(c => { catMap[c.id] = c.name; if (c.children) walk(c.children); }); };
+                                    walk(categories);
+                                    // Group products by their category (using tree name when possible)
                                     const groups = {};
                                     filteredP.forEach(p => {
-                                        const cat = p.categoryRef?.name || p.category || 'Chưa phân loại';
+                                        const cat = (p.categoryId && catMap[p.categoryId]) || p.categoryRef?.name || p.category || 'Chưa phân loại';
                                         if (!groups[cat]) groups[cat] = [];
                                         groups[cat].push(p);
                                     });
