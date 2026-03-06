@@ -1,6 +1,6 @@
 'use client';
 import { useState, useEffect, useCallback } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useParams } from 'next/navigation';
 import { useRole } from '@/contexts/RoleContext';
 import { apiFetch } from '@/lib/fetchClient';
 import { useToast } from '@/components/ui/Toast';
@@ -43,8 +43,8 @@ const TABS = [
     { id: 'handover', label: 'Bàn giao' },
 ];
 
-export default function FurnitureDetailPage({ params }) {
-    const { id } = params;
+export default function FurnitureDetailPage() {
+    const { id } = useParams();
     const router = useRouter();
     const { role } = useRole();
     const toast = useToast();

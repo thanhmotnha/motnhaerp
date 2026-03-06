@@ -7,6 +7,7 @@ import Sidebar from '@/components/Sidebar';
 import Header from '@/components/Header';
 import Breadcrumbs from '@/components/ui/Breadcrumbs';
 import GlobalSearch from '@/components/ui/GlobalSearch';
+import KeyboardShortcuts from '@/components/ui/KeyboardShortcuts';
 
 export default function AppShell({ children }) {
     const pathname = usePathname();
@@ -49,6 +50,7 @@ export default function AppShell({ children }) {
                 </main>
             </div>
             <GlobalSearch isOpen={searchOpen} onClose={() => setSearchOpen(false)} />
+            <KeyboardShortcuts />
         </div>
     );
 }

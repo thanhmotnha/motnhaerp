@@ -996,13 +996,17 @@ model Commitment {
 model ActivityLog {
   id          String   @id @default(cuid())
   actor       String   @default("")
+  actorId     String   @default("")
   action      String
   entityType  String
   entityId    String
   entityLabel String   @default("")
   diff        Json?
+  metadata    Json?
+  ipAddress   String   @default("")
   createdAt   DateTime @default(now())
   @@index([entityType, entityId])
+  @@index([actor])
   @@index([createdAt])
 }
 

@@ -101,6 +101,19 @@
   --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.5);
   --shadow-lg: 0 8px 30px rgba(0, 0, 0, 0.6);
   --shadow-glow: 0 0 0 3px rgba(74, 144, 217, 0.15);
+
+  --surface-alt: #162440;
+
+  color-scheme: dark;
+}
+
+[data-theme="dark"] ::selection {
+  background: rgba(74, 144, 217, 0.3);
+  color: #EDF2F7;
+}
+
+[data-theme="dark"] .data-table tbody tr:hover {
+  background: rgba(74, 144, 217, 0.06);
 }
 
 * {
