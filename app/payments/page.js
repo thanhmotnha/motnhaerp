@@ -93,11 +93,10 @@ export default function PaymentsPage() {
             proofUrl = reader.result;
             const p = payment;
             const newPaid = (p.paidAmount || 0) + Number(amount);
-            await fetch(`/api/contracts/${p.contractId}/payments`, {
+            await fetch(`/api/contracts/${p.contractId}/payments/${p.id}`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    paymentId: p.id,
                     paidAmount: newPaid,
                     status: newPaid >= p.amount ? 'Đã thu' : 'Thu một phần',
                     proofUrl,
