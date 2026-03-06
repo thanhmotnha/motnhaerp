@@ -205,6 +205,20 @@ export const PATCH = withAuth(async (request) => {
         return NextResponse.json({ deleted: ids.length });
     }
 
+    // Duplicate product
+    if (action === 'duplicate') {
+        const { id } = body;
+        if (!id) return NextResponse.json({ error: 'id required' }, { status: 400 });
+        const src = await prisma.product.findUnique({ where: { id } });
+        if (!src) return NextResponse.json({ error: 'Product not found' }, { status: 404 });
+        const newCode = await generateCode('product', 'SP');
+        const { id: _id, code: _code, createdAt, updatedAt, deletedAt, ...rest } = src;
+        const dup = await prisma.product.create({
+            data: { ...rest, code: newCode, name: `${src.name} (Bản sao)` },
+        });
+        return NextResponse.json(dup, { status: 201 });
+    }
+
     return NextResponse.json({ error: 'Action not recognized' }, { status: 400 });
 });
 

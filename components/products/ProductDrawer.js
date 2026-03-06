@@ -1,6 +1,6 @@
 'use client';
 import { useState } from 'react';
-import { X, Edit3, Trash2, Package, Tag, DollarSign, Warehouse, Truck, Shield, Copy, Check, Plus, Minus, BarChart3 } from 'lucide-react';
+import { X, Edit3, Trash2, Package, Tag, DollarSign, Warehouse, Truck, Shield, Copy, Check, Plus, Minus, BarChart3, Files } from 'lucide-react';
 
 const fmt = (n) => new Intl.NumberFormat('vi-VN').format(Math.round(n || 0));
 
@@ -13,7 +13,7 @@ function stockBadge(p) {
     return { label: `Còn hàng: ${p.stock}`, bg: '#f0fdf4', color: '#16a34a', border: '#bbf7d0' };
 }
 
-export default function ProductDrawer({ product, onClose, onEdit, onDelete, onStockUpdate, role }) {
+export default function ProductDrawer({ product, onClose, onEdit, onDelete, onDuplicate, onStockUpdate, role }) {
     const [copied, setCopied] = useState(false);
     const [stockMode, setStockMode] = useState(null); // 'in' | 'out'
     const [stockQty, setStockQty] = useState(1);
@@ -192,6 +192,13 @@ export default function ProductDrawer({ product, onClose, onEdit, onDelete, onSt
                         border: '1px solid var(--border-color)', borderRadius: 8, cursor: 'pointer',
                     }} onClick={() => setStockMode(stockMode ? null : 'in')}>
                         <BarChart3 size={14} /> Nhập/Xuất kho
+                    </button>
+                    <button onClick={() => { onDuplicate?.(p.id); onClose(); }}
+                        style={{
+                            border: 'none', background: 'none', cursor: 'pointer', padding: 8,
+                            color: '#234093', opacity: 0.7, borderRadius: 6,
+                        }} title="Nhân bản sản phẩm">
+                        <Files size={16} />
                     </button>
                     <button onClick={() => { if (confirm(`Xóa "${p.name}"?`)) { onDelete(p.id); onClose(); } }}
                         style={{

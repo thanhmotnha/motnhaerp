@@ -699,7 +699,7 @@ export default function ProductsPage() {
                     </div>
                 </div>
 
-                {drawerProduct && <ProductDrawer product={drawerProduct} onClose={() => setDrawerProduct(null)} onEdit={startEditP} onDelete={async (id) => { await fetch(`/api/products/${id}`, { method: 'DELETE' }); setDrawerProduct(null); fetchProducts(); fetchCategories(); }} />}
+                {drawerProduct && <ProductDrawer product={drawerProduct} onClose={() => setDrawerProduct(null)} onEdit={startEditP} onDelete={async (id) => { await fetch(`/api/products/${id}`, { method: 'DELETE' }); setDrawerProduct(null); fetchProducts(); fetchCategories(); }} onDuplicate={async (id) => { await fetch('/api/products', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'duplicate', id }) }); fetchProducts(); }} />}
             </>)}
 
             {/* ===== LIBRARY ===== */}
