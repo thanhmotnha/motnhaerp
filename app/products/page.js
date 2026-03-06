@@ -637,7 +637,7 @@ export default function ProductsPage() {
                                     // Group products by category
                                     const groups = {};
                                     filteredP.forEach(p => {
-                                        const cat = p.category || 'Chưa phân loại';
+                                        const cat = p.categoryRef?.name || p.category || 'Chưa phân loại';
                                         if (!groups[cat]) groups[cat] = [];
                                         groups[cat].push(p);
                                     });

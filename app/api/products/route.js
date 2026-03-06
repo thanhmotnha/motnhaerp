@@ -212,9 +212,35 @@ export const PATCH = withAuth(async (request) => {
         const src = await prisma.product.findUnique({ where: { id } });
         if (!src) return NextResponse.json({ error: 'Product not found' }, { status: 404 });
         const newCode = await generateCode('product', 'SP');
-        const { id: _id, code: _code, createdAt, updatedAt, deletedAt, ...rest } = src;
+        // Explicit fields only — no relations/computed
         const dup = await prisma.product.create({
-            data: { ...rest, code: newCode, name: `${src.name} (Bản sao)` },
+            data: {
+                code: newCode,
+                name: `${src.name} (Bản sao)`,
+                category: src.category,
+                unit: src.unit,
+                importPrice: src.importPrice,
+                salePrice: src.salePrice,
+                stock: 0,
+                minStock: src.minStock,
+                supplier: src.supplier,
+                description: src.description,
+                dimensions: src.dimensions,
+                weight: src.weight,
+                color: src.color,
+                material: src.material,
+                origin: src.origin,
+                warranty: src.warranty,
+                brand: src.brand,
+                status: src.status,
+                supplyType: src.supplyType,
+                leadTimeDays: src.leadTimeDays,
+                location: src.location,
+                image: src.image,
+                coreBoard: src.coreBoard,
+                surfaceCode: src.surfaceCode,
+                categoryId: src.categoryId,
+            },
         });
         return NextResponse.json(dup, { status: 201 });
     }
