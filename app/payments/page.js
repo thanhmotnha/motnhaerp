@@ -92,11 +92,33 @@ export default function PaymentsPage() {
         const onPaste = (e) => {
             const items = e.clipboardData?.items;
             if (!items) return;
+
+            // Try to extract amount from clipboard text
+            const textData = e.clipboardData.getData('text/plain');
+            if (textData) {
+                // Match Vietnamese currency patterns: 1.234.567, 1,234,567, 1234567, etc.
+                const amounts = textData.match(/[\d.,]+/g)?.map(s => {
+                    // Remove dots/commas used as thousand separators
+                    const cleaned = s.replace(/[.,]/g, '');
+                    return parseInt(cleaned) || 0;
+                }).filter(n => n >= 10000) || []; // reasonable minimum
+                if (amounts.length > 0) {
+                    // Pick the largest number (likely the transfer amount)
+                    const detected = Math.max(...amounts);
+                    setConfirmModal(prev => ({ ...prev, amount: detected }));
+                }
+            }
+
+            // Extract image
             for (const item of items) {
                 if (item.type.startsWith('image/')) {
                     e.preventDefault();
                     const file = item.getAsFile();
-                    if (file) setConfirmModal(prev => ({ ...prev, file, preview: URL.createObjectURL(file) }));
+                    if (file) {
+                        setConfirmModal(prev => ({ ...prev, file, preview: URL.createObjectURL(file) }));
+                        // Auto-OCR if GEMINI_API_KEY is configured
+                        ocrDetect(file);
+                    }
                     break;
                 }
             }
@@ -104,6 +126,23 @@ export default function PaymentsPage() {
         document.addEventListener('paste', onPaste);
         return () => document.removeEventListener('paste', onPaste);
     }, [confirmModal]);
+
+    const [ocrLoading, setOcrLoading] = useState(false);
+    const ocrDetect = async (file) => {
+        setOcrLoading(true);
+        try {
+            const fd = new FormData();
+            fd.append('file', file);
+            const res = await fetch('/api/ocr-amount', { method: 'POST', body: fd });
+            if (res.ok) {
+                const data = await res.json();
+                if (data.amount > 0) {
+                    setConfirmModal(prev => ({ ...prev, amount: data.amount }));
+                }
+            }
+        } catch { /* silent fail — OCR is optional */ }
+        setOcrLoading(false);
+    };
 
     const confirmCollect = async () => {
         if (!confirmModal || uploading) return;
@@ -392,13 +431,12 @@ ${[1, 2].map(copy => `
                                 <div><strong>Đã thu:</strong> {fmt(confirmModal.payment.paidAmount)}</div>
                             </div>
                             <div className="form-group">
-                                <label className="form-label">Số tiền thu *</label>
+                                <label className="form-label">Số tiền thu * {ocrLoading && <span style={{ color: 'var(--accent-primary)', fontSize: 11, fontWeight: 400 }}>🤖 Đang nhận dạng số tiền...</span>}</label>
                                 <input className="form-input" type="number" value={confirmModal.amount} onChange={e => setConfirmModal(prev => ({ ...prev, amount: e.target.value }))} />
                             </div>
                             <div className="form-group">
                                 <label className="form-label">📸 Ảnh xác nhận thanh toán * <span style={{ color: 'var(--status-danger)', fontSize: 11 }}>(Bắt buộc)</span></label>
                                 <div
-                                    onPaste={handlePaste}
                                     onDrop={handleDrop}
                                     onDragOver={e => e.preventDefault()}
                                     tabIndex={0}
@@ -412,6 +450,13 @@ ${[1, 2].map(copy => `
                                         <div>
                                             <img src={confirmModal.preview} alt="preview" style={{ maxWidth: '100%', maxHeight: 160, borderRadius: 6, marginBottom: 8 }} />
                                             <div style={{ fontSize: 12, color: 'var(--status-success)' }}>✅ {confirmModal.file?.name || 'Ảnh từ clipboard'}</div>
+                                            {confirmModal.file && (
+                                                <button type="button" className="btn btn-ghost btn-sm" style={{ fontSize: 11, marginTop: 6 }}
+                                                    onClick={(e) => { e.stopPropagation(); ocrDetect(confirmModal.file); }}
+                                                    disabled={ocrLoading}>
+                                                    {ocrLoading ? '⏳ Đang xử lý...' : '🤖 Nhận dạng số tiền'}
+                                                </button>
+                                            )}
                                         </div>
                                     ) : (
                                         <div style={{ color: 'var(--text-muted)', fontSize: 13 }}>
