@@ -10,15 +10,16 @@ export const GET = withAuth(async (request) => {
     const project = await prisma.project.findUnique({
         where: { id: projectId },
         include: {
-            contracts: { select: { contractValue: true, paidAmount: true, status: true } },
+            contracts: { select: { contractValue: true, variationAmount: true, payments: { select: { paidAmount: true } } } },
             expenses: { select: { amount: true, paidAmount: true, status: true } },
-            contractorPays: { select: { amount: true, paidAmount: true, status: true } },
+            contractorPays: { select: { contractAmount: true, paidAmount: true, status: true } },
         },
     });
     if (!project) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
-    // A: Contract value (revenue)
-    const contractValue = project.contractValue || project.contracts.reduce((s, c) => s + c.contractValue, 0);
+    // A: Contract value (revenue) — sum from actual contracts
+    const contractValue = project.contracts.reduce((s, c) => s + (c.contractValue ?? 0) + (c.variationAmount ?? 0), 0)
+        || project.contractValue || 0;
 
     // B: Budget total
     const budgetTotal = project.budgetTotal || 0;

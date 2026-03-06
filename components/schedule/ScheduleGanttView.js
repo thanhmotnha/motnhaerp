@@ -216,6 +216,11 @@ export default function ScheduleGanttView({ tasks, flat, onUpdate }) {
                                     {row.wbs && <span style={{ color: 'var(--text-muted)', marginRight: 4, fontSize: 10 }}>{row.wbs}</span>}
                                     {row.name}
                                 </span>
+                                {row.contractors?.length > 0 && (
+                                    <span style={{ fontSize: 9, padding: '1px 5px', borderRadius: 3, background: 'rgba(139,92,246,0.12)', color: '#8b5cf6', fontWeight: 600, flexShrink: 0, maxWidth: 80, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                        {row.contractors[0].contractor.name}
+                                    </span>
+                                )}
                                 <span style={{ marginLeft: 'auto', fontSize: 10, color: row.progress === 100 ? 'var(--status-success)' : 'var(--text-muted)', flexShrink: 0 }}>{row.progress}%</span>
                             </div>
                         );
@@ -272,29 +277,53 @@ export default function ScheduleGanttView({ tasks, flat, onUpdate }) {
                             <line key={i} x1={0} y1={(i + 1) * ROW_HEIGHT} x2={chartWidth} y2={(i + 1) * ROW_HEIGHT} stroke="var(--border-light)" strokeWidth={0.5} />
                         ))}
 
-                        {/* Dependency arrows (FS) */}
-                        {rows.filter(r => r.predecessorId).map(row => {
-                            const pred = flat.find(t => t.id === row.predecessorId);
-                            if (!pred) return null;
-                            const predRowIdx = rows.findIndex(r => r.id === pred.id);
-                            const rowIdx = rows.findIndex(r => r.id === row.id);
-                            if (predRowIdx < 0 || rowIdx < 0) return null;
+                        {/* Dependency arrows (multi-dep from TaskDependency) */}
+                        {rows.flatMap(row => {
+                            // Use new dependencies array, fallback to old predecessorId
+                            const deps = row.dependencies?.length
+                                ? row.dependencies.map(d => ({ depId: d.id, predId: d.dependsOnId, type: d.type || 'FS', lag: d.lag || 0 }))
+                                : row.predecessorId ? [{ depId: `legacy-${row.id}`, predId: row.predecessorId, type: 'FS', lag: 0 }] : [];
 
-                            const x1 = dateToX(pred.endDate) + COL_WIDTH;
-                            const y1 = predRowIdx * ROW_HEIGHT + ROW_HEIGHT / 2;
-                            const x2 = dateToX(row.startDate);
-                            const y2 = rowIdx * ROW_HEIGHT + ROW_HEIGHT / 2;
-                            const midX = x1 + 8;
+                            return deps.map(({ depId, predId, type }) => {
+                                const pred = flat.find(t => t.id === predId);
+                                if (!pred) return null;
+                                const predRowIdx = rows.findIndex(r => r.id === pred.id);
+                                const rowIdx = rows.findIndex(r => r.id === row.id);
+                                if (predRowIdx < 0 || rowIdx < 0) return null;
 
-                            return (
-                                <g key={`dep-${row.id}`}>
-                                    <path d={`M${x1},${y1} H${midX} V${y2} H${x2}`}
-                                        fill="none" stroke="var(--text-muted)" strokeWidth={1.5} opacity={0.4} />
-                                    {/* Arrow head */}
-                                    <polygon points={`${x2},${y2} ${x2 - 5},${y2 - 3} ${x2 - 5},${y2 + 3}`}
-                                        fill="var(--text-muted)" opacity={0.4} />
-                                </g>
-                            );
+                                const depColors = { FS: '#3b82f6', SS: '#22c55e', FF: '#f59e0b', SF: '#ef4444' };
+                                const color = depColors[type] || '#64748b';
+
+                                // Arrow path based on dep type
+                                let x1, y1, x2, y2;
+                                const py = predRowIdx * ROW_HEIGHT + ROW_HEIGHT / 2;
+                                const ry = rowIdx * ROW_HEIGHT + ROW_HEIGHT / 2;
+
+                                if (type === 'FS' || type === 'FF') {
+                                    x1 = dateToX(pred.endDate) + COL_WIDTH;
+                                } else { // SS, SF
+                                    x1 = dateToX(pred.startDate);
+                                }
+                                y1 = py;
+
+                                if (type === 'FS' || type === 'SS') {
+                                    x2 = dateToX(row.startDate);
+                                } else { // FF, SF
+                                    x2 = dateToX(row.endDate) + COL_WIDTH;
+                                }
+                                y2 = ry;
+
+                                const midX = x1 + (x1 < x2 ? 10 : -10);
+
+                                return (
+                                    <g key={`dep-${depId}`}>
+                                        <path d={`M${x1},${y1} H${midX} V${y2} H${x2}`}
+                                            fill="none" stroke={color} strokeWidth={1.5} opacity={0.5} />
+                                        <polygon points={`${x2},${y2} ${x2 - 5},${y2 - 3} ${x2 - 5},${y2 + 3}`}
+                                            fill={color} opacity={0.5} />
+                                    </g>
+                                );
+                            });
                         })}
 
                         {/* Task bars */}
@@ -384,7 +413,10 @@ export default function ScheduleGanttView({ tasks, flat, onUpdate }) {
                 <span><span style={{ display: 'inline-block', width: 10, height: 10, borderRadius: 2, background: '#ef4444', marginRight: 4, verticalAlign: 'middle' }}></span>Quá hạn</span>
                 <span><span style={{ display: 'inline-block', width: 10, height: 3, background: 'var(--text-muted)', marginRight: 4, verticalAlign: 'middle', opacity: 0.3 }}></span>Baseline</span>
                 <span style={{ borderLeft: '2px dashed #3b82f6', paddingLeft: 6 }}>Hôm nay</span>
-                <span>→ Liên kết FS</span>
+                <span style={{ borderLeft: '2px solid #3b82f6', paddingLeft: 4 }}>FS</span>
+                <span style={{ borderLeft: '2px solid #22c55e', paddingLeft: 4 }}>SS</span>
+                <span style={{ borderLeft: '2px solid #f59e0b', paddingLeft: 4 }}>FF</span>
+                <span style={{ borderLeft: '2px solid #ef4444', paddingLeft: 4 }}>SF</span>
             </div>
         </div>
     );

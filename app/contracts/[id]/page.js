@@ -54,6 +54,9 @@ export default function ContractDetailPage() {
             setSaved(true); setTimeout(() => setSaved(false), 2500);
             const updated = await res.json();
             setData(prev => ({ ...prev, ...updated }));
+        } else {
+            const err = await res.json().catch(() => ({}));
+            alert('Lỗi lưu: ' + (err.error || err.message || 'Không rõ'));
         }
         setSaving(false);
     };

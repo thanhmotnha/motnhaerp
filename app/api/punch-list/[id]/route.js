@@ -9,6 +9,8 @@ export const PUT = withAuth(async (req, { params }) => {
     if (body.area !== undefined) data.area = body.area;
     if (body.description !== undefined) data.description = body.description;
     if (body.assignee !== undefined) data.assignee = body.assignee;
+    if (body.assigneeId !== undefined) data.assigneeId = body.assigneeId || null;
+    if (body.priority !== undefined) data.priority = body.priority;
     if (body.deadline !== undefined) data.deadline = body.deadline ? new Date(body.deadline) : null;
     if (body.status !== undefined) {
         data.status = body.status;
@@ -16,7 +18,7 @@ export const PUT = withAuth(async (req, { params }) => {
             data.resolvedAt = new Date();
         }
     }
-    if (body.images !== undefined) data.images = body.images;
+    if (body.images !== undefined) data.images = typeof body.images === 'string' ? body.images : JSON.stringify(body.images);
 
     const item = await prisma.punchListItem.update({ where: { id }, data });
     return NextResponse.json(item);

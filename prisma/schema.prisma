@@ -363,6 +363,7 @@ model Contractor {
   category      String   @default("")
   advanceAmount Float    @default(0)
   payments      ContractorPayment[]
+  tasks         SubContractorTask[]
   documents     ProjectDocument[]
   deletedAt     DateTime?
   createdAt     DateTime @default(now())
@@ -900,6 +901,9 @@ model ScheduleTask {
   predecessorId   String?
   predecessor     ScheduleTask?  @relation("TaskDep", fields: [predecessorId], references: [id])
   successors      ScheduleTask[] @relation("TaskDep")
+  dependencies    TaskDependency[] @relation("TaskDependencies")
+  dependents      TaskDependency[] @relation("TaskDependents")
+  contractors     SubContractorTask[]
   workOrders      WorkOrder[]    @relation("TaskWorkOrders")
   projectId       String
   project         Project  @relation(fields: [projectId], references: [id])
@@ -908,6 +912,36 @@ model ScheduleTask {
   updatedAt       DateTime @updatedAt
   @@index([projectId])
   @@index([parentId])
+}
+
+model TaskDependency {
+  id           String       @id @default(cuid())
+  taskId       String
+  task         ScheduleTask @relation("TaskDependencies", fields: [taskId], references: [id], onDelete: Cascade)
+  dependsOnId  String
+  dependsOn    ScheduleTask @relation("TaskDependents", fields: [dependsOnId], references: [id], onDelete: Cascade)
+  type         String       @default("FS") // FS, SS, FF, SF
+  lag          Int          @default(0)     // days
+  createdAt    DateTime     @default(now())
+  @@unique([taskId, dependsOnId])
+  @@index([taskId])
+  @@index([dependsOnId])
+}
+
+model SubContractorTask {
+  id                String     @id @default(cuid())
+  contractorId      String
+  contractor        Contractor @relation(fields: [contractorId], references: [id])
+  taskId            String
+  task              ScheduleTask @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  assignedAt        DateTime   @default(now())
+  completionPercent Int        @default(0)
+  notes             String     @default("")
+  createdAt         DateTime   @default(now())
+  updatedAt         DateTime   @updatedAt
+  @@unique([contractorId, taskId])
+  @@index([contractorId])
+  @@index([taskId])
 }
 
 model ProgressReport {
@@ -1021,12 +1055,15 @@ model PunchListItem {
   description String   @db.Text
   images      String   @default("[]") @db.Text
   assignee    String   @default("")
+  assigneeId  String?
+  priority    String   @default("Trung bình") // Cao, Trung bình, Thấp
   deadline    DateTime?
   status      String   @default("Mở")
   resolvedAt  DateTime?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
   @@index([projectId])
+  @@index([assigneeId])
 }
 
 // ============ HR CHẤM CÔNG ============

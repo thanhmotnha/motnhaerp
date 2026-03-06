@@ -9,39 +9,69 @@ import VarianceTable from '@/components/budget/VarianceTable';
 import ProfitabilityWidget from '@/components/budget/ProfitabilityWidget';
 import BudgetQuickAdd from '@/components/budget/BudgetQuickAdd';
 import SCurveChart from '@/components/budget/SCurveChart';
+import BudgetAlertBanner from '@/components/budget/BudgetAlertBanner';
 import MeasurementSheet, { MeasurementActions } from '@/components/contractor/MeasurementSheet';
-const fmt = (n) => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(n);
+const fmt = (n) => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(Number(n) || 0);
 const fmtDate = (d) => d ? new Date(d).toLocaleDateString('vi-VN') : '—';
-const pct = (a, b) => b > 0 ? Math.round((a / b) * 100) : 0;
+const pct = (a, b) => b > 0 ? Math.round(((Number(a) || 0) / b) * 100) : 0;
+const fmtArea = (n) => `${Number(n) || 0}m²`;
+const fmtPct = (n) => `${Number(n) || 0}%`;
 
 const PUNCH_STATUS = ['Mở', 'Đang sửa', 'Đã sửa', 'KH xác nhận'];
 const PUNCH_COLOR = { 'Mở': 'var(--status-danger)', 'Đang sửa': 'var(--status-warning)', 'Đã sửa': 'var(--accent-primary)', 'KH xác nhận': 'var(--status-success)' };
+const PUNCH_PRIORITY = ['Cao', 'Trung bình', 'Thấp'];
+const PRIORITY_BADGE = { 'Cao': { bg: 'rgba(239,68,68,0.1)', color: '#dc2626' }, 'Trung bình': { bg: 'rgba(249,115,22,0.1)', color: '#ea580c' }, 'Thấp': { bg: 'rgba(34,197,94,0.1)', color: '#16a34a' } };
 
 function PunchListTab({ projectId, projectName }) {
     const [items, setItems] = useState([]);
     const [loading, setLoading] = useState(true);
-    const [form, setForm] = useState({ area: '', description: '', assignee: '', deadline: '' });
+    const [form, setForm] = useState({ area: '', description: '', assignee: '', deadline: '', priority: 'Trung bình' });
     const [showForm, setShowForm] = useState(false);
     const [saving, setSaving] = useState(false);
+    const [filterPriority, setFilterPriority] = useState('');
+    const [filterStatus, setFilterStatus] = useState('');
 
     const load = () => {
         setLoading(true);
-        fetch(`/api/punch-list?projectId=${projectId}`).then(r => r.json()).then(d => { setItems(d); setLoading(false); });
+        let url = `/api/punch-list?projectId=${projectId}`;
+        if (filterPriority) url += `&priority=${filterPriority}`;
+        if (filterStatus) url += `&status=${filterStatus}`;
+        fetch(url).then(r => r.json()).then(d => { setItems(d); setLoading(false); });
     };
-    useEffect(load, [projectId]);
+    useEffect(load, [projectId, filterPriority, filterStatus]);
 
     const handleAdd = async () => {
         if (!form.description.trim()) return alert('Nhập mô tả lỗi/thiếu sót!');
         setSaving(true);
         await fetch('/api/punch-list', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ projectId, ...form }) });
         setSaving(false);
-        setForm({ area: '', description: '', assignee: '', deadline: '' });
+        setForm({ area: '', description: '', assignee: '', deadline: '', priority: 'Trung bình' });
         setShowForm(false);
         load();
     };
 
     const updateStatus = async (item, status) => {
         await fetch(`/api/punch-list/${item.id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status }) });
+        load();
+    };
+
+    const updatePriority = async (item, priority) => {
+        await fetch(`/api/punch-list/${item.id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ priority }) });
+        load();
+    };
+
+    const handlePhotoUpload = async (item, e) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        const fd = new FormData();
+        fd.append('file', file);
+        fd.append('type', 'punch-list');
+        const res = await fetch('/api/upload', { method: 'POST', body: fd });
+        const { url } = await res.json();
+        if (!url) return;
+        const currentImages = JSON.parse(item.images || '[]');
+        currentImages.push(url);
+        await fetch(`/api/punch-list/${item.id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ images: currentImages }) });
         load();
     };
 
@@ -73,9 +103,21 @@ function PunchListTab({ projectId, projectName }) {
                 <button className="btn btn-primary" onClick={() => setShowForm(v => !v)}>+ Thêm lỗi</button>
             </div>
 
+            {/* Filters */}
+            <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
+                <select className="form-select" value={filterPriority} onChange={e => setFilterPriority(e.target.value)} style={{ width: 140, fontSize: 12 }}>
+                    <option value="">Tất cả mức độ</option>
+                    {PUNCH_PRIORITY.map(p => <option key={p}>{p}</option>)}
+                </select>
+                <select className="form-select" value={filterStatus} onChange={e => setFilterStatus(e.target.value)} style={{ width: 150, fontSize: 12 }}>
+                    <option value="">Tất cả trạng thái</option>
+                    {PUNCH_STATUS.map(s => <option key={s}>{s}</option>)}
+                </select>
+            </div>
+
             {showForm && (
                 <div style={{ background: 'var(--bg-secondary)', borderRadius: 8, padding: 16, marginBottom: 20 }}>
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 10 }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10, marginBottom: 10 }}>
                         <div>
                             <label style={{ fontSize: 12, color: 'var(--text-muted)' }}>Khu vực / Phòng</label>
                             <input className="form-input" placeholder="VD: Phòng khách, Bếp..." value={form.area} onChange={e => setForm({ ...form, area: e.target.value })} />
@@ -83,6 +125,12 @@ function PunchListTab({ projectId, projectName }) {
                         <div>
                             <label style={{ fontSize: 12, color: 'var(--text-muted)' }}>Người sửa</label>
                             <input className="form-input" placeholder="Tên thợ / thầu phụ" value={form.assignee} onChange={e => setForm({ ...form, assignee: e.target.value })} />
+                        </div>
+                        <div>
+                            <label style={{ fontSize: 12, color: 'var(--text-muted)' }}>Mức độ ưu tiên</label>
+                            <select className="form-select" value={form.priority} onChange={e => setForm({ ...form, priority: e.target.value })}>
+                                {PUNCH_PRIORITY.map(p => <option key={p}>{p}</option>)}
+                            </select>
                         </div>
                     </div>
                     <div style={{ marginBottom: 10 }}>
@@ -112,32 +160,57 @@ function PunchListTab({ projectId, projectName }) {
                     <table className="data-table">
                         <thead><tr>
                             <th>#</th>
+                            <th>Mức độ</th>
                             <th>Khu vực</th>
                             <th>Mô tả</th>
+                            <th>Ảnh</th>
                             <th>Người sửa</th>
                             <th>Hạn</th>
                             <th>Trạng thái</th>
                             <th></th>
                         </tr></thead>
                         <tbody>
-                            {items.map((item, i) => (
-                                <tr key={item.id}>
-                                    <td style={{ fontSize: 12, color: 'var(--text-muted)' }}>{i + 1}</td>
-                                    <td style={{ fontSize: 12 }}><span className="badge muted">{item.area || '—'}</span></td>
-                                    <td style={{ fontSize: 13, maxWidth: 320 }}>{item.description}</td>
-                                    <td style={{ fontSize: 12 }}>{item.assignee || '—'}</td>
-                                    <td style={{ fontSize: 12 }}>{fmtDate(item.deadline)}</td>
-                                    <td>
-                                        <select value={item.status} onChange={e => updateStatus(item, e.target.value)}
-                                            className="form-select" style={{ padding: '3px 24px 3px 8px', fontSize: 12, color: PUNCH_COLOR[item.status], fontWeight: 600, minWidth: 130 }}>
-                                            {PUNCH_STATUS.map(s => <option key={s}>{s}</option>)}
-                                        </select>
-                                    </td>
-                                    <td>
-                                        <button className="btn btn-ghost btn-sm" onClick={() => deleteItem(item.id)}>🗑️</button>
-                                    </td>
-                                </tr>
-                            ))}
+                            {items.map((item, i) => {
+                                const pb = PRIORITY_BADGE[item.priority] || PRIORITY_BADGE['Trung bình'];
+                                const imgs = (() => { try { return JSON.parse(item.images || '[]'); } catch { return []; } })();
+                                return (
+                                    <tr key={item.id}>
+                                        <td style={{ fontSize: 12, color: 'var(--text-muted)' }}>{i + 1}</td>
+                                        <td>
+                                            <select value={item.priority || 'Trung bình'} onChange={e => updatePriority(item, e.target.value)}
+                                                className="form-select" style={{ padding: '2px 20px 2px 6px', fontSize: 11, fontWeight: 600, minWidth: 100, color: pb.color, background: pb.bg, border: 'none', borderRadius: 4 }}>
+                                                {PUNCH_PRIORITY.map(p => <option key={p}>{p}</option>)}
+                                            </select>
+                                        </td>
+                                        <td style={{ fontSize: 12 }}><span className="badge muted">{item.area || '—'}</span></td>
+                                        <td style={{ fontSize: 13, maxWidth: 280 }}>{item.description}</td>
+                                        <td>
+                                            <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+                                                {imgs.slice(0, 3).map((url, j) => (
+                                                    <a key={j} href={url} target="_blank" rel="noreferrer">
+                                                        <img src={url} alt="" style={{ width: 28, height: 28, borderRadius: 4, objectFit: 'cover', border: '1px solid var(--border-light)' }} />
+                                                    </a>
+                                                ))}
+                                                {imgs.length > 3 && <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>+{imgs.length - 3}</span>}
+                                                <label style={{ cursor: 'pointer', fontSize: 14, color: 'var(--text-muted)' }} title="Upload ảnh">
+                                                    📷<input type="file" accept="image/*" hidden onChange={e => handlePhotoUpload(item, e)} />
+                                                </label>
+                                            </div>
+                                        </td>
+                                        <td style={{ fontSize: 12 }}>{item.assignee || '—'}</td>
+                                        <td style={{ fontSize: 12 }}>{fmtDate(item.deadline)}</td>
+                                        <td>
+                                            <select value={item.status} onChange={e => updateStatus(item, e.target.value)}
+                                                className="form-select" style={{ padding: '3px 24px 3px 8px', fontSize: 12, color: PUNCH_COLOR[item.status], fontWeight: 600, minWidth: 130 }}>
+                                                {PUNCH_STATUS.map(s => <option key={s}>{s}</option>)}
+                                            </select>
+                                        </td>
+                                        <td>
+                                            <button className="btn btn-ghost btn-sm" onClick={() => deleteItem(item.id)}>🗑️</button>
+                                        </td>
+                                    </tr>
+                                );
+                            })}
                         </tbody>
                     </table>
                 </div>
@@ -870,7 +943,7 @@ ${po.notes ? `<div class="notes-box"><strong>Ghi chú:</strong> ${po.notes}</div
                                 const now = new Date();
                                 const end = p.endDate ? new Date(p.endDate) : null;
                                 const overdueDays = end ? Math.ceil((now - end) / 86400000) : 0;
-                                const budgetRate = p.budget > 0 ? (p.spent / p.budget) * 100 : 0;
+                                const budgetRate = (p.budget || 0) > 0 ? ((p.spent || 0) / p.budget) * 100 : 0;
                                 const isDone = p.status === 'Hoàn thành';
                                 let health = 'success', healthLabel = '🟢 Bình thường', healthTitle = 'Dự án đang đúng tiến độ & ngân sách';
                                 if (!isDone && (overdueDays > 30 || budgetRate > 100)) {
@@ -905,8 +978,8 @@ ${po.notes ? `<div class="notes-box"><strong>Ghi chú:</strong> ${po.notes}</div
                         })()}
                     </div>
                     <div style={{ textAlign: 'right' }}>
-                        <div style={{ fontSize: 32, fontWeight: 700 }}>{p.progress}%</div>
-                        <div className="progress-bar" style={{ width: 120 }}><div className="progress-fill" style={{ width: `${p.progress}%` }}></div></div>
+                        <div style={{ fontSize: 32, fontWeight: 700 }}>{fmtPct(p.progress)}</div>
+                        <div className="progress-bar" style={{ width: 120 }}><div className="progress-fill" style={{ width: `${Number(p.progress) || 0}%` }}></div></div>
                     </div>
                 </div>
 
@@ -926,9 +999,9 @@ ${po.notes ? `<div class="notes-box"><strong>Ghi chú:</strong> ${po.notes}</div
                 {/* Quick Stats */}
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: 12, marginTop: 8 }}>
                     {[
-                        { v: `${p.area}m²`, l: 'Diện tích' }, { v: `${p.floors} tầng`, l: 'Số tầng' },
+                        { v: fmtArea(p.area), l: 'Diện tích' }, { v: `${p.floors || 0} tầng`, l: 'Số tầng' },
                         { v: fmt(p.contractValue), l: 'Giá trị HĐ' }, { v: fmt(p.paidAmount), l: 'Đã thu' },
-                        { v: fmt(pnl.debtFromCustomer), l: 'KH còn nợ', c: pnl.debtFromCustomer > 0 ? 'var(--status-danger)' : 'var(--status-success)' }
+                        { v: fmt(pnl.debtFromCustomer), l: 'KH còn nợ', c: (pnl.debtFromCustomer || 0) > 0 ? 'var(--status-danger)' : 'var(--status-success)' }
                     ].map(s => (
                         <div key={s.l} style={{ textAlign: 'center', padding: '8px 0' }}>
                             <div style={{ fontWeight: 700, fontSize: 15, color: s.c || 'var(--text-primary)' }}>{s.v}</div>
@@ -947,6 +1020,9 @@ ${po.notes ? `<div class="notes-box"><strong>Ghi chú:</strong> ${po.notes}</div
                     </button>
                 ))}
             </div>
+
+            {/* Budget Alert — shown on overview + budget tabs */}
+            {(tab === 'overview' || tab === 'budget') && <BudgetAlertBanner projectId={id} />}
 
             {/* TAB: Nhật ký */}
             {tab === 'logs' && (

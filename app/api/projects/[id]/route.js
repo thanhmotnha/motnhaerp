@@ -28,18 +28,24 @@ export const GET = withAuth(async (request, { params }) => {
     });
     if (!project) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
-    // P&L
-    const income = project.paidAmount ?? 0;
+    // Revenue = sum of actual payments from ContractPayment records
+    const totalContractValue = project.contracts.reduce((s, c) => s + (c.contractValue ?? 0), 0);
+    const totalVariation = project.contracts.reduce((s, c) => s + (c.variationAmount ?? 0), 0);
+    const totalA = totalContractValue + totalVariation;
+
+    // Actual collected = sum of paidAmount in each ContractPayment (per-phase payment)
+    const totalCollected = project.contracts.reduce((s, c) =>
+        s + c.payments.reduce((ps, pay) => ps + (pay.paidAmount ?? 0), 0), 0);
+
+    // P&L — uses actual collected, not stale project fields
+    const income = totalCollected;
     const expense = project.spent ?? 0;
     const profit = income - expense;
     const profitMargin = income > 0 ? ((profit / income) * 100).toFixed(1) : 0;
-    const debtFromCustomer = (project.contractValue ?? 0) - income;
+    const debtFromCustomer = totalA - totalCollected;
     const debtToContractors = project.contractorPays.reduce((s, p) => s + ((p.contractAmount ?? 0) - (p.paidAmount ?? 0)), 0);
 
     // Settlement (Quyet toan)
-    const totalContractValue = project.contracts.reduce((s, c) => s + (c.contractValue ?? 0), 0);
-    const totalVariation = project.contracts.reduce((s, c) => s + (c.variationAmount ?? 0), 0);
-    const totalCollected = project.contracts.reduce((s, c) => s + (c.paidAmount ?? 0), 0);
     const totalPurchase = project.purchaseOrders.reduce((s, po) => s + (po.totalAmount ?? 0), 0);
     const totalExpenses = project.expenses.reduce((s, e) => s + (e.amount ?? 0), 0);
     const totalContractorCost = project.contractorPays.reduce((s, p) => s + (p.contractAmount ?? 0), 0);
@@ -47,7 +53,6 @@ export const GET = withAuth(async (request, { params }) => {
     const totalPaidB = project.purchaseOrders.reduce((s, po) => s + (po.paidAmount ?? 0), 0)
         + project.expenses.reduce((s, e) => s + (e.paidAmount ?? 0), 0)
         + project.contractorPays.reduce((s, p) => s + (p.paidAmount ?? 0), 0);
-    const totalA = totalContractValue + totalVariation;
 
     const settlement = {
         sideA: { contractValue: totalContractValue, variation: totalVariation, total: totalA, collected: totalCollected, remaining: totalA - totalCollected, rate: totalA > 0 ? ((totalCollected / totalA) * 100).toFixed(1) : 0 },
@@ -56,8 +61,22 @@ export const GET = withAuth(async (request, { params }) => {
         profitRate: totalCollected > 0 ? (((totalCollected - totalCostB) / totalCollected) * 100).toFixed(1) : 0,
     };
 
+    // Compute milestone-based progress if milestones exist
+    const msProgress = project.milestones.length > 0
+        ? Math.round(project.milestones.reduce((s, m) => s + (m.progress ?? 0), 0) / project.milestones.length)
+        : project.progress ?? 0;
+
     return NextResponse.json({
         ...project,
+        // Null-safe numeric fields
+        area: project.area ?? 0,
+        floors: project.floors ?? 0,
+        budget: project.budget ?? 0,
+        spent: project.spent ?? 0,
+        progress: msProgress,
+        // Sync from contracts — real computed values
+        contractValue: totalContractValue || project.contractValue || 0,
+        paidAmount: totalCollected,
         pnl: { income, expense, profit, profitMargin, debtFromCustomer, debtToContractors },
         settlement,
     });
