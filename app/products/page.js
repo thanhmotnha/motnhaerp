@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation';
 import * as XLSX from 'xlsx';
 import CategorySidebar from '@/components/products/CategorySidebar';
 import BulkActionsBar from '@/components/products/BulkActionsBar';
+import ProductDrawer from '@/components/products/ProductDrawer';
 
 const fmt = (n) => new Intl.NumberFormat('vi-VN').format(n);
 const fmtCur = (n) => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(n);
@@ -58,6 +59,7 @@ export default function ProductsPage() {
     const [filterSupplyType, setFilterSupplyType] = useState('');
     const [filterStockStatus, setFilterStockStatus] = useState('');
     const [sortBy, setSortBy] = useState('newest');
+    const [drawerProduct, setDrawerProduct] = useState(null);
     const [viewMode, setViewMode] = useState('list');
     const [editingP, setEditingP] = useState(null);
     const [quickEditP, setQuickEditP] = useState(new Map());
@@ -479,8 +481,10 @@ export default function ProductsPage() {
 
                             {/* View toggle */}
                             <div style={{ display: 'flex', gap: 0, background: 'var(--surface-alt)', borderRadius: 6, padding: 2, border: '1px solid var(--border-color)' }}>
-                                <button onClick={() => setViewMode('list')} style={{ fontSize: 11, padding: '4px 10px', border: 'none', borderRadius: 4, cursor: 'pointer', background: viewMode === 'list' ? '#fff' : 'transparent', fontWeight: viewMode === 'list' ? 600 : 400, boxShadow: viewMode === 'list' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none', color: viewMode === 'list' ? '#234093' : 'var(--text-secondary)' }}>☰ Danh sách</button>
-                                <button onClick={() => setViewMode('grid')} style={{ fontSize: 11, padding: '4px 10px', border: 'none', borderRadius: 4, cursor: 'pointer', background: viewMode === 'grid' ? '#fff' : 'transparent', fontWeight: viewMode === 'grid' ? 600 : 400, boxShadow: viewMode === 'grid' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none', color: viewMode === 'grid' ? '#234093' : 'var(--text-secondary)' }}>⊞ Dạng lưới</button>
+                                {['list', 'grouped', 'grid'].map(mode => {
+                                    const labels = { list: '☰ Danh sách', grouped: '📂 Nhóm DM', grid: '⊞ Lưới' };
+                                    return <button key={mode} onClick={() => setViewMode(mode)} style={{ fontSize: 11, padding: '4px 10px', border: 'none', borderRadius: 4, cursor: 'pointer', background: viewMode === mode ? '#fff' : 'transparent', fontWeight: viewMode === mode ? 600 : 400, boxShadow: viewMode === mode ? '0 1px 3px rgba(0,0,0,0.1)' : 'none', color: viewMode === mode ? '#234093' : 'var(--text-secondary)' }}>{labels[mode]}</button>;
+                                })}
                             </div>
 
                             {/* Stock filter with labels */}
@@ -628,12 +632,83 @@ export default function ProductsPage() {
                                     </div>
                                 )}
 
+                                {/* ========= GROUPED CATEGORY VIEW ========= */}
+                                {viewMode === 'grouped' && (() => {
+                                    // Group products by category
+                                    const groups = {};
+                                    filteredP.forEach(p => {
+                                        const cat = p.category || 'Chưa phân loại';
+                                        if (!groups[cat]) groups[cat] = [];
+                                        groups[cat].push(p);
+                                    });
+                                    const sortedGroups = Object.entries(groups).sort(([a], [b]) => a.localeCompare(b, 'vi'));
+                                    return (
+                                        <div style={{ padding: '8px 12px' }}>
+                                            {sortedGroups.map(([catName, prods]) => (
+                                                <div key={catName} style={{ marginBottom: 16 }}>
+                                                    {/* Category header */}
+                                                    <div style={{
+                                                        display: 'flex', alignItems: 'center', gap: 8,
+                                                        padding: '8px 12px', marginBottom: 4,
+                                                        background: 'linear-gradient(90deg, #234093 0%, #3b5998 100%)',
+                                                        borderRadius: 8, color: '#fff',
+                                                    }}>
+                                                        <span style={{ fontSize: 13, fontWeight: 700 }}>▼ {catName}</span>
+                                                        <span style={{ fontSize: 11, opacity: 0.7 }}>({prods.length})</span>
+                                                    </div>
+                                                    {/* Product rows */}
+                                                    {prods.map(p => (
+                                                        <div key={p.id} onClick={() => setDrawerProduct(p)} style={{
+                                                            display: 'flex', alignItems: 'center', gap: 10,
+                                                            padding: '8px 12px',
+                                                            borderBottom: '1px solid var(--border-color)',
+                                                            cursor: 'pointer', transition: 'background .1s',
+                                                            borderRadius: 4,
+                                                        }}
+                                                            onMouseEnter={e => e.currentTarget.style.background = 'var(--surface-alt, #f8f9fa)'}
+                                                            onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
+                                                            {/* Thumbnail */}
+                                                            <div style={{
+                                                                width: 40, height: 40, borderRadius: 6, overflow: 'hidden', flexShrink: 0,
+                                                                border: '1px solid var(--border-color)',
+                                                                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                                                background: '#f9f9f9',
+                                                            }}>
+                                                                {p.image
+                                                                    ? <img src={p.image} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="" />
+                                                                    : <span style={{ fontSize: 16, opacity: 0.1 }}>📷</span>}
+                                                            </div>
+                                                            {/* Name */}
+                                                            <div style={{ flex: 1, minWidth: 0 }}>
+                                                                <div style={{ fontSize: 13, fontWeight: 600, color: '#234093', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name}</div>
+                                                                <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>{p.unit}{p.brand ? ` · ${p.brand}` : ''}</div>
+                                                            </div>
+                                                            {/* Price */}
+                                                            <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)', whiteSpace: 'nowrap' }}>
+                                                                {fmt(p.salePrice)} <span style={{ fontSize: 10, fontWeight: 400, opacity: 0.5 }}>đ</span>
+                                                            </div>
+                                                            {/* Stock dot */}
+                                                            <div style={{
+                                                                width: 8, height: 8, borderRadius: '50%', flexShrink: 0,
+                                                                background: p.stock === 0 ? '#ef4444' : p.stock <= (p.minStock || 5) ? '#eab308' : '#22c55e',
+                                                            }} title={`Tồn: ${p.stock}`} />
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            ))}
+                                        </div>
+                                    );
+                                })()}
+
                                 {hasMore && <div ref={sentinelRef} style={{ padding: 16, textAlign: 'center', opacity: 0.4, fontSize: 11 }}>Đang tải thêm...</div>}
                                 {!hasMore && filteredP.length > 0 && <div style={{ padding: 10, textAlign: 'center', opacity: 0.25, fontSize: 10 }}>— Hết —</div>}
                             </div>
                         )}
                     </div>
                 </div>
+
+                {/* Product Detail Drawer */}
+            {drawerProduct && <ProductDrawer product={drawerProduct} onClose={() => setDrawerProduct(null)} onEdit={startEditP} onDelete={async (id) => { await fetch(`/api/products/${id}`, { method: 'DELETE' }); setDrawerProduct(null); fetchProducts(); fetchCategories(); }} />}
             )}
 
             {/* ===== LIBRARY ===== */}
