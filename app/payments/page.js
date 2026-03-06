@@ -80,22 +80,30 @@ export default function PaymentsPage() {
         const file = e.target.files?.[0];
         if (file) setConfirmModal(prev => ({ ...prev, file, preview: URL.createObjectURL(file) }));
     };
-    const handlePaste = (e) => {
-        const items = e.clipboardData?.items;
-        if (!items) return;
-        for (const item of items) {
-            if (item.type.startsWith('image/')) {
-                const file = item.getAsFile();
-                if (file) setConfirmModal(prev => ({ ...prev, file, preview: URL.createObjectURL(file) }));
-                break;
-            }
-        }
-    };
     const handleDrop = (e) => {
         e.preventDefault();
         const file = e.dataTransfer?.files?.[0];
         if (file && file.type.startsWith('image/')) setConfirmModal(prev => ({ ...prev, file, preview: URL.createObjectURL(file) }));
     };
+
+    // Document-level paste listener — works when modal is open regardless of focus
+    useEffect(() => {
+        if (!confirmModal) return;
+        const onPaste = (e) => {
+            const items = e.clipboardData?.items;
+            if (!items) return;
+            for (const item of items) {
+                if (item.type.startsWith('image/')) {
+                    e.preventDefault();
+                    const file = item.getAsFile();
+                    if (file) setConfirmModal(prev => ({ ...prev, file, preview: URL.createObjectURL(file) }));
+                    break;
+                }
+            }
+        };
+        document.addEventListener('paste', onPaste);
+        return () => document.removeEventListener('paste', onPaste);
+    }, [confirmModal]);
 
     const confirmCollect = async () => {
         if (!confirmModal || uploading) return;
