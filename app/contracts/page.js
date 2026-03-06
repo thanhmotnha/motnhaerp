@@ -2,9 +2,10 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { exportToCsv } from '@/lib/exportCsv';
-const fmt = (n) => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(n);
+const fmt = (n) => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(n || 0);
 const fmtDate = (d) => d ? new Date(d).toLocaleDateString('vi-VN') : '—';
 const pct = (a, b) => b > 0 ? Math.round((a / b) * 100) : 0;
+
 const TYPE_COLORS = { 'Thiết kế kiến trúc': 'info', 'Thiết kế nội thất': 'purple', 'Thi công thô': 'warning', 'Thi công hoàn thiện': 'success', 'Thi công nội thất': 'accent' };
 const TYPE_ICONS = { 'Thiết kế kiến trúc': '📐', 'Thiết kế nội thất': '🎨', 'Thi công thô': '🧱', 'Thi công hoàn thiện': '🏠', 'Thi công nội thất': '🪑' };
 
@@ -16,8 +17,9 @@ export default function ContractsPage() {
     const [filterType, setFilterType] = useState('');
     const router = useRouter();
 
-    useEffect(() => { fetchContracts(); }, []);
     const fetchContracts = () => fetch('/api/contracts?limit=1000').then(r => r.json()).then(d => { setContracts(d.data || []); setLoading(false); });
+    useEffect(() => { fetchContracts(); }, []);
+
     const deleteContract = async (id, code, e) => {
         e.stopPropagation();
         if (!confirm(`Xoá hợp đồng ${code}?`)) return;
@@ -29,21 +31,19 @@ export default function ContractsPage() {
     const filtered = contracts.filter(c => {
         if (filterStatus && c.status !== filterStatus) return false;
         if (filterType && c.type !== filterType) return false;
-        if (search && !c.name.toLowerCase().includes(search.toLowerCase()) && !c.code.toLowerCase().includes(search.toLowerCase())) return false;
+        if (search && !c.name?.toLowerCase().includes(search.toLowerCase()) && !c.code?.toLowerCase().includes(search.toLowerCase()) && !c.customer?.name?.toLowerCase().includes(search.toLowerCase())) return false;
         return true;
     });
 
-    const totalValue = contracts.reduce((s, c) => s + c.contractValue, 0);
-    const totalPaid = contracts.reduce((s, c) => s + c.paidAmount, 0);
+    const totalValue = contracts.reduce((s, c) => s + (c.contractValue || 0), 0);
+    const totalPaid = contracts.reduce((s, c) => s + (c.paidAmount || 0), 0);
     const totalDebt = totalValue - totalPaid;
     const activeCount = contracts.filter(c => c.status === 'Đang thực hiện').length;
 
-    // Group by type for summary
     const typeGroups = ['Thiết kế kiến trúc', 'Thiết kế nội thất', 'Thi công thô', 'Thi công hoàn thiện', 'Thi công nội thất'].map(type => ({
-        type,
-        icon: TYPE_ICONS[type],
+        type, icon: TYPE_ICONS[type],
         count: contracts.filter(c => c.type === type).length,
-        value: contracts.filter(c => c.type === type).reduce((s, c) => s + c.contractValue, 0),
+        value: contracts.filter(c => c.type === type).reduce((s, c) => s + (c.contractValue || 0), 0),
     }));
 
     return (
@@ -56,7 +56,6 @@ export default function ContractsPage() {
                 <div className="stat-card"><div style={{ fontSize: 24, fontWeight: 700, color: totalDebt > 0 ? 'var(--status-danger)' : 'var(--status-success)' }}>{fmt(totalDebt)}</div><div style={{ fontSize: 13, color: 'var(--text-muted)' }}>Công nợ</div></div>
             </div>
 
-            {/* Type summary cards */}
             <div style={{ display: 'flex', gap: 16, marginTop: 16, flexWrap: 'wrap' }}>
                 {typeGroups.map(g => (
                     <div key={g.type} className="stat-card" onClick={() => setFilterType(filterType === g.type ? '' : g.type)} style={{ cursor: 'pointer', flex: 1, minWidth: 0, border: filterType === g.type ? '2px solid var(--accent-primary)' : undefined, transition: 'border 0.2s' }}>
@@ -79,7 +78,7 @@ export default function ContractsPage() {
                             { key: 'customer.name', label: 'Khách hàng' }, { key: 'project.name', label: 'Dự án' },
                             { key: 'type', label: 'Loại' }, { key: 'status', label: 'Trạng thái' },
                             { key: 'contractValue', label: 'Giá trị HĐ' }, { key: 'paidAmount', label: 'Đã thu' },
-                            { key: 'signDate', label: 'Ngày ký' }, { key: 'startDate', label: 'Ngày BD' }, { key: 'endDate', label: 'Ngày KT' },
+                            { key: 'signDate', label: 'Ngày ký' },
                         ], 'hop-dong')}>⬇ Xuất CSV</button>
                         <button className="btn btn-primary" onClick={() => router.push('/contracts/create')}>➕ Tạo hợp đồng</button>
                     </div>
@@ -104,7 +103,7 @@ export default function ContractsPage() {
                                     <td className="accent">{c.code}</td>
                                     <td className="primary">{c.name}<div style={{ fontSize: 11, color: 'var(--text-muted)' }}>Ký: {fmtDate(c.signDate)}</div></td>
                                     <td>{c.customer?.name}</td>
-                                    <td><span className="badge info">{c.project?.code}</span> {c.project?.name}</td>
+                                    <td>{c.project ? <><span className="badge info">{c.project.code}</span> {c.project.name}</> : <span style={{ color: 'var(--text-muted)', fontSize: 12 }}>Chưa gán DA</span>}</td>
                                     <td><span className={`badge ${TYPE_COLORS[c.type] || 'muted'}`}>{TYPE_ICONS[c.type] || ''} {c.type}</span></td>
                                     <td className="amount">{fmt(c.contractValue)}</td>
                                     <td style={{ color: 'var(--status-success)', fontWeight: 600 }}>{fmt(c.paidAmount)}</td>

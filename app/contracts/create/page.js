@@ -1,40 +1,9 @@
 'use client';
 import { useState, useEffect, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
+import { PAYMENT_TEMPLATES, CONTRACT_TYPES } from '@/lib/contractTemplates';
 
-const fmt = (n) => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(n);
-
-const TYPE_OPTIONS = ['Thiết kế kiến trúc', 'Thiết kế nội thất', 'Thi công thô', 'Thi công hoàn thiện', 'Thi công nội thất'];
-
-// Payment templates per contract type
-const PAYMENT_TEMPLATES = {
-    'Thiết kế kiến trúc': [
-        { phase: 'Đặt cọc thiết kế', pct: 50 },
-        { phase: 'Nghiệm thu bản vẽ', pct: 50 },
-    ],
-    'Thiết kế nội thất': [
-        { phase: 'Đặt cọc thiết kế nội thất', pct: 50 },
-        { phase: 'Nghiệm thu phối cảnh 3D', pct: 30 },
-        { phase: 'Nghiệm thu bản vẽ triển khai', pct: 20 },
-    ],
-    'Thi công thô': [
-        { phase: 'Đặt cọc thi công', pct: 30 },
-        { phase: 'Hoàn thiện móng + khung', pct: 30 },
-        { phase: 'Hoàn thiện xây thô', pct: 30 },
-        { phase: 'Nghiệm thu bàn giao thô', pct: 10 },
-    ],
-    'Thi công hoàn thiện': [
-        { phase: 'Đặt cọc hoàn thiện', pct: 30 },
-        { phase: 'Hoàn thiện trát + ốp lát', pct: 25 },
-        { phase: 'Hoàn thiện sơn + điện nước', pct: 25 },
-        { phase: 'Nghiệm thu bàn giao', pct: 20 },
-    ],
-    'Thi công nội thất': [
-        { phase: 'Đặt cọc nội thất', pct: 50 },
-        { phase: 'Giao hàng + lắp đặt', pct: 40 },
-        { phase: 'Nghiệm thu hoàn thiện', pct: 10 },
-    ],
-};
+const fmt = (n) => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(n || 0);
 
 export default function CreateContractPage() {
     const router = useRouter();
@@ -57,7 +26,7 @@ export default function CreateContractPage() {
         fetch('/api/quotations?limit=1000').then(r => r.json()).then(d => setQuotations(d.data || []));
     }, []);
 
-    // Auto-fill from URL params (when navigating from quotations page)
+    // Auto-fill from URL params
     useEffect(() => {
         if (autoFilledRef.current || quotations.length === 0) return;
         const qId = searchParams.get('quotationId');
@@ -71,8 +40,7 @@ export default function CreateContractPage() {
             const q = quotations.find(x => x.id === qId);
             if (q) {
                 setForm(f => ({
-                    ...f,
-                    quotationId: qId,
+                    ...f, quotationId: qId,
                     customerId: q.customerId || customerId || f.customerId,
                     projectId: q.projectId || projectId || f.projectId,
                     type: q.type || type || f.type,
@@ -82,32 +50,21 @@ export default function CreateContractPage() {
                 return;
             }
         }
-        // Fallback: fill from individual params
-        setForm(f => ({
-            ...f,
-            customerId: customerId || f.customerId,
-            projectId: projectId || f.projectId,
-            type: type || f.type,
-            contractValue: Number(value) || f.contractValue,
-        }));
+        setForm(f => ({ ...f, customerId: customerId || f.customerId, projectId: projectId || f.projectId, type: type || f.type, contractValue: Number(value) || f.contractValue }));
     }, [quotations, searchParams]);
 
     // Auto-load template when type changes
     useEffect(() => {
         const tmpl = PAYMENT_TEMPLATES[form.type] || [];
         setPaymentPhases(tmpl.map(t => ({
-            phase: t.phase,
-            pct: t.pct,
+            phase: t.phase, pct: t.pct, category: t.category || '',
             amount: Math.round((form.contractValue || 0) * t.pct / 100),
         })));
     }, [form.type]);
 
     // Recalc amounts when contractValue changes
     useEffect(() => {
-        setPaymentPhases(prev => prev.map(p => ({
-            ...p,
-            amount: Math.round((form.contractValue || 0) * p.pct / 100),
-        })));
+        setPaymentPhases(prev => prev.map(p => ({ ...p, amount: Math.round((form.contractValue || 0) * p.pct / 100) })));
     }, [form.contractValue]);
 
     const availableQuotations = quotations.filter(q => q.status === 'Hợp đồng' && (q._count?.contracts || 0) === 0);
@@ -120,8 +77,7 @@ export default function CreateContractPage() {
         const q = quotations.find(x => x.id === qId);
         if (q) {
             setForm(f => ({
-                ...f,
-                quotationId: qId,
+                ...f, quotationId: qId,
                 customerId: q.customerId || f.customerId,
                 projectId: q.projectId || f.projectId,
                 type: q.type || f.type,
@@ -143,27 +99,26 @@ export default function CreateContractPage() {
         }));
     };
 
-    const addPhase = () => setPaymentPhases(prev => [...prev, { phase: '', pct: 0, amount: 0 }]);
+    const addPhase = () => setPaymentPhases(prev => [...prev, { phase: '', pct: 0, amount: 0, category: '' }]);
     const removePhase = (idx) => setPaymentPhases(prev => prev.filter((_, i) => i !== idx));
 
     const handleSave = async () => {
         if (!form.name.trim()) return alert('Nhập tên hợp đồng!');
         if (!form.customerId) return alert('Chọn khách hàng!');
-        if (!form.projectId) return alert('Chọn dự án!');
         setSaving(true);
         try {
             const res = await fetch('/api/contracts', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ ...form, paymentPhases }),
+                body: JSON.stringify({ ...form, projectId: form.projectId || null, paymentPhases }),
             });
             if (res.ok) {
                 const saved = await res.json();
                 alert('Đã tạo hợp đồng thành công!');
                 router.push(`/contracts/${saved.id}`);
             } else {
-                const err = await res.json();
-                alert('Lỗi: ' + (err.error || 'Unknown'));
+                const err = await res.json().catch(() => ({}));
+                alert('Lỗi: ' + (err.error || err.message || 'Unknown'));
             }
         } catch (e) { alert('Lỗi: ' + e.message); }
         setSaving(false);
@@ -188,14 +143,8 @@ export default function CreateContractPage() {
                     ) : (
                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 12 }}>
                             {availableQuotations.map(q => (
-                                <div key={q.id}
-                                    onClick={() => selectQuotation(q.id)}
-                                    style={{
-                                        border: form.quotationId === q.id ? '2px solid var(--primary)' : '1px solid var(--border-color)',
-                                        borderRadius: 10, padding: 14, cursor: 'pointer',
-                                        background: form.quotationId === q.id ? 'var(--primary-alpha)' : 'var(--bg-card)',
-                                        transition: 'all 0.2s',
-                                    }}>
+                                <div key={q.id} onClick={() => selectQuotation(q.id)}
+                                    style={{ border: form.quotationId === q.id ? '2px solid var(--primary)' : '1px solid var(--border-color)', borderRadius: 10, padding: 14, cursor: 'pointer', background: form.quotationId === q.id ? 'var(--primary-alpha)' : 'var(--bg-card)', transition: 'all 0.2s' }}>
                                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                                         <span className="badge info" style={{ fontSize: 11 }}>{q.code}</span>
                                         <span className="badge success">{q.status}</span>
@@ -227,16 +176,16 @@ export default function CreateContractPage() {
                             </select>
                         </div>
                         <div>
-                            <label className="form-label">Dự án *</label>
+                            <label className="form-label">Dự án <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>(tùy chọn)</span></label>
                             <select className="form-select" value={form.projectId || ''} onChange={e => setForm({ ...form, projectId: e.target.value })}>
-                                <option value="">-- Chọn dự án --</option>
+                                <option value="">-- Chưa gán dự án --</option>
                                 {filteredProjects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
                             </select>
                         </div>
                         <div>
                             <label className="form-label">Loại hợp đồng</label>
                             <select className="form-select" value={form.type} onChange={e => setForm({ ...form, type: e.target.value })}>
-                                {TYPE_OPTIONS.map(t => <option key={t}>{t}</option>)}
+                                {CONTRACT_TYPES.map(t => <option key={t}>{t}</option>)}
                             </select>
                         </div>
                         <div>
@@ -285,46 +234,19 @@ export default function CreateContractPage() {
                         </div>
                     ) : (
                         <table className="data-table" style={{ margin: 0 }}>
-                            <thead>
-                                <tr>
-                                    <th style={{ width: 40 }}>#</th>
-                                    <th>Giai đoạn thanh toán</th>
-                                    <th style={{ width: 100, textAlign: 'center' }}>%</th>
-                                    <th style={{ width: 180, textAlign: 'right' }}>Số tiền</th>
-                                    <th style={{ width: 50 }}></th>
-                                </tr>
-                            </thead>
+                            <thead><tr><th style={{ width: 40 }}>#</th><th>Giai đoạn thanh toán</th><th style={{ width: 100, textAlign: 'center' }}>%</th><th style={{ width: 180, textAlign: 'right' }}>Số tiền</th><th style={{ width: 50 }}></th></tr></thead>
                             <tbody>
                                 {paymentPhases.map((p, idx) => (
                                     <tr key={idx}>
                                         <td style={{ textAlign: 'center', fontWeight: 600, color: 'var(--text-muted)' }}>{idx + 1}</td>
-                                        <td>
-                                            <input className="form-input form-input-compact" value={p.phase}
-                                                onChange={e => updatePhase(idx, 'phase', e.target.value)}
-                                                placeholder="Tên đợt thanh toán" style={{ width: '100%' }} />
-                                        </td>
-                                        <td>
-                                            <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                                                <input className="form-input form-input-compact" type="number" value={p.pct || ''}
-                                                    onChange={e => updatePhase(idx, 'pct', parseFloat(e.target.value) || 0)}
-                                                    style={{ width: 60, textAlign: 'center' }} />
-                                                <span style={{ fontSize: 12 }}>%</span>
-                                            </div>
-                                        </td>
-                                        <td style={{ textAlign: 'right' }}>
-                                            <input className="form-input form-input-compact" type="number" value={p.amount || ''}
-                                                onChange={e => updatePhase(idx, 'amount', parseFloat(e.target.value) || 0)}
-                                                style={{ width: '100%', textAlign: 'right' }} />
-                                        </td>
-                                        <td>
-                                            <button className="btn btn-ghost" onClick={() => removePhase(idx)}
-                                                style={{ padding: '2px 6px', fontSize: 11, color: 'var(--status-danger)' }}>✕</button>
-                                        </td>
+                                        <td><input className="form-input form-input-compact" value={p.phase} onChange={e => updatePhase(idx, 'phase', e.target.value)} placeholder="Tên đợt thanh toán" style={{ width: '100%' }} /></td>
+                                        <td><div style={{ display: 'flex', alignItems: 'center', gap: 4 }}><input className="form-input form-input-compact" type="number" value={p.pct || ''} onChange={e => updatePhase(idx, 'pct', parseFloat(e.target.value) || 0)} style={{ width: 60, textAlign: 'center' }} /><span style={{ fontSize: 12 }}>%</span></div></td>
+                                        <td style={{ textAlign: 'right' }}><input className="form-input form-input-compact" type="number" value={p.amount || ''} onChange={e => updatePhase(idx, 'amount', parseFloat(e.target.value) || 0)} style={{ width: '100%', textAlign: 'right' }} /></td>
+                                        <td><button className="btn btn-ghost" onClick={() => removePhase(idx)} style={{ padding: '2px 6px', fontSize: 11, color: 'var(--status-danger)' }}>✕</button></td>
                                     </tr>
                                 ))}
                                 <tr style={{ background: 'var(--bg-hover)', fontWeight: 700 }}>
-                                    <td></td>
-                                    <td>Tổng cộng</td>
+                                    <td></td><td>Tổng cộng</td>
                                     <td style={{ textAlign: 'center', color: totalPhasePct === 100 ? 'var(--status-success)' : 'var(--status-danger)' }}>{totalPhasePct}%</td>
                                     <td style={{ textAlign: 'right', color: 'var(--primary)' }}>{fmt(totalPhaseAmount)}</td>
                                     <td></td>

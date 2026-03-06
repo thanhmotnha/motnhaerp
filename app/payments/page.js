@@ -50,7 +50,7 @@ export default function PaymentsPage() {
     // === Filter receivable payments ===
     const projects = [...new Set(receivables.payments.map(p => p.contract?.project?.name).filter(Boolean))];
     const filteredPayments = receivables.payments.filter(p => {
-        if (filterProject && p.contract?.project?.name !== filterProject) return false;
+        if (filterProject && (p.contract?.project?.name || '') !== filterProject) return false;
         if (filterStatus && p.status !== filterStatus) return false;
         if (search && !p.contract?.code?.toLowerCase().includes(search.toLowerCase()) && !p.contract?.customer?.name?.toLowerCase().includes(search.toLowerCase())) return false;
         return true;
@@ -80,6 +80,7 @@ export default function PaymentsPage() {
         const file = e.dataTransfer?.files?.[0];
         if (file && file.type.startsWith('image/')) setConfirmModal(prev => ({ ...prev, file, preview: URL.createObjectURL(file) }));
     };
+
     const confirmCollect = async () => {
         if (!confirmModal || uploading) return;
         const { payment, file, amount } = confirmModal;
@@ -87,10 +88,20 @@ export default function PaymentsPage() {
         if (!amount || amount <= 0) return alert('Nhập số tiền hợp lệ!');
 
         setUploading(true);
-        let proofUrl = payment.proofUrl || '';
-        const reader = new FileReader();
-        reader.onload = async () => {
-            proofUrl = reader.result;
+        try {
+            // Upload image file to server instead of base64
+            const fd = new FormData();
+            fd.append('file', file);
+            fd.append('type', 'payment-proofs');
+            const uploadRes = await fetch('/api/upload', { method: 'POST', body: fd });
+            const uploadJson = await uploadRes.json();
+
+            if (!uploadJson.url) {
+                alert('Lỗi upload ảnh!');
+                setUploading(false);
+                return;
+            }
+
             const p = payment;
             const newPaid = (p.paidAmount || 0) + Number(amount);
             await fetch(`/api/contracts/${p.contractId}/payments/${p.id}`, {
@@ -99,15 +110,16 @@ export default function PaymentsPage() {
                 body: JSON.stringify({
                     paidAmount: newPaid,
                     status: newPaid >= p.amount ? 'Đã thu' : 'Thu một phần',
-                    proofUrl,
+                    proofUrl: uploadJson.url,
                     paidDate: new Date().toISOString(),
                 }),
             });
-            setUploading(false);
             setConfirmModal(null);
             fetchAll();
-        };
-        reader.readAsDataURL(file);
+        } catch (e) {
+            alert('Lỗi: ' + e.message);
+        }
+        setUploading(false);
     };
 
     // === In phiếu thu ===
@@ -215,7 +227,7 @@ ${[1, 2].map(copy => `
                     ))}
                 </div>
 
-                {/* TAB: Tổng quan theo HĐ */}
+                {/* TAB: Tổng quan */}
                 {tab === 'overview' && (
                     <>
                         <div style={{ padding: '10px 16px', display: 'flex', gap: 10, alignItems: 'center', borderBottom: '1px solid var(--border)' }}>
@@ -236,7 +248,7 @@ ${[1, 2].map(copy => `
                                             <td className="accent">{c.code}</td>
                                             <td className="primary">{c.name}</td>
                                             <td style={{ fontSize: 12 }}>{c.customer?.name}</td>
-                                            <td><span className="badge info">{c.project?.code}</span></td>
+                                            <td>{c.project ? <span className="badge info">{c.project.code}</span> : <span style={{ color: 'var(--text-muted)', fontSize: 11 }}>—</span>}</td>
                                             <td><span className="badge badge-default" style={{ fontSize: 10 }}>{c.type}</span></td>
                                             <td className="amount">{fmt(c.contractValue)}</td>
                                             <td style={{ color: 'var(--status-success)', fontWeight: 600 }}>{fmt(c.paidAmount)}</td>

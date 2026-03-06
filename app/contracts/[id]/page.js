@@ -1,40 +1,11 @@
 'use client';
 import { useState, useEffect, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
+import { PAYMENT_TEMPLATES, CONTRACT_TYPES, CONTRACT_STATUSES } from '@/lib/contractTemplates';
 
 const fmt = (n) => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(n || 0);
 const fmtDate = (d) => d ? new Date(d).toISOString().slice(0, 10) : '';
-const STATUS_OPTS = ['Nháp', 'Đã ký', 'Đang thực hiện', 'Hoàn thành', 'Hủy'];
-const TYPE_OPTS = ['Thiết kế kiến trúc', 'Thiết kế nội thất', 'Thi công thô', 'Thi công hoàn thiện', 'Thi công nội thất'];
-
-const PAYMENT_TEMPLATES = {
-    'Thiết kế kiến trúc': [
-        { phase: 'Đặt cọc thiết kế', pct: 50 },
-        { phase: 'Nghiệm thu bản vẽ', pct: 50 },
-    ],
-    'Thiết kế nội thất': [
-        { phase: 'Đặt cọc thiết kế nội thất', pct: 50 },
-        { phase: 'Nghiệm thu phối cảnh 3D', pct: 30 },
-        { phase: 'Nghiệm thu bản vẽ triển khai', pct: 20 },
-    ],
-    'Thi công thô': [
-        { phase: 'Đặt cọc thi công', pct: 30 },
-        { phase: 'Hoàn thiện móng + khung', pct: 30 },
-        { phase: 'Hoàn thiện xây thô', pct: 30 },
-        { phase: 'Nghiệm thu bàn giao thô', pct: 10 },
-    ],
-    'Thi công hoàn thiện': [
-        { phase: 'Đặt cọc hoàn thiện', pct: 30 },
-        { phase: 'Hoàn thiện trát + ốp lát', pct: 25 },
-        { phase: 'Hoàn thiện sơn + điện nước', pct: 25 },
-        { phase: 'Nghiệm thu bàn giao', pct: 20 },
-    ],
-    'Thi công nội thất': [
-        { phase: 'Đặt cọc nội thất', pct: 50 },
-        { phase: 'Giao hàng + lắp đặt', pct: 40 },
-        { phase: 'Nghiệm thu hoàn thiện', pct: 10 },
-    ],
-};
+const fmtDateVN = (d) => d ? new Date(d).toLocaleDateString('vi-VN') : '—';
 
 export default function ContractDetailPage() {
     const { id } = useParams();
@@ -47,7 +18,6 @@ export default function ContractDetailPage() {
     const [editingPayments, setEditingPayments] = useState(false);
     const [paymentPhases, setPaymentPhases] = useState([]);
     const [savingPayments, setSavingPayments] = useState(false);
-    const [receiptPayment, setReceiptPayment] = useState(null); // for receipt modal
     const fileRef = useRef();
 
     const reload = () => {
@@ -56,17 +26,10 @@ export default function ContractDetailPage() {
             .then(d => {
                 setData(d);
                 setForm({
-                    name: d.name || '',
-                    type: d.type || 'Thi công thô',
-                    status: d.status || 'Nháp',
-                    contractValue: d.contractValue || 0,
-                    variationAmount: d.variationAmount || 0,
-                    signDate: fmtDate(d.signDate),
-                    startDate: fmtDate(d.startDate),
-                    endDate: fmtDate(d.endDate),
-                    paymentTerms: d.paymentTerms || '',
-                    notes: d.notes || '',
-                    fileUrl: d.fileUrl || '',
+                    name: d.name || '', type: d.type || 'Thi công thô', status: d.status || 'Nháp',
+                    contractValue: d.contractValue || 0, variationAmount: d.variationAmount || 0,
+                    signDate: fmtDate(d.signDate), startDate: fmtDate(d.startDate), endDate: fmtDate(d.endDate),
+                    paymentTerms: d.paymentTerms || '', notes: d.notes || '', fileUrl: d.fileUrl || '',
                 });
             });
     };
@@ -79,17 +42,16 @@ export default function ContractDetailPage() {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                ...form,
+                name: form.name, type: form.type, status: form.status,
                 contractValue: parseFloat(form.contractValue) || 0,
                 variationAmount: parseFloat(form.variationAmount) || 0,
-                signDate: form.signDate ? new Date(form.signDate) : null,
-                startDate: form.startDate ? new Date(form.startDate) : null,
-                endDate: form.endDate ? new Date(form.endDate) : null,
+                signDate: form.signDate || null, startDate: form.startDate || null,
+                endDate: form.endDate || null, paymentTerms: form.paymentTerms,
+                notes: form.notes, fileUrl: form.fileUrl,
             }),
         });
         if (res.ok) {
-            setSaved(true);
-            setTimeout(() => setSaved(false), 2500);
+            setSaved(true); setTimeout(() => setSaved(false), 2500);
             const updated = await res.json();
             setData(prev => ({ ...prev, ...updated }));
         }
@@ -111,7 +73,16 @@ export default function ContractDetailPage() {
         fd.append('type', 'contracts');
         const res = await fetch('/api/upload', { method: 'POST', body: fd });
         const json = await res.json();
-        if (json.url) setForm(f => ({ ...f, fileUrl: json.url }));
+        if (json.url) {
+            setForm(f => ({ ...f, fileUrl: json.url }));
+            // Auto-save after upload
+            const saveRes = await fetch(`/api/contracts/${id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ fileUrl: json.url }),
+            });
+            if (saveRes.ok) { setSaved(true); setTimeout(() => setSaved(false), 2500); }
+        }
         setUploading(false);
     };
 
@@ -121,7 +92,7 @@ export default function ContractDetailPage() {
         setPaymentPhases((data.payments || []).map(p => ({
             phase: p.phase, amount: p.amount || 0, paidAmount: p.paidAmount || 0,
             pct: cv > 0 ? Math.round((p.amount || 0) / cv * 100) : 0,
-            status: p.status || 'Chưa thu', notes: p.notes || '',
+            status: p.status || 'Chưa thu', notes: p.notes || '', category: p.category || '',
         })));
         setEditingPayments(true);
     };
@@ -130,9 +101,8 @@ export default function ContractDetailPage() {
         const tmpl = PAYMENT_TEMPLATES[form.type] || [];
         const cv = parseFloat(form.contractValue) || 0;
         setPaymentPhases(tmpl.map(t => ({
-            phase: t.phase, pct: t.pct,
-            amount: Math.round(cv * t.pct / 100),
-            paidAmount: 0, status: 'Chưa thu', notes: '',
+            phase: t.phase, pct: t.pct, category: t.category || '',
+            amount: Math.round(cv * t.pct / 100), paidAmount: 0, status: 'Chưa thu', notes: '',
         })));
     };
 
@@ -147,7 +117,7 @@ export default function ContractDetailPage() {
         }));
     };
 
-    const addPhase = () => setPaymentPhases(prev => [...prev, { phase: '', pct: 0, amount: 0, paidAmount: 0, status: 'Chưa thu', notes: '' }]);
+    const addPhase = () => setPaymentPhases(prev => [...prev, { phase: '', pct: 0, amount: 0, paidAmount: 0, status: 'Chưa thu', notes: '', category: '' }]);
     const removePhase = (idx) => setPaymentPhases(prev => prev.filter((_, i) => i !== idx));
 
     const savePayments = async () => {
@@ -177,52 +147,31 @@ export default function ContractDetailPage() {
         if (!confirm('Ký hợp đồng và tự động tạo Dự án thi công từ HĐ này?')) return;
         setCreatingProject(true);
         try {
-            // Derive project type from contract type
-            const typeMap = {
-                'Thiết kế kiến trúc': 'Thiết kế',
-                'Thiết kế nội thất': 'Thiết kế',
-                'Thi công thô': 'Thi công',
-                'Thi công hoàn thiện': 'Thi công',
-                'Thi công nội thất': 'Thi công',
-            };
+            const typeMap = { 'Thiết kế kiến trúc': 'Thiết kế', 'Thiết kế nội thất': 'Thiết kế', 'Thi công thô': 'Thi công', 'Thi công hoàn thiện': 'Thi công', 'Thi công nội thất': 'Thi công' };
             const projName = data.name.replace(/^HĐ\s*/i, '').trim() || data.name;
             const projRes = await fetch('/api/projects', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    name: projName,
-                    type: typeMap[form.type] || 'Thi công',
-                    customerId: data.customerId,
-                    budget: parseFloat(form.contractValue) || 0,
+                    name: projName, type: typeMap[form.type] || 'Thi công',
+                    customerId: data.customerId, budget: parseFloat(form.contractValue) || 0,
                     startDate: form.startDate ? new Date(form.startDate) : null,
                     endDate: form.endDate ? new Date(form.endDate) : null,
-                    status: 'Đang thi công',
-                    notes: `Tạo tự động từ hợp đồng ${data.code}`,
+                    status: 'Đang thi công', notes: `Tạo tự động từ hợp đồng ${data.code}`,
                 }),
             });
-            if (!projRes.ok) {
-                const e = await projRes.json();
-                return alert('Lỗi tạo dự án: ' + (e.error || 'Unknown'));
-            }
+            if (!projRes.ok) { const e = await projRes.json(); return alert('Lỗi tạo dự án: ' + (e.error || 'Unknown')); }
             const newProject = await projRes.json();
-            // Update contract: sign + link project
             const today = new Date().toISOString().slice(0, 10);
             const contractRes = await fetch(`/api/contracts/${id}`, {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    status: 'Đã ký',
-                    signDate: form.signDate || today,
-                    projectId: newProject.id,
-                }),
+                method: 'PUT', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ status: 'Đã ký', signDate: form.signDate || today, projectId: newProject.id }),
             });
             if (contractRes.ok) {
                 alert(`Đã ký hợp đồng và tạo dự án "${newProject.name}" (${newProject.code}) thành công!`);
                 reload();
             }
-        } finally {
-            setCreatingProject(false);
-        }
+        } finally { setCreatingProject(false); }
     };
 
     if (!data || !form) return <div style={{ padding: 40, textAlign: 'center' }}>⏳ Đang tải...</div>;
@@ -232,16 +181,13 @@ export default function ContractDetailPage() {
 
     return (
         <div>
-            {/* Breadcrumb + actions */}
             <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20, flexWrap: 'wrap' }}>
                 <button className="btn btn-secondary" onClick={() => router.push('/contracts')}>← Hợp đồng</button>
                 <span style={{ color: 'var(--text-muted)' }}>/</span>
                 <span className="accent" style={{ fontWeight: 700 }}>{data.code}</span>
                 <span style={{ marginLeft: 'auto', display: 'flex', gap: 8 }}>
                     {saved && <span style={{ color: 'var(--status-success)', fontWeight: 600, alignSelf: 'center' }}>✅ Đã lưu!</span>}
-                    {data.status === 'Nháp' && (
-                        <button className="btn btn-danger" onClick={deleteContract}>🗑 Xóa HĐ</button>
-                    )}
+                    <button className="btn btn-danger" onClick={deleteContract}>🗑 Xóa HĐ</button>
                     <button className="btn btn-primary" onClick={save} disabled={saving}>
                         {saving ? '⏳ Đang lưu...' : '💾 Lưu thay đổi'}
                     </button>
@@ -263,13 +209,13 @@ export default function ContractDetailPage() {
                                 <div className="form-group">
                                     <label className="form-label">Loại hợp đồng</label>
                                     <select className="form-select" value={form.type} onChange={e => setForm(f => ({ ...f, type: e.target.value }))}>
-                                        {TYPE_OPTS.map(t => <option key={t}>{t}</option>)}
+                                        {CONTRACT_TYPES.map(t => <option key={t}>{t}</option>)}
                                     </select>
                                 </div>
                                 <div className="form-group">
                                     <label className="form-label">Trạng thái</label>
                                     <select className="form-select" value={form.status} onChange={e => setForm(f => ({ ...f, status: e.target.value }))}>
-                                        {STATUS_OPTS.map(s => <option key={s}>{s}</option>)}
+                                        {CONTRACT_STATUSES.map(s => <option key={s}>{s}</option>)}
                                     </select>
                                 </div>
                                 <div className="form-group">
@@ -316,7 +262,7 @@ export default function ContractDetailPage() {
                                         <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>{fileExt} file</div>
                                     </div>
                                     <a href={form.fileUrl} target="_blank" rel="noreferrer" className="btn btn-secondary" style={{ fontSize: 12 }}>⬇️ Tải về</a>
-                                    <button className="btn btn-danger" style={{ fontSize: 12 }} onClick={() => setForm(f => ({ ...f, fileUrl: '' }))}>🗑 Xóa</button>
+                                    <button className="btn btn-danger" style={{ fontSize: 12 }} onClick={() => { setForm(f => ({ ...f, fileUrl: '' })); }}>🗑 Xóa</button>
                                 </div>
                             ) : (
                                 <div style={{ textAlign: 'center', padding: '28px 20px', border: '2px dashed var(--border)', borderRadius: 8, color: 'var(--text-muted)' }}>
@@ -357,7 +303,6 @@ export default function ContractDetailPage() {
                         </div>
                         <div className="card-body" style={{ padding: 0 }}>
                             {editingPayments ? (
-                                /* === Edit mode === */
                                 paymentPhases.length === 0 ? (
                                     <div style={{ padding: 24, textAlign: 'center', color: 'var(--text-muted)' }}>
                                         Chưa có đợt nào. Bấm <strong>"📋 Template"</strong> để load mẫu hoặc <strong>"➕ Thêm đợt"</strong>.
@@ -365,8 +310,7 @@ export default function ContractDetailPage() {
                                 ) : (
                                     <table className="data-table" style={{ margin: 0 }}>
                                         <thead><tr>
-                                            <th style={{ width: 35 }}>#</th>
-                                            <th>Giai đoạn</th>
+                                            <th style={{ width: 35 }}>#</th><th>Giai đoạn</th>
                                             <th style={{ width: 80, textAlign: 'center' }}>%</th>
                                             <th style={{ width: 160, textAlign: 'right' }}>Số tiền</th>
                                             <th style={{ width: 40 }}></th>
@@ -375,20 +319,10 @@ export default function ContractDetailPage() {
                                             {paymentPhases.map((p, idx) => (
                                                 <tr key={idx}>
                                                     <td style={{ textAlign: 'center', fontWeight: 600, color: 'var(--text-muted)' }}>{idx + 1}</td>
-                                                    <td><input className="form-input form-input-compact" value={p.phase}
-                                                        onChange={e => updatePhase(idx, 'phase', e.target.value)} style={{ width: '100%' }} /></td>
-                                                    <td>
-                                                        <div style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                                                            <input className="form-input form-input-compact" type="number" value={p.pct || ''}
-                                                                onChange={e => updatePhase(idx, 'pct', parseFloat(e.target.value) || 0)}
-                                                                style={{ width: 55, textAlign: 'center' }} /><span style={{ fontSize: 11 }}>%</span>
-                                                        </div>
-                                                    </td>
-                                                    <td><input className="form-input form-input-compact" type="number" value={p.amount || ''}
-                                                        onChange={e => updatePhase(idx, 'amount', parseFloat(e.target.value) || 0)}
-                                                        style={{ width: '100%', textAlign: 'right' }} /></td>
-                                                    <td><button className="btn btn-ghost" onClick={() => removePhase(idx)}
-                                                        style={{ padding: '2px 6px', fontSize: 11, color: 'var(--status-danger)' }}>✕</button></td>
+                                                    <td><input className="form-input form-input-compact" value={p.phase} onChange={e => updatePhase(idx, 'phase', e.target.value)} style={{ width: '100%' }} /></td>
+                                                    <td><div style={{ display: 'flex', alignItems: 'center', gap: 2 }}><input className="form-input form-input-compact" type="number" value={p.pct || ''} onChange={e => updatePhase(idx, 'pct', parseFloat(e.target.value) || 0)} style={{ width: 55, textAlign: 'center' }} /><span style={{ fontSize: 11 }}>%</span></div></td>
+                                                    <td><input className="form-input form-input-compact" type="number" value={p.amount || ''} onChange={e => updatePhase(idx, 'amount', parseFloat(e.target.value) || 0)} style={{ width: '100%', textAlign: 'right' }} /></td>
+                                                    <td><button className="btn btn-ghost" onClick={() => removePhase(idx)} style={{ padding: '2px 6px', fontSize: 11, color: 'var(--status-danger)' }}>✕</button></td>
                                                 </tr>
                                             ))}
                                             <tr style={{ background: 'var(--bg-hover)', fontWeight: 700 }}>
@@ -401,42 +335,37 @@ export default function ContractDetailPage() {
                                     </table>
                                 )
                             ) : (
-                                /* === View mode — chỉ hiển thị trạng thái, thu tiền ở module Tài chính === */
                                 data.payments?.length > 0 ? (
                                     <>
                                         <table className="data-table" style={{ margin: 0 }}>
                                             <thead><tr>
-                                                <th>Đợt thanh toán</th>
-                                                <th>%</th>
-                                                <th>Giá trị</th>
-                                                <th>Đã thu</th>
-                                                <th>Tiến độ</th>
-                                                <th>Trạng thái</th>
+                                                <th>Đợt thanh toán</th><th>%</th><th>Giá trị</th>
+                                                <th>Đã thu</th><th>Còn lại</th><th>Tiến độ</th>
+                                                <th>Ngày thu</th><th>Trạng thái</th>
                                             </tr></thead>
                                             <tbody>
                                                 {data.payments.map(p => {
                                                     const cv = parseFloat(form.contractValue) || 0;
                                                     const phasePct = cv > 0 ? Math.round((p.amount || 0) / cv * 100) : 0;
                                                     const paidPct = p.amount > 0 ? Math.round((p.paidAmount || 0) / p.amount * 100) : 0;
+                                                    const remaining = (p.amount || 0) - (p.paidAmount || 0);
                                                     return (
                                                         <tr key={p.id}>
                                                             <td style={{ fontWeight: 600 }}>{p.phase}</td>
                                                             <td style={{ textAlign: 'center' }}>{phasePct}%</td>
                                                             <td className="amount">{fmt(p.amount)}</td>
                                                             <td style={{ color: 'var(--status-success)', fontWeight: 600 }}>{fmt(p.paidAmount)}</td>
+                                                            <td style={{ color: remaining > 0 ? 'var(--status-danger)' : 'var(--text-muted)', fontWeight: 600 }}>{fmt(remaining)}</td>
                                                             <td>
                                                                 <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                                                                    <div className="progress-bar" style={{ flex: 1, minWidth: 60 }}>
-                                                                        <div className="progress-fill" style={{ width: `${paidPct}%` }}></div>
-                                                                    </div>
+                                                                    <div className="progress-bar" style={{ flex: 1, minWidth: 50 }}><div className="progress-fill" style={{ width: `${paidPct}%` }}></div></div>
                                                                     <span style={{ fontSize: 11 }}>{paidPct}%</span>
                                                                 </div>
                                                             </td>
+                                                            <td style={{ fontSize: 12 }}>{p.paidDate ? fmtDateVN(p.paidDate) : '—'}</td>
                                                             <td>
                                                                 <span className={`badge ${p.status === 'Đã thu' ? 'success' : p.status === 'Thu một phần' ? 'warning' : 'muted'}`}>{p.status}</span>
-                                                                {p.proofUrl && (
-                                                                    <a href={p.proofUrl} target="_blank" rel="noreferrer" style={{ marginLeft: 4 }}>📸</a>
-                                                                )}
+                                                                {p.proofUrl && <a href={p.proofUrl} target="_blank" rel="noreferrer" style={{ marginLeft: 4 }}>📸</a>}
                                                             </td>
                                                         </tr>
                                                     );
@@ -444,8 +373,8 @@ export default function ContractDetailPage() {
                                             </tbody>
                                         </table>
                                         <div style={{ padding: '10px 16px', textAlign: 'center', borderTop: '1px solid var(--border)' }}>
-                                            <a href="/finance?tab=receivables" style={{ fontSize: 13, fontWeight: 600, color: 'var(--primary)' }}>
-                                                💰 Thu tiền & In phiếu thu → Quản lý tại module Tài chính
+                                            <a href="/payments" style={{ fontSize: 13, fontWeight: 600, color: 'var(--primary)' }}>
+                                                💰 Thu tiền & In phiếu thu → Trang Thu tiền
                                             </a>
                                         </div>
                                     </>
@@ -467,7 +396,7 @@ export default function ContractDetailPage() {
                             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                                 {[
                                     ['Khách hàng', data.customer?.name],
-                                    ['Dự án', data.project?.name],
+                                    ['Dự án', data.project?.name || '— Chưa gán'],
                                     ['Loại HĐ', form.type],
                                     ['Báo giá liên kết', data.quotation?.code || '—'],
                                 ].map(([label, val]) => (
@@ -512,12 +441,7 @@ export default function ContractDetailPage() {
                                 <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 14 }}>
                                     Ký hợp đồng và tự động tạo dự án thi công từ thông tin HĐ này
                                 </div>
-                                <button
-                                    className="btn btn-primary"
-                                    style={{ width: '100%' }}
-                                    onClick={signAndCreateProject}
-                                    disabled={creatingProject}
-                                >
+                                <button className="btn btn-primary" style={{ width: '100%' }} onClick={signAndCreateProject} disabled={creatingProject}>
                                     {creatingProject ? '⏳ Đang xử lý...' : '✅ Ký HĐ & Tạo Dự án'}
                                 </button>
                             </div>
@@ -531,15 +455,13 @@ export default function ContractDetailPage() {
                             {(() => {
                                 const total = (parseFloat(form.contractValue) || 0) + (parseFloat(form.variationAmount) || 0);
                                 const paid = data.paidAmount || 0;
-                                const pct = total > 0 ? Math.round((paid / total) * 100) : 0;
+                                const pctVal = total > 0 ? Math.round((paid / total) * 100) : 0;
                                 return (
                                     <>
                                         <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginBottom: 6 }}>
-                                            <span>Đã thu</span><span style={{ fontWeight: 700 }}>{pct}%</span>
+                                            <span>Đã thu</span><span style={{ fontWeight: 700 }}>{pctVal}%</span>
                                         </div>
-                                        <div className="progress-bar" style={{ height: 10 }}>
-                                            <div className="progress-fill" style={{ width: `${pct}%` }}></div>
-                                        </div>
+                                        <div className="progress-bar" style={{ height: 10 }}><div className="progress-fill" style={{ width: `${pctVal}%` }}></div></div>
                                         <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 8 }}>
                                             {data.payments?.filter(p => p.status === 'Đã thu').length || 0} / {data.payments?.length || 0} đợt đã thanh toán
                                         </div>

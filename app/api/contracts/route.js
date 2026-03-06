@@ -4,31 +4,7 @@ import prisma from '@/lib/prisma';
 import { generateCode } from '@/lib/generateCode';
 import { NextResponse } from 'next/server';
 import { contractCreateSchema } from '@/lib/validations/contract';
-
-// Preset payment phases per contract type
-const PAYMENT_TEMPLATES = {
-    'Thiết kế': [
-        { phase: 'Đặt cọc thiết kế', pct: 50, category: 'Thiết kế' },
-        { phase: 'Nghiệm thu bản vẽ', pct: 50, category: 'Thiết kế' },
-    ],
-    'Thi công thô': [
-        { phase: 'Đặt cọc thi công', pct: 30, category: 'Thi công' },
-        { phase: 'Hoàn thiện móng + khung', pct: 30, category: 'Thi công' },
-        { phase: 'Hoàn thiện xây thô', pct: 30, category: 'Thi công' },
-        { phase: 'Nghiệm thu bàn giao thô', pct: 10, category: 'Thi công' },
-    ],
-    'Thi công hoàn thiện': [
-        { phase: 'Đặt cọc hoàn thiện', pct: 30, category: 'Hoàn thiện' },
-        { phase: 'Hoàn thiện trát + ốp lát', pct: 25, category: 'Hoàn thiện' },
-        { phase: 'Hoàn thiện sơn + điện nước', pct: 25, category: 'Hoàn thiện' },
-        { phase: 'Nghiệm thu bàn giao', pct: 20, category: 'Hoàn thiện' },
-    ],
-    'Nội thất': [
-        { phase: 'Đặt cọc nội thất', pct: 50, category: 'Nội thất' },
-        { phase: 'Giao hàng + lắp đặt', pct: 40, category: 'Nội thất' },
-        { phase: 'Nghiệm thu hoàn thiện', pct: 10, category: 'Nội thất' },
-    ],
-};
+import { PAYMENT_TEMPLATES } from '@/lib/contractTemplates';
 
 export const GET = withAuth(async (request) => {
     const { searchParams } = new URL(request.url);
@@ -37,14 +13,19 @@ export const GET = withAuth(async (request) => {
     const status = searchParams.get('status');
     const type = searchParams.get('type');
     const search = searchParams.get('search');
+    const projectId = searchParams.get('projectId');
+    const customerId = searchParams.get('customerId');
 
     const where = { deletedAt: null };
     if (status) where.status = status;
     if (type) where.type = type;
+    if (projectId) where.projectId = projectId;
+    if (customerId) where.customerId = customerId;
     if (search) {
         where.OR = [
             { name: { contains: search, mode: 'insensitive' } },
             { code: { contains: search, mode: 'insensitive' } },
+            { customer: { name: { contains: search, mode: 'insensitive' } } },
         ];
     }
 
@@ -92,12 +73,12 @@ export const POST = withAuthAndLog(async (request) => {
                         paymentTerms: validated.paymentTerms || '',
                         notes: validated.notes || '',
                         customerId: validated.customerId,
-                        projectId: validated.projectId,
+                        projectId: validated.projectId || null,
                         quotationId: validated.quotationId || null,
                     },
                 });
 
-                // Create payment phases: use client-sent phases if available, else fall back to template
+                // Create payment phases: client-sent > template fallback
                 const phases = paymentPhases?.length > 0
                     ? paymentPhases
                     : (PAYMENT_TEMPLATES[validated.type] || []).map(t => ({
@@ -106,18 +87,19 @@ export const POST = withAuthAndLog(async (request) => {
                     }));
 
                 if (phases.length > 0) {
-                    const paymentData = phases.map(t => ({
-                        contractId: contract.id,
-                        phase: t.phase,
-                        amount: Number(t.amount) || Math.round(contractValue * Number(t.pct || 0) / 100),
-                        paidAmount: 0,
-                        category: t.category || validated.type || 'Hợp đồng',
-                        status: 'Chưa thu',
-                    }));
-                    await tx.contractPayment.createMany({ data: paymentData });
+                    await tx.contractPayment.createMany({
+                        data: phases.map(t => ({
+                            contractId: contract.id,
+                            phase: t.phase || '',
+                            amount: Number(t.amount) || Math.round(contractValue * Number(t.pct || 0) / 100),
+                            paidAmount: 0,
+                            category: t.category || validated.type || 'Hợp đồng',
+                            status: 'Chưa thu',
+                        })),
+                    });
                 }
 
-                // Auto-create MaterialPlan from quotation items (if quotation linked)
+                // Auto-create MaterialPlan from quotation items
                 if (validated.quotationId && validated.projectId) {
                     const qItems = await tx.quotationItem.findMany({
                         where: { quotationId: validated.quotationId, productId: { not: null } },
@@ -127,7 +109,6 @@ export const POST = withAuthAndLog(async (request) => {
                         },
                     });
 
-                    // Group by productId, sum quantities
                     const grouped = {};
                     for (const item of qItems) {
                         const pid = item.productId;
@@ -141,7 +122,6 @@ export const POST = withAuthAndLog(async (request) => {
                         grouped[pid].qty += item.volume || item.quantity || 0;
                     }
 
-                    // Skip products that already have a MaterialPlan in this project
                     const existing = await tx.materialPlan.findMany({
                         where: { projectId: validated.projectId },
                         select: { productId: true },
@@ -174,9 +154,9 @@ export const POST = withAuthAndLog(async (request) => {
                 });
             });
 
-            break; // success, exit retry loop
+            break;
         } catch (err) {
-            if (err.code === 'P2002' && attempt < 2) continue; // retry on code collision
+            if (err.code === 'P2002' && attempt < 2) continue;
             throw err;
         }
     }
