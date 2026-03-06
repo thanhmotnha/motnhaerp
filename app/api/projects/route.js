@@ -1,4 +1,4 @@
-import { withAuth } from '@/lib/apiHandler';
+import { withAuth, withAuthAndLog } from '@/lib/apiHandler';
 import { parsePagination, paginatedResponse } from '@/lib/pagination';
 import prisma from '@/lib/prisma';
 import { withCodeRetry } from '@/lib/generateCode';
@@ -33,7 +33,7 @@ export const GET = withAuth(async (request) => {
     return NextResponse.json(paginatedResponse(projects, total, { page, limit }));
 });
 
-export const POST = withAuth(async (request) => {
+export const POST = withAuthAndLog(async (request) => {
     const body = await request.json();
     const data = projectCreateSchema.parse(body);
 
@@ -48,4 +48,4 @@ export const POST = withAuth(async (request) => {
     });
 
     return NextResponse.json(project, { status: 201 });
-});
+}, { entityType: 'Project' });

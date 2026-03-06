@@ -1,4 +1,4 @@
-import { withAuth } from '@/lib/apiHandler';
+import { withAuth, withAuthAndLog } from '@/lib/apiHandler';
 import { parsePagination, paginatedResponse } from '@/lib/pagination';
 import prisma from '@/lib/prisma';
 import { generateCode } from '@/lib/generateCode';
@@ -67,7 +67,7 @@ export const GET = withAuth(async (request) => {
     return NextResponse.json(paginatedResponse(contracts, total, { page, limit }));
 });
 
-export const POST = withAuth(async (request) => {
+export const POST = withAuthAndLog(async (request) => {
     const body = await request.json();
     const { paymentPhases, ...validated } = contractCreateSchema.parse(body);
 
@@ -171,4 +171,4 @@ export const POST = withAuth(async (request) => {
     });
 
     return NextResponse.json(result, { status: 201 });
-});
+}, { entityType: 'Contract' });
