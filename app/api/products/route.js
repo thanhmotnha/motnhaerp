@@ -16,6 +16,17 @@ export const GET = withAuth(async (request) => {
     const status = searchParams.get('status');
     const supplyType = searchParams.get('supplyType');
     const stockFilter = searchParams.get('stockFilter'); // low, out
+    const sort = searchParams.get('sort') || 'newest';
+
+    const orderByMap = {
+        name_asc: { name: 'asc' },
+        name_desc: { name: 'desc' },
+        price_asc: { salePrice: 'asc' },
+        price_desc: { salePrice: 'desc' },
+        category_asc: { category: 'asc' },
+        newest: { createdAt: 'desc' },
+    };
+    const orderBy = orderByMap[sort] || orderByMap.newest;
 
     const where = {};
     if (category) where.category = category;
@@ -24,7 +35,6 @@ export const GET = withAuth(async (request) => {
             const descendants = await getDescendantIds(categoryId);
             where.categoryId = { in: [categoryId, ...descendants] };
         } catch {
-            // ProductCategory table may not exist yet
             where.categoryId = categoryId;
         }
     }
@@ -53,7 +63,7 @@ export const GET = withAuth(async (request) => {
             // categoryRef may not exist if DB not migrated
             products = await prisma.product.findMany({
                 where, take: limit, skip: 1, cursor: { id: cursor },
-                orderBy: { createdAt: 'desc' },
+                orderBy,
             });
         }
         return NextResponse.json({
@@ -67,7 +77,7 @@ export const GET = withAuth(async (request) => {
         [data, total] = await Promise.all([
             prisma.product.findMany({
                 where, skip, take: limit,
-                orderBy: { createdAt: 'desc' },
+                orderBy,
                 include: { categoryRef: { select: { id: true, name: true } } },
             }),
             prisma.product.count({ where }),

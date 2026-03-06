@@ -54,8 +54,10 @@ export default function ProductsPage() {
     const [products, setProducts] = useState([]);
     const [loadingP, setLoadingP] = useState(true);
     const [searchP, setSearchP] = useState('');
+    const [debouncedSearch, setDebouncedSearch] = useState('');
     const [filterSupplyType, setFilterSupplyType] = useState('');
     const [filterStockStatus, setFilterStockStatus] = useState('');
+    const [sortBy, setSortBy] = useState('newest');
     const [viewMode, setViewMode] = useState('list');
     const [editingP, setEditingP] = useState(null);
     const [quickEditP, setQuickEditP] = useState(new Map());
@@ -116,14 +118,20 @@ export default function ProductsPage() {
         }).catch(() => { });
     }, []);
 
+    // Debounce search
+    useEffect(() => {
+        const t = setTimeout(() => setDebouncedSearch(searchP), 300);
+        return () => clearTimeout(t);
+    }, [searchP]);
+
     const fetchProducts = useCallback((reset = true) => {
         if (reset) { setLoadingP(true); setProducts([]); setCursor(null); setHasMore(true); }
         const params = new URLSearchParams({ limit: String(PAGE_SIZE) });
-        // Use categoryId for real categories, category string for fallback
         if (activeCatId && !activeCatId.startsWith('__str__')) params.set('categoryId', activeCatId);
         else if (activeCatName) params.set('category', activeCatName);
-        if (searchP) params.set('search', searchP);
+        if (debouncedSearch) params.set('search', debouncedSearch);
         if (filterSupplyType) params.set('supplyType', filterSupplyType);
+        if (sortBy !== 'newest') params.set('sort', sortBy);
         fetch(`/api/products?${params}`).then(r => r.json()).then(d => {
             const items = d.data || [];
             setProducts(items);
@@ -131,7 +139,7 @@ export default function ProductsPage() {
             setHasMore(items.length === PAGE_SIZE);
             setLoadingP(false);
         });
-    }, [activeCatId, activeCatName, searchP, filterSupplyType]);
+    }, [activeCatId, activeCatName, debouncedSearch, filterSupplyType, sortBy]);
 
     const loadMore = useCallback(() => {
         if (!cursor || !hasMore || loadingMore.current) return;
@@ -139,7 +147,8 @@ export default function ProductsPage() {
         const params = new URLSearchParams({ limit: String(PAGE_SIZE), cursor });
         if (activeCatId && !activeCatId.startsWith('__str__')) params.set('categoryId', activeCatId);
         else if (activeCatName) params.set('category', activeCatName);
-        if (searchP) params.set('search', searchP);
+        if (debouncedSearch) params.set('search', debouncedSearch);
+        if (sortBy !== 'newest') params.set('sort', sortBy);
         fetch(`/api/products?${params}`).then(r => r.json()).then(d => {
             const items = d.data || [];
             setProducts(prev => [...prev, ...items]);
@@ -147,7 +156,7 @@ export default function ProductsPage() {
             setHasMore(!!d.nextCursor);
             loadingMore.current = false;
         });
-    }, [cursor, hasMore, activeCatId, activeCatName, searchP]);
+    }, [cursor, hasMore, activeCatId, activeCatName, debouncedSearch, sortBy]);
 
     const fetchLibrary = () => { setLoadingL(true); fetch('/api/work-item-library?limit=1000').then(r => r.json()).then(d => { setLibrary(d.data || []); setLoadingL(false); }); };
 
@@ -458,6 +467,14 @@ export default function ProductsPage() {
                             <input className="form-input" placeholder="🔍 Tìm theo Tên, Mã SP..." value={searchP} onChange={e => setSearchP(e.target.value)} style={{ width: 220, fontSize: 12, padding: '6px 10px', borderRadius: 6 }} />
                             <select className="form-select" value={filterSupplyType} onChange={e => setFilterSupplyType(e.target.value)} style={{ fontSize: 11, width: 130, padding: '6px 8px' }}>
                                 <option value="">Nguồn cung</option>{SUPPLY_TYPES.map(t => <option key={t}>{t}</option>)}
+                            </select>
+                            <select className="form-select" value={sortBy} onChange={e => setSortBy(e.target.value)} style={{ fontSize: 11, width: 140, padding: '6px 8px' }}>
+                                <option value="newest">Mới nhất</option>
+                                <option value="name_asc">Tên A→Z</option>
+                                <option value="name_desc">Tên Z→A</option>
+                                <option value="category_asc">Danh mục</option>
+                                <option value="price_asc">Giá tăng</option>
+                                <option value="price_desc">Giá giảm</option>
                             </select>
 
                             {/* View toggle */}
