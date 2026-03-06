@@ -4,56 +4,149 @@ import { useRole } from '@/contexts/RoleContext';
 import { useRouter } from 'next/navigation';
 import { apiFetch } from '@/lib/fetchClient';
 import { useToast } from '@/components/ui/Toast';
+import { CONTRACT_TYPES, PAYMENT_TEMPLATES, CONTRACT_STATUSES, TYPE_ICONS } from '@/lib/contractTemplates';
 
+// ========= Company Settings Keys =========
 const SETTING_KEYS = [
-    { key: 'company_name', label: 'Tên công ty', type: 'text', default: 'MỘT NHÀ' },
-    { key: 'company_address', label: 'Địa chỉ', type: 'text', default: '' },
-    { key: 'company_phone', label: 'Số điện thoại', type: 'text', default: '' },
-    { key: 'company_email', label: 'Email', type: 'text', default: '' },
-    { key: 'company_tax_code', label: 'Mã số thuế', type: 'text', default: '' },
-    { key: 'company_bank_account', label: 'Số tài khoản', type: 'text', default: '' },
-    { key: 'company_bank_name', label: 'Ngân hàng', type: 'text', default: '' },
-    { key: 'default_vat', label: 'VAT mặc định (%)', type: 'number', default: '10' },
-    { key: 'default_mgmt_fee', label: 'Phí quản lý mặc định (%)', type: 'number', default: '5' },
-    { key: 'warranty_months', label: 'Bảo hành (tháng)', type: 'number', default: '12' },
-    { key: 'payment_terms_default', label: 'Điều khoản thanh toán mặc định', type: 'textarea', default: 'Thanh toán theo tiến độ thi công' },
-    { key: 'email_footer', label: 'Footer email', type: 'textarea', default: 'Trân trọng, MỘT NHÀ Team' },
+    { key: 'company_name', label: 'Tên công ty', type: 'text', default: 'MỘT NHÀ', group: 'company' },
+    { key: 'company_address', label: 'Địa chỉ', type: 'text', default: '', group: 'company' },
+    { key: 'company_phone', label: 'Số điện thoại', type: 'text', default: '', group: 'company' },
+    { key: 'company_email', label: 'Email', type: 'text', default: '', group: 'company' },
+    { key: 'company_tax_code', label: 'Mã số thuế', type: 'text', default: '', group: 'company' },
+    { key: 'company_bank_account', label: 'Số tài khoản', type: 'text', default: '', group: 'company' },
+    { key: 'company_bank_name', label: 'Ngân hàng', type: 'text', default: '', group: 'company' },
+    { key: 'default_vat', label: 'VAT mặc định (%)', type: 'number', default: '10', group: 'defaults' },
+    { key: 'default_mgmt_fee', label: 'Phí quản lý mặc định (%)', type: 'number', default: '5', group: 'defaults' },
+    { key: 'warranty_months', label: 'Bảo hành (tháng)', type: 'number', default: '12', group: 'defaults' },
+    { key: 'payment_terms_default', label: 'Điều khoản thanh toán mặc định', type: 'textarea', default: 'Thanh toán theo tiến độ thi công', group: 'defaults' },
+    { key: 'email_footer', label: 'Footer email', type: 'textarea', default: 'Trân trọng, MỘT NHÀ Team', group: 'defaults' },
+];
+
+const TABS = [
+    { key: 'company', label: '🏢 Thông tin công ty', icon: '🏢' },
+    { key: 'payment', label: '💵 Mẫu thanh toán', icon: '💵' },
+    { key: 'schedule', label: '📅 Mẫu tiến độ', icon: '📅' },
+    { key: 'quotation', label: '📋 Mẫu báo giá', icon: '📋' },
 ];
 
 export default function SettingsPage() {
     const { role } = useRole();
     const router = useRouter();
     const toast = useToast();
+    const [tab, setTab] = useState('company');
     const [settings, setSettings] = useState({});
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
 
+    // Payment templates (editable copy from lib or DB)
+    const [paymentTemplates, setPaymentTemplates] = useState({});
+    // Schedule templates from DB
+    const [scheduleTemplates, setScheduleTemplates] = useState([]);
+    const [scheduleLoading, setScheduleLoading] = useState(false);
+    // Quotation defaults
+    const [quotationDefaults, setQuotationDefaults] = useState({
+        vat: 10, managementFeeRate: 5, designFeeRate: 0, warranty: '12 tháng',
+        terms: 'Thanh toán theo tiến độ thi công',
+    });
+
     useEffect(() => {
         if (role && role !== 'giam_doc') { router.replace('/'); return; }
-        apiFetch('/api/admin/settings')
-            .then(data => { setSettings(data || {}); setLoading(false); })
-            .catch(() => {
-                // Initialize with defaults if no settings exist
-                const defaults = {};
-                SETTING_KEYS.forEach(s => { defaults[s.key] = s.default; });
-                setSettings(defaults);
-                setLoading(false);
-            });
+        loadAll();
     }, [role]);
 
+    const loadAll = async () => {
+        setLoading(true);
+        try {
+            const data = await apiFetch('/api/admin/settings');
+            setSettings(data || {});
+            // Load payment templates from settings or fallback to hardcoded
+            if (data?.payment_templates) {
+                try { setPaymentTemplates(JSON.parse(data.payment_templates)); } catch { setPaymentTemplates({ ...PAYMENT_TEMPLATES }); }
+            } else {
+                setPaymentTemplates({ ...PAYMENT_TEMPLATES });
+            }
+            // Load quotation defaults from settings
+            if (data?.quotation_defaults) {
+                try { setQuotationDefaults(JSON.parse(data.quotation_defaults)); } catch { }
+            }
+        } catch {
+            const defaults = {};
+            SETTING_KEYS.forEach(s => { defaults[s.key] = s.default; });
+            setSettings(defaults);
+            setPaymentTemplates({ ...PAYMENT_TEMPLATES });
+        }
+        setLoading(false);
+    };
+
+    const loadScheduleTemplates = async () => {
+        setScheduleLoading(true);
+        try {
+            const data = await apiFetch('/api/schedule-templates');
+            setScheduleTemplates(data || []);
+        } catch { }
+        setScheduleLoading(false);
+    };
+
+    useEffect(() => { if (tab === 'schedule') loadScheduleTemplates(); }, [tab]);
+
+    // ======== Save ========
     const handleSave = async () => {
         setSaving(true);
         try {
+            const saveData = {
+                ...settings,
+                payment_templates: JSON.stringify(paymentTemplates),
+                quotation_defaults: JSON.stringify(quotationDefaults),
+            };
             await apiFetch('/api/admin/settings', {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(settings),
+                body: JSON.stringify(saveData),
             });
             toast.success('Đã lưu cài đặt');
         } catch (e) {
             toast.error(e.message || 'Lỗi lưu cài đặt');
         }
         setSaving(false);
+    };
+
+    // ======== Payment Template Editors ========
+    const addPhase = (type) => {
+        setPaymentTemplates(prev => ({
+            ...prev,
+            [type]: [...(prev[type] || []), { phase: '', pct: 0, category: type.includes('Thiết kế') ? 'Thiết kế' : type.includes('nội thất') ? 'Nội thất' : 'Thi công' }],
+        }));
+    };
+    const removePhase = (type, idx) => {
+        setPaymentTemplates(prev => ({
+            ...prev,
+            [type]: prev[type].filter((_, i) => i !== idx),
+        }));
+    };
+    const updatePhase = (type, idx, field, value) => {
+        setPaymentTemplates(prev => ({
+            ...prev,
+            [type]: prev[type].map((p, i) => i === idx ? { ...p, [field]: field === 'pct' ? Number(value) : value } : p),
+        }));
+    };
+    const addContractType = () => {
+        const name = prompt('Nhập tên loại hợp đồng mới:');
+        if (!name || paymentTemplates[name]) return;
+        setPaymentTemplates(prev => ({ ...prev, [name]: [{ phase: 'Đặt cọc', pct: 30, category: 'Khác' }, { phase: 'Nghiệm thu', pct: 70, category: 'Khác' }] }));
+    };
+    const removeContractType = (type) => {
+        if (!confirm(`Xoá loại HĐ "${type}" và tất cả đợt thanh toán?`)) return;
+        setPaymentTemplates(prev => { const copy = { ...prev }; delete copy[type]; return copy; });
+    };
+
+    // ======== Schedule Template ========
+    const deleteScheduleTemplate = async (id) => {
+        if (!confirm('Xoá mẫu tiến độ này?')) return;
+        try {
+            await apiFetch(`/api/schedule-templates/${id}`, { method: 'DELETE' });
+            toast.success('Đã xoá');
+            loadScheduleTemplates();
+        } catch (e) { toast.error(e.message); }
     };
 
     if (role && role !== 'giam_doc') return null;
@@ -63,58 +156,188 @@ export default function SettingsPage() {
         <div>
             <div className="card">
                 <div className="card-header">
-                    <h3>⚙️ Cài đặt hệ thống</h3>
+                    <h3>⚙️ Cài đặt & Mẫu biểu</h3>
                     <button className="btn btn-primary" onClick={handleSave} disabled={saving}>
-                        {saving ? 'Đang lưu...' : '💾 Lưu cài đặt'}
+                        {saving ? '⏳ Đang lưu...' : '💾 Lưu cài đặt'}
                     </button>
                 </div>
 
-                <div style={{ padding: 20 }}>
-                    <h4 style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 16, paddingBottom: 8, borderBottom: '2px solid var(--accent-primary)' }}>
-                        🏢 Thông tin công ty
-                    </h4>
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 24 }}>
-                        {SETTING_KEYS.filter(s => s.key.startsWith('company_')).map(s => (
-                            <div key={s.key} className="form-group">
-                                <label className="form-label">{s.label}</label>
-                                <input className="form-input"
-                                    value={settings[s.key] || ''}
-                                    onChange={e => setSettings({ ...settings, [s.key]: e.target.value })}
-                                />
-                            </div>
-                        ))}
-                    </div>
-
-                    <h4 style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 16, paddingBottom: 8, borderBottom: '2px solid var(--gold)' }}>
-                        📋 Giá trị mặc định
-                    </h4>
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 16, marginBottom: 24 }}>
-                        {SETTING_KEYS.filter(s => s.type === 'number').map(s => (
-                            <div key={s.key} className="form-group">
-                                <label className="form-label">{s.label}</label>
-                                <input className="form-input" type="number"
-                                    value={settings[s.key] || ''}
-                                    onChange={e => setSettings({ ...settings, [s.key]: e.target.value })}
-                                />
-                            </div>
-                        ))}
-                    </div>
-
-                    <h4 style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 16, paddingBottom: 8, borderBottom: '2px solid var(--accent-primary)' }}>
-                        📝 Template & Mẫu
-                    </h4>
-                    {SETTING_KEYS.filter(s => s.type === 'textarea').map(s => (
-                        <div key={s.key} className="form-group" style={{ marginBottom: 16 }}>
-                            <label className="form-label">{s.label}</label>
-                            <textarea className="form-input" rows={3}
-                                value={settings[s.key] || ''}
-                                onChange={e => setSettings({ ...settings, [s.key]: e.target.value })}
-                                style={{ resize: 'vertical' }}
-                            />
-                        </div>
+                {/* Tab bar */}
+                <div style={{ display: 'flex', borderBottom: '1px solid var(--border)', background: 'var(--bg-secondary)' }}>
+                    {TABS.map(t => (
+                        <button key={t.key} onClick={() => setTab(t.key)}
+                            style={{ padding: '12px 20px', fontWeight: 600, fontSize: 13, cursor: 'pointer', border: 'none', background: tab === t.key ? 'var(--bg-primary)' : 'transparent', color: tab === t.key ? 'var(--text-accent)' : 'var(--text-muted)', borderBottom: tab === t.key ? '2px solid var(--accent-primary)' : '2px solid transparent', transition: 'all 0.15s' }}>
+                            {t.label}
+                        </button>
                     ))}
+                </div>
+
+                <div style={{ padding: 20 }}>
+                    {/* ========== TAB: Company ========== */}
+                    {tab === 'company' && (
+                        <>
+                            <SectionTitle icon="🏢" title="Thông tin công ty" />
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 24 }}>
+                                {SETTING_KEYS.filter(s => s.group === 'company').map(s => (
+                                    <div key={s.key} className="form-group">
+                                        <label className="form-label">{s.label}</label>
+                                        <input className="form-input" value={settings[s.key] || ''} onChange={e => setSettings({ ...settings, [s.key]: e.target.value })} />
+                                    </div>
+                                ))}
+                            </div>
+
+                            <SectionTitle icon="📋" title="Giá trị mặc định" />
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 16, marginBottom: 24 }}>
+                                {SETTING_KEYS.filter(s => s.type === 'number').map(s => (
+                                    <div key={s.key} className="form-group">
+                                        <label className="form-label">{s.label}</label>
+                                        <input className="form-input" type="number" value={settings[s.key] || ''} onChange={e => setSettings({ ...settings, [s.key]: e.target.value })} />
+                                    </div>
+                                ))}
+                            </div>
+
+                            <SectionTitle icon="📝" title="Template văn bản" />
+                            {SETTING_KEYS.filter(s => s.type === 'textarea').map(s => (
+                                <div key={s.key} className="form-group" style={{ marginBottom: 16 }}>
+                                    <label className="form-label">{s.label}</label>
+                                    <textarea className="form-input" rows={3} value={settings[s.key] || ''} onChange={e => setSettings({ ...settings, [s.key]: e.target.value })} style={{ resize: 'vertical' }} />
+                                </div>
+                            ))}
+                        </>
+                    )}
+
+                    {/* ========== TAB: Payment Templates ========== */}
+                    {tab === 'payment' && (
+                        <>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+                                <div>
+                                    <SectionTitle icon="💵" title="Mẫu đợt thanh toán theo loại HĐ" />
+                                    <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: '-8px 0 0 0' }}>Mỗi loại hợp đồng có các đợt thanh toán mặc định. Khi tạo HĐ mới, hệ thống tự tạo đợt TT theo mẫu.</p>
+                                </div>
+                                <button className="btn btn-primary btn-sm" onClick={addContractType}>➕ Thêm loại HĐ</button>
+                            </div>
+
+                            {Object.entries(paymentTemplates).map(([type, phases]) => {
+                                const total = phases.reduce((s, p) => s + (p.pct || 0), 0);
+                                const icon = TYPE_ICONS[type] || '📄';
+                                return (
+                                    <div key={type} style={{ marginBottom: 20, border: '1px solid var(--border)', borderRadius: 10, overflow: 'hidden' }}>
+                                        <div style={{ padding: '10px 16px', background: 'var(--bg-secondary)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                            <div style={{ fontWeight: 700, fontSize: 14 }}>{icon} {type}</div>
+                                            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                                                <span style={{ fontSize: 12, color: total === 100 ? 'var(--status-success)' : 'var(--status-danger)', fontWeight: 600 }}>
+                                                    Tổng: {total}% {total !== 100 && '⚠️'}
+                                                </span>
+                                                <button className="btn btn-ghost btn-sm" style={{ fontSize: 11, color: 'var(--status-danger)' }} onClick={() => removeContractType(type)}>🗑️</button>
+                                            </div>
+                                        </div>
+                                        <table className="data-table" style={{ margin: 0 }}>
+                                            <thead><tr><th style={{ width: 40 }}>#</th><th>Tên đợt</th><th style={{ width: 90 }}>% Giá trị</th><th style={{ width: 120 }}>Phân loại</th><th style={{ width: 50 }}></th></tr></thead>
+                                            <tbody>
+                                                {phases.map((p, i) => (
+                                                    <tr key={i}>
+                                                        <td style={{ color: 'var(--text-muted)', fontSize: 12 }}>{i + 1}</td>
+                                                        <td><input className="form-input" value={p.phase} onChange={e => updatePhase(type, i, 'phase', e.target.value)} style={{ fontSize: 13 }} /></td>
+                                                        <td><input className="form-input" type="number" min={0} max={100} value={p.pct} onChange={e => updatePhase(type, i, 'pct', e.target.value)} style={{ fontSize: 13, textAlign: 'center' }} /></td>
+                                                        <td><input className="form-input" value={p.category} onChange={e => updatePhase(type, i, 'category', e.target.value)} style={{ fontSize: 12 }} /></td>
+                                                        <td><button className="btn btn-ghost btn-sm" style={{ color: 'var(--status-danger)', fontSize: 12 }} onClick={() => removePhase(type, i)}>✕</button></td>
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
+                                        <div style={{ padding: '8px 16px', borderTop: '1px solid var(--border)' }}>
+                                            <button className="btn btn-ghost btn-sm" style={{ fontSize: 12 }} onClick={() => addPhase(type)}>➕ Thêm đợt</button>
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </>
+                    )}
+
+                    {/* ========== TAB: Schedule Templates ========== */}
+                    {tab === 'schedule' && (
+                        <>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+                                <div>
+                                    <SectionTitle icon="📅" title="Mẫu tiến độ thi công" />
+                                    <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: '-8px 0 0 0' }}>Quản lý trong module Tiến độ → Mẫu tiến độ</p>
+                                </div>
+                                <button className="btn btn-primary btn-sm" onClick={() => router.push('/schedule?tab=templates')}>📅 Quản lý mẫu tiến độ</button>
+                            </div>
+
+                            {scheduleLoading ? (
+                                <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-muted)' }}>Đang tải...</div>
+                            ) : scheduleTemplates.length === 0 ? (
+                                <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-muted)' }}>Chưa có mẫu tiến độ nào</div>
+                            ) : (
+                                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 12 }}>
+                                    {scheduleTemplates.map(t => (
+                                        <div key={t.id} style={{ border: '1px solid var(--border)', borderRadius: 10, padding: 16, background: 'var(--bg-card)' }}>
+                                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start' }}>
+                                                <div>
+                                                    <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 4 }}>📅 {t.name}</div>
+                                                    <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>{t.description || 'Không có mô tả'}</div>
+                                                </div>
+                                                <button className="btn btn-ghost btn-sm" style={{ color: 'var(--status-danger)', fontSize: 11 }} onClick={() => deleteScheduleTemplate(t.id)}>🗑️</button>
+                                            </div>
+                                            <div style={{ marginTop: 8, fontSize: 12 }}>
+                                                <span className="badge info">{t._count?.items || 0} công việc</span>
+                                                {t.type && <span className="badge muted" style={{ marginLeft: 4 }}>{t.type}</span>}
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </>
+                    )}
+
+                    {/* ========== TAB: Quotation Defaults ========== */}
+                    {tab === 'quotation' && (
+                        <>
+                            <SectionTitle icon="📋" title="Giá trị mặc định báo giá" />
+                            <p style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 16 }}>Khi tạo báo giá mới, hệ thống sẽ dùng các giá trị này làm mặc định.</p>
+
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 16, marginBottom: 24 }}>
+                                <div className="form-group">
+                                    <label className="form-label">VAT (%)</label>
+                                    <input className="form-input" type="number" value={quotationDefaults.vat || ''} onChange={e => setQuotationDefaults({ ...quotationDefaults, vat: Number(e.target.value) })} />
+                                </div>
+                                <div className="form-group">
+                                    <label className="form-label">Phí quản lý (%)</label>
+                                    <input className="form-input" type="number" value={quotationDefaults.managementFeeRate || ''} onChange={e => setQuotationDefaults({ ...quotationDefaults, managementFeeRate: Number(e.target.value) })} />
+                                </div>
+                                <div className="form-group">
+                                    <label className="form-label">Phí thiết kế (%)</label>
+                                    <input className="form-input" type="number" value={quotationDefaults.designFeeRate || ''} onChange={e => setQuotationDefaults({ ...quotationDefaults, designFeeRate: Number(e.target.value) })} />
+                                </div>
+                            </div>
+
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 24 }}>
+                                <div className="form-group">
+                                    <label className="form-label">Bảo hành mặc định</label>
+                                    <input className="form-input" value={quotationDefaults.warranty || ''} onChange={e => setQuotationDefaults({ ...quotationDefaults, warranty: e.target.value })} />
+                                </div>
+                                <div className="form-group">
+                                    <label className="form-label">Điều khoản thanh toán</label>
+                                    <input className="form-input" value={quotationDefaults.terms || ''} onChange={e => setQuotationDefaults({ ...quotationDefaults, terms: e.target.value })} />
+                                </div>
+                            </div>
+
+                            <SectionTitle icon="🎨" title="Mẫu hạng mục báo giá" />
+                            <p style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 12 }}>Quản lý trong module Báo giá → khi tạo báo giá mới, chọn từ mẫu có sẵn.</p>
+                            <button className="btn btn-ghost" onClick={() => router.push('/quotations/create')}>📋 Tạo báo giá mới →</button>
+                        </>
+                    )}
                 </div>
             </div>
         </div>
+    );
+}
+
+function SectionTitle({ icon, title }) {
+    return (
+        <h4 style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 16, paddingBottom: 8, borderBottom: '2px solid var(--accent-primary)', display: 'flex', alignItems: 'center', gap: 6 }}>
+            {icon} {title}
+        </h4>
     );
 }
