@@ -495,7 +495,7 @@ export default function ProductsPage() {
                                 </div>
                             </div>
                         </div>
-                        <BulkActionsBar selectedIds={selectedIds} categories={leafCats} onDone={() => { setSelectedIds(new Set()); fetchProducts(); fetchCategories(); }} />
+                        <BulkActionsBar selectedIds={selectedIds} categories={flatCats} onDone={() => { setSelectedIds(new Set()); fetchProducts(); fetchCategories(); }} />
                         {quickEditP.size > 0 && (
                             <div style={{ padding: '6px 16px', background: 'linear-gradient(90deg, #234093, #3b5998)', display: 'flex', alignItems: 'center', gap: 10, borderBottom: '1px solid var(--border-color)' }}>
                                 <span style={{ fontSize: 12, color: '#fff', fontWeight: 600 }}>✏️ Đang sửa {quickEditP.size} sản phẩm</span>
@@ -540,7 +540,7 @@ export default function ProductsPage() {
                                                 <td style={{ padding: 4, textAlign: 'center' }}><input type="checkbox" checked={selectedIds.has(p.id)} onChange={e => { const n = new Set(selectedIds); e.target.checked ? n.add(p.id) : n.delete(p.id); setSelectedIds(n); }} /></td>
                                                 {visibleCols.image !== false && <td style={{ padding: 3, cursor: 'pointer' }} onClick={() => { imgUpTarget.current = p.id; imgUpRef.current?.click(); }}><div style={{ width: 34, height: 34, borderRadius: 5, overflow: 'hidden', border: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f9f9f9' }}>{p.image ? <img src={p.image} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="" /> : <span style={{ fontSize: 14, opacity: 0.15 }}>📷</span>}</div></td>}
                                                 {visibleCols.name !== false && <td style={{ padding: '4px 6px' }}>{isQE
-                                                    ? <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}><input value={qe.name} onChange={e => updateQuickField(p.id, 'name', e.target.value)} style={{ width: '100%', fontSize: 12, padding: '2px 4px', border: '1px solid #234093', borderRadius: 4, background: 'var(--bg-input)', fontWeight: 600 }} /><select value={qe.categoryId || ''} onChange={e => { const cat = leafCats.find(c => c.id === e.target.value); if (cat) { updateQuickField(p.id, 'category', cat.name); updateQuickField(p.id, 'categoryId', cat.id); } }} style={{ fontSize: 10, padding: '1px 3px', border: '1px solid #234093', borderRadius: 4, background: 'var(--bg-input)' }}>{leafCats.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</select></div>
+                                                    ? <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}><input value={qe.name} onChange={e => updateQuickField(p.id, 'name', e.target.value)} style={{ width: '100%', fontSize: 12, padding: '2px 4px', border: '1px solid #234093', borderRadius: 4, background: 'var(--bg-input)', fontWeight: 600 }} /><select value={qe.categoryId || ''} onChange={e => { const cat = flatCats.find(c => c.id === e.target.value); if (cat) { updateQuickField(p.id, 'category', cat.name); updateQuickField(p.id, 'categoryId', cat.id); } }} style={{ fontSize: 10, padding: '1px 3px', border: '1px solid #234093', borderRadius: 4, background: 'var(--bg-input)' }}>{flatCats.map(c => <option key={c.id} value={c.id}>{'\u00A0\u00A0'.repeat(c.depth || 0)}{c.name}</option>)}</select></div>
                                                     : <><div style={{ fontWeight: 600, fontSize: 12.5, color: '#234093', cursor: 'pointer' }} onClick={() => startEditP(p)}>{p.name}</div>{p.category && <span style={{ fontSize: 10, opacity: 0.45, background: 'var(--surface-alt)', borderRadius: 3, padding: '0 4px' }}>{p.category}</span>}</>}</td>}
                                                 {visibleCols.code !== false && <td style={{ padding: '4px 4px' }}><div style={{ display: 'flex', alignItems: 'center', gap: 2 }}><span style={{ fontFamily: 'monospace', fontSize: 10.5, opacity: 0.55 }}>{p.code}</span><button onClick={() => copyCode(p.code)} style={{ border: 'none', background: 'none', cursor: 'pointer', fontSize: 10, opacity: 0.3, padding: 0 }} title="Copy mã SP">📋</button></div></td>}
                                                 {visibleCols.unit !== false && <td style={{ padding: '4px 4px', fontSize: 11 }}>{isQE
@@ -786,8 +786,8 @@ export default function ProductsPage() {
                                             </div>
                                             <div className="form-group" style={{ margin: 0, flex: 2 }}>
                                                 <label className="form-label">Danh mục</label>
-                                                <select className="form-select" value={d.categoryId || ''} onChange={e => { const cat = leafCats.find(c => c.id === e.target.value); if (cat) { set('category', cat.name); set('categoryId', cat.id); } }}>
-                                                    {leafCats.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                                                <select className="form-select" value={d.categoryId || ''} onChange={e => { const cat = flatCats.find(c => c.id === e.target.value); if (cat) { set('category', cat.name); set('categoryId', cat.id); } }}>
+                                                    {flatCats.map(c => <option key={c.id} value={c.id}>{'\u00A0\u00A0'.repeat(c.depth || 0)}{c.name}</option>)}
                                                 </select>
                                             </div>
                                         </div>
@@ -928,8 +928,8 @@ export default function ProductsPage() {
                             <div className="form-row">
                                 <div className="form-group" style={{ flex: 2 }}>
                                     <label className="form-label">Danh mục *</label>
-                                    <select className="form-select" value={addForm.categoryId || ''} onChange={e => { const cat = leafCats.find(c => c.id === e.target.value); if (cat) setAddForm(f => ({ ...f, category: cat.name, categoryId: cat.id })); }}>
-                                        {leafCats.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                                    <select className="form-select" value={addForm.categoryId || ''} onChange={e => { const cat = flatCats.find(c => c.id === e.target.value); if (cat) setAddForm(f => ({ ...f, category: cat.name, categoryId: cat.id })); }}>
+                                        {flatCats.map(c => <option key={c.id} value={c.id}>{'\u00A0\u00A0'.repeat(c.depth || 0)}{c.name}</option>)}
                                     </select>
                                 </div>
                                 <div className="form-group">

@@ -82,7 +82,7 @@ export default function BulkActionsBar({ selectedIds, onDone, categories }) {
                     <select value={catId} onChange={e => setCatId(e.target.value)} style={{ fontSize: 12, padding: '4px 8px', borderRadius: 4, border: '1px solid var(--border-color)' }}>
                         <option value="">-- Chọn danh mục --</option>
                         {(categories || []).map(c => (
-                            <option key={c.id} value={c.id}>{c.name}</option>
+                            <option key={c.id} value={c.id}>{'\u00A0\u00A0'.repeat(c.depth || 0)}{c.name}</option>
                         ))}
                     </select>
                     <button className="btn btn-primary btn-sm" disabled={loading || !catId}
