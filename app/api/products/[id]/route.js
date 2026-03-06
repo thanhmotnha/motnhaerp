@@ -27,11 +27,9 @@ export const PUT = withAuth(async (request, { params }) => {
 
 export const DELETE = withAuth(async (request, { params }) => {
     const { id } = await params;
-    await prisma.$transaction([
-        prisma.inventoryTransaction.deleteMany({ where: { productId: id } }),
-        prisma.materialPlan.deleteMany({ where: { productId: id } }),
-        prisma.quotationItem.updateMany({ where: { productId: id }, data: { productId: null } }),
-        prisma.product.delete({ where: { id } }),
-    ]);
+    await prisma.product.update({
+        where: { id },
+        data: { deletedAt: new Date(), status: 'Ngừng kinh doanh' },
+    });
     return NextResponse.json({ success: true });
 });

@@ -29,6 +29,6 @@ export const PUT = withAuth(async (request, { params }) => {
 
 export const DELETE = withAuth(async (request, { params }) => {
     const { id } = await params;
-    await prisma.supplier.delete({ where: { id } });
+    await prisma.supplier.update({ where: { id }, data: { deletedAt: new Date() } });
     return NextResponse.json({ success: true });
 });

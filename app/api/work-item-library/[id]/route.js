@@ -13,6 +13,13 @@ export const PUT = withAuth(async (request, { params }) => {
 
 export const DELETE = withAuth(async (request, { params }) => {
     const { id } = await params;
-    await prisma.workItemLibrary.delete({ where: { id } });
-    return NextResponse.json({ success: true });
+    try {
+        await prisma.workItemLibrary.delete({ where: { id } });
+        return NextResponse.json({ success: true });
+    } catch (err) {
+        if (err.code === 'P2003') {
+            return NextResponse.json({ error: 'Hạng mục đang được sử dụng, không thể xóa.' }, { status: 409 });
+        }
+        throw err;
+    }
 });

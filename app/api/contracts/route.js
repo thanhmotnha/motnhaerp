@@ -161,5 +161,9 @@ export const POST = withAuthAndLog(async (request) => {
         }
     }
 
+    if (!result) {
+        return NextResponse.json({ error: 'Không thể tạo mã hợp đồng. Vui lòng thử lại.' }, { status: 500 });
+    }
+
     return NextResponse.json(result, { status: 201 });
 }, { entityType: 'Contract' });

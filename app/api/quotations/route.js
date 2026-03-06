@@ -26,8 +26,7 @@ export const GET = withAuth(async (request) => {
             include: {
                 customer: { select: { name: true } },
                 project: { select: { name: true } },
-                categories: { include: { items: true }, orderBy: { order: 'asc' } },
-                _count: { select: { items: true, contracts: true } },
+                _count: { select: { items: true, contracts: true, categories: true } },
             },
             orderBy: { createdAt: 'desc' },
             skip,

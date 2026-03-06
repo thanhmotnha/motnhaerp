@@ -16,7 +16,14 @@ export const GET = withAuth(async (request) => {
     const where = { deletedAt: null };
     if (type) where.type = type;
     if (status) where.status = status;
-    if (search) where.name = { contains: search, mode: 'insensitive' };
+    if (search) {
+        where.OR = [
+            { name: { contains: search, mode: 'insensitive' } },
+            { phone: { contains: search, mode: 'insensitive' } },
+            { code: { contains: search, mode: 'insensitive' } },
+            { email: { contains: search, mode: 'insensitive' } },
+        ];
+    }
 
     const [customers, total] = await Promise.all([
         prisma.customer.findMany({

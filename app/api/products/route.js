@@ -28,7 +28,7 @@ export const GET = withAuth(async (request) => {
     };
     const orderBy = orderByMap[sort] || orderByMap.newest;
 
-    const where = {};
+    const where = { deletedAt: null };
     if (category) where.category = category;
     if (categoryId) {
         try {
@@ -43,6 +43,7 @@ export const GET = withAuth(async (request) => {
             { name: { contains: search, mode: 'insensitive' } },
             { code: { contains: search, mode: 'insensitive' } },
             { brand: { contains: search, mode: 'insensitive' } },
+            { category: { contains: search, mode: 'insensitive' } },
         ];
     }
     if (brand) where.brand = brand;
@@ -52,43 +53,25 @@ export const GET = withAuth(async (request) => {
 
     // Cursor-based pagination for infinite scroll
     if (cursor) {
-        let products;
-        try {
-            products = await prisma.product.findMany({
-                where, take: limit, skip: 1, cursor: { id: cursor },
-                orderBy: { createdAt: 'desc' },
-                include: { categoryRef: { select: { id: true, name: true } } },
-            });
-        } catch {
-            // categoryRef may not exist if DB not migrated
-            products = await prisma.product.findMany({
-                where, take: limit, skip: 1, cursor: { id: cursor },
-                orderBy,
-            });
-        }
+        const products = await prisma.product.findMany({
+            where, take: limit, skip: 1, cursor: { id: cursor },
+            orderBy: { createdAt: 'desc' },
+            include: { categoryRef: { select: { id: true, name: true } } },
+        });
         return NextResponse.json({
             data: products,
             nextCursor: products.length === limit ? products[products.length - 1].id : null,
         });
     }
 
-    let data, total;
-    try {
-        [data, total] = await Promise.all([
-            prisma.product.findMany({
-                where, skip, take: limit,
-                orderBy,
-                include: { categoryRef: { select: { id: true, name: true } } },
-            }),
-            prisma.product.count({ where }),
-        ]);
-    } catch {
-        // categoryRef may not exist if DB not migrated
-        [data, total] = await Promise.all([
-            prisma.product.findMany({ where, skip, take: limit, orderBy: { createdAt: 'desc' } }),
-            prisma.product.count({ where }),
-        ]);
-    }
+    const [data, total] = await Promise.all([
+        prisma.product.findMany({
+            where, skip, take: limit,
+            orderBy,
+            include: { categoryRef: { select: { id: true, name: true } } },
+        }),
+        prisma.product.count({ where }),
+    ]);
     return NextResponse.json(paginatedResponse(data, total, { page, limit }));
 });
 
@@ -178,13 +161,17 @@ export const PATCH = withAuth(async (request) => {
         return NextResponse.json({ updated: result.count });
     }
 
-    // Bulk category assign
+    // Bulk category assign (auto-sync category text)
     if (action === 'bulkCategory') {
         const { ids, categoryId, category } = body;
         if (!ids?.length) return NextResponse.json({ error: 'ids required' }, { status: 400 });
         const data = {};
-        if (categoryId) data.categoryId = categoryId;
-        if (category) data.category = category;
+        if (categoryId) {
+            data.categoryId = categoryId;
+            const cat = await prisma.productCategory.findUnique({ where: { id: categoryId }, select: { name: true } });
+            if (cat) data.category = cat.name;
+        }
+        if (category && !data.category) data.category = category;
         const result = await prisma.product.updateMany({
             where: { id: { in: ids } },
             data,
@@ -192,16 +179,14 @@ export const PATCH = withAuth(async (request) => {
         return NextResponse.json({ updated: result.count });
     }
 
-    // Bulk delete
+    // Bulk delete (soft-delete)
     if (action === 'bulkDelete') {
         const { ids } = body;
         if (!ids?.length) return NextResponse.json({ error: 'ids required' }, { status: 400 });
-        await prisma.$transaction([
-            prisma.inventoryTransaction.deleteMany({ where: { productId: { in: ids } } }),
-            prisma.materialPlan.deleteMany({ where: { productId: { in: ids } } }),
-            prisma.quotationItem.updateMany({ where: { productId: { in: ids } }, data: { productId: null } }),
-            prisma.product.deleteMany({ where: { id: { in: ids } } }),
-        ]);
+        await prisma.product.updateMany({
+            where: { id: { in: ids } },
+            data: { deletedAt: new Date(), status: 'Ngừng kinh doanh' },
+        });
         return NextResponse.json({ deleted: ids.length });
     }
 

@@ -10,7 +10,7 @@ export const GET = withAuth(async (request) => {
     const { page, limit, skip } = parsePagination(searchParams);
     const search = searchParams.get('search') || '';
 
-    const where = {};
+    const where = { deletedAt: null };
     if (search) {
         where.OR = [
             { code: { contains: search, mode: 'insensitive' } },
