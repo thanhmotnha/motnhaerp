@@ -8,6 +8,7 @@ import Header from '@/components/Header';
 import Breadcrumbs from '@/components/ui/Breadcrumbs';
 import GlobalSearch from '@/components/ui/GlobalSearch';
 import KeyboardShortcuts from '@/components/ui/KeyboardShortcuts';
+import ErrorBoundary from '@/components/ErrorBoundary';
 
 export default function AppShell({ children }) {
     const pathname = usePathname();
@@ -46,7 +47,7 @@ export default function AppShell({ children }) {
                 <Header onMenuToggle={toggleSidebar} onSearchOpen={() => setSearchOpen(true)} />
                 <main className="page-content">
                     <Breadcrumbs />
-                    {children}
+                    <ErrorBoundary>{children}</ErrorBoundary>
                 </main>
             </div>
             <GlobalSearch isOpen={searchOpen} onClose={() => setSearchOpen(false)} />
