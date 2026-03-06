@@ -661,7 +661,7 @@ function DesignsTab({ order, onRefresh, toast, role }) {
 /* ───────── Materials Tab ───────── */
 const CABINET_AREAS = ['Thùng tủ', 'Cánh tủ', 'Phụ kiện', 'Khác'];
 
-function ProductSearch({ value, onSelect, placeholder = 'Tìm sản phẩm...', toast }) {
+function ProductSearch({ value, onSelect, onTextChange, placeholder = 'Tìm sản phẩm...', toast }) {
     const [query, setQuery] = useState(value || '');
     const [results, setResults] = useState([]);
     const [open, setOpen] = useState(false);
@@ -684,7 +684,11 @@ function ProductSearch({ value, onSelect, placeholder = 'Tìm sản phẩm...', 
     return (
         <div style={{ position: 'relative' }}>
             <input className="form-input" placeholder={placeholder} value={query}
-                onChange={e => { setQuery(e.target.value); if (!e.target.value) onSelect(null); }}
+                onChange={e => {
+                    setQuery(e.target.value);
+                    if (onTextChange) onTextChange(e.target.value);
+                    if (!e.target.value) onSelect(null);
+                }}
                 onFocus={() => results.length && setOpen(true)}
                 onBlur={() => setTimeout(() => setOpen(false), 150)}
                 style={{ fontSize: 12 }}
@@ -787,6 +791,7 @@ function MaterialsTab({ order, onRefresh, toast }) {
                                             <label className="form-label" style={{ fontSize: 10 }}>Sản phẩm / Vật liệu *</label>
                                             <ProductSearch toast={toast} value={it.materialName}
                                                 onSelect={p => { if (p) updateItem(it._key, 'productId', p.id); updateItem(it._key, 'materialName', p ? p.name : ''); if (p?.unit) updateItem(it._key, 'unit', p.unit); }}
+                                                onTextChange={text => { updateItem(it._key, 'materialName', text); updateItem(it._key, 'productId', null); }}
                                             />
                                             {it.productId && <input type="hidden" />}
                                         </div>

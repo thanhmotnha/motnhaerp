@@ -1,6 +1,7 @@
 'use client';
 import { useState, useEffect, useCallback } from 'react';
 import { SkeletonDashboard } from '@/components/ui/Skeleton';
+import { useDashboardWidgets, WidgetConfigurator } from '@/components/dashboard/WidgetConfigurator';
 
 const fmt = (n) => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(n || 0);
 const fmtShort = (n) => {
@@ -124,6 +125,7 @@ export default function Dashboard() {
     const [data, setData] = useState(null);
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
+    const { widgets, showConfig, setShowConfig, toggleWidget, moveWidget, resetConfig } = useDashboardWidgets();
 
     const load = useCallback((showRefresh = false) => {
         if (showRefresh) setRefreshing(true);
@@ -168,6 +170,9 @@ export default function Dashboard() {
                     <div style={{ background: 'rgba(219,179,94,0.2)', border: '1px solid rgba(219,179,94,0.35)', borderRadius: 8, padding: '6px 14px', color: '#DBB35E', fontSize: 13 }}>
                         <span style={{ opacity: 0.8, fontSize: 11 }}>Tháng này </span><strong>{fmtShort(s.thisMonthRevenue)}</strong>
                     </div>
+                    <button onClick={() => setShowConfig(true)} style={{ background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: 8, padding: '6px 14px', color: '#fff', fontSize: 12, cursor: 'pointer', transition: 'background 0.2s' }} title="Tùy chỉnh Dashboard">
+                        ⚙️ Tùy chỉnh
+                    </button>
                     <button onClick={() => load(true)} disabled={refreshing} style={{ background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: 8, padding: '6px 14px', color: '#fff', fontSize: 12, cursor: 'pointer', transition: 'background 0.2s' }}>
                         {refreshing ? '...' : '↻ Làm mới'}
                     </button>
@@ -384,6 +389,17 @@ export default function Dashboard() {
                         </div>
                     </div>
                 </div>
+            )}
+
+            {/* Widget Configurator */}
+            {showConfig && (
+                <WidgetConfigurator
+                    widgets={widgets}
+                    onToggle={toggleWidget}
+                    onMove={moveWidget}
+                    onReset={resetConfig}
+                    onClose={() => setShowConfig(false)}
+                />
             )}
         </div>
     );
