@@ -441,7 +441,7 @@ export default function ProductsPage() {
             </div>
 
             {/* ===== PRODUCTS ===== */}
-            {tab === 'products' && (
+            {tab === 'products' && (<>
                 <div style={{ display: 'flex', minHeight: 'calc(100vh - 200px)', border: '1px solid var(--border-color)', borderRadius: 8, overflow: 'hidden' }}>
                     <CategorySidebar categories={categories} activeCatId={activeCatId}
                         onSelect={id => {
@@ -707,9 +707,8 @@ export default function ProductsPage() {
                     </div>
                 </div>
 
-                {/* Product Detail Drawer */}
-            {drawerProduct && <ProductDrawer product={drawerProduct} onClose={() => setDrawerProduct(null)} onEdit={startEditP} onDelete={async (id) => { await fetch(`/api/products/${id}`, { method: 'DELETE' }); setDrawerProduct(null); fetchProducts(); fetchCategories(); }} />}
-            )}
+                {drawerProduct && <ProductDrawer product={drawerProduct} onClose={() => setDrawerProduct(null)} onEdit={startEditP} onDelete={async (id) => { await fetch(`/api/products/${id}`, { method: 'DELETE' }); setDrawerProduct(null); fetchProducts(); fetchCategories(); }} />}
+            </>)}
 
             {/* ===== LIBRARY ===== */}
             {tab === 'library' && (
