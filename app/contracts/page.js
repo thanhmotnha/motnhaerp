@@ -16,7 +16,15 @@ export default function ContractsPage() {
     const [filterType, setFilterType] = useState('');
     const router = useRouter();
 
-    useEffect(() => { fetch('/api/contracts?limit=1000').then(r => r.json()).then(d => { setContracts(d.data || []); setLoading(false); }); }, []);
+    useEffect(() => { fetchContracts(); }, []);
+    const fetchContracts = () => fetch('/api/contracts?limit=1000').then(r => r.json()).then(d => { setContracts(d.data || []); setLoading(false); });
+    const deleteContract = async (id, code, e) => {
+        e.stopPropagation();
+        if (!confirm(`Xoá hợp đồng ${code}?`)) return;
+        const res = await fetch(`/api/contracts/${id}`, { method: 'DELETE' });
+        if (res.ok) fetchContracts();
+        else alert('Lỗi xoá hợp đồng');
+    };
 
     const filtered = contracts.filter(c => {
         if (filterStatus && c.status !== filterStatus) return false;
@@ -88,7 +96,7 @@ export default function ContractsPage() {
                 </div>
                 {loading ? <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-muted)' }}>Đang tải...</div> : (
                     <div className="table-container"><table className="data-table">
-                        <thead><tr><th>Mã HĐ</th><th>Tên</th><th>Khách hàng</th><th>Dự án</th><th>Loại</th><th>Giá trị</th><th>Đã thu</th><th>Tỷ lệ</th><th>Đợt TT</th><th>Trạng thái</th></tr></thead>
+                        <thead><tr><th>Mã HĐ</th><th>Tên</th><th>Khách hàng</th><th>Dự án</th><th>Loại</th><th>Giá trị</th><th>Đã thu</th><th>Tỷ lệ</th><th>Đợt TT</th><th>Trạng thái</th><th style={{ width: 50 }}></th></tr></thead>
                         <tbody>{filtered.map(c => {
                             const rate = pct(c.paidAmount, c.contractValue);
                             return (
@@ -103,6 +111,7 @@ export default function ContractsPage() {
                                     <td><div style={{ display: 'flex', alignItems: 'center', gap: 6 }}><div className="progress-bar" style={{ flex: 1 }}><div className="progress-fill" style={{ width: `${rate}%` }}></div></div><span style={{ fontSize: 11 }}>{rate}%</span></div></td>
                                     <td><span style={{ fontSize: 12, color: 'var(--text-muted)' }}>{c.payments?.length || 0} đợt</span></td>
                                     <td><span className={`badge ${c.status === 'Hoàn thành' ? 'success' : c.status === 'Đang thực hiện' ? 'warning' : c.status === 'Đã ký' ? 'info' : 'muted'}`}>{c.status}</span></td>
+                                    <td><button onClick={(e) => deleteContract(c.id, c.code, e)} style={{ border: 'none', background: 'none', cursor: 'pointer', fontSize: 14, opacity: 0.4, padding: '2px 6px' }} title="Xoá HĐ">🗑️</button></td>
                                 </tr>
                             );
                         })}</tbody>
