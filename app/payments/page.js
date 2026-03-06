@@ -15,6 +15,9 @@ export default function PaymentsPage() {
     const [filter, setFilter] = useState('');
     const [filterProject, setFilterProject] = useState('');
     const [filterStatus, setFilterStatus] = useState('');
+    const [filterCustomer, setFilterCustomer] = useState('');
+    const [filterType, setFilterType] = useState('');
+    const [filterContract, setFilterContract] = useState('');
     const [search, setSearch] = useState('');
     const [confirmModal, setConfirmModal] = useState(null);
     const [uploading, setUploading] = useState(false);
@@ -48,11 +51,24 @@ export default function PaymentsPage() {
     });
 
     // === Filter receivable payments ===
-    const projects = [...new Set(receivables.payments.map(p => p.contract?.project?.name).filter(Boolean))];
+    const projects = [...new Set([
+        ...receivables.payments.map(p => p.contract?.project?.name),
+        ...contracts.map(c => c.project?.name),
+    ].filter(Boolean))].sort();
+    const customers = [...new Set([
+        ...receivables.payments.map(p => p.contract?.customer?.name),
+        ...contracts.map(c => c.customer?.name),
+    ].filter(Boolean))].sort();
+    const contractTypes = [...new Set(receivables.payments.map(p => p.contract?.type).filter(Boolean))].sort();
+    const contractNames = [...new Map(receivables.payments.map(p => [p.contractId, { id: p.contractId, code: p.contract?.code, name: p.contract?.name }]).filter(([, v]) => v.code)).values()];
+
     const filteredPayments = receivables.payments.filter(p => {
         if (filterProject && (p.contract?.project?.name || '') !== filterProject) return false;
+        if (filterCustomer && (p.contract?.customer?.name || '') !== filterCustomer) return false;
+        if (filterType && (p.contract?.type || '') !== filterType) return false;
+        if (filterContract && p.contractId !== filterContract) return false;
         if (filterStatus && p.status !== filterStatus) return false;
-        if (search && !p.contract?.code?.toLowerCase().includes(search.toLowerCase()) && !p.contract?.customer?.name?.toLowerCase().includes(search.toLowerCase())) return false;
+        if (search && !p.contract?.code?.toLowerCase().includes(search.toLowerCase()) && !p.contract?.customer?.name?.toLowerCase().includes(search.toLowerCase()) && !p.phase?.toLowerCase().includes(search.toLowerCase())) return false;
         return true;
     });
 
@@ -270,19 +286,43 @@ ${[1, 2].map(copy => `
                 {/* TAB: Đợt thanh toán */}
                 {tab === 'phases' && (
                     <>
-                        <div style={{ padding: '10px 16px', display: 'flex', gap: 10, alignItems: 'center', borderBottom: '1px solid var(--border)' }}>
-                            <input className="form-input" placeholder="🔍 Tìm HĐ..." value={search} onChange={e => setSearch(e.target.value)} style={{ width: 200, fontSize: 13 }} />
-                            <select className="form-select" value={filterProject} onChange={e => setFilterProject(e.target.value)} style={{ width: 180 }}>
-                                <option value="">Tất cả dự án</option>
-                                {projects.map(p => <option key={p}>{p}</option>)}
+                        <div style={{ padding: '10px 16px', display: 'flex', gap: 8, alignItems: 'center', borderBottom: '1px solid var(--border)', flexWrap: 'wrap' }}>
+                            <input className="form-input" placeholder="🔍 Tìm HĐ, KH, đợt TT..." value={search} onChange={e => setSearch(e.target.value)} style={{ width: 200, fontSize: 13 }} />
+                            <select className="form-select" value={filterCustomer} onChange={e => setFilterCustomer(e.target.value)} style={{ maxWidth: 180 }}>
+                                <option value="">Tất cả KH ({customers.length})</option>
+                                {customers.map(c => <option key={c}>{c}</option>)}
                             </select>
-                            <select className="form-select" value={filterStatus} onChange={e => setFilterStatus(e.target.value)} style={{ width: 140 }}>
+                            {projects.length > 0 && (
+                                <select className="form-select" value={filterProject} onChange={e => setFilterProject(e.target.value)} style={{ maxWidth: 180 }}>
+                                    <option value="">Tất cả DA ({projects.length})</option>
+                                    {projects.map(p => <option key={p}>{p}</option>)}
+                                </select>
+                            )}
+                            {contractTypes.length > 1 && (
+                                <select className="form-select" value={filterType} onChange={e => setFilterType(e.target.value)} style={{ maxWidth: 170 }}>
+                                    <option value="">Tất cả loại HĐ</option>
+                                    {contractTypes.map(t => <option key={t}>{t}</option>)}
+                                </select>
+                            )}
+                            <select className="form-select" value={filterStatus} onChange={e => setFilterStatus(e.target.value)} style={{ maxWidth: 140 }}>
                                 <option value="">Tất cả TT</option>
                                 <option>Chưa thu</option><option>Thu một phần</option><option>Đã thu</option>
                             </select>
+                            {(filterCustomer || filterProject || filterType || filterStatus || filterContract) && (
+                                <button className="btn btn-ghost btn-sm" style={{ fontSize: 11 }} onClick={() => { setFilterCustomer(''); setFilterProject(''); setFilterType(''); setFilterStatus(''); setFilterContract(''); }}>✕ Xóa lọc</button>
+                            )}
                             <div style={{ marginLeft: 'auto', fontSize: 12, color: 'var(--text-muted)' }}>
                                 {filteredPayments.length} đợt • Còn thu: {fmt(filteredPayments.reduce((s, p) => s + Math.max(0, (p.amount || 0) - (p.paidAmount || 0)), 0))}
                             </div>
+                        </div>
+                        {/* Contract name chips */}
+                        <div style={{ padding: '8px 16px', display: 'flex', gap: 6, flexWrap: 'wrap', borderBottom: '1px solid var(--border)', background: 'var(--bg-secondary)' }}>
+                            {contractNames.map(c => (
+                                <button key={c.id} onClick={() => setFilterContract(filterContract === c.id ? '' : c.id)}
+                                    style={{ padding: '4px 10px', fontSize: 11, fontWeight: 600, borderRadius: 6, border: filterContract === c.id ? '2px solid var(--accent-primary)' : '1px solid var(--border)', background: filterContract === c.id ? 'var(--accent-primary)' : 'var(--bg-card)', color: filterContract === c.id ? '#fff' : 'var(--text-primary)', cursor: 'pointer', transition: 'all 0.15s', whiteSpace: 'nowrap' }}>
+                                    {c.code} — {c.name}
+                                </button>
+                            ))}
                         </div>
                         {loading ? <div style={{ padding: 40, textAlign: 'center' }}>Đang tải...</div> : filteredPayments.length === 0 ? (
                             <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-muted)' }}>Không có đợt thanh toán nào</div>
