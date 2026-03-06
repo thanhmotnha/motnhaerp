@@ -1,0 +1,45 @@
+{
+    "name": "MỘT NHÀ ERP",
+    "short_name": "MỘT NHÀ",
+    "description": "Hệ thống quản lý doanh nghiệp xây dựng & nội thất",
+    "start_url": "/",
+    "display": "standalone",
+    "background_color": "#ffffff",
+    "theme_color": "#234093",
+    "orientation": "any",
+    "categories": [
+        "business",
+        "productivity"
+    ],
+    "icons": [
+        {
+            "src": "/icon-192.png",
+            "sizes": "192x192",
+            "type": "image/png",
+            "purpose": "any maskable"
+        },
+        {
+            "src": "/icon-512.png",
+            "sizes": "512x512",
+            "type": "image/png",
+            "purpose": "any maskable"
+        }
+    ],
+    "shortcuts": [
+        {
+            "name": "Dự án",
+            "url": "/projects",
+            "description": "Quản lý dự án"
+        },
+        {
+            "name": "Khách hàng",
+            "url": "/customers",
+            "description": "Quản lý khách hàng"
+        },
+        {
+            "name": "Báo giá",
+            "url": "/quotations",
+            "description": "Tạo & quản lý báo giá"
+        }
+    ]
+}
