@@ -15,6 +15,12 @@ export const PUT = withAuth(async (request, { params }) => {
     const body = await request.json();
     const data = productUpdateSchema.parse(body);
 
+    // Auto-sync category text when categoryId changes
+    if (data.categoryId) {
+        const cat = await prisma.productCategory.findUnique({ where: { id: data.categoryId }, select: { name: true } });
+        if (cat) data.category = cat.name;
+    }
+
     const product = await prisma.product.update({ where: { id }, data });
     return NextResponse.json(product);
 });
