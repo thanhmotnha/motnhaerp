@@ -1,4 +1,4 @@
-import { withAuth } from '@/lib/apiHandler';
+import { withAuth, withAuthAndLog } from '@/lib/apiHandler';
 import { parsePagination, paginatedResponse } from '@/lib/pagination';
 import prisma from '@/lib/prisma';
 import { withCodeRetry } from '@/lib/generateCode';
@@ -39,7 +39,7 @@ export const GET = withAuth(async (request) => {
     return NextResponse.json(paginatedResponse(quotations, total, { page, limit }));
 });
 
-export const POST = withAuth(async (request) => {
+export const POST = withAuthAndLog(async (request) => {
     const body = await request.json();
     const { categories, ...validated } = quotationCreateSchema.parse(body);
 
@@ -141,4 +141,4 @@ export const POST = withAuth(async (request) => {
     });
 
     return NextResponse.json(result, { status: 201 });
-});
+}, { entityType: 'Quotation' });

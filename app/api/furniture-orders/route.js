@@ -1,8 +1,7 @@
-import { withAuth } from '@/lib/apiHandler';
+import { withAuth, withAuthAndLog } from '@/lib/apiHandler';
 import prisma from '@/lib/prisma';
 import { NextResponse } from 'next/server';
 import { parsePagination, paginatedResponse } from '@/lib/pagination';
-import { logActivity } from '@/lib/activityLog';
 
 function generateCode() {
     const y = new Date().getFullYear();
@@ -12,9 +11,9 @@ function generateCode() {
 
 const INCLUDE_DETAIL = {
     customer: { select: { id: true, name: true, phone: true, code: true } },
-    project:  { select: { id: true, code: true, name: true, phase: true, siteReadyFlag: true } },
+    project: { select: { id: true, code: true, name: true, phase: true, siteReadyFlag: true } },
     quotation: { select: { id: true, code: true, grandTotal: true } },
-    contract:  { select: { id: true, code: true, contractValue: true, status: true } },
+    contract: { select: { id: true, code: true, contractValue: true, status: true } },
     items: { orderBy: { sortOrder: 'asc' } },
     designs: { orderBy: { versionNumber: 'desc' } },
     materialSelections: { include: { items: true }, orderBy: { selectionRound: 'desc' } },
@@ -46,7 +45,7 @@ export const GET = withAuth(async (request) => {
             where,
             include: {
                 customer: { select: { id: true, name: true, phone: true } },
-                project:  { select: { id: true, code: true, name: true } },
+                project: { select: { id: true, code: true, name: true } },
                 items: { select: { id: true, status: true, amount: true } },
                 batches: { select: { id: true, status: true, workshopId: true } },
             },
@@ -61,12 +60,12 @@ export const GET = withAuth(async (request) => {
 });
 
 // POST create
-export const POST = withAuth(async (request, _, session) => {
+export const POST = withAuthAndLog(async (request, _, session) => {
     const body = await request.json();
     const { name, customerId, projectId, quotationId, contractId,
-            description, styleNote, roomType, deliveryAddress,
-            salesperson, designer, expectedDelivery,
-            items = [] } = body;
+        description, styleNote, roomType, deliveryAddress,
+        salesperson, designer, expectedDelivery,
+        items = [] } = body;
 
     if (!name || !customerId) {
         return NextResponse.json({ error: 'Thiếu tên đơn hàng hoặc khách hàng' }, { status: 400 });
@@ -120,13 +119,5 @@ export const POST = withAuth(async (request, _, session) => {
         include: INCLUDE_DETAIL,
     });
 
-    logActivity({
-        actor: session?.user?.name || '',
-        action: 'CREATE',
-        entityType: 'FurnitureOrder',
-        entityId: order.id,
-        entityLabel: `${order.code} — ${order.name}`,
-    });
-
     return NextResponse.json(order, { status: 201 });
-});
+}, { entityType: 'FurnitureOrder' });
