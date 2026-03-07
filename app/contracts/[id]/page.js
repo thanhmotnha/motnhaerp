@@ -40,7 +40,6 @@ export default function ContractDetailPage() {
     useEffect(() => { fetch('/api/projects?limit=200').then(r => r.json()).then(d => setProjects(d.data || [])); }, []);
 
     const save = async () => {
-        if (!form.projectId) return alert('Vui lòng chọn dự án liên kết!');
         setSaving(true);
         const res = await fetch(`/api/contracts/${id}`, {
             method: 'PUT',
@@ -150,12 +149,8 @@ export default function ContractDetailPage() {
     const totalPhasePct = paymentPhases.reduce((s, p) => s + (p.pct || 0), 0);
     const totalPhaseAmount = paymentPhases.reduce((s, p) => s + (p.amount || 0), 0);
 
-    const [projects, setProjects] = useState([]);
     const [linkProjectId, setLinkProjectId] = useState('');
     const [linkingProject, setLinkingProject] = useState(false);
-    useEffect(() => {
-        fetch('/api/projects?limit=200').then(r => r.json()).then(d => setProjects(d.data || d || [])).catch(() => { });
-    }, []);
 
     const linkExistingProject = async () => {
         if (!linkProjectId) return alert('Vui lòng chọn dự án');
