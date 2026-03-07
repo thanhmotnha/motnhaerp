@@ -19,7 +19,7 @@ export const GET = withAuth(async () => {
     }
 }, { roles: ['giam_doc'] });
 
-// PUT update settings
+// PUT update settings — batch upsert in single transaction
 export const PUT = withAuth(async (request) => {
     const body = await request.json();
 
@@ -34,15 +34,22 @@ export const PUT = withAuth(async (request) => {
         `);
     } catch { }
 
-    // Upsert each setting
-    for (const [key, value] of Object.entries(body)) {
-        await prisma.$executeRawUnsafe(
-            `INSERT INTO "${TABLE_NAME}" (key, value, "updatedAt")
-             VALUES ($1, $2, NOW())
-             ON CONFLICT (key) DO UPDATE SET value = $2, "updatedAt" = NOW()`,
-            key, String(value || '')
-        );
+    const entries = Object.entries(body).filter(([k, v]) => k && v !== undefined);
+
+    if (entries.length === 0) {
+        return NextResponse.json({ success: true });
     }
+
+    // Build batch upsert — single query instead of N queries
+    const values = entries.map((_, i) => `($${i * 2 + 1}, $${i * 2 + 2}, NOW())`).join(', ');
+    const params = entries.flatMap(([k, v]) => [k, String(v || '')]);
+
+    await prisma.$executeRawUnsafe(
+        `INSERT INTO "${TABLE_NAME}" (key, value, "updatedAt")
+         VALUES ${values}
+         ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, "updatedAt" = NOW()`,
+        ...params
+    );
 
     return NextResponse.json({ success: true });
 }, { roles: ['giam_doc'] });
