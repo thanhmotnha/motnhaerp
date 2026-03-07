@@ -15,13 +15,30 @@ const PIPELINE_STAGES = [
     { key: 'complete', label: 'Hoàn thành', icon: '✅', statuses: ['Hoàn thành'], color: 'var(--status-success)' },
 ];
 
+const LS_KEY = 'pipeline_monthly_target';
+
 export default function PipelinePage() {
     const router = useRouter();
     const [projects, setProjects] = useState([]);
     const [loading, setLoading] = useState(true);
     const [selectedStage, setSelectedStage] = useState(null);
+    const [editingTarget, setEditingTarget] = useState(false);
+    const [monthlyTarget, setMonthlyTarget] = useState(0);
+    const [targetInput, setTargetInput] = useState('');
     const { role } = useRole();
     const canSeeFinance = ['giam_doc', 'pho_gd', 'ke_toan'].includes(role);
+
+    useEffect(() => {
+        const saved = localStorage.getItem(LS_KEY);
+        if (saved) setMonthlyTarget(Number(saved));
+    }, []);
+
+    const saveTarget = () => {
+        const val = Number(String(targetInput).replace(/[^0-9]/g, '')) || 0;
+        setMonthlyTarget(val);
+        localStorage.setItem(LS_KEY, val);
+        setEditingTarget(false);
+    };
 
     useEffect(() => {
         fetch('/api/projects?limit=1000').then(r => r.json()).then(d => {
@@ -52,6 +69,16 @@ export default function PipelinePage() {
         : 0;
 
     const maxContract = Math.max(...stageData.map(s => s.totalContract), 1);
+
+    // KPI calculations
+    const totalPipelineValue = projects.reduce((s, p) => s + (p.contractValue || 0), 0);
+    const activeValue = stageData
+        .filter(s => ['construction', 'warranty', 'complete'].includes(s.key))
+        .reduce((s, st) => s + st.totalContract, 0);
+    const targetPct = monthlyTarget > 0 ? Math.min(Math.round((activeValue / monthlyTarget) * 100), 100) : 0;
+    const totalProjects = projects.length;
+    const wonProjects = projects.filter(p => ['Chuẩn bị thi công', 'Đang thi công', 'Bảo hành', 'Hoàn thành'].includes(p.status)).length;
+    const winRate = totalProjects > 0 ? Math.round((wonProjects / totalProjects) * 100) : 0;
 
     return (
         <div>
@@ -111,6 +138,53 @@ export default function PipelinePage() {
                                 </div>
                             );
                         })}
+                    </div>
+                </div>
+            )}
+
+            {/* KPI Target (finance only) */}
+            {canSeeFinance && (
+                <div className="card" style={{ marginBottom: 24, padding: '16px 20px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                        <div style={{ fontSize: 12, color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: 1 }}>
+                            KPI Pipeline tháng này
+                        </div>
+                        <button className="btn btn-ghost btn-sm" onClick={() => { setTargetInput(monthlyTarget); setEditingTarget(v => !v); }}>
+                            {editingTarget ? 'Đóng' : '⚙ Đặt mục tiêu'}
+                        </button>
+                    </div>
+                    {editingTarget && (
+                        <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
+                            <input className="form-input" style={{ margin: 0, flex: 1 }} type="number" placeholder="Nhập mục tiêu doanh thu (VND)" value={targetInput} onChange={e => setTargetInput(e.target.value)} />
+                            <button className="btn btn-primary btn-sm" onClick={saveTarget}>Lưu</button>
+                        </div>
+                    )}
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 16 }}>
+                        <div>
+                            <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 4 }}>Tổng pipeline</div>
+                            <div style={{ fontWeight: 700, fontSize: 16, color: 'var(--accent-primary)' }}>{fmtC(totalPipelineValue)}đ</div>
+                        </div>
+                        <div>
+                            <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 4 }}>Win Rate</div>
+                            <div style={{ fontWeight: 700, fontSize: 16, color: winRate >= 50 ? 'var(--status-success)' : 'var(--status-warning)' }}>
+                                {winRate}% <span style={{ fontSize: 11, fontWeight: 400 }}>({wonProjects}/{totalProjects} DA)</span>
+                            </div>
+                        </div>
+                        <div>
+                            <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 4 }}>
+                                {monthlyTarget > 0 ? `Mục tiêu: ${fmtC(monthlyTarget)}đ` : 'Chưa đặt mục tiêu'}
+                            </div>
+                            {monthlyTarget > 0 && (
+                                <>
+                                    <div style={{ fontWeight: 700, fontSize: 16, color: targetPct >= 80 ? 'var(--status-success)' : targetPct >= 50 ? 'var(--status-warning)' : 'var(--status-danger)' }}>
+                                        {targetPct}%
+                                    </div>
+                                    <div className="progress-bar" style={{ height: 6, marginTop: 4 }}>
+                                        <div className="progress-fill" style={{ width: `${targetPct}%`, background: targetPct >= 80 ? 'var(--status-success)' : targetPct >= 50 ? 'var(--status-warning)' : 'var(--status-danger)' }} />
+                                    </div>
+                                </>
+                            )}
+                        </div>
                     </div>
                 </div>
             )}
