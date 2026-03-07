@@ -14,6 +14,7 @@ export default function CreateContractPage() {
     const [quotations, setQuotations] = useState([]);
     const [saving, setSaving] = useState(false);
     const [paymentPhases, setPaymentPhases] = useState([]);
+    const [dbPaymentTemplates, setDbPaymentTemplates] = useState(null); // from DB settings
 
     const [form, setForm] = useState({
         name: '', type: 'Thi công thô', contractValue: 0, signDate: '', startDate: '', endDate: '',
@@ -24,6 +25,12 @@ export default function CreateContractPage() {
         fetch('/api/customers?limit=1000').then(r => r.json()).then(d => setCustomers(d.data || []));
         fetch('/api/projects?limit=1000').then(r => r.json()).then(d => setProjects(d.data || []));
         fetch('/api/quotations?limit=1000').then(r => r.json()).then(d => setQuotations(d.data || []));
+        // Load payment templates from DB settings (synced with Settings page)
+        fetch('/api/admin/settings').then(r => r.json()).then(data => {
+            if (data?.payment_templates) {
+                try { setDbPaymentTemplates(JSON.parse(data.payment_templates)); } catch { }
+            }
+        }).catch(() => { });
     }, []);
 
     // Auto-fill from URL params
@@ -53,14 +60,15 @@ export default function CreateContractPage() {
         setForm(f => ({ ...f, customerId: customerId || f.customerId, projectId: projectId || f.projectId, type: type || f.type, contractValue: Number(value) || f.contractValue }));
     }, [quotations, searchParams]);
 
-    // Auto-load template when type changes
+    // Auto-load template when type changes — use DB templates first, fallback to hardcoded
     useEffect(() => {
-        const tmpl = PAYMENT_TEMPLATES[form.type] || [];
+        const templates = dbPaymentTemplates || PAYMENT_TEMPLATES;
+        const tmpl = templates[form.type] || PAYMENT_TEMPLATES[form.type] || [];
         setPaymentPhases(tmpl.map(t => ({
             phase: t.phase, pct: t.pct, category: t.category || '',
             amount: Math.round((form.contractValue || 0) * t.pct / 100),
         })));
-    }, [form.type]);
+    }, [form.type, dbPaymentTemplates]);
 
     // Recalc amounts when contractValue changes
     useEffect(() => {

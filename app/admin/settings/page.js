@@ -234,6 +234,8 @@ export default function SettingsPage() {
                                     <textarea className="form-input" rows={3} value={settings[s.key] || ''} onChange={e => setSettings({ ...settings, [s.key]: e.target.value })} style={{ resize: 'vertical' }} />
                                 </div>
                             ))}
+
+                            <GeminiStatusWidget />
                         </>
                     )}
 
@@ -435,5 +437,64 @@ function SectionTitle({ icon, title }) {
         <h4 style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 16, paddingBottom: 8, borderBottom: '2px solid var(--accent-primary)', display: 'flex', alignItems: 'center', gap: 6 }}>
             {icon} {title}
         </h4>
+    );
+}
+
+function GeminiStatusWidget() {
+    const [status, setStatus] = useState(null); // null=unchecked, object=result
+    const [checking, setChecking] = useState(false);
+
+    const checkStatus = async () => {
+        setChecking(true);
+        try {
+            const data = await apiFetch('/api/admin/gemini-status');
+            setStatus(data);
+        } catch (e) {
+            setStatus({ configured: false, status: 'error', message: e.message });
+        }
+        setChecking(false);
+    };
+
+    const statusColor = !status ? 'var(--text-muted)' : status.status === 'active' ? 'var(--status-success)' : status.status === 'error' ? 'var(--status-danger)' : 'var(--status-warning)';
+    const statusIcon = !status ? '❓' : status.status === 'active' ? '✅' : status.status === 'error' ? '❌' : '⚠️';
+
+    return (
+        <div style={{ marginTop: 24 }}>
+            <SectionTitle icon="🤖" title="AI / Gemini API" />
+            <div style={{ border: '1px solid var(--border)', borderRadius: 10, padding: 16, background: 'var(--bg-card)' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                    <div>
+                        <div style={{ fontWeight: 600, fontSize: 14 }}>Google Gemini API</div>
+                        <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>
+                            Dùng cho: OCR ảnh dự toán, nhận dạng chuyển khoản, phân tích nhật ký
+                        </div>
+                    </div>
+                    <button className="btn btn-secondary btn-sm" onClick={checkStatus} disabled={checking} style={{ fontSize: 11 }}>
+                        {checking ? '⏳ Đang kiểm tra...' : '🔍 Kiểm tra kết nối'}
+                    </button>
+                </div>
+
+                {status && (
+                    <div style={{
+                        display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px',
+                        borderRadius: 8, fontSize: 12,
+                        background: status.status === 'active' ? 'rgba(34,197,94,0.08)' : status.status === 'error' ? 'rgba(239,68,68,0.08)' : 'rgba(245,158,11,0.08)',
+                    }}>
+                        <span style={{ fontSize: 16 }}>{statusIcon}</span>
+                        <div>
+                            <div style={{ fontWeight: 600, color: statusColor }}>{status.message}</div>
+                            {status.model && <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>Model: {status.model}</div>}
+                            {status.keyPreview && <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>Key: {status.keyPreview}</div>}
+                        </div>
+                    </div>
+                )}
+
+                {!status && (
+                    <div style={{ fontSize: 12, color: 'var(--text-muted)', fontStyle: 'italic' }}>
+                        Bấm "Kiểm tra kết nối" để xem trạng thái API
+                    </div>
+                )}
+            </div>
+        </div>
     );
 }

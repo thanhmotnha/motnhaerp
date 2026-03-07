@@ -19,6 +19,7 @@ export default function ContractDetailPage() {
     const [paymentPhases, setPaymentPhases] = useState([]);
     const [savingPayments, setSavingPayments] = useState(false);
     const [projects, setProjects] = useState([]);
+    const [dbPaymentTemplates, setDbPaymentTemplates] = useState(null);
     const fileRef = useRef();
 
     const reload = () => {
@@ -37,7 +38,15 @@ export default function ContractDetailPage() {
     };
 
     useEffect(() => { reload(); }, [id]);
-    useEffect(() => { fetch('/api/projects?limit=200').then(r => r.json()).then(d => setProjects(d.data || [])); }, []);
+    useEffect(() => {
+        fetch('/api/projects?limit=200').then(r => r.json()).then(d => setProjects(d.data || []));
+        // Load payment templates from DB settings (synced with Settings page)
+        fetch('/api/admin/settings').then(r => r.json()).then(data => {
+            if (data?.payment_templates) {
+                try { setDbPaymentTemplates(JSON.parse(data.payment_templates)); } catch { }
+            }
+        }).catch(() => { });
+    }, []);
 
     const save = async () => {
         setSaving(true);
@@ -105,7 +114,8 @@ export default function ContractDetailPage() {
     };
 
     const loadTemplate = () => {
-        const tmpl = PAYMENT_TEMPLATES[form.type] || [];
+        const templates = dbPaymentTemplates || PAYMENT_TEMPLATES;
+        const tmpl = templates[form.type] || PAYMENT_TEMPLATES[form.type] || [];
         const cv = parseFloat(form.contractValue) || 0;
         setPaymentPhases(tmpl.map(t => ({
             phase: t.phase, pct: t.pct, category: t.category || '',
