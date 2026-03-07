@@ -78,7 +78,7 @@ export default function ProjectsPage() {
                         <tbody>{projects.map(p => (
                             <tr key={p.id} onClick={() => router.push(`/projects/${p.id}`)} style={{ cursor: 'pointer' }}>
                                 <td className="accent">{p.code}</td>
-                                <td className="primary" onDoubleClick={(e) => { e.stopPropagation(); setEditingId(p.id); setEditingName(p.name); }}>
+                                <td className="primary" onClick={(e) => { e.stopPropagation(); if (editingId !== p.id) { setEditingId(p.id); setEditingName(p.name); } }}>
                                     {editingId === p.id ? (
                                         <input className="form-input" autoFocus value={editingName} onClick={e => e.stopPropagation()}
                                             onChange={e => setEditingName(e.target.value)}
