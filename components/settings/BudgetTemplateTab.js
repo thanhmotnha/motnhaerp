@@ -11,7 +11,9 @@ export default function BudgetTemplateTab({ budgetTemplates, setBudgetTemplates,
     const [importState, setImportState] = useState(null); // { targetTemplate, rows, step }
     const [products, setProducts] = useState([]);
     const [productsLoaded, setProductsLoaded] = useState(false);
+    const [importing, setImporting] = useState(false); // loading state for OCR/Excel
     const fileRef = useRef(null);
+    const imgRef = useRef(null);
 
     // Load products for matching
     const ensureProducts = async () => {
@@ -29,120 +31,219 @@ export default function BudgetTemplateTab({ budgetTemplates, setBudgetTemplates,
     const handleExcelFile = async (e) => {
         const file = e.target.files?.[0];
         if (!file) return;
+        setImporting(true);
 
-        const prods = await ensureProducts();
+        try {
+            const prods = await ensureProducts();
 
-        const XLSX = (await import('xlsx')).default;
-        const data = await file.arrayBuffer();
-        const wb = XLSX.read(data, { cellDates: true });
-        const ws = wb.Sheets[wb.SheetNames[0]];
+            const XLSX = (await import('xlsx')).default;
+            const data = await file.arrayBuffer();
+            const wb = XLSX.read(data, { cellDates: true });
+            const ws = wb.Sheets[wb.SheetNames[0]];
 
-        // Get all rows as 2D array (handles merged cells better than sheet_to_json)
-        const allRows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
-        if (allRows.length < 2) { toast.error('File rỗng'); return; }
+            // Get all rows as 2D array (handles merged cells better than sheet_to_json)
+            const allRows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
+            console.log('[Budget Import] Total rows:', allRows.length, 'First 5:', allRows.slice(0, 5));
 
-        // Auto-detect header row: find row containing "vật tư" or "tên" in any cell
-        let headerIdx = -1;
-        const HEADER_KEYWORDS = ['vật tư', 'tên vật tư', 'tên', 'hạng mục'];
-        for (let i = 0; i < Math.min(allRows.length, 15); i++) {
-            const row = allRows[i].map(c => String(c || '').toLowerCase().trim());
-            if (row.some(c => HEADER_KEYWORDS.some(kw => c.includes(kw)))) {
-                headerIdx = i;
-                break;
-            }
-        }
+            if (allRows.length < 2) { toast.error('File rỗng'); setImporting(false); return; }
 
-        if (headerIdx < 0) { toast.error('Không tìm thấy dòng header (cần cột "Tên vật tư")'); return; }
-
-        // Map column indices by fuzzy header matching
-        const headers = allRows[headerIdx].map(c => String(c || '').toLowerCase().trim());
-        const findCol = (...keywords) => headers.findIndex(h => keywords.some(kw => h.includes(kw)));
-
-        const colName = findCol('tên vật tư', 'vật tư', 'tên', 'hạng mục');
-        const colUnit = findCol('đơn vị', 'đvt');
-        const colQty = findCol('khối lượng', 'số lượng', 'sl', 'qty');
-        const colPrice = findCol('giá gốc', 'đơn giá', 'giá');
-        const colTotal = findCol('thành tiền', 'tổng');
-
-        if (colName < 0) { toast.error(`Không tìm thấy cột "Tên vật tư" trong header: [${headers.filter(Boolean).join(', ')}]`); return; }
-
-        // Parse data rows (after header)
-        const imported = [];
-        let currentGroup = ''; // track group headers like "Phần thô", "I VẬT LIỆU"
-        const SKIP_PATTERNS = /^(tổng|cộng|total|tổng cộng)/i;
-        const GROUP_PATTERNS = /^[IVX]+\.?\s|^[A-Z]{2,}$/; // Roman numerals or ALL CAPS = group header
-
-        for (let i = headerIdx + 1; i < allRows.length; i++) {
-            const row = allRows[i];
-            const name = String(row[colName] || '').trim();
-            const stt = String(row[0] || '').trim();
-
-            // Skip empty rows
-            if (!name) continue;
-
-            // Skip summary/total rows
-            if (SKIP_PATTERNS.test(name)) continue;
-
-            // Detect group headers: roman numeral STT (I, II, III) or name is ALL CAPS or no qty/unit
-            const unit = colUnit >= 0 ? String(row[colUnit] || '').trim() : '';
-            const qtyVal = colQty >= 0 ? Number(row[colQty]) : 0;
-            const isGroupHeader = (
-                (/^[IVX]+$/i.test(stt) && !qtyVal) ||
-                (name === name.toUpperCase() && name.length > 2 && !unit) ||
-                (!unit && !qtyVal && colTotal >= 0 && Number(row[colTotal]) > 0 && !Number(row[colPrice]))
-            );
-
-            if (isGroupHeader) {
-                currentGroup = name.replace(/^[IVX]+\.?\s*/i, '').trim();
-                // Auto-detect costType from group name
-                continue;
+            // Auto-detect header row: find row containing "vật tư" or "tên" in any cell
+            let headerIdx = -1;
+            const HEADER_KEYWORDS = ['vật tư', 'tên vật tư', 'tên', 'hạng mục', 'đơn vị', 'khối lượng'];
+            for (let i = 0; i < Math.min(allRows.length, 20); i++) {
+                const row = allRows[i].map(c => String(c || '').toLowerCase().trim());
+                const matchCount = row.filter(c => HEADER_KEYWORDS.some(kw => c.includes(kw))).length;
+                if (matchCount >= 2) { // Need at least 2 matching keywords for confidence
+                    headerIdx = i;
+                    break;
+                }
             }
 
-            // Normal data row
-            const qty = qtyVal || 1;
-            const price = colPrice >= 0 ? Number(row[colPrice]) || 0 : 0;
+            // Fallback: try single keyword match
+            if (headerIdx < 0) {
+                for (let i = 0; i < Math.min(allRows.length, 20); i++) {
+                    const row = allRows[i].map(c => String(c || '').toLowerCase().trim());
+                    if (row.some(c => c.includes('vật tư') || c.includes('tên vật tư'))) {
+                        headerIdx = i;
+                        break;
+                    }
+                }
+            }
 
-            // Auto-detect costType from group
-            let costType = 'Vật tư';
-            const groupLower = currentGroup.toLowerCase();
-            if (groupLower.includes('nhân công') || groupLower.includes('lao động')) costType = 'Nhân công';
-            else if (groupLower.includes('máy') || groupLower.includes('thiết bị')) costType = 'Khác';
-            else if (groupLower.includes('thầu phụ')) costType = 'Thầu phụ';
+            console.log('[Budget Import] Header row index:', headerIdx);
+            if (headerIdx < 0) {
+                toast.error('Không tìm thấy dòng header. Thử dùng "📷 Dán ảnh" thay thế.');
+                setImporting(false);
+                return;
+            }
 
-            // Fuzzy match product
-            const nameLower = name.toLowerCase();
-            const match = prods.find(p =>
-                p.name.toLowerCase() === nameLower ||
-                p.code?.toLowerCase() === nameLower ||
-                p.name.toLowerCase().includes(nameLower) ||
-                nameLower.includes(p.name.toLowerCase())
-            );
+            // Map column indices by fuzzy header matching
+            const headers = allRows[headerIdx].map(c => String(c || '').toLowerCase().trim());
+            console.log('[Budget Import] Headers:', headers);
+            const findCol = (...keywords) => headers.findIndex(h => keywords.some(kw => h.includes(kw)));
 
-            imported.push({
-                name: match?.name || name,
-                unit: match?.unit || unit,
-                qty,
-                unitPrice: price,
-                costType,
-                group1: currentGroup || '',
-                productId: match?.id || null,
-                productMatch: match || null,
-                _key: Date.now() + Math.random() + i,
-            });
+            const colName = findCol('tên vật tư', 'vật tư', 'tên', 'hạng mục');
+            const colUnit = findCol('đơn vị', 'đvt');
+            const colQty = findCol('khối lượng', 'số lượng', 'sl', 'qty');
+            const colPrice = findCol('giá gốc', 'đơn giá', 'giá');
+            const colTotal = findCol('thành tiền', 'tổng');
+
+            console.log('[Budget Import] Col indices:', { colName, colUnit, colQty, colPrice, colTotal });
+
+            if (colName < 0) {
+                toast.error(`Không tìm thấy cột tên vật tư. Headers: [${headers.filter(Boolean).join(', ')}]. Thử dùng "📷 Dán ảnh" thay thế.`);
+                setImporting(false);
+                return;
+            }
+
+            // Parse data rows (after header)
+            const imported = [];
+            let currentGroup = '';
+            const SKIP_PATTERNS = /^(tổng|cộng|total|tổng cộng)/i;
+
+            for (let i = headerIdx + 1; i < allRows.length; i++) {
+                const row = allRows[i];
+                const name = String(row[colName] || '').trim();
+                const stt = String(row[0] || '').trim();
+
+                if (!name) continue;
+                if (SKIP_PATTERNS.test(name)) continue;
+
+                const unit = colUnit >= 0 ? String(row[colUnit] || '').trim() : '';
+                const qtyVal = colQty >= 0 ? Number(row[colQty]) : 0;
+                const isGroupHeader = (
+                    (/^[IVX]+$/i.test(stt) && !qtyVal) ||
+                    (name === name.toUpperCase() && name.length > 2 && !unit) ||
+                    (!unit && !qtyVal && colTotal >= 0 && Number(row[colTotal]) > 0 && !Number(row[colPrice]))
+                );
+
+                if (isGroupHeader) {
+                    currentGroup = name.replace(/^[IVX]+\.?\s*/i, '').trim();
+                    continue;
+                }
+
+                const qty = qtyVal || 1;
+                const price = colPrice >= 0 ? Number(row[colPrice]) || 0 : 0;
+
+                let costType = 'Vật tư';
+                const groupLower = currentGroup.toLowerCase();
+                if (groupLower.includes('nhân công') || groupLower.includes('lao động')) costType = 'Nhân công';
+                else if (groupLower.includes('máy') || groupLower.includes('thiết bị')) costType = 'Khác';
+                else if (groupLower.includes('thầu phụ')) costType = 'Thầu phụ';
+
+                const nameLower = name.toLowerCase();
+                const match = prods.find(p =>
+                    p.name.toLowerCase() === nameLower ||
+                    p.code?.toLowerCase() === nameLower ||
+                    p.name.toLowerCase().includes(nameLower) ||
+                    nameLower.includes(p.name.toLowerCase())
+                );
+
+                imported.push({
+                    name: match?.name || name,
+                    unit: match?.unit || unit,
+                    qty, unitPrice: price, costType,
+                    group1: currentGroup || '',
+                    productId: match?.id || null,
+                    productMatch: match || null,
+                    _key: Date.now() + Math.random() + i,
+                });
+            }
+
+            console.log('[Budget Import] Imported rows:', imported.length);
+
+            if (imported.length === 0) {
+                toast.error(`Không tìm thấy dữ liệu hợp lệ sau header dòng ${headerIdx + 1}. Thử dùng "📷 Dán ảnh" thay thế.`);
+                setImporting(false);
+                return;
+            }
+
+            const templateNames = Object.keys(budgetTemplates);
+            setImportState({ targetTemplate: templateNames[0] || 'Mẫu mới', rows: imported, step: 'review' });
+            toast.success(`Đã đọc ${imported.length} hạng mục từ Excel`);
+        } catch (err) {
+            console.error('[Budget Import] Error:', err);
+            toast.error(`Lỗi đọc Excel: ${err.message}. Thử dùng "📷 Dán ảnh" thay thế.`);
         }
-
-        if (imported.length === 0) {
-            toast.error(`Không tìm thấy dữ liệu hợp lệ. Header ở dòng ${headerIdx + 1}, cột tên=[${headers[colName]}]`);
-            return;
-        }
-
-        // Determine target template
-        const templateNames = Object.keys(budgetTemplates);
-        let targetTemplate = templateNames[0] || 'Mẫu mới';
-
-        setImportState({ targetTemplate, rows: imported, step: 'review' });
-        toast.success(`Đã đọc ${imported.length} hạng mục từ Excel. Kiểm tra và xác nhận bên dưới.`);
+        setImporting(false);
         if (fileRef.current) fileRef.current.value = '';
+    };
+
+    // ===== Image OCR Import — Gemini Vision =====
+    const handleImageFile = async (file) => {
+        if (!file) return;
+        setImporting(true);
+        toast.info?.('🔍 Đang nhận dạng ảnh...') || toast.success('🔍 Đang nhận dạng ảnh...');
+
+        try {
+            const prods = await ensureProducts();
+
+            const formData = new FormData();
+            formData.append('file', file);
+
+            const res = await fetch('/api/ocr-budget', { method: 'POST', body: formData });
+            const data = await res.json();
+
+            if (!res.ok) throw new Error(data.error || 'OCR failed');
+
+            const items = data.items || [];
+            console.log('[OCR Budget] Items:', items);
+
+            if (items.length === 0) {
+                toast.error('Không nhận dạng được hạng mục. Thử chụp rõ hơn hoặc dùng Excel.');
+                setImporting(false);
+                return;
+            }
+
+            // Match products
+            const imported = items.map((item, i) => {
+                const nameLower = (item.name || '').toLowerCase();
+                const match = prods.find(p =>
+                    p.name.toLowerCase() === nameLower ||
+                    p.name.toLowerCase().includes(nameLower) ||
+                    nameLower.includes(p.name.toLowerCase())
+                );
+                return {
+                    name: match?.name || item.name,
+                    unit: match?.unit || item.unit || '',
+                    qty: Number(item.qty) || 1,
+                    unitPrice: Number(item.unitPrice) || 0,
+                    costType: COST_TYPES.includes(item.costType) ? item.costType : 'Vật tư',
+                    group1: item.group || '',
+                    productId: match?.id || null,
+                    productMatch: match || null,
+                    _key: Date.now() + Math.random() + i,
+                };
+            });
+
+            const templateNames = Object.keys(budgetTemplates);
+            setImportState({ targetTemplate: templateNames[0] || 'Mẫu mới', rows: imported, step: 'review' });
+            toast.success(`Nhận dạng được ${imported.length} hạng mục từ ảnh`);
+        } catch (err) {
+            console.error('[OCR Budget] Error:', err);
+            toast.error(`Lỗi nhận dạng: ${err.message}`);
+        }
+        setImporting(false);
+        if (imgRef.current) imgRef.current.value = '';
+    };
+
+    const handleImageInput = (e) => {
+        const file = e.target.files?.[0];
+        if (file) handleImageFile(file);
+    };
+
+    // Handle paste from clipboard
+    const handlePaste = async (e) => {
+        const items = e.clipboardData?.items;
+        if (!items) return;
+        for (const item of items) {
+            if (item.type.startsWith('image/')) {
+                e.preventDefault();
+                const file = item.getAsFile();
+                if (file) handleImageFile(file);
+                return;
+            }
+        }
     };
 
     const confirmImport = () => {
@@ -200,19 +301,24 @@ export default function BudgetTemplateTab({ budgetTemplates, setBudgetTemplates,
     const unmatchedCount = importState?.rows.filter(r => !r.productMatch).length || 0;
 
     return (
-        <>
+        <div onPaste={handlePaste}>
             {/* Header */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, flexWrap: 'wrap', gap: 8 }}>
                 <div>
                     <h4 style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 8, paddingBottom: 8, borderBottom: '2px solid var(--accent-primary)', display: 'flex', alignItems: 'center', gap: 6 }}>
                         🧱 Mẫu dự toán vật tư
                     </h4>
                     <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: '-8px 0 0 0' }}>Khi tạo dự toán nhanh → tab Template, hệ thống dùng mẫu này.</p>
                 </div>
-                <div style={{ display: 'flex', gap: 6 }}>
+                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                    {/* Image OCR Button */}
+                    <input ref={imgRef} type="file" accept="image/*" onChange={handleImageInput} style={{ display: 'none' }} id="budget-img-import" />
+                    <label htmlFor="budget-img-import" className="btn btn-primary btn-sm" style={{ cursor: importing ? 'wait' : 'pointer', fontSize: 11, display: 'flex', alignItems: 'center', gap: 4, opacity: importing ? 0.7 : 1 }}>
+                        {importing ? '⏳ Đang xử lý...' : '📷 Dán ảnh / Chụp'}
+                    </label>
                     {/* Excel Import Button */}
                     <input ref={fileRef} type="file" accept=".xlsx,.xls,.csv" onChange={handleExcelFile} style={{ display: 'none' }} id="budget-excel-import" />
-                    <label htmlFor="budget-excel-import" className="btn btn-secondary btn-sm" style={{ cursor: 'pointer', fontSize: 11, display: 'flex', alignItems: 'center', gap: 4 }}>
+                    <label htmlFor="budget-excel-import" className="btn btn-secondary btn-sm" style={{ cursor: importing ? 'wait' : 'pointer', fontSize: 11, display: 'flex', alignItems: 'center', gap: 4, opacity: importing ? 0.7 : 1 }}>
                         📊 Import Excel
                     </label>
                     <button className="btn btn-ghost btn-sm" style={{ fontSize: 11 }} onClick={() => setBudgetTemplates({ ...BUDGET_TEMPLATES_DEFAULT })}>🔄 Reset</button>
@@ -223,6 +329,22 @@ export default function BudgetTemplateTab({ budgetTemplates, setBudgetTemplates,
                     }}>➕ Thêm mẫu</button>
                 </div>
             </div>
+
+            {/* Paste zone hint */}
+            {!importState && !importing && (
+                <div style={{ background: 'rgba(59,130,246,0.05)', border: '2px dashed rgba(59,130,246,0.2)', borderRadius: 10, padding: '12px 16px', marginBottom: 16, textAlign: 'center', fontSize: 12, color: 'var(--text-muted)' }}>
+                    💡 <strong>Ctrl+V</strong> để dán ảnh bảng dự toán từ clipboard · hoặc bấm <strong>📷 Dán ảnh</strong> để chọn file ảnh · <strong>📊 Import Excel</strong> cho file .xlsx
+                </div>
+            )}
+
+            {/* Loading state */}
+            {importing && (
+                <div style={{ background: 'rgba(59,130,246,0.08)', border: '1px solid rgba(59,130,246,0.2)', borderRadius: 10, padding: '20px', marginBottom: 16, textAlign: 'center' }}>
+                    <div style={{ fontSize: 28, marginBottom: 8 }}>⏳</div>
+                    <div style={{ fontWeight: 600, fontSize: 14 }}>Đang xử lý...</div>
+                    <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4 }}>Nhận dạng và phân tích dữ liệu</div>
+                </div>
+            )}
 
             {/* ===== Import Review Modal ===== */}
             {importState?.step === 'review' && (
@@ -389,6 +511,6 @@ export default function BudgetTemplateTab({ budgetTemplates, setBudgetTemplates,
                 );
             })}
             <datalist id="budget-group1-list">{GROUP1_PRESETS.map(g => <option key={g} value={g} />)}</datalist>
-        </>
+        </div>
     );
 }
