@@ -2,6 +2,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { PAYMENT_TEMPLATES, CONTRACT_TYPES } from '@/lib/contractTemplates';
+import { apiFetch } from '@/lib/fetchClient';
 
 const fmt = (n) => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(n || 0);
 
@@ -115,19 +116,12 @@ export default function CreateContractPage() {
         if (!form.customerId) return alert('Chọn khách hàng!');
         setSaving(true);
         try {
-            const res = await fetch('/api/contracts', {
+            const saved = await apiFetch('/api/contracts', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ ...form, projectId: form.projectId || null, paymentPhases }),
             });
-            if (res.ok) {
-                const saved = await res.json();
-                alert('Đã tạo hợp đồng thành công!');
-                router.push(`/contracts/${saved.id}`);
-            } else {
-                const err = await res.json().catch(() => ({}));
-                alert('Lỗi: ' + (err.error || err.message || 'Unknown'));
-            }
+            alert('Đã tạo hợp đồng thành công!');
+            router.push(`/contracts/${saved.id}`);
         } catch (e) { alert('Lỗi: ' + e.message); }
         setSaving(false);
     };

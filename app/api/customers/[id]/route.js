@@ -16,8 +16,9 @@ export const GET = withAuth(async (request, { params }) => {
                 },
                 orderBy: { createdAt: 'desc' },
             },
-            quotations: { include: { items: true }, orderBy: { createdAt: 'desc' } },
+            quotations: { where: { deletedAt: null }, include: { items: true }, orderBy: { createdAt: 'desc' } },
             contracts: {
+                where: { deletedAt: null },
                 include: {
                     payments: { orderBy: { createdAt: 'asc' } },
                     project: { select: { name: true, code: true } },

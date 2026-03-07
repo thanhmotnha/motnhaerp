@@ -56,9 +56,11 @@ export const POST = withAuthAndLog(async (request) => {
 
     // Retry up to 3 times on code collision (P2002)
     let result;
+    let lastError;
     for (let attempt = 0; attempt < 3; attempt++) {
         try {
             const code = await generateCode('contract', 'HD');
+            console.log(`[Contract] Attempt ${attempt + 1}: generated code=${code}`);
             result = await prisma.$transaction(async (tx) => {
                 const contract = await tx.contract.create({
                     data: {
@@ -156,13 +158,16 @@ export const POST = withAuthAndLog(async (request) => {
 
             break;
         } catch (err) {
+            lastError = err;
+            console.error(`[Contract] Attempt ${attempt + 1} failed:`, err.code, err.message);
             if (err.code === 'P2002' && attempt < 2) continue;
             throw err;
         }
     }
 
     if (!result) {
-        return NextResponse.json({ error: 'Không thể tạo mã hợp đồng. Vui lòng thử lại.' }, { status: 500 });
+        console.error('[Contract] All 3 attempts failed, lastError:', lastError);
+        return NextResponse.json({ error: `Không thể tạo mã hợp đồng: ${lastError?.message || 'Unknown'}. Vui lòng thử lại.` }, { status: 500 });
     }
 
     return NextResponse.json(result, { status: 201 });
