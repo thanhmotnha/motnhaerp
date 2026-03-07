@@ -169,3 +169,84 @@ export function useProducts() {
     enabled: ready,
   });
 }
+
+// ─── Warranty ───────────────────────────────────────────────
+export function useWarrantyTickets(projectId?: string) {
+  const ready = useIsReady();
+  const params = projectId ? `?projectId=${projectId}` : '';
+  return useQuery({
+    queryKey: ['warranty', projectId],
+    queryFn: () => apiFetch(`/api/warranty${params}`),
+    enabled: ready,
+  });
+}
+
+export function useCreateWarrantyTicket() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (data: any) =>
+      apiFetch('/api/warranty', { method: 'POST', body: JSON.stringify(data) }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['warranty'] }),
+  });
+}
+
+export function useUpdateWarrantyTicket() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, ...data }: any) =>
+      apiFetch(`/api/warranty/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['warranty'] }),
+  });
+}
+
+// ─── Expenses ───────────────────────────────────────────────
+export function useCreateExpense() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (data: any) =>
+      apiFetch('/api/project-expenses', { method: 'POST', body: JSON.stringify(data) }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['expenses'] });
+      qc.invalidateQueries({ queryKey: ['dashboard'] });
+    },
+  });
+}
+
+// ─── Contracts ──────────────────────────────────────────────
+export function useContracts(projectId?: string) {
+  const ready = useIsReady();
+  const params = projectId ? `?projectId=${projectId}&limit=20` : '?limit=20';
+  return useQuery({
+    queryKey: ['contracts', projectId],
+    queryFn: () => apiFetch(`/api/contracts${params}`),
+    enabled: ready,
+  });
+}
+
+export function useContract(id: string) {
+  const ready = useIsReady();
+  return useQuery({
+    queryKey: ['contract', id],
+    queryFn: () => apiFetch(`/api/contracts/${id}`),
+    enabled: ready && !!id,
+  });
+}
+
+// ─── Schedule Tasks ─────────────────────────────────────────
+export function useScheduleTask(id: string) {
+  const ready = useIsReady();
+  return useQuery({
+    queryKey: ['schedule-task', id],
+    queryFn: () => apiFetch(`/api/schedule-tasks/${id}`),
+    enabled: ready && !!id,
+  });
+}
+
+export function useUpdateScheduleTask() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, ...data }: any) =>
+      apiFetch(`/api/schedule-tasks/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+    onSuccess: (_d, vars) => qc.invalidateQueries({ queryKey: ['schedule-task', vars.id] }),
+  });
+}
