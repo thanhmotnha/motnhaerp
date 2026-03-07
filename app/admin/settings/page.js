@@ -8,6 +8,7 @@ import { CONTRACT_TYPES, PAYMENT_TEMPLATES, CONTRACT_STATUSES, TYPE_ICONS } from
 import { PRESET_CATEGORIES, QUOTATION_TYPES, UNIT_OPTIONS } from '@/lib/quotation-constants';
 import { BUDGET_TEMPLATES_DEFAULT, COST_TYPES, GROUP1_PRESETS } from '@/lib/budgetTemplates';
 import BudgetTemplateTab from '@/components/settings/BudgetTemplateTab';
+import ScheduleTemplateTab from '@/components/settings/ScheduleTemplateTab';
 
 // ========= Company Settings Keys =========
 const SETTING_KEYS = [
@@ -300,39 +301,7 @@ export default function SettingsPage() {
 
                     {/* ========== TAB: Schedule Templates ========== */}
                     {tab === 'schedule' && (
-                        <>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-                                <div>
-                                    <SectionTitle icon="📅" title="Mẫu tiến độ thi công" />
-                                    <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: '-8px 0 0 0' }}>Quản lý trong module Tiến độ → Mẫu tiến độ</p>
-                                </div>
-                                <button className="btn btn-primary btn-sm" onClick={() => router.push('/schedule?tab=templates')}>📅 Quản lý mẫu tiến độ</button>
-                            </div>
-
-                            {scheduleLoading ? (
-                                <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-muted)' }}>Đang tải...</div>
-                            ) : scheduleTemplates.length === 0 ? (
-                                <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-muted)' }}>Chưa có mẫu tiến độ nào</div>
-                            ) : (
-                                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 12 }}>
-                                    {scheduleTemplates.map(t => (
-                                        <div key={t.id} style={{ border: '1px solid var(--border)', borderRadius: 10, padding: 16, background: 'var(--bg-card)' }}>
-                                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start' }}>
-                                                <div>
-                                                    <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 4 }}>📅 {t.name}</div>
-                                                    <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>{t.description || 'Không có mô tả'}</div>
-                                                </div>
-                                                <button className="btn btn-ghost btn-sm" style={{ color: 'var(--status-danger)', fontSize: 11 }} onClick={() => deleteScheduleTemplate(t.id)}>🗑️</button>
-                                            </div>
-                                            <div style={{ marginTop: 8, fontSize: 12 }}>
-                                                <span className="badge info">{t._count?.items || 0} công việc</span>
-                                                {t.type && <span className="badge muted" style={{ marginLeft: 4 }}>{t.type}</span>}
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
-                            )}
-                        </>
+                        <ScheduleTemplateTab toast={toast} />
                     )}
 
                     {/* ========== TAB: Quotation ========== */}
