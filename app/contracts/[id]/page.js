@@ -18,6 +18,7 @@ export default function ContractDetailPage() {
     const [editingPayments, setEditingPayments] = useState(false);
     const [paymentPhases, setPaymentPhases] = useState([]);
     const [savingPayments, setSavingPayments] = useState(false);
+    const [projects, setProjects] = useState([]);
     const fileRef = useRef();
 
     const reload = () => {
@@ -30,11 +31,13 @@ export default function ContractDetailPage() {
                     contractValue: d.contractValue || 0, variationAmount: d.variationAmount || 0,
                     signDate: fmtDate(d.signDate), startDate: fmtDate(d.startDate), endDate: fmtDate(d.endDate),
                     paymentTerms: d.paymentTerms || '', notes: d.notes || '', fileUrl: d.fileUrl || '',
+                    projectId: d.projectId || '',
                 });
             });
     };
 
     useEffect(() => { reload(); }, [id]);
+    useEffect(() => { fetch('/api/projects?limit=200').then(r => r.json()).then(d => setProjects(d.data || [])); }, []);
 
     const save = async () => {
         setSaving(true);
@@ -48,6 +51,7 @@ export default function ContractDetailPage() {
                 signDate: form.signDate || null, startDate: form.startDate || null,
                 endDate: form.endDate || null, paymentTerms: form.paymentTerms,
                 notes: form.notes, fileUrl: form.fileUrl,
+                projectId: form.projectId || null,
             }),
         });
         if (res.ok) {
@@ -208,6 +212,13 @@ export default function ContractDetailPage() {
                                 <div className="form-group" style={{ gridColumn: '1 / -1' }}>
                                     <label className="form-label">Tên hợp đồng</label>
                                     <input className="form-input" value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} />
+                                </div>
+                                <div className="form-group" style={{ gridColumn: '1 / -1' }}>
+                                    <label className="form-label">Dự án liên kết</label>
+                                    <select className="form-select" value={form.projectId} onChange={e => setForm(f => ({ ...f, projectId: e.target.value }))}>
+                                        <option value="">— Chưa gán dự án —</option>
+                                        {projects.map(p => <option key={p.id} value={p.id}>{p.code} — {p.name}</option>)}
+                                    </select>
                                 </div>
                                 <div className="form-group">
                                     <label className="form-label">Loại hợp đồng</label>
@@ -399,7 +410,6 @@ export default function ContractDetailPage() {
                             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                                 {[
                                     ['Khách hàng', data.customer?.name],
-                                    ['Dự án', data.project?.name || '— Chưa gán'],
                                     ['Loại HĐ', form.type],
                                     ['Báo giá liên kết', data.quotation?.code || '—'],
                                 ].map(([label, val]) => (
@@ -408,6 +418,16 @@ export default function ContractDetailPage() {
                                         <span style={{ fontWeight: 600, textAlign: 'right' }}>{val}</span>
                                     </div>
                                 ))}
+                                <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, fontSize: 13 }}>
+                                    <span style={{ color: 'var(--text-muted)' }}>Dự án</span>
+                                    {data.project ? (
+                                        <a href={`/projects/${data.project.id}`} style={{ fontWeight: 600, color: 'var(--accent-primary)' }}>
+                                            {data.project.name} ↗
+                                        </a>
+                                    ) : (
+                                        <span style={{ color: 'var(--text-muted)' }}>— Chưa gán</span>
+                                    )}
+                                </div>
                                 <hr style={{ border: 'none', borderTop: '1px solid var(--border)', margin: '4px 0' }} />
                                 <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13 }}>
                                     <span style={{ color: 'var(--text-muted)' }}>Giá trị HĐ</span>

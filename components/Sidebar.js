@@ -27,6 +27,7 @@ const menuItems = [
             { href: '/contracts', icon: FileText, label: 'Hợp đồng', roles: ['giam_doc', 'pho_gd', 'ke_toan'] },
             { href: '/work-orders', icon: Wrench, label: 'Phiếu công việc' },
             { href: '/acceptance', icon: ClipboardCheck, label: 'Nghiệm thu', roles: ['giam_doc', 'pho_gd', 'quan_ly_du_an'] },
+            { href: '/warranty', icon: ShieldCheck, label: 'Bảo hành', roles: ['giam_doc', 'pho_gd', 'quan_ly_du_an'] },
         ]
     },
     {
