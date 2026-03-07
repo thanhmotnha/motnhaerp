@@ -11,6 +11,8 @@ export default function ProjectsPage() {
     const [filterType, setFilterType] = useState('');
     const [showModal, setShowModal] = useState(false);
     const [customers, setCustomers] = useState([]);
+    const [editingId, setEditingId] = useState(null);
+    const [editingName, setEditingName] = useState('');
     const [form, setForm] = useState({ name: '', type: 'Thiết kế kiến trúc', status: 'Khảo sát', address: '', area: '', floors: '', budget: '', customerId: '', designer: '', supervisor: '' });
     const router = useRouter();
     const fetchProjects = () => {
@@ -24,6 +26,13 @@ export default function ProjectsPage() {
     useEffect(() => { fetch('/api/customers?limit=1000').then(r => r.json()).then(d => setCustomers(d.data || [])); }, []);
     useEffect(() => { fetchProjects(); }, [search, filterStatus, filterType]);
     const handleDelete = async (id, e) => { e.stopPropagation(); if (!confirm('Xóa dự án này?')) return; await fetch(`/api/projects/${id}`, { method: 'DELETE' }); fetchProjects(); };
+    const handleRename = async (id) => {
+        const name = editingName.trim();
+        if (!name) { setEditingId(null); return; }
+        await fetch(`/api/projects/${id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name }) });
+        setEditingId(null);
+        setProjects(prev => prev.map(p => p.id === id ? { ...p, name } : p));
+    };
     const handleCreate = async () => {
         if (!form.name.trim()) return alert('Vui lòng nhập tên dự án');
         if (!form.customerId) return alert('Vui lòng chọn khách hàng');
@@ -69,7 +78,15 @@ export default function ProjectsPage() {
                         <tbody>{projects.map(p => (
                             <tr key={p.id} onClick={() => router.push(`/projects/${p.id}`)} style={{ cursor: 'pointer' }}>
                                 <td className="accent">{p.code}</td>
-                                <td className="primary">{p.name}{p.phase ? <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{p.phase}</div> : null}</td>
+                                <td className="primary" onDoubleClick={(e) => { e.stopPropagation(); setEditingId(p.id); setEditingName(p.name); }}>
+                                    {editingId === p.id ? (
+                                        <input className="form-input" autoFocus value={editingName} onClick={e => e.stopPropagation()}
+                                            onChange={e => setEditingName(e.target.value)}
+                                            onKeyDown={e => { if (e.key === 'Enter') handleRename(p.id); if (e.key === 'Escape') setEditingId(null); }}
+                                            onBlur={() => handleRename(p.id)}
+                                            style={{ fontSize: 13, padding: '3px 6px', width: '100%' }} />
+                                    ) : (<>{p.name}{p.phase ? <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{p.phase}</div> : null}</>)}
+                                </td>
                                 <td>{p.customer?.name}</td>
                                 <td><span className="badge badge-default">{p.type}</span></td>
                                 <td>{fmt(p.contractValue || p.budget)}</td>
