@@ -7,7 +7,7 @@ import {
     Package, ClipboardList, Wrench, CreditCard, Receipt,
     ShoppingCart, Truck, Warehouse, Wallet, UserCog,
     BarChart3, ChevronRight, Shield, X, CalendarDays, Armchair, Factory,
-    ScrollText, Activity, ClipboardCheck, Banknote, Settings
+    ScrollText, Activity, ClipboardCheck, Banknote, Settings, ShieldCheck
 } from 'lucide-react';
 import { useRole, ROLES } from '@/contexts/RoleContext';
 

@@ -22,7 +22,10 @@ export const GET = withAuth(async (request) => {
     const [projects, total] = await Promise.all([
         prisma.project.findMany({
             where,
-            include: { customer: { select: { name: true } } },
+            include: {
+                customer: { select: { name: true } },
+                contracts: { select: { contractValue: true, variationAmount: true, payments: { select: { paidAmount: true } } } },
+            },
             orderBy: { createdAt: 'desc' },
             skip,
             take: limit,
@@ -30,7 +33,21 @@ export const GET = withAuth(async (request) => {
         prisma.project.count({ where }),
     ]);
 
-    return NextResponse.json(paginatedResponse(projects, total, { page, limit }));
+    // Compute real values from contracts
+    const enriched = projects.map(p => {
+        const sumCV = p.contracts.reduce((s, c) => s + (c.contractValue ?? 0) + (c.variationAmount ?? 0), 0);
+        const sumCollected = p.contracts.reduce((s, c) => s + c.payments.reduce((ps, pay) => ps + (pay.paidAmount ?? 0), 0), 0);
+        const { contracts, ...rest } = p;
+        return {
+            ...rest,
+            contractValue: sumCV || p.contractValue || 0,
+            paidAmount: sumCollected || p.paidAmount || 0,
+            contractCount: contracts.length,
+            debtFromCustomer: (sumCV || p.contractValue || 0) - (sumCollected || p.paidAmount || 0),
+        };
+    });
+
+    return NextResponse.json(paginatedResponse(enriched, total, { page, limit }));
 });
 
 export const POST = withAuthAndLog(async (request) => {
