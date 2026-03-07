@@ -32,7 +32,7 @@ export const GET = withAuth(async (request) => {
 // POST create new production batch
 export const POST = withAuth(async (request, _, session) => {
     const body = await request.json();
-    const { furnitureOrderId, workshopId, plannedStartDate, plannedEndDate, notes, itemAssignments } = body;
+    const { furnitureOrderId, workshopId, plannedStartDate, plannedEndDate, notes, itemAssignments, assignedWorkers, supervisorName } = body;
 
     if (!furnitureOrderId) return NextResponse.json({ error: 'Thiếu furnitureOrderId' }, { status: 400 });
     if (!workshopId) return NextResponse.json({ error: 'Chọn xưởng sản xuất' }, { status: 400 });
@@ -61,6 +61,8 @@ export const POST = withAuth(async (request, _, session) => {
             plannedStartDate: plannedStartDate ? new Date(plannedStartDate) : null,
             plannedEndDate: plannedEndDate ? new Date(plannedEndDate) : null,
             notes: notes || '',
+            supervisorName: supervisorName || '',
+            assignedWorkers: JSON.stringify(assignedWorkers || []),
             batchItems: itemAssignments?.length ? {
                 create: itemAssignments.map(a => ({
                     furnitureOrderItemId: a.itemId,

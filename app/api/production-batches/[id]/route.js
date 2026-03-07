@@ -23,7 +23,7 @@ export const GET = withAuth(async (request, { params }) => {
 export const PUT = withAuth(async (request, { params }, session) => {
     const { id } = await params;
     const body = await request.json();
-    const { status, supervisorName, actualStartDate, actualEndDate, notes, batchItemUpdates } = body;
+    const { status, supervisorName, assignedWorkers, actualStartDate, actualEndDate, notes, batchItemUpdates } = body;
 
     const batch = await prisma.productionBatch.findUniqueOrThrow({ where: { id } });
 
@@ -33,6 +33,7 @@ export const PUT = withAuth(async (request, { params }, session) => {
     if (actualStartDate !== undefined) data.actualStartDate = actualStartDate ? new Date(actualStartDate) : null;
     if (actualEndDate !== undefined) data.actualEndDate = actualEndDate ? new Date(actualEndDate) : null;
     if (notes !== undefined) data.notes = notes;
+    if (assignedWorkers !== undefined) data.assignedWorkers = JSON.stringify(assignedWorkers);
 
     // Auto-set actualStartDate when transitioning to in_progress
     if (status === 'in_progress' && !batch.actualStartDate) {

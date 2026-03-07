@@ -9,7 +9,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { useLocalSearchParams, router, Stack } from 'expo-router';
-import { Camera, MapPin, Calendar, User } from 'lucide-react-native';
+import { Camera, MapPin, Calendar, User, ShieldCheck, FileText } from 'lucide-react-native';
 import { useProject } from '@/hooks/useApi';
 import { Card } from '@/components/ui/Card';
 import { Badge, getStatusVariant } from '@/components/ui/Badge';
@@ -117,6 +117,22 @@ export default function ProjectDetailScreen() {
           size="lg"
           variant="secondary"
           style={{ marginTop: 10 }}
+        />
+        <Button
+          title="Bảo hành"
+          onPress={() => router.push({ pathname: '/warranty/index' as any, params: { projectId: id, projectName: project.name } })}
+          size="lg"
+          variant="secondary"
+          style={{ marginTop: 10 }}
+          icon={<ShieldCheck size={18} color={COLORS.primary} />}
+        />
+        <Button
+          title="Hợp đồng"
+          onPress={() => router.push({ pathname: '/contracts/index' as any, params: { projectId: id, projectName: project.name } })}
+          size="lg"
+          variant="secondary"
+          style={{ marginTop: 10 }}
+          icon={<FileText size={18} color={COLORS.primary} />}
         />
       </ScrollView>
     </>

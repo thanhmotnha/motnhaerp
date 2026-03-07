@@ -8,7 +8,7 @@ import {
     ActivityIndicator,
     RefreshControl,
 } from 'react-native';
-import { useLocalSearchParams, Stack } from 'expo-router';
+import { useLocalSearchParams, Stack, router } from 'expo-router';
 import { CheckCircle, Clock, AlertCircle } from 'lucide-react-native';
 import { useQuery } from '@tanstack/react-query';
 import { apiFetch } from '@/lib/api';
@@ -88,6 +88,7 @@ export default function ScheduleScreen() {
                 keyExtractor={(item: any) => item.id}
                 refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={refetch} />}
                 renderItem={({ item }: { item: any }) => (
+                    <TouchableOpacity onPress={() => router.push({ pathname: '/schedule/[id]' as any, params: { id: item.id } })}>
                     <Card style={styles.taskCard}>
                         <View style={styles.taskHeader}>
                             {getTaskIcon(item.status)}
@@ -113,6 +114,7 @@ export default function ScheduleScreen() {
                             <Text style={styles.assignee}>👤 {item.assignee}</Text>
                         )}
                     </Card>
+                    </TouchableOpacity>
                 )}
                 ListEmptyComponent={
                     <View style={styles.center}>

@@ -162,11 +162,28 @@ function CreateOrderModal({ onClose, onCreated }) {
     const toast = useToast();
     const [form, setForm] = useState({ name: '', customerId: '', projectId: '', quotationId: '', description: '', styleNote: '', roomType: '', salesperson: '', designer: '' });
     const [customers, setCustomers] = useState([]);
+    const [templates, setTemplates] = useState([]);
+    const [selectedTemplate, setSelectedTemplate] = useState(null);
     const [submitting, setSubmitting] = useState(false);
 
     useEffect(() => {
-        apiFetch('/api/customers?limit=200').then(d => setCustomers(d.data || [])).catch(() => {});
+        apiFetch('/api/customers?limit=200').then(d => setCustomers(d.data || [])).catch(() => { });
+        apiFetch('/api/furniture-templates?active=true').then(d => setTemplates(Array.isArray(d) ? d : [])).catch(() => { });
     }, []);
+
+    const applyTemplate = (templateId) => {
+        if (!templateId) { setSelectedTemplate(null); return; }
+        const tpl = templates.find(t => t.id === templateId);
+        if (!tpl) return;
+        setSelectedTemplate(tpl);
+        setForm(f => ({
+            ...f,
+            name: f.name || tpl.name,
+            styleNote: tpl.styleNote || f.styleNote,
+            roomType: tpl.roomType || f.roomType,
+            description: tpl.description || f.description,
+        }));
+    };
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -174,7 +191,22 @@ function CreateOrderModal({ onClose, onCreated }) {
         setSubmitting(true);
         try {
             const order = await apiFetch('/api/furniture-orders', { method: 'POST', body: JSON.stringify(form) });
-            toast.success(`Đã tạo đơn ${order.code}`);
+
+            // Auto-import items from template
+            if (selectedTemplate?.items?.length) {
+                for (const item of selectedTemplate.items) {
+                    await apiFetch(`/api/furniture-orders/${order.id}/items`, {
+                        method: 'POST',
+                        body: JSON.stringify({
+                            name: item.name, unit: item.unit || 'bộ',
+                            quantity: item.qty || 1, unitPrice: item.unitPrice || 0,
+                            notes: item.notes || '',
+                        }),
+                    });
+                }
+            }
+
+            toast.success(`Đã tạo đơn ${order.code}${selectedTemplate ? ' (từ mẫu)' : ''}`);
             onCreated(order);
         } catch (e) { toast.error(e.message); }
         setSubmitting(false);
@@ -191,6 +223,27 @@ function CreateOrderModal({ onClose, onCreated }) {
                 </div>
                 <form onSubmit={handleSubmit}>
                     <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                        {/* Template selector */}
+                        {templates.length > 0 && (
+                            <div style={{ background: 'var(--bg-secondary)', borderRadius: 8, padding: 12 }}>
+                                <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                                    <span style={{ fontSize: 14 }}>📋</span> Áp dụng mẫu
+                                </label>
+                                <select className="form-select" value={selectedTemplate?.id || ''} onChange={e => applyTemplate(e.target.value)}>
+                                    <option value="">— Không dùng mẫu —</option>
+                                    {templates.map(t => (
+                                        <option key={t.id} value={t.id}>{t.code} — {t.name} {t.category && `(${t.category})`}</option>
+                                    ))}
+                                </select>
+                                {selectedTemplate && (
+                                    <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 6 }}>
+                                        Sẽ tự động thêm {selectedTemplate.items?.length || 0} hạng mục từ mẫu
+                                        {selectedTemplate.materials?.length > 0 && ` + ${selectedTemplate.materials.length} vật liệu`}
+                                    </div>
+                                )}
+                            </div>
+                        )}
+
                         <div>
                             <label className="form-label">Tên đơn hàng *</label>
                             <input className="form-input" placeholder="VD: Nội thất phòng khách nhà anh Tuấn" value={form.name} onChange={set('name')} required />

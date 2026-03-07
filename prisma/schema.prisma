@@ -14,6 +14,7 @@ model User {
   password      String
   role          String    @default("ky_thuat")
   active        Boolean   @default(true)
+  pushToken     String    @default("")
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 }
@@ -1374,6 +1375,7 @@ model ProductionBatch {
   status           String   @default("planned")
 
   supervisorName   String   @default("")
+  assignedWorkers  String   @default("[]") @db.Text // JSON: [{name, role, phone}]
   plannedStartDate DateTime?
   plannedEndDate   DateTime?
   actualStartDate  DateTime?
@@ -1497,3 +1499,20 @@ model PayrollRecord {
   @@index([month, year])
 }
 
+// ── Mẫu đơn nội thất ────────────────────────────────────────
+model FurnitureTemplate {
+  id          String   @id @default(cuid())
+  code        String   @unique
+  name        String
+  description String   @default("")
+  category    String   @default("")  // Tủ bếp, Tủ áo, Bàn, Giường...
+  roomType    String   @default("")
+  styleNote   String   @default("")
+  items       String   @default("[]") @db.Text  // JSON: [{name, unit, qty, unitPrice, notes}]
+  materials   String   @default("[]") @db.Text  // JSON: [{area, materialName, colorCode, unit, qty}]
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  @@index([category])
+  @@index([isActive])
+}
