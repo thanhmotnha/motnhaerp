@@ -197,6 +197,34 @@ export default function EditQuotationPage() {
     const isLocked = ['Hợp đồng', 'Từ chối'].includes(qMeta.status);
     const isWarning = qMeta.status === 'Gửi KH';
     const isConfirmed = qMeta.status === 'Xác nhận';
+    const isVariation = form.type === 'Phát sinh';
+    const canCreateAddendum = isVariation && (isConfirmed || qMeta.status === 'Hợp đồng') && form.projectId;
+
+    // Create contract addendum from variation quotation
+    const handleCreateAddendum = async () => {
+        if (!form.projectId) return toast.error('BG phát sinh cần liên kết dự án!');
+        try {
+            // Find original contract for this project
+            const contracts = await apiFetch(`/api/contracts?projectId=${form.projectId}&limit=10`);
+            const parentContract = contracts?.data?.find(c => !c.deletedAt);
+            if (!parentContract) { toast.error('Không tìm thấy hợp đồng gốc của dự án này!'); return; }
+
+            // Calculate variation total from quotation
+            const total = hook.mainCategories.reduce((s, mc) => s + (mc.subtotal || 0), 0);
+
+            const addendum = await apiFetch(`/api/contracts/${parentContract.id}/addenda`, {
+                method: 'POST',
+                body: JSON.stringify({
+                    title: `Phát sinh - ${qMeta.code || 'BG'}`,
+                    description: `Từ BG phát sinh ${qMeta.code}. ${form.notes || ''}`.trim(),
+                    amount: total,
+                    status: 'Nháp',
+                }),
+            });
+            toast.success(`Đã tạo HĐ phụ lục ${addendum.code}!`);
+            router.push(`/contracts/${parentContract.id}`);
+        } catch (e) { toast.error('Lỗi tạo phụ lục: ' + e.message); }
+    };
 
     if (loading) return <div style={{ padding: 60, textAlign: 'center' }}>Đang tải...</div>;
 
@@ -216,10 +244,14 @@ export default function EditQuotationPage() {
                         <h2 style={{ margin: 0 }}>Sửa Báo Giá</h2>
                         {qMeta.code && <span style={{ fontSize: 12, fontFamily: 'monospace', opacity: 0.5 }}>{qMeta.code}</span>}
                         {qMeta.revision > 1 && <span className="badge info" style={{ fontSize: 11 }}>v{qMeta.revision}</span>}
+                        {isVariation && <span className="badge warning" style={{ fontSize: 11 }}>Phát sinh</span>}
                     </div>
                     <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                         <button className="btn btn-ghost" onClick={() => router.push('/quotations')}>← Quay lại</button>
                         <button className="btn btn-ghost" onClick={() => window.open(`/quotations/${params.id}/pdf`, '_blank')}>📄 PDF</button>
+                        {canCreateAddendum && (
+                            <button className="btn btn-success btn-sm" onClick={handleCreateAddendum} style={{ fontSize: 12 }}>📑 Tạo HĐ phụ lục</button>
+                        )}
                         {isLocked ? (
                             <>
                                 <button className="btn btn-secondary" onClick={() => handleClone('supplemental')}>📋 Tạo BG bổ sung</button>
@@ -244,8 +276,11 @@ export default function EditQuotationPage() {
                     </div>
                 )}
                 {isConfirmed && (
-                    <div style={{ padding: '10px 16px', background: 'rgba(234,179,8,0.08)', border: '1px solid rgba(234,179,8,0.3)', borderRadius: 8, marginBottom: 12, fontSize: 13 }}>
-                        ⚠️ BG đã được KH xác nhận. Sửa sẽ tự động chuyển về "Gửi KH" và tăng phiên bản (v{qMeta.revision} → v{qMeta.revision + 1}).
+                    <div style={{ padding: '10px 16px', background: 'rgba(234,179,8,0.08)', border: '1px solid rgba(234,179,8,0.3)', borderRadius: 8, marginBottom: 12, fontSize: 13, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <span>⚠️ BG đã được KH xác nhận. {isVariation ? '' : `Sửa sẽ tự động chuyển về "Gửi KH" và tăng phiên bản (v${qMeta.revision} → v${qMeta.revision + 1}).`}</span>
+                        {canCreateAddendum && (
+                            <button className="btn btn-success btn-sm" onClick={handleCreateAddendum} style={{ fontSize: 12 }}>📑 Tạo HĐ phụ lục</button>
+                        )}
                     </div>
                 )}
                 {qMeta.parentId && (
