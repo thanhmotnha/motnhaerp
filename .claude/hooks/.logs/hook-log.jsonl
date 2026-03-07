@@ -11,3 +11,6 @@
 {"ts":"2026-03-07T01:40:42.093Z","hook":"scout-block","tool":"Read","dur":2,"status":"ok","exit":0,"error":""}
 {"ts":"2026-03-07T02:06:00.176Z","hook":"scout-block","tool":"Bash","dur":2,"status":"ok","exit":0,"error":""}
 {"ts":"2026-03-07T02:17:32.778Z","hook":"scout-block","tool":"Bash","dur":6,"status":"block","exit":2,"error":""}
+{"ts":"2026-03-07T02:23:09.525Z","hook":"scout-block","tool":"Bash","dur":2,"status":"ok","exit":0,"error":""}
+{"ts":"2026-03-07T02:23:09.707Z","hook":"scout-block","tool":"Bash","dur":2,"status":"ok","exit":0,"error":""}
+{"ts":"2026-03-07T02:23:17.802Z","hook":"scout-block","tool":"Bash","dur":2,"status":"ok","exit":0,"error":""}

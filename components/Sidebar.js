@@ -2,48 +2,54 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { useState, useEffect } from 'react';
 import {
     LayoutDashboard, TrendingUp, Users, Building2, FileText,
     Package, ClipboardList, Wrench, CreditCard, Receipt,
     ShoppingCart, Truck, Warehouse, Wallet, UserCog,
-    BarChart3, ChevronRight, Shield, X, Armchair, Factory,
-    ScrollText, Activity, ClipboardCheck, Banknote, Settings, ShieldCheck
+    BarChart3, ChevronRight, ChevronDown, Shield, X, Armchair, Factory,
+    ScrollText, Activity, ClipboardCheck, Banknote, Settings, ShieldCheck,
+    Plus
 } from 'lucide-react';
-import { useRole, ROLES } from '@/contexts/RoleContext';
+import { useRole } from '@/contexts/RoleContext';
 
 const menuItems = [
     {
-        section: 'Tổng quan', items: [
+        section: 'Tổng quan', collapsible: false, items: [
             { href: '/', icon: LayoutDashboard, label: 'Dashboard' },
             { href: '/pipeline', icon: TrendingUp, label: 'Pipeline' },
             { href: '/reports', icon: BarChart3, label: 'Báo cáo', roles: ['giam_doc', 'pho_gd', 'ke_toan'] },
         ]
     },
     {
-        section: 'Dự án & Khách hàng', items: [
+        section: 'Kinh doanh', items: [
             { href: '/customers', icon: Users, label: 'Khách hàng', roles: ['giam_doc', 'pho_gd', 'ke_toan'] },
+            { href: '/quotations', icon: ClipboardList, label: 'Báo giá', roles: ['giam_doc', 'pho_gd', 'ke_toan'], quick: '/quotations/create' },
+            { href: '/contracts', icon: FileText, label: 'Hợp đồng', roles: ['giam_doc', 'pho_gd', 'ke_toan'], quick: '/contracts/create' },
+            { href: '/payments', icon: CreditCard, label: 'Thu tiền', roles: ['giam_doc', 'pho_gd', 'ke_toan'] },
+        ]
+    },
+    {
+        section: 'Dự án', items: [
             { href: '/projects', icon: Building2, label: 'Dự án' },
-            { href: '/quotations', icon: ClipboardList, label: 'Báo giá', roles: ['giam_doc', 'pho_gd', 'ke_toan'] },
-            { href: '/contracts', icon: FileText, label: 'Hợp đồng', roles: ['giam_doc', 'pho_gd', 'ke_toan'] },
             { href: '/work-orders', icon: Wrench, label: 'Phiếu công việc' },
             { href: '/acceptance', icon: ClipboardCheck, label: 'Nghiệm thu', roles: ['giam_doc', 'pho_gd', 'quan_ly_du_an'] },
             { href: '/warranty', icon: ShieldCheck, label: 'Bảo hành', roles: ['giam_doc', 'pho_gd', 'quan_ly_du_an'] },
         ]
     },
     {
-        section: 'Tài chính & Kho', items: [
-            { href: '/payments', icon: CreditCard, label: 'Thu tiền', roles: ['giam_doc', 'pho_gd', 'ke_toan'] },
-            { href: '/expenses', icon: Receipt, label: 'Chi phí', roles: ['giam_doc', 'pho_gd', 'ke_toan'] },
-            { href: '/finance', icon: Wallet, label: 'Tài chính', roles: ['giam_doc', 'pho_gd', 'ke_toan'] },
-            { href: '/purchasing', icon: ShoppingCart, label: 'Mua sắm', roles: ['giam_doc', 'pho_gd', 'ke_toan'] },
-            { href: '/partners', icon: Truck, label: 'Đối tác NCC/TP', roles: ['giam_doc', 'pho_gd', 'ke_toan'] },
-            { href: '/inventory', icon: Warehouse, label: 'Kho & Tồn kho' },
+        section: 'Vật tư & Kho', items: [
             { href: '/products', icon: Package, label: 'Sản phẩm & VT' },
+            { href: '/purchasing', icon: ShoppingCart, label: 'Mua sắm', roles: ['giam_doc', 'pho_gd', 'ke_toan'] },
+            { href: '/inventory', icon: Warehouse, label: 'Kho & Tồn kho' },
+            { href: '/partners', icon: Truck, label: 'Đối tác NCC/TP', roles: ['giam_doc', 'pho_gd', 'ke_toan'] },
         ]
     },
     {
-        section: 'Sản xuất & Nhân sự', items: [
-            { href: '/furniture', icon: Armchair, label: 'Nội Thất May Đo' },
+        section: 'Tài chính & NS', items: [
+            { href: '/expenses', icon: Receipt, label: 'Chi phí', roles: ['giam_doc', 'pho_gd', 'ke_toan'] },
+            { href: '/finance', icon: Wallet, label: 'Tài chính', roles: ['giam_doc', 'pho_gd', 'ke_toan'] },
+            { href: '/furniture', icon: Armchair, label: 'Nội thất May Đo' },
             { href: '/workshops', icon: Factory, label: 'Xưởng SX', roles: ['giam_doc', 'pho_gd', 'quan_ly_du_an'] },
             { href: '/hr', icon: UserCog, label: 'Nhân sự', roles: ['giam_doc', 'pho_gd'] },
             { href: '/hr/payroll', icon: Banknote, label: 'Bảng lương', roles: ['giam_doc', 'ke_toan'] },
@@ -53,8 +59,7 @@ const menuItems = [
         section: 'Hệ thống', items: [
             { href: '/admin/settings', icon: Settings, label: 'Cài đặt', roles: ['giam_doc'] },
             { href: '/admin/users', icon: Shield, label: 'Tài khoản', roles: ['giam_doc'] },
-            { href: '/admin/activity-log', icon: ScrollText, label: 'Nhật ký HĐ', roles: ['giam_doc', 'pho_gd'] },
-            { href: '/admin/system-health', icon: Activity, label: 'Sức khỏe HT', roles: ['giam_doc'] },
+            { href: '/admin/activity-log', icon: ScrollText, label: 'Nhật ký', roles: ['giam_doc', 'pho_gd'] },
         ]
     },
 ];
@@ -63,11 +68,25 @@ export default function Sidebar({ isOpen, onClose }) {
     const pathname = usePathname();
     const { role, roleInfo } = useRole();
 
+    // Collapsed sections — persist in localStorage
+    const [collapsed, setCollapsed] = useState({});
+    useEffect(() => {
+        try {
+            const saved = localStorage.getItem('sidebar_collapsed');
+            if (saved) setCollapsed(JSON.parse(saved));
+        } catch { }
+    }, []);
+
+    const toggleSection = (section) => {
+        setCollapsed(prev => {
+            const next = { ...prev, [section]: !prev[section] };
+            try { localStorage.setItem('sidebar_collapsed', JSON.stringify(next)); } catch { }
+            return next;
+        });
+    };
+
     const handleNavClick = () => {
-        // Close sidebar on mobile after navigating
-        if (window.innerWidth <= 768) {
-            onClose();
-        }
+        if (window.innerWidth <= 768) onClose();
     };
 
     return (
@@ -91,29 +110,79 @@ export default function Sidebar({ isOpen, onClose }) {
                 {menuItems.map((section) => {
                     const visibleItems = section.items.filter(item => !item.roles || item.roles.includes(role));
                     if (visibleItems.length === 0) return null;
+                    const isCollapsed = collapsed[section.section] && section.collapsible !== false;
+                    const hasActiveChild = visibleItems.some(item =>
+                        item.href === '/' ? pathname === '/' : pathname.startsWith(item.href)
+                    );
+
                     return (
                         <div className="nav-section" key={section.section}>
-                            <div className="nav-section-title">{section.section}</div>
-                            {visibleItems.map((item) => {
-                                const Icon = item.icon;
-                                const isActive = item.href === '/' ? pathname === '/' : pathname.startsWith(item.href);
-                                return (
-                                    <Link
-                                        key={item.href}
-                                        href={item.href}
-                                        className={`nav-item ${isActive ? 'active' : ''}`}
-                                        aria-current={isActive ? 'page' : undefined}
-                                        onClick={handleNavClick}
-                                    >
-                                        <span className="nav-icon">
-                                            <Icon size={18} strokeWidth={isActive ? 2 : 1.5} />
-                                        </span>
-                                        <span>{item.label}</span>
-                                        {item.badge && <span className="nav-badge">{item.badge}</span>}
-                                        {isActive && <ChevronRight size={14} className="nav-arrow" />}
-                                    </Link>
-                                );
-                            })}
+                            <div
+                                className="nav-section-title"
+                                onClick={() => section.collapsible !== false && toggleSection(section.section)}
+                                style={{
+                                    cursor: section.collapsible !== false ? 'pointer' : 'default',
+                                    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                                    userSelect: 'none',
+                                }}
+                            >
+                                <span>{section.section}</span>
+                                {section.collapsible !== false && (
+                                    <ChevronDown
+                                        size={12}
+                                        style={{
+                                            transition: 'transform 0.2s ease',
+                                            transform: isCollapsed ? 'rotate(-90deg)' : 'rotate(0)',
+                                            opacity: 0.5,
+                                        }}
+                                    />
+                                )}
+                            </div>
+                            <div style={{
+                                overflow: 'hidden',
+                                maxHeight: isCollapsed ? 0 : `${visibleItems.length * 40}px`,
+                                transition: 'max-height 0.25s ease',
+                                opacity: isCollapsed ? 0 : 1,
+                            }}>
+                                {visibleItems.map((item) => {
+                                    const Icon = item.icon;
+                                    const isActive = item.href === '/' ? pathname === '/' : pathname.startsWith(item.href);
+                                    return (
+                                        <div key={item.href} style={{ display: 'flex', alignItems: 'center' }}>
+                                            <Link
+                                                href={item.href}
+                                                className={`nav-item ${isActive ? 'active' : ''}`}
+                                                aria-current={isActive ? 'page' : undefined}
+                                                onClick={handleNavClick}
+                                                style={{ flex: 1 }}
+                                            >
+                                                <span className="nav-icon">
+                                                    <Icon size={18} strokeWidth={isActive ? 2 : 1.5} />
+                                                </span>
+                                                <span>{item.label}</span>
+                                                {item.badge && <span className="nav-badge">{item.badge}</span>}
+                                                {isActive && <ChevronRight size={14} className="nav-arrow" />}
+                                            </Link>
+                                            {item.quick && (
+                                                <Link
+                                                    href={item.quick}
+                                                    onClick={(e) => { e.stopPropagation(); handleNavClick(); }}
+                                                    style={{
+                                                        padding: '4px 6px', marginRight: 8, borderRadius: 4,
+                                                        color: 'rgba(255,255,255,0.35)', transition: 'all 0.15s',
+                                                        display: 'flex', alignItems: 'center',
+                                                    }}
+                                                    onMouseEnter={e => e.currentTarget.style.color = 'rgba(255,255,255,0.8)'}
+                                                    onMouseLeave={e => e.currentTarget.style.color = 'rgba(255,255,255,0.35)'}
+                                                    title={`Tạo ${item.label} mới`}
+                                                >
+                                                    <Plus size={14} />
+                                                </Link>
+                                            )}
+                                        </div>
+                                    );
+                                })}
+                            </div>
                         </div>
                     );
                 })}
