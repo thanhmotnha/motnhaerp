@@ -40,6 +40,7 @@ export default function ContractDetailPage() {
     useEffect(() => { fetch('/api/projects?limit=200').then(r => r.json()).then(d => setProjects(d.data || [])); }, []);
 
     const save = async () => {
+        if (!form.projectId) return alert('Vui lòng chọn dự án liên kết!');
         setSaving(true);
         const res = await fetch(`/api/contracts/${id}`, {
             method: 'PUT',
@@ -148,6 +149,27 @@ export default function ContractDetailPage() {
 
     const totalPhasePct = paymentPhases.reduce((s, p) => s + (p.pct || 0), 0);
     const totalPhaseAmount = paymentPhases.reduce((s, p) => s + (p.amount || 0), 0);
+
+    const [projects, setProjects] = useState([]);
+    const [linkProjectId, setLinkProjectId] = useState('');
+    const [linkingProject, setLinkingProject] = useState(false);
+    useEffect(() => {
+        fetch('/api/projects?limit=200').then(r => r.json()).then(d => setProjects(d.data || d || [])).catch(() => { });
+    }, []);
+
+    const linkExistingProject = async () => {
+        if (!linkProjectId) return alert('Vui lòng chọn dự án');
+        if (!confirm('Link hợp đồng này với dự án đã chọn?')) return;
+        setLinkingProject(true);
+        const today = new Date().toISOString().slice(0, 10);
+        const res = await fetch(`/api/contracts/${id}`, {
+            method: 'PUT', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ status: 'Đã ký', signDate: form.signDate || today, projectId: linkProjectId }),
+        });
+        if (res.ok) { alert('Đã link thành công!'); reload(); }
+        else { alert('Lỗi khi link dự án'); }
+        setLinkingProject(false);
+    };
 
     const [creatingProject, setCreatingProject] = useState(false);
     const signAndCreateProject = async () => {
