@@ -482,8 +482,18 @@ export default function ContractDetailPage() {
                                     Ký hợp đồng và tự động tạo dự án thi công từ thông tin HĐ này
                                 </div>
                                 <button className="btn btn-primary" style={{ width: '100%' }} onClick={signAndCreateProject} disabled={creatingProject}>
-                                    {creatingProject ? '⏳ Đang xử lý...' : '✅ Ký HĐ & Tạo Dự án'}
+                                    {creatingProject ? '⏳ Đang xử lý...' : '✅ Ký HĐ & Tạo Dự án mới'}
                                 </button>
+                                <div style={{ margin: '12px 0', fontSize: 11, color: 'var(--text-muted)' }}>— hoặc link với dự án hiện có —</div>
+                                <div style={{ display: 'flex', gap: 6 }}>
+                                    <select className="form-select" style={{ flex: 1, fontSize: 12 }} value={linkProjectId} onChange={e => setLinkProjectId(e.target.value)}>
+                                        <option value="">-- Chọn dự án đã có --</option>
+                                        {projects.map(p => <option key={p.id} value={p.id}>{p.code} - {p.name}</option>)}
+                                    </select>
+                                    <button className="btn btn-secondary" onClick={linkExistingProject} disabled={linkingProject || !linkProjectId}>
+                                        {linkingProject ? '...' : 'Link'}
+                                    </button>
+                                </div>
                             </div>
                         </div>
                     )}
