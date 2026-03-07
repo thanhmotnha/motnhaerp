@@ -1,10 +1,15 @@
 import { NextResponse } from 'next/server';
 import { withAuth } from '@/lib/apiHandler';
+import prisma from '@/lib/prisma';
 
 // OCR budget table from image using Gemini Vision
 export const POST = withAuth(async (request) => {
-    const apiKey = process.env.GEMINI_API_KEY;
-    if (!apiKey) return NextResponse.json({ error: 'GEMINI_API_KEY not configured' }, { status: 500 });
+    let apiKey = process.env.GEMINI_API_KEY;
+    try {
+        const dbKey = await prisma.$queryRawUnsafe(`SELECT value FROM "SystemSetting" WHERE key = 'gemini_api_key' LIMIT 1`);
+        if (dbKey?.[0]?.value) apiKey = dbKey[0].value;
+    } catch { }
+    if (!apiKey) return NextResponse.json({ error: 'GEMINI_API_KEY not configured — vào Settings → AI / Gemini API để cấu hình' }, { status: 500 });
 
     const formData = await request.formData();
     const file = formData.get('file');

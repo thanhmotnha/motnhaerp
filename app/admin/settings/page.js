@@ -441,8 +441,19 @@ function SectionTitle({ icon, title }) {
 }
 
 function GeminiStatusWidget() {
-    const [status, setStatus] = useState(null); // null=unchecked, object=result
+    const [status, setStatus] = useState(null);
     const [checking, setChecking] = useState(false);
+    const [apiKey, setApiKey] = useState('');
+    const [showKey, setShowKey] = useState(false);
+    const [savingKey, setSavingKey] = useState(false);
+    const [keyLoaded, setKeyLoaded] = useState(false);
+
+    // Load saved key from settings
+    useEffect(() => {
+        apiFetch('/api/admin/settings').then(data => {
+            if (data?.gemini_api_key) { setApiKey(data.gemini_api_key); setKeyLoaded(true); }
+        }).catch(() => { });
+    }, []);
 
     const checkStatus = async () => {
         setChecking(true);
@@ -453,6 +464,18 @@ function GeminiStatusWidget() {
             setStatus({ configured: false, status: 'error', message: e.message });
         }
         setChecking(false);
+    };
+
+    const saveKey = async () => {
+        if (!apiKey.trim()) return;
+        setSavingKey(true);
+        try {
+            await apiFetch('/api/admin/settings', { method: 'PUT', body: JSON.stringify({ gemini_api_key: apiKey.trim() }) });
+            setKeyLoaded(true);
+            // Auto-check status after saving
+            checkStatus();
+        } catch (e) { alert('Lỗi lưu: ' + e.message); }
+        setSavingKey(false);
     };
 
     const statusColor = !status ? 'var(--text-muted)' : status.status === 'active' ? 'var(--status-success)' : status.status === 'error' ? 'var(--status-danger)' : 'var(--status-warning)';
@@ -474,6 +497,33 @@ function GeminiStatusWidget() {
                     </button>
                 </div>
 
+                {/* API Key input */}
+                <div style={{ marginBottom: 12 }}>
+                    <label className="form-label" style={{ fontSize: 12 }}>API Key</label>
+                    <div style={{ display: 'flex', gap: 6 }}>
+                        <div style={{ position: 'relative', flex: 1 }}>
+                            <input
+                                className="form-input"
+                                type={showKey ? 'text' : 'password'}
+                                value={apiKey}
+                                onChange={e => setApiKey(e.target.value)}
+                                placeholder="AIzaSy..."
+                                style={{ fontSize: 12, paddingRight: 36 }}
+                            />
+                            <button onClick={() => setShowKey(!showKey)}
+                                style={{ position: 'absolute', right: 6, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', fontSize: 14, padding: 0 }}>
+                                {showKey ? '🙈' : '👁️'}
+                            </button>
+                        </div>
+                        <button className="btn btn-primary btn-sm" onClick={saveKey} disabled={savingKey || !apiKey.trim()} style={{ fontSize: 11, whiteSpace: 'nowrap' }}>
+                            {savingKey ? '⏳' : '💾 Lưu key'}
+                        </button>
+                    </div>
+                    <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 4 }}>
+                        Lấy key tại <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener" style={{ color: 'var(--accent-primary)' }}>Google AI Studio</a> → tạo free
+                    </div>
+                </div>
+
                 {status && (
                     <div style={{
                         display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px',
@@ -491,7 +541,7 @@ function GeminiStatusWidget() {
 
                 {!status && (
                     <div style={{ fontSize: 12, color: 'var(--text-muted)', fontStyle: 'italic' }}>
-                        Bấm "Kiểm tra kết nối" để xem trạng thái API
+                        Nhập API Key rồi bấm "Kiểm tra kết nối" để verify
                     </div>
                 )}
             </div>

@@ -1,9 +1,15 @@
 import { NextResponse } from 'next/server';
 import { withAuth } from '@/lib/apiHandler';
+import prisma from '@/lib/prisma';
 
 // Check Gemini API key status
 export const GET = withAuth(async () => {
-    const apiKey = process.env.GEMINI_API_KEY;
+    // Check DB first, then env var
+    let apiKey = process.env.GEMINI_API_KEY;
+    try {
+        const dbKey = await prisma.$queryRawUnsafe(`SELECT value FROM "SystemSetting" WHERE key = 'gemini_api_key' LIMIT 1`);
+        if (dbKey?.[0]?.value) apiKey = dbKey[0].value;
+    } catch { }
 
     if (!apiKey) {
         return NextResponse.json({
