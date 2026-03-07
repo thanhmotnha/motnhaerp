@@ -159,6 +159,16 @@ export default function SettingsPage() {
         if (!confirm(`Xoá loại HĐ "${type}" và tất cả đợt thanh toán?`)) return;
         setPaymentTemplates(prev => { const copy = { ...prev }; delete copy[type]; return copy; });
     };
+    const renameContractType = (oldName) => {
+        const newName = prompt(`Đổi tên loại HĐ "${oldName}":`, oldName);
+        if (!newName || newName === oldName) return;
+        if (paymentTemplates[newName]) { toast.error('Tên đã tồn tại'); return; }
+        setPaymentTemplates(prev => {
+            const copy = {};
+            Object.entries(prev).forEach(([k, v]) => { copy[k === oldName ? newName : k] = v; });
+            return copy;
+        });
+    };
 
     // ======== Schedule Template ========
     const deleteScheduleTemplate = async (id) => {
@@ -244,7 +254,9 @@ export default function SettingsPage() {
                                 return (
                                     <div key={type} style={{ marginBottom: 20, border: '1px solid var(--border)', borderRadius: 10, overflow: 'hidden' }}>
                                         <div style={{ padding: '10px 16px', background: 'var(--bg-secondary)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                            <div style={{ fontWeight: 700, fontSize: 14 }}>{icon} {type}</div>
+                                            <div style={{ fontWeight: 700, fontSize: 14, display: 'flex', alignItems: 'center', gap: 6 }}>{icon} {type}
+                                                <button className="btn btn-ghost btn-sm" style={{ fontSize: 11, padding: '2px 6px', color: 'var(--text-muted)' }} onClick={() => renameContractType(type)} title="Đổi tên">✏️</button>
+                                            </div>
                                             <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
                                                 <span style={{ fontSize: 12, color: total === 100 ? 'var(--status-success)' : 'var(--status-danger)', fontWeight: 600 }}>
                                                     Tổng: {total}% {total !== 100 && '⚠️'}
