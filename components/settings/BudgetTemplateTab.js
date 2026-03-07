@@ -25,7 +25,7 @@ export default function BudgetTemplateTab({ budgetTemplates, setBudgetTemplates,
         } catch { return []; }
     };
 
-    // ===== Excel Import =====
+    // ===== Excel Import — smart parser for real-world budget Excel =====
     const handleExcelFile = async (e) => {
         const file = e.target.files?.[0];
         if (!file) return;
@@ -34,50 +34,114 @@ export default function BudgetTemplateTab({ budgetTemplates, setBudgetTemplates,
 
         const XLSX = (await import('xlsx')).default;
         const data = await file.arrayBuffer();
-        const wb = XLSX.read(data);
+        const wb = XLSX.read(data, { cellDates: true });
         const ws = wb.Sheets[wb.SheetNames[0]];
-        const json = XLSX.utils.sheet_to_json(ws);
 
+        // Get all rows as 2D array (handles merged cells better than sheet_to_json)
+        const allRows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
+        if (allRows.length < 2) { toast.error('File rỗng'); return; }
+
+        // Auto-detect header row: find row containing "vật tư" or "tên" in any cell
+        let headerIdx = -1;
+        const HEADER_KEYWORDS = ['vật tư', 'tên vật tư', 'tên', 'hạng mục'];
+        for (let i = 0; i < Math.min(allRows.length, 15); i++) {
+            const row = allRows[i].map(c => String(c || '').toLowerCase().trim());
+            if (row.some(c => HEADER_KEYWORDS.some(kw => c.includes(kw)))) {
+                headerIdx = i;
+                break;
+            }
+        }
+
+        if (headerIdx < 0) { toast.error('Không tìm thấy dòng header (cần cột "Tên vật tư")'); return; }
+
+        // Map column indices by fuzzy header matching
+        const headers = allRows[headerIdx].map(c => String(c || '').toLowerCase().trim());
+        const findCol = (...keywords) => headers.findIndex(h => keywords.some(kw => h.includes(kw)));
+
+        const colName = findCol('tên vật tư', 'vật tư', 'tên', 'hạng mục');
+        const colUnit = findCol('đơn vị', 'đvt');
+        const colQty = findCol('khối lượng', 'số lượng', 'sl', 'qty');
+        const colPrice = findCol('giá gốc', 'đơn giá', 'giá');
+        const colTotal = findCol('thành tiền', 'tổng');
+
+        if (colName < 0) { toast.error(`Không tìm thấy cột "Tên vật tư" trong header: [${headers.filter(Boolean).join(', ')}]`); return; }
+
+        // Parse data rows (after header)
         const imported = [];
-        for (const row of json) {
-            const name = row['Tên vật tư'] || row['Vật tư'] || row['name'] || row['Tên'] || '';
-            const unit = row['ĐVT'] || row['Đơn vị'] || row['unit'] || '';
-            const qty = Number(row['Số lượng'] || row['SL'] || row['quantity'] || row['Qty'] || 0);
-            const costType = row['Loại chi phí'] || row['Loại CP'] || row['costType'] || 'Vật tư';
-            const group1 = row['Giai đoạn'] || row['group1'] || '';
+        let currentGroup = ''; // track group headers like "Phần thô", "I VẬT LIỆU"
+        const SKIP_PATTERNS = /^(tổng|cộng|total|tổng cộng)/i;
+        const GROUP_PATTERNS = /^[IVX]+\.?\s|^[A-Z]{2,}$/; // Roman numerals or ALL CAPS = group header
 
+        for (let i = headerIdx + 1; i < allRows.length; i++) {
+            const row = allRows[i];
+            const name = String(row[colName] || '').trim();
+            const stt = String(row[0] || '').trim();
+
+            // Skip empty rows
             if (!name) continue;
 
-            // fuzzy match product
+            // Skip summary/total rows
+            if (SKIP_PATTERNS.test(name)) continue;
+
+            // Detect group headers: roman numeral STT (I, II, III) or name is ALL CAPS or no qty/unit
+            const unit = colUnit >= 0 ? String(row[colUnit] || '').trim() : '';
+            const qtyVal = colQty >= 0 ? Number(row[colQty]) : 0;
+            const isGroupHeader = (
+                (/^[IVX]+$/i.test(stt) && !qtyVal) ||
+                (name === name.toUpperCase() && name.length > 2 && !unit) ||
+                (!unit && !qtyVal && colTotal >= 0 && Number(row[colTotal]) > 0 && !Number(row[colPrice]))
+            );
+
+            if (isGroupHeader) {
+                currentGroup = name.replace(/^[IVX]+\.?\s*/i, '').trim();
+                // Auto-detect costType from group name
+                continue;
+            }
+
+            // Normal data row
+            const qty = qtyVal || 1;
+            const price = colPrice >= 0 ? Number(row[colPrice]) || 0 : 0;
+
+            // Auto-detect costType from group
+            let costType = 'Vật tư';
+            const groupLower = currentGroup.toLowerCase();
+            if (groupLower.includes('nhân công') || groupLower.includes('lao động')) costType = 'Nhân công';
+            else if (groupLower.includes('máy') || groupLower.includes('thiết bị')) costType = 'Khác';
+            else if (groupLower.includes('thầu phụ')) costType = 'Thầu phụ';
+
+            // Fuzzy match product
+            const nameLower = name.toLowerCase();
             const match = prods.find(p =>
-                p.name.toLowerCase() === name.toLowerCase() ||
-                p.code?.toLowerCase() === name.toLowerCase() ||
-                p.name.toLowerCase().includes(name.toLowerCase()) ||
-                name.toLowerCase().includes(p.name.toLowerCase())
+                p.name.toLowerCase() === nameLower ||
+                p.code?.toLowerCase() === nameLower ||
+                p.name.toLowerCase().includes(nameLower) ||
+                nameLower.includes(p.name.toLowerCase())
             );
 
             imported.push({
                 name: match?.name || name,
                 unit: match?.unit || unit,
-                qty: qty || 1,
-                costType: COST_TYPES.includes(costType) ? costType : 'Vật tư',
-                group1,
+                qty,
+                unitPrice: price,
+                costType,
+                group1: currentGroup || '',
                 productId: match?.id || null,
                 productMatch: match || null,
-                _key: Date.now() + Math.random(),
+                _key: Date.now() + Math.random() + i,
             });
         }
 
         if (imported.length === 0) {
-            toast.error('Không tìm thấy dữ liệu. Cần ít nhất cột "Tên vật tư"');
+            toast.error(`Không tìm thấy dữ liệu hợp lệ. Header ở dòng ${headerIdx + 1}, cột tên=[${headers[colName]}]`);
             return;
         }
 
-        // Ask which template to import into
+        // Determine target template
         const templateNames = Object.keys(budgetTemplates);
         let targetTemplate = templateNames[0] || 'Mẫu mới';
 
         setImportState({ targetTemplate, rows: imported, step: 'review' });
+        toast.success(`Đã đọc ${imported.length} hạng mục từ Excel. Kiểm tra và xác nhận bên dưới.`);
         if (fileRef.current) fileRef.current.value = '';
     };
 
