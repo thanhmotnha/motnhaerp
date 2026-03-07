@@ -36,3 +36,4 @@
 {"ts":"2026-03-07T02:35:38.101Z","hook":"scout-block","tool":"Read","dur":2,"status":"ok","exit":0,"error":""}
 {"ts":"2026-03-07T02:35:38.448Z","hook":"scout-block","tool":"Read","dur":3,"status":"ok","exit":0,"error":""}
 {"ts":"2026-03-07T02:35:38.454Z","hook":"scout-block","tool":"Read","dur":4,"status":"ok","exit":0,"error":""}
+{"ts":"2026-03-07T02:49:01.079Z","hook":"scout-block","tool":"Glob","dur":4,"status":"ok","exit":0,"error":""}

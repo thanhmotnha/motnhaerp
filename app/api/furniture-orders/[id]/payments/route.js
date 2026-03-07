@@ -2,6 +2,7 @@ import { withAuth } from '@/lib/apiHandler';
 import prisma from '@/lib/prisma';
 import { NextResponse } from 'next/server';
 import { logActivity } from '@/lib/activityLog';
+import { generateCode } from '@/lib/generateCode';
 
 // POST record a payment
 export const POST = withAuth(async (request, { params }, session) => {
@@ -11,9 +12,15 @@ export const POST = withAuth(async (request, { params }, session) => {
 
     if (!amount || amount <= 0) return NextResponse.json({ error: 'Số tiền không hợp lệ' }, { status: 400 });
 
-    const order = await prisma.furnitureOrder.findUniqueOrThrow({ where: { id } });
+    const order = await prisma.furnitureOrder.findUniqueOrThrow({
+        where: { id },
+        select: { id: true, code: true, name: true, projectId: true },
+    });
 
     const amountDelta = type === 'refund' ? -Math.abs(amount) : Math.abs(amount);
+    const txCode = await generateCode('transaction', 'GD');
+    const isRefund = type === 'refund';
+    const typeLabel = { deposit: 'Đặt cọc', installment: 'Thanh toán đợt', final: 'TT cuối', refund: 'Hoàn tiền' }[type] || type;
 
     const [payment] = await prisma.$transaction([
         prisma.furniturePayment.create({
@@ -33,6 +40,18 @@ export const POST = withAuth(async (request, { params }, session) => {
             data: {
                 paidAmount: { increment: amountDelta },
                 ...(type === 'deposit' ? { depositAmount: { increment: Math.abs(amount) } } : {}),
+            },
+        }),
+        // Auto-create Transaction for Finance module
+        prisma.transaction.create({
+            data: {
+                code: txCode,
+                type: isRefund ? 'Chi' : 'Thu',
+                description: `[NT] ${order.code} — ${typeLabel} — ${order.name}`,
+                amount: Math.abs(amount),
+                category: 'Nội thất May Đo',
+                date: paidAt ? new Date(paidAt) : new Date(),
+                projectId: order.projectId || null,
             },
         }),
     ]);
