@@ -74,6 +74,7 @@ export const POST = withAuthAndLog(async (request) => {
                         endDate: validated.endDate || null,
                         paymentTerms: validated.paymentTerms || '',
                         notes: validated.notes || '',
+                        fileUrl: validated.fileUrl || '',
                         customerId: validated.customerId,
                         projectId: validated.projectId || null,
                         quotationId: validated.quotationId || null,

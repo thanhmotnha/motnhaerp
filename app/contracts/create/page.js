@@ -15,7 +15,10 @@ export default function CreateContractPage() {
     const [quotations, setQuotations] = useState([]);
     const [saving, setSaving] = useState(false);
     const [paymentPhases, setPaymentPhases] = useState([]);
-    const [dbPaymentTemplates, setDbPaymentTemplates] = useState(null); // from DB settings
+    const [dbPaymentTemplates, setDbPaymentTemplates] = useState(null);
+    const [contractFile, setContractFile] = useState(null);
+    const [fileUploading, setFileUploading] = useState(false);
+    const [fileUrl, setFileUrl] = useState('');
 
     const [form, setForm] = useState({
         name: '', type: 'Thi công thô', contractValue: 0, signDate: '', startDate: '', endDate: '',
@@ -116,6 +119,24 @@ export default function CreateContractPage() {
     const addPhase = () => setPaymentPhases(prev => [...prev, { phase: '', pct: 0, amount: 0, category: '' }]);
     const removePhase = (idx) => setPaymentPhases(prev => prev.filter((_, i) => i !== idx));
 
+    const handleUploadFile = async (file) => {
+        setContractFile(file);
+        setFileUploading(true);
+        try {
+            const fd = new FormData();
+            fd.append('file', file);
+            fd.append('type', 'contracts');
+            const res = await fetch('/api/upload', { method: 'POST', body: fd });
+            if (!res.ok) throw new Error('Upload thất bại');
+            const { url } = await res.json();
+            setFileUrl(url);
+        } catch (e) {
+            alert('Lỗi upload: ' + e.message);
+            setContractFile(null);
+        }
+        setFileUploading(false);
+    };
+
     const handleSave = async () => {
         if (!form.name.trim()) return alert('Nhập tên hợp đồng!');
         if (!form.customerId) return alert('Chọn khách hàng!');
@@ -123,7 +144,7 @@ export default function CreateContractPage() {
         try {
             const saved = await apiFetch('/api/contracts', {
                 method: 'POST',
-                body: JSON.stringify({ ...form, projectId: form.projectId || null, paymentPhases }),
+                body: JSON.stringify({ ...form, fileUrl, projectId: form.projectId || null, paymentPhases }),
             });
             alert('Đã tạo hợp đồng thành công!');
             router.push(`/contracts/${saved.id}`);
@@ -217,6 +238,32 @@ export default function CreateContractPage() {
                         <label className="form-label">Ghi chú</label>
                         <textarea className="form-input" rows={3} value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })} placeholder="Ghi chú thêm..." />
                     </div>
+                </div>
+            </div>
+
+            {/* Upload file hợp đồng */}
+            <div className="card" style={{ marginBottom: 20 }}>
+                <div className="card-header"><h3>📎 File hợp đồng</h3></div>
+                <div className="card-body">
+                    {fileUrl ? (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 16px', background: 'rgba(34,197,94,0.06)', borderRadius: 8, border: '1px solid rgba(34,197,94,0.2)' }}>
+                            <span style={{ fontSize: 24 }}>✅</span>
+                            <div style={{ flex: 1 }}>
+                                <div style={{ fontWeight: 600, fontSize: 14 }}>{contractFile?.name || 'File đã upload'}</div>
+                                <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{contractFile ? `${(contractFile.size / 1024 / 1024).toFixed(2)} MB` : ''}</div>
+                            </div>
+                            <a href={fileUrl} target="_blank" rel="noopener" className="btn btn-ghost btn-sm" style={{ fontSize: 11 }}>👁️ Xem</a>
+                            <button className="btn btn-ghost btn-sm" style={{ fontSize: 11, color: 'var(--status-danger)' }} onClick={() => { setFileUrl(''); setContractFile(null); }}>✕ Bỏ</button>
+                        </div>
+                    ) : (
+                        <label style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, padding: '24px 16px', border: '2px dashed var(--border)', borderRadius: 10, cursor: fileUploading ? 'wait' : 'pointer', background: 'var(--bg-secondary)', transition: 'all 0.15s' }}>
+                            <span style={{ fontSize: 32 }}>{fileUploading ? '⏳' : '📄'}</span>
+                            <div style={{ fontWeight: 600, fontSize: 14 }}>{fileUploading ? 'Đang upload...' : 'Kéo thả hoặc bấm để chọn file'}</div>
+                            <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>PDF, DOC, DOCX — Tối đa 200MB</div>
+                            <input type="file" accept=".pdf,.doc,.docx" style={{ display: 'none' }} disabled={fileUploading}
+                                onChange={e => { if (e.target.files[0]) handleUploadFile(e.target.files[0]); }} />
+                        </label>
+                    )}
                 </div>
             </div>
 
