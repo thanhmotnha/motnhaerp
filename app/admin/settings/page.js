@@ -26,12 +26,16 @@ const SETTING_KEYS = [
     { key: 'email_footer', label: 'Footer email', type: 'textarea', default: 'Trân trọng, MỘT NHÀ Team', group: 'defaults' },
 ];
 
-const TABS = [
-    { key: 'company', label: '🏢 Thông tin công ty', icon: '🏢' },
-    { key: 'payment', label: '💵 Mẫu thanh toán', icon: '💵' },
-    { key: 'budget', label: '🧱 Mẫu dự toán', icon: '🧱' },
-    { key: 'schedule', label: '📅 Mẫu tiến độ', icon: '📅' },
-    { key: 'quotation', label: '📋 Mẫu báo giá', icon: '📋' },
+const MAIN_TABS = [
+    { key: 'company', label: '🏢 Công ty' },
+    { key: 'templates', label: '📋 Mẫu biểu' },
+];
+
+const SUB_TABS = [
+    { key: 'payment', label: '💵 Thanh toán', icon: '💵' },
+    { key: 'budget', label: '🧱 Dự toán', icon: '🧱' },
+    { key: 'quotation', label: '📋 Báo giá', icon: '📋' },
+    { key: 'schedule', label: '📅 Tiến độ', icon: '📅' },
 ];
 
 export default function SettingsPage() {
@@ -39,22 +43,17 @@ export default function SettingsPage() {
     const router = useRouter();
     const toast = useToast();
     const [tab, setTab] = useState('company');
+    const [subTab, setSubTab] = useState('payment');
     const [settings, setSettings] = useState({});
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
 
-    // Payment templates (editable copy from lib or DB)
     const [paymentTemplates, setPaymentTemplates] = useState({});
-    // Schedule templates from DB
-    const [scheduleTemplates, setScheduleTemplates] = useState([]);
-    const [scheduleLoading, setScheduleLoading] = useState(false);
-    // Quotation defaults + category templates
     const [quotationDefaults, setQuotationDefaults] = useState({
         vat: 10, managementFeeRate: 5, designFeeRate: 0, warranty: '12 tháng',
         terms: 'Thanh toán theo tiến độ thi công',
     });
     const [quotationCategories, setQuotationCategories] = useState([]);
-    // Budget templates
     const [budgetTemplates, setBudgetTemplates] = useState({});
 
     useEffect(() => {
@@ -67,28 +66,18 @@ export default function SettingsPage() {
         try {
             const data = await apiFetch('/api/admin/settings');
             setSettings(data || {});
-            // Load payment templates from settings or fallback to hardcoded
             if (data?.payment_templates) {
                 try { setPaymentTemplates(JSON.parse(data.payment_templates)); } catch { setPaymentTemplates({ ...PAYMENT_TEMPLATES }); }
-            } else {
-                setPaymentTemplates({ ...PAYMENT_TEMPLATES });
-            }
-            // Load quotation defaults from settings
+            } else { setPaymentTemplates({ ...PAYMENT_TEMPLATES }); }
             if (data?.quotation_defaults) {
                 try { setQuotationDefaults(JSON.parse(data.quotation_defaults)); } catch { }
             }
-            // Load quotation category templates
             if (data?.quotation_categories) {
                 try { setQuotationCategories(JSON.parse(data.quotation_categories)); } catch { setQuotationCategories([...PRESET_CATEGORIES]); }
-            } else {
-                setQuotationCategories([...PRESET_CATEGORIES]);
-            }
-            // Load budget templates
+            } else { setQuotationCategories([...PRESET_CATEGORIES]); }
             if (data?.budget_templates) {
                 try { setBudgetTemplates(JSON.parse(data.budget_templates)); } catch { setBudgetTemplates({ ...BUDGET_TEMPLATES_DEFAULT }); }
-            } else {
-                setBudgetTemplates({ ...BUDGET_TEMPLATES_DEFAULT });
-            }
+            } else { setBudgetTemplates({ ...BUDGET_TEMPLATES_DEFAULT }); }
         } catch {
             const defaults = {};
             SETTING_KEYS.forEach(s => { defaults[s.key] = s.default; });
@@ -98,18 +87,6 @@ export default function SettingsPage() {
         setLoading(false);
     };
 
-    const loadScheduleTemplates = async () => {
-        setScheduleLoading(true);
-        try {
-            const data = await apiFetch('/api/schedule-templates');
-            setScheduleTemplates(data || []);
-        } catch { }
-        setScheduleLoading(false);
-    };
-
-    useEffect(() => { if (tab === 'schedule') loadScheduleTemplates(); }, [tab]);
-
-    // ======== Save ========
     const handleSave = async () => {
         setSaving(true);
         try {
@@ -132,7 +109,7 @@ export default function SettingsPage() {
         setSaving(false);
     };
 
-    // ======== Payment Template Editors ========
+    // Payment Template helpers
     const addPhase = (type) => {
         setPaymentTemplates(prev => ({
             ...prev,
@@ -140,10 +117,7 @@ export default function SettingsPage() {
         }));
     };
     const removePhase = (type, idx) => {
-        setPaymentTemplates(prev => ({
-            ...prev,
-            [type]: prev[type].filter((_, i) => i !== idx),
-        }));
+        setPaymentTemplates(prev => ({ ...prev, [type]: prev[type].filter((_, i) => i !== idx) }));
     };
     const updatePhase = (type, idx, field, value) => {
         setPaymentTemplates(prev => ({
@@ -171,16 +145,6 @@ export default function SettingsPage() {
         });
     };
 
-    // ======== Schedule Template ========
-    const deleteScheduleTemplate = async (id) => {
-        if (!confirm('Xoá mẫu tiến độ này?')) return;
-        try {
-            await apiFetch(`/api/schedule-templates/${id}`, { method: 'DELETE' });
-            toast.success('Đã xoá');
-            loadScheduleTemplates();
-        } catch (e) { toast.error(e.message); }
-    };
-
     if (role && role !== 'giam_doc') return null;
     if (loading) return <div style={{ padding: 60, textAlign: 'center', color: 'var(--text-muted)' }}>Đang tải...</div>;
 
@@ -194,11 +158,17 @@ export default function SettingsPage() {
                     </button>
                 </div>
 
-                {/* Tab bar */}
+                {/* Main Tab bar */}
                 <div style={{ display: 'flex', borderBottom: '1px solid var(--border)', background: 'var(--bg-secondary)' }}>
-                    {TABS.map(t => (
+                    {MAIN_TABS.map(t => (
                         <button key={t.key} onClick={() => setTab(t.key)}
-                            style={{ padding: '12px 20px', fontWeight: 600, fontSize: 13, cursor: 'pointer', border: 'none', background: tab === t.key ? 'var(--bg-primary)' : 'transparent', color: tab === t.key ? 'var(--text-accent)' : 'var(--text-muted)', borderBottom: tab === t.key ? '2px solid var(--accent-primary)' : '2px solid transparent', transition: 'all 0.15s' }}>
+                            style={{
+                                padding: '12px 24px', fontWeight: 600, fontSize: 14, cursor: 'pointer',
+                                border: 'none', background: tab === t.key ? 'var(--bg-primary)' : 'transparent',
+                                color: tab === t.key ? 'var(--text-accent)' : 'var(--text-muted)',
+                                borderBottom: tab === t.key ? '3px solid var(--accent-primary)' : '3px solid transparent',
+                                transition: 'all 0.15s',
+                            }}>
                             {t.label}
                         </button>
                     ))}
@@ -240,164 +210,209 @@ export default function SettingsPage() {
                         </>
                     )}
 
-                    {/* ========== TAB: Payment Templates ========== */}
-                    {tab === 'payment' && (
+                    {/* ========== TAB: Templates ========== */}
+                    {tab === 'templates' && (
                         <>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-                                <div>
-                                    <SectionTitle icon="💵" title="Mẫu đợt thanh toán theo loại HĐ" />
-                                    <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: '-8px 0 0 0' }}>Mỗi loại hợp đồng có các đợt thanh toán mặc định. Khi tạo HĐ mới, hệ thống tự tạo đợt TT theo mẫu.</p>
-                                </div>
-                                <button className="btn btn-primary btn-sm" onClick={addContractType}>➕ Thêm loại HĐ</button>
-                            </div>
-
-                            {Object.entries(paymentTemplates).map(([type, phases]) => {
-                                const total = phases.reduce((s, p) => s + (p.pct || 0), 0);
-                                const icon = TYPE_ICONS[type] || '📄';
-                                return (
-                                    <div key={type} style={{ marginBottom: 20, border: '1px solid var(--border)', borderRadius: 10, overflow: 'hidden' }}>
-                                        <div style={{ padding: '10px 16px', background: 'var(--bg-secondary)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                            <div style={{ fontWeight: 700, fontSize: 14, display: 'flex', alignItems: 'center', gap: 6 }}>{icon} {type}
-                                                <button className="btn btn-ghost btn-sm" style={{ fontSize: 11, padding: '2px 6px', color: 'var(--text-muted)' }} onClick={() => renameContractType(type)} title="Đổi tên">✏️</button>
-                                            </div>
-                                            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                                                <span style={{ fontSize: 12, color: total === 100 ? 'var(--status-success)' : 'var(--status-danger)', fontWeight: 600 }}>
-                                                    Tổng: {total}% {total !== 100 && '⚠️'}
-                                                </span>
-                                                <button className="btn btn-ghost btn-sm" style={{ fontSize: 11, color: 'var(--status-danger)' }} onClick={() => removeContractType(type)}>🗑️</button>
-                                            </div>
-                                        </div>
-                                        <table className="data-table" style={{ margin: 0 }}>
-                                            <thead><tr><th style={{ width: 40 }}>#</th><th>Tên đợt</th><th style={{ width: 90 }}>% Giá trị</th><th style={{ width: 120 }}>Phân loại</th><th style={{ width: 50 }}></th></tr></thead>
-                                            <tbody>
-                                                {phases.map((p, i) => (
-                                                    <tr key={i}>
-                                                        <td style={{ color: 'var(--text-muted)', fontSize: 12 }}>{i + 1}</td>
-                                                        <td><input className="form-input" value={p.phase} onChange={e => updatePhase(type, i, 'phase', e.target.value)} style={{ fontSize: 13 }} /></td>
-                                                        <td><input className="form-input" type="number" min={0} max={100} value={p.pct} onChange={e => updatePhase(type, i, 'pct', e.target.value)} style={{ fontSize: 13, textAlign: 'center' }} /></td>
-                                                        <td><input className="form-input" value={p.category} onChange={e => updatePhase(type, i, 'category', e.target.value)} style={{ fontSize: 12 }} /></td>
-                                                        <td><button className="btn btn-ghost btn-sm" style={{ color: 'var(--status-danger)', fontSize: 12 }} onClick={() => removePhase(type, i)}>✕</button></td>
-                                                    </tr>
-                                                ))}
-                                            </tbody>
-                                        </table>
-                                        <div style={{ padding: '8px 16px', borderTop: '1px solid var(--border)' }}>
-                                            <button className="btn btn-ghost btn-sm" style={{ fontSize: 12 }} onClick={() => addPhase(type)}>➕ Thêm đợt</button>
-                                        </div>
-                                    </div>
-                                );
-                            })}
-                        </>
-                    )}
-
-                    {/* ========== TAB: Budget Templates ========== */}
-                    {tab === 'budget' && (
-                        <BudgetTemplateTab
-                            budgetTemplates={budgetTemplates}
-                            setBudgetTemplates={setBudgetTemplates}
-                            toast={toast}
-                        />
-                    )}
-
-                    {/* ========== TAB: Schedule Templates ========== */}
-                    {tab === 'schedule' && (
-                        <ScheduleTemplateTab toast={toast} />
-                    )}
-
-                    {/* ========== TAB: Quotation ========== */}
-                    {tab === 'quotation' && (
-                        <>
-                            <SectionTitle icon="📋" title="Giá trị mặc định báo giá" />
-                            <p style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 16 }}>Khi tạo báo giá mới, hệ thống sẽ dùng các giá trị này làm mặc định.</p>
-
-                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 16, marginBottom: 24 }}>
-                                <div className="form-group">
-                                    <label className="form-label">VAT (%)</label>
-                                    <input className="form-input" type="number" value={quotationDefaults.vat || ''} onChange={e => setQuotationDefaults({ ...quotationDefaults, vat: Number(e.target.value) })} />
-                                </div>
-                                <div className="form-group">
-                                    <label className="form-label">Phí quản lý (%)</label>
-                                    <input className="form-input" type="number" value={quotationDefaults.managementFeeRate || ''} onChange={e => setQuotationDefaults({ ...quotationDefaults, managementFeeRate: Number(e.target.value) })} />
-                                </div>
-                                <div className="form-group">
-                                    <label className="form-label">Phí thiết kế (%)</label>
-                                    <input className="form-input" type="number" value={quotationDefaults.designFeeRate || ''} onChange={e => setQuotationDefaults({ ...quotationDefaults, designFeeRate: Number(e.target.value) })} />
-                                </div>
-                            </div>
-
-                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 24 }}>
-                                <div className="form-group">
-                                    <label className="form-label">Bảo hành mặc định</label>
-                                    <input className="form-input" value={quotationDefaults.warranty || ''} onChange={e => setQuotationDefaults({ ...quotationDefaults, warranty: e.target.value })} />
-                                </div>
-                                <div className="form-group">
-                                    <label className="form-label">Điều khoản thanh toán</label>
-                                    <input className="form-input" value={quotationDefaults.terms || ''} onChange={e => setQuotationDefaults({ ...quotationDefaults, terms: e.target.value })} />
-                                </div>
-                            </div>
-
-                            {/* Quotation Category Templates */}
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-                                <div>
-                                    <SectionTitle icon="🗂️" title="Mẫu hạng mục báo giá" />
-                                    <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: '-8px 0 0 0' }}>Cây hạng mục mặc định khi tạo báo giá mới. Gồm Nhóm chính → Phân nhóm con.</p>
-                                </div>
-                                <div style={{ display: 'flex', gap: 6 }}>
-                                    <button className="btn btn-ghost btn-sm" style={{ fontSize: 11 }} onClick={() => setQuotationCategories([...PRESET_CATEGORIES])}>🔄 Reset mặc định</button>
-                                    <button className="btn btn-primary btn-sm" onClick={() => setQuotationCategories(prev => [...prev, { name: 'Nhóm mới', subcategories: ['Phân nhóm 1'] }])}>
-                                        ➕ Thêm nhóm
+                            {/* Sub-tab pills */}
+                            <div style={{
+                                display: 'flex', gap: 0, marginBottom: 20,
+                                border: '1px solid var(--border)', borderRadius: 10, overflow: 'hidden',
+                                background: 'var(--bg-secondary)',
+                            }}>
+                                {SUB_TABS.map((st, i) => (
+                                    <button key={st.key} onClick={() => setSubTab(st.key)}
+                                        style={{
+                                            flex: 1, padding: '12px 16px', fontWeight: 600, fontSize: 13,
+                                            cursor: 'pointer', border: 'none', borderRight: i < SUB_TABS.length - 1 ? '1px solid var(--border)' : 'none',
+                                            background: subTab === st.key ? 'var(--accent-primary)' : 'transparent',
+                                            color: subTab === st.key ? '#fff' : 'var(--text-secondary)',
+                                            transition: 'all 0.15s',
+                                        }}>
+                                        {st.label}
                                     </button>
-                                </div>
+                                ))}
                             </div>
 
-                            {quotationCategories.map((cat, ci) => (
-                                <div key={ci} style={{ marginBottom: 16, border: '1px solid var(--border)', borderRadius: 10, overflow: 'hidden' }}>
-                                    <div style={{ padding: '10px 16px', background: 'var(--bg-secondary)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 1 }}>
-                                            <span style={{ fontSize: 16 }}>📁</span>
-                                            <input className="form-input" value={cat.name}
-                                                onChange={e => setQuotationCategories(prev => prev.map((c, i) => i === ci ? { ...c, name: e.target.value } : c))}
-                                                style={{ fontSize: 14, fontWeight: 700, border: 'none', background: 'transparent', padding: '4px 8px' }} />
-                                        </div>
-                                        <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
-                                            <span className="badge muted" style={{ fontSize: 10 }}>{cat.subcategories?.length || 0} phân nhóm</span>
-                                            <button className="btn btn-ghost btn-sm" style={{ color: 'var(--status-danger)', fontSize: 11 }}
-                                                onClick={() => { if (confirm(`Xoá nhóm "${cat.name}"?`)) setQuotationCategories(prev => prev.filter((_, i) => i !== ci)); }}>
-                                                🗑️
-                                            </button>
-                                        </div>
-                                    </div>
-                                    <div style={{ padding: '8px 16px 12px' }}>
-                                        {(cat.subcategories || []).map((sub, si) => (
-                                            <div key={si} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-                                                <span style={{ color: 'var(--text-muted)', fontSize: 12, width: 20, textAlign: 'center' }}>{si + 1}</span>
-                                                <span style={{ fontSize: 12 }}>📄</span>
-                                                <input className="form-input" value={sub}
-                                                    onChange={e => setQuotationCategories(prev => prev.map((c, i) => i === ci ? { ...c, subcategories: c.subcategories.map((s, j) => j === si ? e.target.value : s) } : c))}
-                                                    style={{ fontSize: 13, flex: 1 }} />
-                                                <button className="btn btn-ghost btn-sm" style={{ color: 'var(--status-danger)', fontSize: 11, padding: '2px 6px' }}
-                                                    onClick={() => setQuotationCategories(prev => prev.map((c, i) => i === ci ? { ...c, subcategories: c.subcategories.filter((_, j) => j !== si) } : c))}>
-                                                    ✕
-                                                </button>
-                                            </div>
-                                        ))}
-                                        <button className="btn btn-ghost btn-sm" style={{ fontSize: 11, marginTop: 4 }}
-                                            onClick={() => setQuotationCategories(prev => prev.map((c, i) => i === ci ? { ...c, subcategories: [...(c.subcategories || []), ''] } : c))}>
-                                            ➕ Thêm phân nhóm
-                                        </button>
-                                    </div>
-                                </div>
-                            ))}
+                            {/* Sub-tab content */}
+                            {subTab === 'payment' && (
+                                <PaymentTemplateContent
+                                    paymentTemplates={paymentTemplates}
+                                    addPhase={addPhase} removePhase={removePhase} updatePhase={updatePhase}
+                                    addContractType={addContractType} removeContractType={removeContractType} renameContractType={renameContractType}
+                                />
+                            )}
 
-                            <SectionTitle icon="📐" title="Loại báo giá" />
-                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-                                {QUOTATION_TYPES.map(t => <span key={t} className="badge info" style={{ fontSize: 12 }}>{t}</span>)}
-                            </div>
+                            {subTab === 'budget' && (
+                                <BudgetTemplateTab
+                                    budgetTemplates={budgetTemplates}
+                                    setBudgetTemplates={setBudgetTemplates}
+                                    toast={toast}
+                                />
+                            )}
+
+                            {subTab === 'quotation' && (
+                                <QuotationTemplateContent
+                                    quotationDefaults={quotationDefaults}
+                                    setQuotationDefaults={setQuotationDefaults}
+                                    quotationCategories={quotationCategories}
+                                    setQuotationCategories={setQuotationCategories}
+                                />
+                            )}
+
+                            {subTab === 'schedule' && (
+                                <ScheduleTemplateTab toast={toast} />
+                            )}
                         </>
                     )}
                 </div>
             </div>
         </div>
+    );
+}
+
+// ====== Payment sub-tab ======
+function PaymentTemplateContent({ paymentTemplates, addPhase, removePhase, updatePhase, addContractType, removeContractType, renameContractType }) {
+    return (
+        <>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+                <div>
+                    <SectionTitle icon="💵" title="Mẫu đợt thanh toán theo loại HĐ" />
+                    <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: '-8px 0 0 0' }}>Mỗi loại hợp đồng có các đợt thanh toán mặc định. Khi tạo HĐ mới, hệ thống tự tạo đợt TT theo mẫu.</p>
+                </div>
+                <button className="btn btn-primary btn-sm" onClick={addContractType}>➕ Thêm loại HĐ</button>
+            </div>
+
+            {Object.entries(paymentTemplates).map(([type, phases]) => {
+                const total = phases.reduce((s, p) => s + (p.pct || 0), 0);
+                const icon = TYPE_ICONS[type] || '📄';
+                return (
+                    <div key={type} style={{ marginBottom: 20, border: '1px solid var(--border)', borderRadius: 10, overflow: 'hidden' }}>
+                        <div style={{ padding: '10px 16px', background: 'var(--bg-secondary)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <div style={{ fontWeight: 700, fontSize: 14, display: 'flex', alignItems: 'center', gap: 6 }}>{icon} {type}
+                                <button className="btn btn-ghost btn-sm" style={{ fontSize: 11, padding: '2px 6px', color: 'var(--text-muted)' }} onClick={() => renameContractType(type)} title="Đổi tên">✏️</button>
+                            </div>
+                            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                                <span style={{ fontSize: 12, color: total === 100 ? 'var(--status-success)' : 'var(--status-danger)', fontWeight: 600 }}>
+                                    Tổng: {total}% {total !== 100 && '⚠️'}
+                                </span>
+                                <button className="btn btn-ghost btn-sm" style={{ fontSize: 11, color: 'var(--status-danger)' }} onClick={() => removeContractType(type)}>🗑️</button>
+                            </div>
+                        </div>
+                        <table className="data-table" style={{ margin: 0 }}>
+                            <thead><tr><th style={{ width: 40 }}>#</th><th>Tên đợt</th><th style={{ width: 90 }}>% Giá trị</th><th style={{ width: 120 }}>Phân loại</th><th style={{ width: 50 }}></th></tr></thead>
+                            <tbody>
+                                {phases.map((p, i) => (
+                                    <tr key={i}>
+                                        <td style={{ color: 'var(--text-muted)', fontSize: 12 }}>{i + 1}</td>
+                                        <td><input className="form-input" value={p.phase} onChange={e => updatePhase(type, i, 'phase', e.target.value)} style={{ fontSize: 13 }} /></td>
+                                        <td><input className="form-input" type="number" min={0} max={100} value={p.pct} onChange={e => updatePhase(type, i, 'pct', e.target.value)} style={{ fontSize: 13, textAlign: 'center' }} /></td>
+                                        <td><input className="form-input" value={p.category} onChange={e => updatePhase(type, i, 'category', e.target.value)} style={{ fontSize: 12 }} /></td>
+                                        <td><button className="btn btn-ghost btn-sm" style={{ color: 'var(--status-danger)', fontSize: 12 }} onClick={() => removePhase(type, i)}>✕</button></td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                        <div style={{ padding: '8px 16px', borderTop: '1px solid var(--border)' }}>
+                            <button className="btn btn-ghost btn-sm" style={{ fontSize: 12 }} onClick={() => addPhase(type)}>➕ Thêm đợt</button>
+                        </div>
+                    </div>
+                );
+            })}
+        </>
+    );
+}
+
+// ====== Quotation sub-tab ======
+function QuotationTemplateContent({ quotationDefaults, setQuotationDefaults, quotationCategories, setQuotationCategories }) {
+    return (
+        <>
+            <SectionTitle icon="📋" title="Giá trị mặc định báo giá" />
+            <p style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 16 }}>Khi tạo báo giá mới, hệ thống sẽ dùng các giá trị này làm mặc định.</p>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 16, marginBottom: 24 }}>
+                <div className="form-group">
+                    <label className="form-label">VAT (%)</label>
+                    <input className="form-input" type="number" value={quotationDefaults.vat || ''} onChange={e => setQuotationDefaults({ ...quotationDefaults, vat: Number(e.target.value) })} />
+                </div>
+                <div className="form-group">
+                    <label className="form-label">Phí quản lý (%)</label>
+                    <input className="form-input" type="number" value={quotationDefaults.managementFeeRate || ''} onChange={e => setQuotationDefaults({ ...quotationDefaults, managementFeeRate: Number(e.target.value) })} />
+                </div>
+                <div className="form-group">
+                    <label className="form-label">Phí thiết kế (%)</label>
+                    <input className="form-input" type="number" value={quotationDefaults.designFeeRate || ''} onChange={e => setQuotationDefaults({ ...quotationDefaults, designFeeRate: Number(e.target.value) })} />
+                </div>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 24 }}>
+                <div className="form-group">
+                    <label className="form-label">Bảo hành mặc định</label>
+                    <input className="form-input" value={quotationDefaults.warranty || ''} onChange={e => setQuotationDefaults({ ...quotationDefaults, warranty: e.target.value })} />
+                </div>
+                <div className="form-group">
+                    <label className="form-label">Điều khoản thanh toán</label>
+                    <input className="form-input" value={quotationDefaults.terms || ''} onChange={e => setQuotationDefaults({ ...quotationDefaults, terms: e.target.value })} />
+                </div>
+            </div>
+
+            {/* Quotation Category Templates */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+                <div>
+                    <SectionTitle icon="🗂️" title="Mẫu hạng mục báo giá" />
+                    <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: '-8px 0 0 0' }}>Cây hạng mục mặc định khi tạo báo giá mới. Gồm Nhóm chính → Phân nhóm con.</p>
+                </div>
+                <div style={{ display: 'flex', gap: 6 }}>
+                    <button className="btn btn-ghost btn-sm" style={{ fontSize: 11 }} onClick={() => setQuotationCategories([...PRESET_CATEGORIES])}>🔄 Reset mặc định</button>
+                    <button className="btn btn-primary btn-sm" onClick={() => setQuotationCategories(prev => [...prev, { name: 'Nhóm mới', subcategories: ['Phân nhóm 1'] }])}>
+                        ➕ Thêm nhóm
+                    </button>
+                </div>
+            </div>
+
+            {quotationCategories.map((cat, ci) => (
+                <div key={ci} style={{ marginBottom: 16, border: '1px solid var(--border)', borderRadius: 10, overflow: 'hidden' }}>
+                    <div style={{ padding: '10px 16px', background: 'var(--bg-secondary)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 1 }}>
+                            <span style={{ fontSize: 16 }}>📁</span>
+                            <input className="form-input" value={cat.name}
+                                onChange={e => setQuotationCategories(prev => prev.map((c, i) => i === ci ? { ...c, name: e.target.value } : c))}
+                                style={{ fontSize: 14, fontWeight: 700, border: 'none', background: 'transparent', padding: '4px 8px' }} />
+                        </div>
+                        <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+                            <span className="badge muted" style={{ fontSize: 10 }}>{cat.subcategories?.length || 0} phân nhóm</span>
+                            <button className="btn btn-ghost btn-sm" style={{ color: 'var(--status-danger)', fontSize: 11 }}
+                                onClick={() => { if (confirm(`Xoá nhóm "${cat.name}"?`)) setQuotationCategories(prev => prev.filter((_, i) => i !== ci)); }}>
+                                🗑️
+                            </button>
+                        </div>
+                    </div>
+                    <div style={{ padding: '8px 16px 12px' }}>
+                        {(cat.subcategories || []).map((sub, si) => (
+                            <div key={si} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                                <span style={{ color: 'var(--text-muted)', fontSize: 12, width: 20, textAlign: 'center' }}>{si + 1}</span>
+                                <span style={{ fontSize: 12 }}>📄</span>
+                                <input className="form-input" value={sub}
+                                    onChange={e => setQuotationCategories(prev => prev.map((c, i) => i === ci ? { ...c, subcategories: c.subcategories.map((s, j) => j === si ? e.target.value : s) } : c))}
+                                    style={{ fontSize: 13, flex: 1 }} />
+                                <button className="btn btn-ghost btn-sm" style={{ color: 'var(--status-danger)', fontSize: 11, padding: '2px 6px' }}
+                                    onClick={() => setQuotationCategories(prev => prev.map((c, i) => i === ci ? { ...c, subcategories: c.subcategories.filter((_, j) => j !== si) } : c))}>
+                                    ✕
+                                </button>
+                            </div>
+                        ))}
+                        <button className="btn btn-ghost btn-sm" style={{ fontSize: 11, marginTop: 4 }}
+                            onClick={() => setQuotationCategories(prev => prev.map((c, i) => i === ci ? { ...c, subcategories: [...(c.subcategories || []), ''] } : c))}>
+                            ➕ Thêm phân nhóm
+                        </button>
+                    </div>
+                </div>
+            ))}
+
+            <SectionTitle icon="📐" title="Loại báo giá" />
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                {QUOTATION_TYPES.map(t => <span key={t} className="badge info" style={{ fontSize: 12 }}>{t}</span>)}
+            </div>
+        </>
     );
 }
 
@@ -417,7 +432,6 @@ function GeminiStatusWidget() {
     const [savingKey, setSavingKey] = useState(false);
     const [keyLoaded, setKeyLoaded] = useState(false);
 
-    // Load saved key from settings
     useEffect(() => {
         apiFetch('/api/admin/settings').then(data => {
             if (data?.gemini_api_key) { setApiKey(data.gemini_api_key); setKeyLoaded(true); }
@@ -441,7 +455,6 @@ function GeminiStatusWidget() {
         try {
             await apiFetch('/api/admin/settings', { method: 'PUT', body: JSON.stringify({ gemini_api_key: apiKey.trim() }) });
             setKeyLoaded(true);
-            // Auto-check status after saving
             checkStatus();
         } catch (e) { alert('Lỗi lưu: ' + e.message); }
         setSavingKey(false);
@@ -466,19 +479,13 @@ function GeminiStatusWidget() {
                     </button>
                 </div>
 
-                {/* API Key input */}
                 <div style={{ marginBottom: 12 }}>
                     <label className="form-label" style={{ fontSize: 12 }}>API Key</label>
                     <div style={{ display: 'flex', gap: 6 }}>
                         <div style={{ position: 'relative', flex: 1 }}>
-                            <input
-                                className="form-input"
-                                type={showKey ? 'text' : 'password'}
-                                value={apiKey}
-                                onChange={e => setApiKey(e.target.value)}
-                                placeholder="AIzaSy..."
-                                style={{ fontSize: 12, paddingRight: 36 }}
-                            />
+                            <input className="form-input" type={showKey ? 'text' : 'password'} value={apiKey}
+                                onChange={e => setApiKey(e.target.value)} placeholder="AIzaSy..."
+                                style={{ fontSize: 12, paddingRight: 36 }} />
                             <button onClick={() => setShowKey(!showKey)}
                                 style={{ position: 'absolute', right: 6, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', fontSize: 14, padding: 0 }}>
                                 {showKey ? '🙈' : '👁️'}
