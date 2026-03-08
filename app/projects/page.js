@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { exportToCsv } from '@/lib/exportCsv';
 const fmt = (n) => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(n);
+const PROJECT_STATUSES = ['Khảo sát', 'Thiết kế', 'Chuẩn bị thi công', 'Đang thi công', 'Nghiệm thu', 'Bàn giao', 'Bảo hành', 'Hoàn thành'];
 export default function ProjectsPage() {
     const [projects, setProjects] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -13,6 +14,7 @@ export default function ProjectsPage() {
     const [customers, setCustomers] = useState([]);
     const [editingId, setEditingId] = useState(null);
     const [editingName, setEditingName] = useState('');
+    const [editingStatusId, setEditingStatusId] = useState(null);
     const [form, setForm] = useState({ name: '', type: 'Thiết kế kiến trúc', status: 'Khảo sát', address: '', area: '', floors: '', budget: '', customerId: '', designer: '', supervisor: '' });
     const router = useRouter();
     const fetchProjects = () => {
@@ -40,8 +42,14 @@ export default function ProjectsPage() {
         if (!res.ok) { const err = await res.json(); return alert(err.error || 'Lỗi tạo dự án'); }
         setShowModal(false); setForm({ name: '', type: 'Thiết kế kiến trúc', status: 'Khảo sát', address: '', area: '', floors: '', budget: '', customerId: '', designer: '', supervisor: '' }); fetchProjects();
     };
-    const stColor = { 'Khảo sát': 'badge-default', 'Thiết kế': 'badge-info', 'Thi công': 'badge-warning', 'Nghiệm thu': 'badge-success', 'Bàn giao': 'badge-success' };
-    const active = projects.filter(p => p.status === 'Thi công').length;
+    const handleStatusChange = async (id, newStatus, e) => {
+        e.stopPropagation();
+        await fetch(`/api/projects/${id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status: newStatus }) });
+        setProjects(prev => prev.map(p => p.id === id ? { ...p, status: newStatus } : p));
+        setEditingStatusId(null);
+    };
+    const stColor = { 'Khảo sát': 'badge-default', 'Thiết kế': 'badge-info', 'Chuẩn bị thi công': 'badge-warning', 'Đang thi công': 'badge-warning', 'Nghiệm thu': 'badge-success', 'Bàn giao': 'badge-success', 'Bảo hành': 'badge-info', 'Hoàn thành': 'badge-success' };
+    const active = projects.filter(p => p.status === 'Đang thi công').length;
     const totalContract = projects.reduce((s, p) => s + (p.contractValue || 0), 0);
     const totalPaid = projects.reduce((s, p) => s + (p.paidAmount || 0), 0);
     return (
@@ -70,7 +78,7 @@ export default function ProjectsPage() {
                 <div className="filter-bar">
                     <input type="text" className="form-input" placeholder="Tìm kiếm..." value={search} onChange={e => setSearch(e.target.value)} style={{ maxWidth: 250 }} />
                     <select className="form-select" value={filterType} onChange={e => setFilterType(e.target.value)}><option value="">Tất cả loại</option><option>Thiết kế kiến trúc</option><option>Thiết kế nội thất</option><option>Thi công thô</option><option>Thi công hoàn thiện</option><option>Thi công nội thất</option></select>
-                    <select className="form-select" value={filterStatus} onChange={e => setFilterStatus(e.target.value)}><option value="">Tất cả TT</option><option>Khảo sát</option><option>Thiết kế</option><option>Thi công</option><option>Nghiệm thu</option><option>Bàn giao</option></select>
+                    <select className="form-select" value={filterStatus} onChange={e => setFilterStatus(e.target.value)}><option value="">Tất cả TT</option>{PROJECT_STATUSES.map(s => <option key={s}>{s}</option>)}</select>
                 </div>
                 {loading ? <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-muted)' }}>Đang tải...</div> : (
                     <div className="table-container"><table className="data-table">
@@ -92,7 +100,18 @@ export default function ProjectsPage() {
                                 <td>{fmt(p.contractValue || p.budget)}</td>
                                 <td style={{ color: 'var(--status-success)' }}>{fmt(p.paidAmount || 0)}</td>
                                 <td><div style={{ display: 'flex', alignItems: 'center', gap: 6 }}><div className="progress-bar" style={{ flex: 1 }}><div className="progress-fill" style={{ width: `${p.progress}%` }}></div></div><span style={{ fontSize: 11, whiteSpace: 'nowrap' }}>{p.progress}%</span></div></td>
-                                <td><span className={`badge ${stColor[p.status] || 'badge-default'}`}>{p.status}</span></td>
+                                <td onClick={e => { e.stopPropagation(); setEditingStatusId(editingStatusId === p.id ? null : p.id); }}>
+                                    {editingStatusId === p.id ? (
+                                        <select className="form-select" autoFocus value={p.status} onClick={e => e.stopPropagation()}
+                                            onChange={e => handleStatusChange(p.id, e.target.value, e)}
+                                            onBlur={() => setEditingStatusId(null)}
+                                            style={{ fontSize: 12, padding: '2px 6px', minWidth: 130 }}>
+                                            {PROJECT_STATUSES.map(s => <option key={s}>{s}</option>)}
+                                        </select>
+                                    ) : (
+                                        <span className={`badge ${stColor[p.status] || 'badge-default'}`} style={{ cursor: 'pointer' }} title="Bấm để đổi trạng thái">{p.status}</span>
+                                    )}
+                                </td>
                                 <td><button className="btn btn-ghost" onClick={(e) => handleDelete(p.id, e)}>🗑️</button></td>
                             </tr>
                         ))}</tbody>
@@ -132,7 +151,7 @@ export default function ProjectsPage() {
                             </div>
                             <div className="form-group"><label className="form-label">Trạng thái ban đầu</label>
                                 <select className="form-select" value={form.status} onChange={e => setForm({ ...form, status: e.target.value })}>
-                                    <option>Khảo sát</option><option>Thiết kế</option><option>Chuẩn bị thi công</option><option>Đang thi công</option>
+                                    {PROJECT_STATUSES.map(s => <option key={s}>{s}</option>)}
                                 </select>
                             </div>
                         </div>

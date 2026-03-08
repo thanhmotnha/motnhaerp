@@ -33,19 +33,32 @@ export const GET = withAuth(async (request) => {
         prisma.project.count({ where }),
     ]);
 
-    // Compute real values from contracts
+    // Compute real values from contracts + auto-status
+    const autoStatusUpdates = [];
     const enriched = projects.map(p => {
         const sumCV = p.contracts.reduce((s, c) => s + (c.contractValue ?? 0) + (c.variationAmount ?? 0), 0);
         const sumCollected = p.contracts.reduce((s, c) => s + c.payments.reduce((ps, pay) => ps + (pay.paidAmount ?? 0), 0), 0);
         const { contracts, ...rest } = p;
+
+        // Auto-set "Đang thi công" if project has payments but status is still early-phase
+        let effectiveStatus = rest.status;
+        if (sumCollected > 0 && ['Khảo sát', 'Thiết kế', 'Chuẩn bị thi công'].includes(rest.status)) {
+            effectiveStatus = 'Đang thi công';
+            autoStatusUpdates.push(prisma.project.update({ where: { id: p.id }, data: { status: 'Đang thi công' } }));
+        }
+
         return {
             ...rest,
+            status: effectiveStatus,
             contractValue: sumCV || p.contractValue || 0,
             paidAmount: sumCollected || p.paidAmount || 0,
             contractCount: contracts.length,
             debtFromCustomer: (sumCV || p.contractValue || 0) - (sumCollected || p.paidAmount || 0),
         };
     });
+
+    // Batch auto-status updates (fire-and-forget)
+    if (autoStatusUpdates.length > 0) Promise.all(autoStatusUpdates).catch(() => { });
 
     return NextResponse.json(paginatedResponse(enriched, total, { page, limit }));
 });
