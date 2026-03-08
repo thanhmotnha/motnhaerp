@@ -616,6 +616,11 @@ model MaterialRequisition {
   notes           String   @default("") @db.Text
   status          String   @default("Chờ xử lý")
   createdBy       String   @default("")
+  receivedQty     Float    @default(0)
+  receivedPhotos  Json?    @default("[]")
+  receivedAt      DateTime?
+  receivedBy      String   @default("")
+  receiveNotes    String   @default("") @db.Text
   materialPlanId  String
   materialPlan    MaterialPlan  @relation(fields: [materialPlanId], references: [id])
   projectId       String
