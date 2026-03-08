@@ -31,8 +31,6 @@ const menuItems = [
     {
         section: 'Dự án', items: [
             { href: '/projects', icon: Building2, label: 'Dự án' },
-            { href: '/work-orders', icon: Wrench, label: 'Phiếu công việc' },
-            { href: '/acceptance', icon: ClipboardCheck, label: 'Nghiệm thu', roles: ['giam_doc', 'pho_gd', 'quan_ly_du_an'] },
             { href: '/warranty', icon: ShieldCheck, label: 'Bảo hành', roles: ['giam_doc', 'pho_gd', 'quan_ly_du_an'] },
         ]
     },
