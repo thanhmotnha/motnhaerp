@@ -61,6 +61,11 @@ export default function CreateContractPage() {
         setForm(f => ({ ...f, customerId: customerId || f.customerId, projectId: projectId || f.projectId, type: type || f.type, contractValue: Number(value) || f.contractValue }));
     }, [quotations, searchParams]);
 
+    // Derive contract types from DB templates (synced with Settings) + hardcoded fallback
+    const contractTypes = dbPaymentTemplates
+        ? [...new Set([...Object.keys(dbPaymentTemplates), ...CONTRACT_TYPES])]
+        : CONTRACT_TYPES;
+
     // Auto-load template when type changes — use DB templates first, fallback to hardcoded
     useEffect(() => {
         const templates = dbPaymentTemplates || PAYMENT_TEMPLATES;
@@ -187,7 +192,7 @@ export default function CreateContractPage() {
                         <div>
                             <label className="form-label">Loại hợp đồng</label>
                             <select className="form-select" value={form.type} onChange={e => setForm({ ...form, type: e.target.value })}>
-                                {CONTRACT_TYPES.map(t => <option key={t}>{t}</option>)}
+                                {contractTypes.map(t => <option key={t}>{t}</option>)}
                             </select>
                         </div>
                         <div>
