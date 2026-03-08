@@ -1,6 +1,6 @@
 # Phase 04 — Expense Submission Mobile
 
-**Ưu tiên:** MEDIUM | **Effort:** Small | **Status:** Pending
+**Ưu tiên:** MEDIUM | **Effort:** Small | **Status:** Completed
 
 ---
 
@@ -52,7 +52,7 @@ API đã có sẵn, không cần thay đổi server.
 
 ## Todo
 
-- [ ] Expense create screen
-- [ ] Project picker modal
-- [ ] Proof photo upload
-- [ ] Quick action từ Dashboard
+- [x] Expense create screen
+- [x] Project picker modal
+- [x] Proof photo upload
+- [x] Quick action từ Dashboard

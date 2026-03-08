@@ -1,6 +1,6 @@
 # Phase 05 — Contract View (Read-only)
 
-**Ưu tiên:** MEDIUM | **Effort:** Small | **Status:** Pending
+**Ưu tiên:** MEDIUM | **Effort:** Small | **Status:** Completed
 
 ---
 
@@ -54,8 +54,8 @@ API đã có, không cần thay đổi.
 
 ## Todo
 
-- [ ] Contract list screen
-- [ ] Contract detail với payment phases
-- [ ] Progress bar thu tiền
-- [ ] RBAC: ẩn với nhan_vien
-- [ ] Link từ Project Detail
+- [x] Contract list screen
+- [x] Contract detail với payment phases
+- [x] Progress bar thu tiền
+- [x] RBAC: ẩn với nhan_vien
+- [x] Link từ Project Detail

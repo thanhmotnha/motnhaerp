@@ -1,6 +1,6 @@
 # Phase 02 — Warranty Ticket Mobile
 
-**Ưu tiên:** HIGH | **Effort:** Small | **Status:** Pending
+**Ưu tiên:** HIGH | **Effort:** Small | **Status:** Completed
 
 ---
 
@@ -46,7 +46,7 @@ Mobile chưa có màn hình bảo hành.
 
 ## Todo
 
-- [ ] Warranty list screen
-- [ ] Create warranty form với photo upload
-- [ ] Quick action từ project detail
-- [ ] Status update flow
+- [x] Warranty list screen
+- [x] Create warranty form với photo upload
+- [x] Quick action từ project detail
+- [x] Status update flow

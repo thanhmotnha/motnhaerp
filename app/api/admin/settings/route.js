@@ -13,8 +13,9 @@ export const GET = withAuth(async () => {
         const result = {};
         settings.forEach(s => { result[s.key] = s.value; });
         return NextResponse.json(result);
-    } catch {
+    } catch (e) {
         // Table might not exist yet — return empty
+        console.error('[Settings GET] Error:', e.message);
         return NextResponse.json({});
     }
 }, { roles: ['giam_doc'] });
@@ -32,7 +33,9 @@ export const PUT = withAuth(async (request) => {
                 "updatedAt" TIMESTAMP DEFAULT NOW()
             )
         `);
-    } catch { }
+    } catch (e) {
+        console.error('[Settings] CREATE TABLE error:', e.message);
+    }
 
     const entries = Object.entries(body).filter(([k, v]) => k && v !== undefined);
 

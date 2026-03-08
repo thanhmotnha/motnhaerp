@@ -1,6 +1,6 @@
 # Phase 01 — Complete PO Detail Screen
 
-**Ưu tiên:** HIGH | **Effort:** Small | **Status:** Pending
+**Ưu tiên:** HIGH | **Effort:** Small | **Status:** Completed
 
 ---
 
@@ -41,8 +41,8 @@ API sẵn có: `GET /api/purchase-orders/{id}` — trả về PO + items + suppl
 
 ## Todo
 
-- [ ] Implement PO detail screen
-- [ ] Status badge + color mapping
-- [ ] Items list với subtotal
-- [ ] Approve/reject flow (reuse từ Approvals screen)
-- [ ] Test với các role khác nhau
+- [x] Implement PO detail screen
+- [x] Status badge + color mapping
+- [x] Items list với subtotal
+- [x] Approve/reject flow (reuse từ Approvals screen)
+- [x] Test với các role khác nhau

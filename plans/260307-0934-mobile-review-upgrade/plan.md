@@ -18,16 +18,15 @@
 - PO Create (supplier, items, calc)
 - Schedule (task list)
 
-**Screens chưa hoàn chỉnh (⚠️):**
-- PO Detail — stub, chưa implement
-- Customer Quotation — navigation có, body chưa rõ
-- Schedule Detail — không có screen riêng
+**Screens đã implement thêm (commit 54626bc):**
+- PO Detail — ✅ fully implemented
+- Schedule Detail — ✅ screen + navigation
+- Warranty list + create — ✅ với photo upload
+- Expense create — ✅ với proof photo
+- Contract list + detail — ✅ read-only + RBAC
 
-**Hoàn toàn thiếu (❌):**
-- Push Notifications
-- Warranty ticket creation
-- Contract view (read-only)
-- Expense submission (tạo chi phí từ mobile)
+**Còn thiếu (❌):**
+- Push Notifications — chưa implement
 - Finance/Invoice view (cho ke_toan)
 - Offline caching
 
@@ -35,14 +34,14 @@
 
 ## Phases
 
-| Phase | Tên | Ưu tiên | Effort |
-|-------|-----|---------|--------|
-| 01 | Complete PO Detail | HIGH | S |
-| 02 | Warranty Ticket Mobile | HIGH | S |
-| 03 | Push Notifications | HIGH | M |
-| 04 | Expense Submission | MEDIUM | S |
-| 05 | Contract View | MEDIUM | S |
-| 06 | Schedule Detail | LOW | S |
+| Phase | Tên | Ưu tiên | Effort | Status |
+|-------|-----|---------|--------|--------|
+| 01 | Complete PO Detail | HIGH | S | ✅ Completed |
+| 02 | Warranty Ticket Mobile | HIGH | S | ✅ Completed |
+| 03 | Push Notifications | HIGH | M | ⬜ Pending |
+| 04 | Expense Submission | MEDIUM | S | ✅ Completed |
+| 05 | Contract View | MEDIUM | S | ✅ Completed |
+| 06 | Schedule Detail | LOW | S | ✅ Completed |
 
 Xem chi tiết từng phase:
 - [phase-01-po-detail.md](./phase-01-po-detail.md)

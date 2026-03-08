@@ -1,6 +1,6 @@
 # Phase 06 — Schedule Detail Screen
 
-**Ưu tiên:** LOW | **Effort:** Small | **Status:** Pending
+**Ưu tiên:** LOW | **Effort:** Small | **Status:** Completed
 
 ---
 
@@ -52,7 +52,7 @@ PUT  /api/schedule-tasks/{id}   → update progress/status/notes
 
 ## Todo
 
-- [ ] Schedule detail screen
-- [ ] Progress update (slider/input)
-- [ ] Dependencies display
-- [ ] Tap-to-navigate từ task list
+- [x] Schedule detail screen
+- [x] Progress update (slider/input)
+- [x] Dependencies display
+- [x] Tap-to-navigate từ task list
