@@ -45,12 +45,19 @@ const menuItems = [
         ]
     },
     {
-        section: 'Tài chính & NS', items: [
-            { href: '/finance', icon: Wallet, label: 'Tài chính', roles: ['giam_doc', 'pho_gd', 'ke_toan'] },
+        section: 'Sản xuất', items: [
             { href: '/furniture', icon: Armchair, label: 'Nội thất May Đo' },
             { href: '/workshops', icon: Factory, label: 'Xưởng SX', roles: ['giam_doc', 'pho_gd', 'quan_ly_du_an'] },
-            { href: '/hr', icon: UserCog, label: 'Nhân sự', roles: ['giam_doc', 'pho_gd'] },
-            { href: '/hr/payroll', icon: Banknote, label: 'Bảng lương', roles: ['giam_doc', 'ke_toan'] },
+        ]
+    },
+    {
+        section: 'Tài chính', items: [
+            { href: '/finance', icon: Wallet, label: 'Tài chính', roles: ['giam_doc', 'pho_gd', 'ke_toan'] },
+        ]
+    },
+    {
+        section: 'Nhân sự', items: [
+            { href: '/hr', icon: UserCog, label: 'Nhân sự', roles: ['giam_doc', 'pho_gd', 'ke_toan'] },
         ]
     },
     {

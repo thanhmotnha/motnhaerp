@@ -1,9 +1,12 @@
 'use client';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
+import { useSearchParams } from 'next/navigation';
+import dynamic from 'next/dynamic';
 
+const PayrollTab = dynamic(() => import('@/components/hr/PayrollTab'), { ssr: false, loading: () => <div style={{ padding: 40, textAlign: 'center' }}>Đang tải...</div> });
 const fmt = (n) => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(n || 0);
 const fmtDate = (d) => d ? new Date(d).toLocaleDateString('vi-VN') : '—';
-const MONTHS = ['T1','T2','T3','T4','T5','T6','T7','T8','T9','T10','T11','T12'];
+const MONTHS = ['T1', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'T8', 'T9', 'T10', 'T11', 'T12'];
 
 function AttendanceTab() {
     const now = new Date();
@@ -56,8 +59,8 @@ function AttendanceTab() {
         const rows = data.employees.map(e => {
             const ov = editing[e.id] || {};
             return [e.code, e.name, e.position, e.department?.name, e.salary,
-                ov.workDays ?? e.workDays, ov.leaveDays ?? e.leaveDays, ov.unpaidDays ?? e.unpaidDays,
-                ov.overtimeHrs ?? e.overtimeHrs, ov.bonus ?? e.bonus, ov.deduction ?? e.deduction, e.netSalary].join(',');
+            ov.workDays ?? e.workDays, ov.leaveDays ?? e.leaveDays, ov.unpaidDays ?? e.unpaidDays,
+            ov.overtimeHrs ?? e.overtimeHrs, ov.bonus ?? e.bonus, ov.deduction ?? e.deduction, e.netSalary].join(',');
         });
         const csv = bom + ['Mã NV,Họ tên,Chức vụ,Phòng ban,Lương cứng,Ngày công,Nghỉ phép,Nghỉ KL,OT(h),Thưởng,Khấu trừ,Thực lĩnh', ...rows].join('\n');
         const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8;' }));
@@ -257,12 +260,12 @@ function AttendanceTab() {
                                         </td>
                                         <td>
                                             <div style={{ display: 'flex', gap: 4 }}>
-                                            {isDirty && (
-                                                <button className="btn btn-primary btn-sm" onClick={() => handleSave(emp)} disabled={saving[emp.id]}>
-                                                    {saving[emp.id] ? '...' : 'Lưu'}
-                                                </button>
-                                            )}
-                                            <button className="btn btn-ghost btn-sm" title="In phiếu lương" onClick={() => printPayslip(emp)}>🖨️</button>
+                                                {isDirty && (
+                                                    <button className="btn btn-primary btn-sm" onClick={() => handleSave(emp)} disabled={saving[emp.id]}>
+                                                        {saving[emp.id] ? '...' : 'Lưu'}
+                                                    </button>
+                                                )}
+                                                <button className="btn btn-ghost btn-sm" title="In phiếu lương" onClick={() => printPayslip(emp)}>🖨️</button>
                                             </div>
                                         </td>
                                     </tr>
@@ -436,12 +439,18 @@ const STATUS_COLOR = { 'Đang làm': 'badge-success', 'Nghỉ phép': 'badge-war
 const EMPTY_FORM = { name: '', position: '', phone: '', email: '', salary: '', insuranceSalary: '', departmentId: '', status: 'Đang làm', joinDate: '' };
 
 export default function HRPage() {
+    return <Suspense><HRContent /></Suspense>;
+}
+
+function HRContent() {
     const [data, setData] = useState({ employees: [], departments: [] });
     const [loading, setLoading] = useState(true);
     const [search, setSearch] = useState('');
     const [filterDept, setFilterDept] = useState('');
     const [filterStatus, setFilterStatus] = useState('');
-    const [mainTab, setMainTab] = useState('employees');
+    const searchParams = useSearchParams();
+    const initialTab = searchParams.get('tab') || 'employees';
+    const [mainTab, setMainTab] = useState(initialTab);
     const [showModal, setShowModal] = useState(false);
     const [editTarget, setEditTarget] = useState(null); // employee object being edited
     const [form, setForm] = useState(EMPTY_FORM);
@@ -553,7 +562,7 @@ export default function HRPage() {
 
             {/* Tab switcher */}
             <div style={{ display: 'flex', gap: 4, marginBottom: 24, borderBottom: '2px solid var(--border)' }}>
-                {[{ key: 'employees', label: '👥 Nhân viên' }, { key: 'attendance', label: '📅 Chấm công & Lương' }, { key: 'leave', label: '🗓️ Nghỉ phép' }].map(t => (
+                {[{ key: 'employees', label: '👥 Nhân viên' }, { key: 'attendance', label: '📅 Chấm công & Lương' }, { key: 'leave', label: '🗓️ Nghỉ phép' }, { key: 'payroll', label: '💰 Bảng lương' }].map(t => (
                     <button key={t.key} onClick={() => setMainTab(t.key)}
                         style={{ padding: '8px 18px', border: 'none', borderBottom: mainTab === t.key ? '2px solid var(--accent-primary)' : '2px solid transparent', background: 'none', cursor: 'pointer', fontWeight: mainTab === t.key ? 700 : 400, color: mainTab === t.key ? 'var(--accent-primary)' : 'var(--text-muted)', fontSize: 13, marginBottom: -2 }}>
                         {t.label}
@@ -565,99 +574,103 @@ export default function HRPage() {
                 <div className="card" style={{ padding: 24 }}>
                     <LeaveTab employees={data.employees} />
                 </div>
+            ) : mainTab === 'payroll' ? (
+                <div className="card" style={{ padding: 24 }}>
+                    <PayrollTab />
+                </div>
             ) : (<>
 
-            {/* Department cards */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: 12, marginBottom: 24 }}>
-                {data.departments.map(d => (
-                    <div
-                        key={d.id}
-                        className="card"
-                        style={{ padding: '12px 16px', cursor: 'pointer', border: filterDept === d.id ? '2px solid var(--accent-primary)' : '2px solid transparent' }}
-                        onClick={() => setFilterDept(filterDept === d.id ? '' : d.id)}
-                    >
-                        <div style={{ fontWeight: 600, fontSize: 13 }}>{d.name}</div>
-                        <div style={{ fontSize: 26, fontWeight: 700, color: 'var(--accent-primary)', lineHeight: 1.2, marginTop: 4 }}>{d._count?.employees || 0}</div>
-                        <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>nhân viên</div>
-                    </div>
-                ))}
-            </div>
-
-            {/* Employee table */}
-            <div className="card">
-                <div className="card-header">
-                    <h3>Nhân viên {filtered.length !== allEmployees.length && `(${filtered.length}/${allEmployees.length})`}</h3>
-                    <button className="btn btn-primary" onClick={openAdd}>+ Thêm NV</button>
+                {/* Department cards */}
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: 12, marginBottom: 24 }}>
+                    {data.departments.map(d => (
+                        <div
+                            key={d.id}
+                            className="card"
+                            style={{ padding: '12px 16px', cursor: 'pointer', border: filterDept === d.id ? '2px solid var(--accent-primary)' : '2px solid transparent' }}
+                            onClick={() => setFilterDept(filterDept === d.id ? '' : d.id)}
+                        >
+                            <div style={{ fontWeight: 600, fontSize: 13 }}>{d.name}</div>
+                            <div style={{ fontSize: 26, fontWeight: 700, color: 'var(--accent-primary)', lineHeight: 1.2, marginTop: 4 }}>{d._count?.employees || 0}</div>
+                            <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>nhân viên</div>
+                        </div>
+                    ))}
                 </div>
-                <div className="filter-bar" style={{ display: 'flex', gap: 10, padding: '10px 16px', borderBottom: '1px solid var(--border)' }}>
-                    <input
-                        type="text" className="form-input" placeholder="Tìm theo tên, mã..."
-                        value={search} onChange={e => setSearch(e.target.value)}
-                        style={{ maxWidth: 220 }}
-                    />
-                    <select className="form-select" style={{ width: 160 }} value={filterStatus} onChange={e => setFilterStatus(e.target.value)}>
-                        <option value="">Tất cả trạng thái</option>
-                        {STATUS_OPTS.map(s => <option key={s}>{s}</option>)}
-                    </select>
-                    {(filterDept || filterStatus || search) && (
-                        <button className="btn btn-ghost btn-sm" onClick={() => { setFilterDept(''); setFilterStatus(''); setSearch(''); }}>
-                            Xóa bộ lọc
-                        </button>
+
+                {/* Employee table */}
+                <div className="card">
+                    <div className="card-header">
+                        <h3>Nhân viên {filtered.length !== allEmployees.length && `(${filtered.length}/${allEmployees.length})`}</h3>
+                        <button className="btn btn-primary" onClick={openAdd}>+ Thêm NV</button>
+                    </div>
+                    <div className="filter-bar" style={{ display: 'flex', gap: 10, padding: '10px 16px', borderBottom: '1px solid var(--border)' }}>
+                        <input
+                            type="text" className="form-input" placeholder="Tìm theo tên, mã..."
+                            value={search} onChange={e => setSearch(e.target.value)}
+                            style={{ maxWidth: 220 }}
+                        />
+                        <select className="form-select" style={{ width: 160 }} value={filterStatus} onChange={e => setFilterStatus(e.target.value)}>
+                            <option value="">Tất cả trạng thái</option>
+                            {STATUS_OPTS.map(s => <option key={s}>{s}</option>)}
+                        </select>
+                        {(filterDept || filterStatus || search) && (
+                            <button className="btn btn-ghost btn-sm" onClick={() => { setFilterDept(''); setFilterStatus(''); setSearch(''); }}>
+                                Xóa bộ lọc
+                            </button>
+                        )}
+                    </div>
+                    {loading ? (
+                        <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-muted)' }}>Đang tải...</div>
+                    ) : (
+                        <div className="table-container">
+                            <table className="data-table">
+                                <thead>
+                                    <tr>
+                                        <th>Mã</th><th>Họ tên</th><th>Chức vụ</th><th>Phòng ban</th>
+                                        <th>SĐT</th><th>Lương</th><th>Ngày vào</th><th>TT</th><th></th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {filtered.map(e => (
+                                        <tr key={e.id}>
+                                            <td className="accent">{e.code}</td>
+                                            <td className="primary" style={{ cursor: 'pointer' }} onClick={() => openEdit(e)}>{e.name}</td>
+                                            <td style={{ fontSize: 13 }}>{e.position}</td>
+                                            <td><span className="badge badge-info">{e.department?.name}</span></td>
+                                            <td style={{ fontSize: 13 }}>{e.phone}</td>
+                                            <td style={{ fontWeight: 600 }}>{fmt(e.salary)}</td>
+                                            <td style={{ fontSize: 12, color: 'var(--text-muted)' }}>{fmtDate(e.joinDate)}</td>
+                                            <td>
+                                                <span className={`badge ${STATUS_COLOR[e.status] || 'badge-default'}`}>{e.status}</span>
+                                            </td>
+                                            <td>
+                                                <div style={{ display: 'flex', gap: 4 }}>
+                                                    <button className="btn btn-ghost btn-sm" onClick={() => openEdit(e)}>✏️</button>
+                                                    <button className="btn btn-ghost btn-sm" onClick={() => handleDelete(e.id)}>🗑️</button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                                {filtered.length > 0 && (
+                                    <tfoot>
+                                        <tr>
+                                            <td colSpan={5} style={{ fontSize: 12, color: 'var(--text-muted)', padding: '8px 16px' }}>
+                                                {filtered.length} nhân viên
+                                            </td>
+                                            <td style={{ fontWeight: 700, padding: '8px 16px' }}>
+                                                {fmt(filtered.filter(e => e.status === 'Đang làm').reduce((s, e) => s + (e.salary || 0), 0))}
+                                            </td>
+                                            <td colSpan={3} />
+                                        </tr>
+                                    </tfoot>
+                                )}
+                            </table>
+                        </div>
+                    )}
+                    {!loading && filtered.length === 0 && (
+                        <div style={{ padding: 32, textAlign: 'center', color: 'var(--text-muted)' }}>Không có nhân viên</div>
                     )}
                 </div>
-                {loading ? (
-                    <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-muted)' }}>Đang tải...</div>
-                ) : (
-                    <div className="table-container">
-                        <table className="data-table">
-                            <thead>
-                                <tr>
-                                    <th>Mã</th><th>Họ tên</th><th>Chức vụ</th><th>Phòng ban</th>
-                                    <th>SĐT</th><th>Lương</th><th>Ngày vào</th><th>TT</th><th></th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {filtered.map(e => (
-                                    <tr key={e.id}>
-                                        <td className="accent">{e.code}</td>
-                                        <td className="primary" style={{ cursor: 'pointer' }} onClick={() => openEdit(e)}>{e.name}</td>
-                                        <td style={{ fontSize: 13 }}>{e.position}</td>
-                                        <td><span className="badge badge-info">{e.department?.name}</span></td>
-                                        <td style={{ fontSize: 13 }}>{e.phone}</td>
-                                        <td style={{ fontWeight: 600 }}>{fmt(e.salary)}</td>
-                                        <td style={{ fontSize: 12, color: 'var(--text-muted)' }}>{fmtDate(e.joinDate)}</td>
-                                        <td>
-                                            <span className={`badge ${STATUS_COLOR[e.status] || 'badge-default'}`}>{e.status}</span>
-                                        </td>
-                                        <td>
-                                            <div style={{ display: 'flex', gap: 4 }}>
-                                                <button className="btn btn-ghost btn-sm" onClick={() => openEdit(e)}>✏️</button>
-                                                <button className="btn btn-ghost btn-sm" onClick={() => handleDelete(e.id)}>🗑️</button>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                            {filtered.length > 0 && (
-                                <tfoot>
-                                    <tr>
-                                        <td colSpan={5} style={{ fontSize: 12, color: 'var(--text-muted)', padding: '8px 16px' }}>
-                                            {filtered.length} nhân viên
-                                        </td>
-                                        <td style={{ fontWeight: 700, padding: '8px 16px' }}>
-                                            {fmt(filtered.filter(e => e.status === 'Đang làm').reduce((s, e) => s + (e.salary || 0), 0))}
-                                        </td>
-                                        <td colSpan={3} />
-                                    </tr>
-                                </tfoot>
-                            )}
-                        </table>
-                    </div>
-                )}
-                {!loading && filtered.length === 0 && (
-                    <div style={{ padding: 32, textAlign: 'center', color: 'var(--text-muted)' }}>Không có nhân viên</div>
-                )}
-            </div>
 
             </>)}
 
