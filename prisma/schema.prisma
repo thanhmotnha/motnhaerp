@@ -7,6 +7,12 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+model SystemSetting {
+  key       String   @id @db.VarChar(100)
+  value     String   @default("") @db.Text
+  updatedAt DateTime @default(now()) @updatedAt
+}
+
 model User {
   id            String    @id @default(cuid())
   email         String    @unique
