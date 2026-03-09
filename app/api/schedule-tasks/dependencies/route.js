@@ -41,23 +41,44 @@ export const POST = withAuth(async (request) => {
         return NextResponse.json({ error: 'Cannot depend on itself' }, { status: 400 });
     }
 
-    // Check circular dependency
-    const visited = new Set();
-    const hasCircle = async (id) => {
-        if (id === taskId) return true;
-        if (visited.has(id)) return false;
-        visited.add(id);
-        const deps = await prisma.taskDependency.findMany({
-            where: { taskId: id },
-            select: { dependsOnId: true },
-        });
-        for (const d of deps) {
-            if (await hasCircle(d.dependsOnId)) return true;
+    // Check circular dependency in memory avoiding N+1 queries
+    const task = await prisma.scheduleTask.findUnique({
+        where: { id: taskId },
+        select: { projectId: true }
+    });
+    if (!task) return NextResponse.json({ error: 'Task not found' }, { status: 404 });
+
+    const allDeps = await prisma.taskDependency.findMany({
+        where: { task: { projectId: task.projectId } },
+        select: { taskId: true, dependsOnId: true },
+    });
+
+    const graphMap = new Map();
+    allDeps.push({ taskId, dependsOnId }); // simulate adding the new dep
+    for (const d of allDeps) {
+        if (!graphMap.has(d.taskId)) graphMap.set(d.taskId, []);
+        graphMap.get(d.taskId).push(d.dependsOnId);
+    }
+
+    const visitedNodes = new Set();
+    const stack = new Set();
+
+    const dfs = (node) => {
+        if (stack.has(node)) return true;
+        if (visitedNodes.has(node)) return false;
+        visitedNodes.add(node);
+        stack.add(node);
+
+        const neighbors = graphMap.get(node) || [];
+        for (const n of neighbors) {
+            if (dfs(n)) return true;
         }
+
+        stack.delete(node);
         return false;
     };
 
-    if (await hasCircle(dependsOnId)) {
+    if (dfs(taskId)) {
         return NextResponse.json({ error: 'Circular dependency detected' }, { status: 400 });
     }
 

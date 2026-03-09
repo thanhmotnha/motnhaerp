@@ -6,8 +6,8 @@ import prisma from '@/lib/prisma';
 export const POST = withAuth(async (request) => {
     let apiKey = process.env.GEMINI_API_KEY;
     try {
-        const dbKey = await prisma.$queryRawUnsafe(`SELECT value FROM "SystemSetting" WHERE key = 'gemini_api_key' LIMIT 1`);
-        if (dbKey?.[0]?.value) apiKey = dbKey[0].value;
+        const dbSetting = await prisma.systemSetting.findUnique({ where: { key: 'gemini_api_key' } });
+        if (dbSetting?.value) apiKey = dbSetting.value;
     } catch { }
     if (!apiKey) return NextResponse.json({ error: 'GEMINI_API_KEY not configured — vào Settings → AI / Gemini API để cấu hình' }, { status: 500 });
 

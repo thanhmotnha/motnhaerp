@@ -42,8 +42,8 @@ export const GET = withAuth(async (request) => {
             where: { projectId },
             _sum: { contractAmount: true },
         }),
-        prisma.expense.aggregate({
-            where: { projectId },
+        prisma.projectExpense.aggregate({
+            where: { projectId, deletedAt: null, status: { not: 'Đã hủy' } },
             _sum: { amount: true },
         }),
     ]);

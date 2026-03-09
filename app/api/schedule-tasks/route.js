@@ -81,75 +81,81 @@ export const PUT = withAuth(async (request) => {
         })
     );
 
-    // Cascade recalc dependents
-    const cascadedIds = [];
-    const updatedIds = new Set(results.map(r => r.id));
-    const queue = [...updatedIds];
+    // Batch-fetch toàn bộ tasks + dependencies của project — tránh N+1 trong cascade
+    const projectId = results[0]?.projectId;
+    if (projectId) {
+        const [allTasks, allDeps] = await Promise.all([
+            prisma.scheduleTask.findMany({
+                where: { projectId },
+                select: { id: true, startDate: true, endDate: true, duration: true },
+            }),
+            prisma.taskDependency.findMany({
+                where: { task: { projectId } },
+                select: { taskId: true, dependsOnId: true, type: true, lag: true },
+            }),
+        ]);
 
-    while (queue.length > 0) {
-        const currentId = queue.shift();
-        const current = await prisma.scheduleTask.findUnique({ where: { id: currentId } });
-        if (!current) continue;
+        // Build in-memory maps
+        const taskById = new Map(allTasks.map(t => [t.id, { ...t }]));
+        // dependsOnId → [{ taskId, type, lag }] (forward edges: who depends on this?)
+        const successorMap = new Map();
+        for (const dep of allDeps) {
+            if (!successorMap.has(dep.dependsOnId)) successorMap.set(dep.dependsOnId, []);
+            successorMap.get(dep.dependsOnId).push(dep);
+        }
 
-        // Find deps where THIS task is the dependency (dependsOn)
-        const deps = await prisma.taskDependency.findMany({
-            where: { dependsOnId: currentId },
-            include: { task: true },
-        });
+        // BFS cascade entirely in-memory
+        const pendingUpdates = new Map(); // id → { startDate, endDate, duration }
+        const updatedIds = new Set(results.map(r => r.id));
+        const queue = [...updatedIds];
 
-        for (const dep of deps) {
-            const successor = dep.task;
-            if (updatedIds.has(successor.id)) continue; // Already handled
+        while (queue.length > 0) {
+            const currentId = queue.shift();
+            const current = pendingUpdates.get(currentId) || taskById.get(currentId);
+            if (!current) continue;
 
-            const predEnd = new Date(current.endDate);
-            const predStart = new Date(current.startDate);
-            const lag = (dep.lag || 0) * 86400000;
-            const duration = successor.duration || 1;
+            const successors = successorMap.get(currentId) || [];
+            for (const dep of successors) {
+                const successor = taskById.get(dep.taskId);
+                if (!successor || updatedIds.has(dep.taskId)) continue;
 
-            let newStart, newEnd;
-            switch (dep.type) {
-                case 'FS': // Finish-to-Start
-                    newStart = new Date(predEnd.getTime() + lag);
-                    newEnd = new Date(newStart.getTime() + duration * 86400000);
-                    break;
-                case 'SS': // Start-to-Start
-                    newStart = new Date(predStart.getTime() + lag);
-                    newEnd = new Date(newStart.getTime() + duration * 86400000);
-                    break;
-                case 'FF': // Finish-to-Finish
-                    newEnd = new Date(predEnd.getTime() + lag);
-                    newStart = new Date(newEnd.getTime() - duration * 86400000);
-                    break;
-                case 'SF': // Start-to-Finish
-                    newEnd = new Date(predStart.getTime() + lag);
-                    newStart = new Date(newEnd.getTime() - duration * 86400000);
-                    break;
-                default:
-                    continue;
-            }
+                const predEnd = new Date(current.endDate);
+                const predStart = new Date(current.startDate);
+                const lag = (dep.lag || 0) * 86400000;
+                const duration = successor.duration || 1;
 
-            // Only shift forward, never backward (preserve manual early starts)
-            if (newStart > new Date(successor.startDate)) {
-                await prisma.scheduleTask.update({
-                    where: { id: successor.id },
-                    data: {
-                        startDate: newStart,
-                        endDate: newEnd,
-                        duration: Math.max(1, Math.ceil((newEnd - newStart) / 86400000)),
-                    },
-                });
-                cascadedIds.push(successor.id);
-                updatedIds.add(successor.id);
-                queue.push(successor.id); // Continue cascade
+                let newStart, newEnd;
+                switch (dep.type) {
+                    case 'FS': newStart = new Date(predEnd.getTime() + lag); newEnd = new Date(newStart.getTime() + duration * 86400000); break;
+                    case 'SS': newStart = new Date(predStart.getTime() + lag); newEnd = new Date(newStart.getTime() + duration * 86400000); break;
+                    case 'FF': newEnd = new Date(predEnd.getTime() + lag); newStart = new Date(newEnd.getTime() - duration * 86400000); break;
+                    case 'SF': newEnd = new Date(predStart.getTime() + lag); newStart = new Date(newEnd.getTime() - duration * 86400000); break;
+                    default: continue;
+                }
+
+                // Only shift forward
+                if (newStart > new Date(successor.startDate)) {
+                    const newDuration = Math.max(1, Math.ceil((newEnd - newStart) / 86400000));
+                    pendingUpdates.set(dep.taskId, { ...successor, startDate: newStart, endDate: newEnd, duration: newDuration });
+                    updatedIds.add(dep.taskId);
+                    queue.push(dep.taskId);
+                }
             }
         }
+
+        // Single $transaction for all cascade updates
+        if (pendingUpdates.size > 0) {
+            await prisma.$transaction(
+                [...pendingUpdates.entries()].map(([id, u]) =>
+                    prisma.scheduleTask.update({ where: { id }, data: { startDate: u.startDate, endDate: u.endDate, duration: u.duration } })
+                )
+            );
+        }
+
+        await recalcProjectProgress(projectId);
     }
 
-    if (results.length > 0) {
-        await recalcProjectProgress(results[0].projectId);
-    }
-
-    return NextResponse.json({ updated: results, cascaded: cascadedIds });
+    return NextResponse.json({ updated: results, cascaded: [...updatedIds].filter(id => !results.find(r => r.id === id)) });
 });
 
 async function recalcProjectProgress(projectId) {

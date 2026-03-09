@@ -27,7 +27,7 @@ export const GET = withAuth(async (request) => {
 
     // All summary queries in parallel
     const [receivables, payables, income, expense, expApproved, expPaid, expPending] = await Promise.all([
-        prisma.contractPayment.aggregate({ _sum: { amount: true, paidAmount: true } }),
+        prisma.contractPayment.aggregate({ where: { contract: { deletedAt: null } }, _sum: { amount: true, paidAmount: true } }),
         prisma.contractorPayment.aggregate({ _sum: { contractAmount: true, paidAmount: true } }),
         prisma.transaction.aggregate({ where: { type: 'Thu' }, _sum: { amount: true } }),
         prisma.transaction.aggregate({ where: { type: 'Chi' }, _sum: { amount: true } }),

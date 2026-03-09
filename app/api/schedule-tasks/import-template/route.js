@@ -34,6 +34,7 @@ export const POST = withAuth(async (request) => {
 
     const baseDate = new Date(startDate);
     const items = template.items;
+    if (!items.length) return NextResponse.json({ error: 'Template này không có hạng mục nào để import.' }, { status: 422 });
 
     // Map: templateItemId → created ScheduleTask id
     const idMap = new Map();
