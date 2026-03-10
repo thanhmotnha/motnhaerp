@@ -612,6 +612,7 @@ export default function ProjectDetailPage() {
     const [cpForm, setCpForm] = useState({ contractorId: '', contractAmount: '', paidAmount: '0', description: '', dueDate: '', status: 'Chưa TT' });
     const [contractorList, setContractorList] = useState([]);
     const [editCp, setEditCp] = useState(null); // { id, paidAmount, status }
+    const [budgetGroupType, setBudgetGroupType] = useState('materials');
     const [selectedPOPlans, setSelectedPOPlans] = useState([]);
     const [ntModal, setNtModal] = useState(null); // cp object being viewed for nghiem thu
     const [ntForm, setNtForm] = useState({ description: '', unit: 'm²', quantity: '', unitPrice: '', notes: '' });
@@ -1361,25 +1362,33 @@ ${po.notes ? `<div class="notes-box"><strong>Ghi chú:</strong> ${po.notes}</div
 
                     <div style={{ display: 'flex', justifyContent: 'flex-end', padding: '0 0 16px', gap: 8, flexWrap: 'wrap' }}>
                         {p.quotations?.length > 0 && <button className="btn btn-ghost btn-sm" onClick={importMPFromQuotation}>📋 Tạo từ Báo giá</button>}
-                        <button className="btn btn-primary btn-sm" onClick={async () => {
-                            if (mpProducts.length === 0) {
-                                const res = await fetch('/api/products?limit=5000');
-                                const json = await res.json();
-                                setMpProducts(json.data || json || []);
-                            }
-                            setModal('budget_quick');
-                        }}>+ Lập dự toán</button>
                     </div>
 
                     {/* Table: Dự toán vật tư */}
                     <div className="card" style={{ marginBottom: 24 }}>
                         <div className="card-header">
                             <span className="card-title">🧱 Dự toán Vật tư / Máy / Khác</span>
-                            {p.materialPlans.filter(m => m.costType !== 'Thầu phụ' && (m.status === 'Chưa đặt' || m.status === 'Đặt một phần')).length > 0 && (
-                                <button className="btn btn-primary btn-sm" onClick={openPOModal}>
-                                    🛒 Tạo PO ({selectedPOPlans.length > 0 ? `${selectedPOPlans.length} vật tư đã chọn` : `${p.materialPlans.filter(m => m.costType !== 'Thầu phụ' && (m.status === 'Chưa đặt' || m.status === 'Đặt một phần')).length} vật tư`})
-                                </button>
-                            )}
+                            <div style={{ display: 'flex', gap: 8 }}>
+                                <button className="btn btn-secondary btn-sm" onClick={async () => {
+                                    if (mpProducts.length === 0) {
+                                        const res = await fetch('/api/products?limit=5000');
+                                        const json = await res.json();
+                                        setMpProducts(json.data || json || []);
+                                    }
+                                    if (contractorList.length === 0) {
+                                        const res = await fetch('/api/contractors?limit=1000');
+                                        const json = await res.json();
+                                        setContractorList(json.data || []);
+                                    }
+                                    setBudgetGroupType('materials');
+                                    setModal('budget_quick');
+                                }}>+ Dự toán vật tư</button>
+                                {p.materialPlans.filter(m => m.costType !== 'Thầu phụ' && (m.status === 'Chưa đặt' || m.status === 'Đặt một phần')).length > 0 && (
+                                    <button className="btn btn-primary btn-sm" onClick={openPOModal}>
+                                        🛒 Tạo PO ({selectedPOPlans.length > 0 ? `${selectedPOPlans.length} vật tư đã chọn` : `${p.materialPlans.filter(m => m.costType !== 'Thầu phụ' && (m.status === 'Chưa đặt' || m.status === 'Đặt một phần')).length} vật tư`})
+                                    </button>
+                                )}
+                            </div>
                         </div>
                         <div className="table-container"><table className="data-table">
                             <thead><tr>
@@ -1426,6 +1435,20 @@ ${po.notes ? `<div class="notes-box"><strong>Ghi chú:</strong> ${po.notes}</div
                     <div className="card">
                         <div className="card-header">
                             <span className="card-title">👷 Dự toán Thầu phụ</span>
+                            <button className="btn btn-secondary btn-sm" onClick={async () => {
+                                if (mpProducts.length === 0) {
+                                    const res = await fetch('/api/products?limit=5000');
+                                    const json = await res.json();
+                                    setMpProducts(json.data || json || []);
+                                }
+                                if (contractorList.length === 0) {
+                                    const res = await fetch('/api/contractors?limit=1000');
+                                    const json = await res.json();
+                                    setContractorList(json.data || []);
+                                }
+                                setBudgetGroupType('subcontractors');
+                                setModal('budget_quick');
+                            }}>+ Dự toán thầu phụ</button>
                         </div>
                         <div className="table-container"><table className="data-table">
                             <thead><tr><th>Mã</th><th>Hạng mục</th><th>SL cần</th><th>Đã đặt</th><th>Đã nhận</th><th>Còn thiếu</th><th>Đơn giá</th><th>TT</th><th></th></tr></thead>
@@ -2059,6 +2082,7 @@ ${po.notes ? `<div class="notes-box"><strong>Ghi chú:</strong> ${po.notes}</div
                     projectId={id}
                     products={mpProducts}
                     contractors={contractorList}
+                    defaultMode={budgetGroupType}
                     onClose={() => setModal(null)}
                     onDone={() => { setModal(null); fetchData(); }}
                 />
