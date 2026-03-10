@@ -610,6 +610,7 @@ export default function ProjectDetailPage() {
     const [expenseForm, setExpenseForm] = useState({ description: '', category: 'Vận chuyển', amount: '', submittedBy: '' });
     const [logForm, setLogForm] = useState({ type: 'Điện thoại', content: '', createdBy: '' });
     const [cpForm, setCpForm] = useState({ contractorId: '', contractAmount: '', paidAmount: '0', description: '', dueDate: '', status: 'Chưa TT' });
+    const [contractorList, setContractorList] = useState([]);
     const [editCp, setEditCp] = useState(null); // { id, paidAmount, status }
     const [selectedPOPlans, setSelectedPOPlans] = useState([]);
     const [ntModal, setNtModal] = useState(null); // cp object being viewed for nghiem thu
