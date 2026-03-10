@@ -5,6 +5,23 @@ import { apiFetch } from '@/lib/fetchClient';
 
 const fmt = (n) => new Intl.NumberFormat('vi-VN').format(Math.round(n));
 
+// Normalize Vietnamese text for fuzzy matching
+const norm = (s) => (s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/đ/g, 'd').replace(/Đ/g, 'd').trim();
+
+// Smart product matching: exact name > exact code > normalized includes > code includes
+function findProduct(products, searchName) {
+    if (!searchName) return null;
+    const s = searchName.trim();
+    const sLow = s.toLowerCase();
+    const sNorm = norm(s);
+    return products.find(p => p.name.toLowerCase() === sLow)                          // exact name
+        || products.find(p => p.code?.toLowerCase() === sLow)                          // exact code
+        || products.find(p => norm(p.name) === sNorm)                                  // normalized exact
+        || products.find(p => norm(p.name).includes(sNorm) || sNorm.includes(norm(p.name)))  // partial
+        || products.find(p => norm(p.code || '').includes(sNorm))                      // code partial
+        || null;
+}
+
 const SUPPLIER_TAGS = ['', 'Công ty cấp', 'Thầu phụ cấp'];
 const GROUP2_PRESETS = ['Phòng khách', 'Phòng ngủ 01', 'Phòng ngủ 02', 'Phòng bếp', 'Phòng tắm', 'Ban công', 'Tủ bếp', 'Tủ áo', 'Cầu thang', 'Sân vườn'];
 
@@ -93,10 +110,7 @@ export default function BudgetQuickAdd({ projectId, products, onDone, onClose })
 
             if (!name || qty <= 0) continue;
 
-            const match = products.find(p =>
-                p.name.toLowerCase() === name.toLowerCase() ||
-                p.code.toLowerCase() === name.toLowerCase()
-            );
+            const match = findProduct(products, name);
 
             imported.push({
                 productId: match?.id || '',
@@ -128,9 +142,7 @@ export default function BudgetQuickAdd({ projectId, products, onDone, onClose })
         if (!template) return;
 
         const newRows = template.map(t => {
-            const match = products.find(p =>
-                p.name.toLowerCase().includes(t.name.toLowerCase())
-            );
+            const match = findProduct(products, t.name);
             return {
                 productId: match?.id || '',
                 productName: match?.name || t.name,
