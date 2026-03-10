@@ -72,17 +72,18 @@ export default function BudgetQuickAdd({ projectId, products, contractors = [], 
 
     const filteredProducts = productSearch.length >= 1
         ? products.filter(p =>
-            p.name.toLowerCase().includes(productSearch.toLowerCase()) ||
-            p.code.toLowerCase().includes(productSearch.toLowerCase())
+            norm(p.name).includes(norm(productSearch)) ||
+            norm(p.code).includes(norm(productSearch))
         ).slice(0, 10)
-        : [];
+        : products.slice(0, 10);
 
     const filteredContractors = contractorSearch.length >= 1
         ? contractors.filter(c =>
-            c.name.toLowerCase().includes(contractorSearch.toLowerCase()) ||
-            (c.code && c.code.toLowerCase().includes(contractorSearch.toLowerCase()))
+            norm(c.name).includes(norm(contractorSearch)) ||
+            (c.code && norm(c.code).includes(norm(contractorSearch))) ||
+            (c.phone && c.phone.includes(contractorSearch))
         ).slice(0, 10)
-        : [];
+        : contractors.slice(0, 10);
 
     const updateRow = (idx, field, value) => {
         setRows(prev => {
@@ -267,8 +268,8 @@ export default function BudgetQuickAdd({ projectId, products, contractors = [], 
     const batchSetGroup1 = (val) => setRows(prev => prev.map(r => ({ ...r, group1: val })));
 
     const totalAmount = rows.reduce((s, r) => s + (Number(r.quantity) || 0) * (Number(r.unitPrice) || 0), 0);
-    const validCount = rows.filter(r => r.productId && r.quantity > 0).length;
-    const unmatchedCount = rows.filter(r => !r.productId && r.productName).length;
+    const validCount = rows.filter(r => (r.productId || r.productName) && Number(r.quantity) > 0).length;
+    const unmatchedCount = rows.filter(r => !r.productId && r.productName && r.costType !== 'Thầu phụ').length;
 
     return (
         <div className="modal-overlay" onClick={onClose}>
