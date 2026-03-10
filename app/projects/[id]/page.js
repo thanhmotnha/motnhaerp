@@ -816,7 +816,7 @@ ${po.notes ? `<div class="notes-box"><strong>Ghi chú:</strong> ${po.notes}</div
     const [mpSearch, setMpSearch] = useState('');
     const openMPModal = async () => {
         if (mpProducts.length === 0) {
-            const res = await fetch('/api/products?limit=500');
+            const res = await fetch('/api/products?limit=5000');
             const json = await res.json();
             setMpProducts(json.data || json || []);
         }
@@ -1069,7 +1069,7 @@ ${po.notes ? `<div class="notes-box"><strong>Ghi chú:</strong> ${po.notes}</div
                         <div style={{ display: 'flex', gap: 8, marginTop: 12, flexWrap: 'wrap' }}>
                             <button className="btn btn-primary btn-sm" onClick={async () => {
                                 if (mpProducts.length === 0) {
-                                    const res = await fetch('/api/products?limit=500');
+                                    const res = await fetch('/api/products?limit=5000');
                                     const json = await res.json();
                                     setMpProducts(json.data || json || []);
                                 }

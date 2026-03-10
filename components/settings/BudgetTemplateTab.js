@@ -3,6 +3,37 @@ import { useState, useRef, useEffect } from 'react';
 import { BUDGET_TEMPLATES_DEFAULT, COST_TYPES, GROUP1_PRESETS } from '@/lib/budgetTemplates';
 import { apiFetch } from '@/lib/fetchClient';
 
+// Normalize Vietnamese text for fuzzy matching
+const norm = (s) => (s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/đ/g, 'd').replace(/Đ/g, 'd').trim();
+
+// Smart product matching: exact name > exact code > normalized includes > word intersection
+function findProduct(products, searchName) {
+    if (!searchName || !products) return null;
+    const s = searchName.trim();
+    const sLow = s.toLowerCase();
+    const sNorm = norm(s);
+
+    let match = products.find(p => p.name?.toLowerCase() === sLow || p.code?.toLowerCase() === sLow);
+    if (match) return match;
+
+    match = products.find(p => norm(p.name) === sNorm);
+    if (match) return match;
+
+    match = products.find(p => norm(p.name).includes(sNorm) || sNorm.includes(norm(p.name)) || norm(p.code || '').includes(sNorm));
+    if (match) return match;
+
+    const searchWords = sNorm.split(' ').filter(Boolean);
+    if (searchWords.length > 1) {
+        match = products.find(p => {
+            const pNorm = norm(p.name);
+            return searchWords.every(w => pNorm.includes(w));
+        });
+        if (match) return match;
+    }
+
+    return null;
+}
+
 /**
  * Budget Template Tab for Settings page
  * Supports: manual edit, Excel import with product matching, template CRUD
@@ -19,7 +50,7 @@ export default function BudgetTemplateTab({ budgetTemplates, setBudgetTemplates,
     const ensureProducts = async () => {
         if (productsLoaded) return products;
         try {
-            const data = await apiFetch('/api/products?limit=2000');
+            const data = await apiFetch('/api/products?limit=5000');
             const list = data.data || data || [];
             setProducts(list);
             setProductsLoaded(true);
@@ -131,13 +162,7 @@ export default function BudgetTemplateTab({ budgetTemplates, setBudgetTemplates,
                 else if (groupLower.includes('máy') || groupLower.includes('thiết bị')) costType = 'Khác';
                 else if (groupLower.includes('thầu phụ')) costType = 'Thầu phụ';
 
-                const nameLower = name.toLowerCase();
-                const match = prods.find(p =>
-                    p.name.toLowerCase() === nameLower ||
-                    p.code?.toLowerCase() === nameLower ||
-                    p.name.toLowerCase().includes(nameLower) ||
-                    nameLower.includes(p.name.toLowerCase())
-                );
+                const match = findProduct(prods, name);
 
                 imported.push({
                     name: match?.name || name,
@@ -197,12 +222,7 @@ export default function BudgetTemplateTab({ budgetTemplates, setBudgetTemplates,
 
             // Match products
             const imported = items.map((item, i) => {
-                const nameLower = (item.name || '').toLowerCase();
-                const match = prods.find(p =>
-                    p.name.toLowerCase() === nameLower ||
-                    p.name.toLowerCase().includes(nameLower) ||
-                    nameLower.includes(p.name.toLowerCase())
-                );
+                const match = findProduct(prods, item.name);
                 return {
                     name: match?.name || item.name,
                     unit: match?.unit || item.unit || '',

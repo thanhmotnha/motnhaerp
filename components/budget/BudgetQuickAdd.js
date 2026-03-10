@@ -8,18 +8,36 @@ const fmt = (n) => new Intl.NumberFormat('vi-VN').format(Math.round(n));
 // Normalize Vietnamese text for fuzzy matching
 const norm = (s) => (s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/đ/g, 'd').replace(/Đ/g, 'd').trim();
 
-// Smart product matching: exact name > exact code > normalized includes > code includes
+// Smart product matching: exact name > exact code > normalized includes > word intersection
 function findProduct(products, searchName) {
     if (!searchName) return null;
     const s = searchName.trim();
     const sLow = s.toLowerCase();
     const sNorm = norm(s);
-    return products.find(p => p.name.toLowerCase() === sLow)                          // exact name
-        || products.find(p => p.code?.toLowerCase() === sLow)                          // exact code
-        || products.find(p => norm(p.name) === sNorm)                                  // normalized exact
-        || products.find(p => norm(p.name).includes(sNorm) || sNorm.includes(norm(p.name)))  // partial
-        || products.find(p => norm(p.code || '').includes(sNorm))                      // code partial
-        || null;
+
+    // 1. Exact match (name or code)
+    let match = products.find(p => p.name?.toLowerCase() === sLow || p.code?.toLowerCase() === sLow);
+    if (match) return match;
+
+    // 2. Normalized exact match
+    match = products.find(p => norm(p.name) === sNorm);
+    if (match) return match;
+
+    // 3. Substring match (either A includes B or B includes A)
+    match = products.find(p => norm(p.name).includes(sNorm) || sNorm.includes(norm(p.name)) || norm(p.code || '').includes(sNorm));
+    if (match) return match;
+
+    // 4. Word intersection match (all words in search term exist in product name)
+    const searchWords = sNorm.split(' ').filter(Boolean);
+    if (searchWords.length > 1) {
+        match = products.find(p => {
+            const pNorm = norm(p.name);
+            return searchWords.every(w => pNorm.includes(w));
+        });
+        if (match) return match;
+    }
+
+    return null;
 }
 
 const SUPPLIER_TAGS = ['', 'Công ty cấp', 'Thầu phụ cấp'];
@@ -164,14 +182,39 @@ export default function BudgetQuickAdd({ projectId, products, onDone, onClose })
 
     // Save all
     const handleSaveAll = async () => {
-        const validRows = rows.filter(r => r.productId && r.quantity > 0);
-        if (validRows.length === 0) return alert('Không có dòng hợp lệ (cần chọn sản phẩm + SL > 0)');
+        // Rows with name + quantity (even without productId)
+        const saveable = rows.filter(r => r.productName && r.productName !== 'Vật tư mới' && Number(r.quantity) > 0);
+        if (saveable.length === 0) return alert('Không có dòng hợp lệ (cần có tên SP + SL > 0)');
 
         setSaving(true);
         try {
-            const res = await fetch('/api/material-plans', {
+            // Auto-create products for unmatched rows
+            const needCreate = saveable.filter(r => !r.productId);
+            if (needCreate.length > 0) {
+                const createRes = await apiFetch('/api/products/batch-create', {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        products: needCreate.map(r => ({
+                            name: r.productName,
+                            unit: r.unit || 'cái',
+                            category: 'Vật liệu',
+                            importPrice: Number(r.unitPrice) || 0,
+                        })),
+                    }),
+                });
+                if (createRes?.created) {
+                    for (const cp of createRes.created) {
+                        const matchRow = saveable.find(r => !r.productId && r.productName === cp.name);
+                        if (matchRow) matchRow.productId = cp.id;
+                    }
+                }
+            }
+
+            const validRows = saveable.filter(r => r.productId);
+            if (validRows.length === 0) { setSaving(false); return alert('Không tạo được sản phẩm mới. Vui lòng thử lại.'); }
+
+            const res = await apiFetch('/api/material-plans', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     projectId,
                     source: 'Dự toán nhanh',
@@ -187,12 +230,11 @@ export default function BudgetQuickAdd({ projectId, products, onDone, onClose })
                     })),
                 }),
             });
-            const result = await res.json();
-            if (!res.ok) return alert(result.error || 'Lỗi tạo');
-            alert(`Tạo ${result.created} kế hoạch vật tư${result.skipped > 0 ? ` (${result.skipped} đã tồn tại)` : ''}`);
+            if (res?.error) return alert(res.error);
+            alert(`Tạo ${res.created} kế hoạch vật tư${needCreate.length > 0 ? ` (đã tạo ${needCreate.length} SP mới)` : ''}${res.skipped > 0 ? ` · ${res.skipped} đã tồn tại` : ''}`);
             onDone?.();
         } catch (e) {
-            alert('Lỗi kết nối');
+            alert('Lỗi kết nối: ' + e.message);
         }
         setSaving(false);
     };
