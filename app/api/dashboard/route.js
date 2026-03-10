@@ -75,17 +75,6 @@ export const GET = withAuth(async (request) => {
         }).catch(() => ({ _sum: { amount: 0 } })),
     ]);
 
-    // Furniture stats (separate, non-blocking)
-    const [furnitureStats, furnitureInProduction] = await Promise.all([
-        prisma.furnitureOrder.groupBy({ by: ['status'], _count: true }).catch(() => []),
-        prisma.furnitureOrder.findMany({
-            where: { status: { in: ['in_production', 'design_review', 'installing'] } },
-            select: { id: true, code: true, name: true, status: true, expectedDelivery: true, customer: { select: { name: true } } },
-            orderBy: { expectedDelivery: 'asc' },
-            take: 5,
-        }).catch(() => []),
-    ]);
-
     const thisMonthRev = thisMonthIncome._sum.amount || 0;
     const lastMonthRev = lastMonthIncome._sum.amount || 0;
     const revenueGrowth = lastMonthRev > 0 ? Math.round((thisMonthRev - lastMonthRev) / lastMonthRev * 100) : null;
@@ -118,10 +107,6 @@ export const GET = withAuth(async (request) => {
             pendingPOs,
             urgentCommitments,
             overdueContractPayments,
-        },
-        furniture: {
-            byStatus: furnitureStats.reduce((acc, g) => { acc[g.status] = g._count; return acc; }, {}),
-            inProduction: furnitureInProduction,
         },
     });
 });

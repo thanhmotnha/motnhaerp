@@ -267,12 +267,19 @@ export default function BudgetTemplateTab({ budgetTemplates, setBudgetTemplates,
         setImportState(null);
     };
 
-    // ===== Product search for import review =====
+    // ===== Product search for import review + template editing =====
     const [searchQ, setSearchQ] = useState('');
     const [activeIdx, setActiveIdx] = useState(null);
+    // Template row product search: key = "tpl:templateName:rowIdx"
+    const [tplSearchQ, setTplSearchQ] = useState('');
+    const [tplActiveKey, setTplActiveKey] = useState(null);
 
     const filteredProds = searchQ.length >= 1
         ? products.filter(p => p.name.toLowerCase().includes(searchQ.toLowerCase()) || p.code?.toLowerCase().includes(searchQ.toLowerCase())).slice(0, 10)
+        : [];
+
+    const tplFilteredProds = tplSearchQ.length >= 1
+        ? products.filter(p => p.name.toLowerCase().includes(tplSearchQ.toLowerCase()) || p.code?.toLowerCase().includes(tplSearchQ.toLowerCase())).slice(0, 10)
         : [];
 
     const selectProductForRow = (idx, product) => {
@@ -478,14 +485,50 @@ export default function BudgetTemplateTab({ budgetTemplates, setBudgetTemplates,
                                 🗑️
                             </button>
                         </div>
-                        <div style={{ overflowX: 'auto' }}>
+                        <div style={{ overflowX: 'visible' }}>
                             <table className="data-table" style={{ margin: 0, fontSize: 12 }}>
                                 <thead><tr><th style={{ width: 30 }}>#</th><th>Tên vật tư</th><th style={{ width: 60 }}>ĐVT</th><th style={{ width: 70 }}>SL</th><th style={{ width: 90 }}>Loại CP</th><th style={{ width: 130 }}>Giai đoạn</th><th style={{ width: 35 }}></th></tr></thead>
                                 <tbody>
                                     {items.map((item, i) => (
                                         <tr key={i}>
                                             <td style={{ color: 'var(--text-muted)', fontSize: 11 }}>{i + 1}</td>
-                                            <td><input className="form-input" value={item.name} onChange={e => setBudgetTemplates(prev => ({ ...prev, [tplName]: prev[tplName].map((it, j) => j === i ? { ...it, name: e.target.value } : it) }))} style={{ fontSize: 12 }} /></td>
+                                            <td style={{ position: 'relative' }}>
+                                                <input className="form-input"
+                                                    value={item.name}
+                                                    onChange={e => {
+                                                        const val = e.target.value;
+                                                        setTplSearchQ(val);
+                                                        setTplActiveKey(`${tplName}:${i}`);
+                                                        setBudgetTemplates(prev => ({ ...prev, [tplName]: prev[tplName].map((it, j) => j === i ? { ...it, name: val } : it) }));
+                                                    }}
+                                                    onFocus={() => { setTplActiveKey(`${tplName}:${i}`); setTplSearchQ(item.name || ''); ensureProducts(); }}
+                                                    onBlur={() => setTimeout(() => { setTplActiveKey(null); setTplSearchQ(''); }, 200)}
+                                                    placeholder="Tìm sản phẩm..."
+                                                    style={{ fontSize: 12 }} />
+                                                {tplActiveKey === `${tplName}:${i}` && tplFilteredProds.length > 0 && (
+                                                    <div style={{
+                                                        position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 100,
+                                                        background: 'var(--bg-card)', border: '1px solid var(--border-light)',
+                                                        borderRadius: 8, maxHeight: 200, overflow: 'auto', boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+                                                    }}>
+                                                        {tplFilteredProds.map(p => (
+                                                            <div key={p.id}
+                                                                onMouseDown={(e) => {
+                                                                    e.preventDefault();
+                                                                    setBudgetTemplates(prev => ({ ...prev, [tplName]: prev[tplName].map((it, j) => j === i ? { ...it, name: p.name, unit: p.unit || it.unit } : it) }));
+                                                                    setTplActiveKey(null);
+                                                                    setTplSearchQ('');
+                                                                }}
+                                                                style={{ padding: '6px 10px', cursor: 'pointer', fontSize: 11, borderBottom: '1px solid var(--border-light)' }}
+                                                                onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-hover)'}
+                                                                onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
+                                                                <span style={{ fontWeight: 600 }}>{p.name}</span>
+                                                                <span style={{ color: 'var(--text-muted)', marginLeft: 6, fontSize: 10 }}>{p.code} · {p.unit}</span>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                )}
+                                            </td>
                                             <td><input className="form-input" value={item.unit} onChange={e => setBudgetTemplates(prev => ({ ...prev, [tplName]: prev[tplName].map((it, j) => j === i ? { ...it, unit: e.target.value } : it) }))} style={{ fontSize: 11, textAlign: 'center' }} /></td>
                                             <td><input className="form-input" type="number" value={item.qty} onChange={e => setBudgetTemplates(prev => ({ ...prev, [tplName]: prev[tplName].map((it, j) => j === i ? { ...it, qty: Number(e.target.value) } : it) }))} style={{ fontSize: 11, textAlign: 'right' }} /></td>
                                             <td>

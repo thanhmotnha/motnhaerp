@@ -320,50 +320,6 @@ export default function Dashboard() {
                 </div>
             </div>
 
-            {/* Furniture block */}
-            {data.furniture && (data.furniture.byStatus.in_production > 0 || data.furniture.byStatus.design_review > 0 || data.furniture.inProduction?.length > 0) && (
-                <div className="card" style={{ marginBottom: 16 }}>
-                    <div className="card-header" style={{ borderLeft: '4px solid #DBB35E', paddingLeft: 12, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <h3>Nội Thất May Đo</h3>
-                        <a href="/furniture" style={{ fontSize: 12, color: '#234093', textDecoration: 'none', fontWeight: 600 }}>Xem tất cả →</a>
-                    </div>
-                    <div style={{ padding: '10px 16px' }}>
-                        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 12 }}>
-                            {[
-                                { label: 'Đang SX', val: data.furniture.byStatus.in_production || 0, color: '#D97706', bg: 'rgba(217,119,6,0.08)' },
-                                { label: 'Chờ duyệt TK', val: data.furniture.byStatus.design_review || 0, color: '#2D5CA3', bg: 'rgba(45,92,163,0.08)' },
-                                { label: 'Đang lắp', val: data.furniture.byStatus.installing || 0, color: '#234093', bg: 'rgba(35,64,147,0.08)' },
-                                { label: 'Hoàn thành', val: data.furniture.byStatus.completed || 0, color: '#16A34A', bg: 'rgba(22,163,74,0.08)' },
-                            ].map(({ label, val, color, bg }) => (
-                                <div key={label} style={{ padding: '8px 16px', background: bg, borderRadius: 8, textAlign: 'center', minWidth: 80 }}>
-                                    <div style={{ fontSize: 20, fontWeight: 800, color }}>{val}</div>
-                                    <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{label}</div>
-                                </div>
-                            ))}
-                        </div>
-                        {(data.furniture.inProduction || []).length > 0 && (
-                            <table className="data-table" style={{ fontSize: 12 }}>
-                                <thead><tr><th>Mã đơn</th><th>Tên đơn hàng</th><th>Khách hàng</th><th>Trạng thái</th><th>Ngày giao</th></tr></thead>
-                                <tbody>
-                                    {data.furniture.inProduction.map(o => {
-                                        const statusMap = { in_production: ['Đang SX', '#D97706'], design_review: ['Chờ duyệt TK', '#2D5CA3'], installing: ['Đang lắp', '#234093'] };
-                                        const [label, color] = statusMap[o.status] || [o.status, '#234093'];
-                                        return (
-                                            <tr key={o.id} onClick={() => window.location.href = `/furniture/${o.id}`} style={{ cursor: 'pointer' }}>
-                                                <td style={{ fontWeight: 600, color: '#234093' }}>{o.code}</td>
-                                                <td>{o.name}</td>
-                                                <td>{o.customer?.name}</td>
-                                                <td><span style={{ fontSize: 11, fontWeight: 600, color, background: `${color}15`, padding: '2px 8px', borderRadius: 4 }}>{label}</span></td>
-                                                <td style={{ color: 'var(--text-muted)' }}>{o.expectedDelivery ? new Date(o.expectedDelivery).toLocaleDateString('vi-VN') : '—'}</td>
-                                            </tr>
-                                        );
-                                    })}
-                                </tbody>
-                            </table>
-                        )}
-                    </div>
-                </div>
-            )}
 
             {/* Low stock */}
             {data.lowStockProducts?.length > 0 && (

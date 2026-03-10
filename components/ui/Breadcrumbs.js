@@ -23,7 +23,7 @@ const routeLabels = {
     'partners': 'Đối tác',
     'suppliers': 'NCC',
     'contractors': 'Thầu phụ',
-    'furniture': 'Nội thất',
+
     'workshops': 'Xưởng SX',
     'schedule-templates': 'Mẫu tiến độ',
     'acceptance': 'Nghiệm thu',

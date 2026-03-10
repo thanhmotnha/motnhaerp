@@ -10,7 +10,7 @@ export const GET = withAuth(async () => {
             _count: { select: { batches: true } },
             batches: {
                 where: { status: 'in_progress' },
-                select: { id: true, code: true, status: true, furnitureOrderId: true },
+                select: { id: true, code: true, status: true },
             },
         },
         orderBy: { code: 'asc' },
