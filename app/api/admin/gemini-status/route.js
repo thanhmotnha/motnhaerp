@@ -22,7 +22,7 @@ export const GET = withAuth(async () => {
     // Test API with a simple request
     try {
         const res = await fetch(
-            `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.0-flash:generateContent?key=${apiKey}`,
+            `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
             {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -38,7 +38,7 @@ export const GET = withAuth(async () => {
                 configured: true,
                 status: 'active',
                 message: 'Gemini API hoạt động bình thường',
-                model: 'gemini-3.0-flash',
+                model: 'gemini-2.5-flash',
                 keyPreview: apiKey.slice(0, 8) + '...' + apiKey.slice(-4),
             });
         }
