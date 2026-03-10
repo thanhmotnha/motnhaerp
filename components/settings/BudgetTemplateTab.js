@@ -2,37 +2,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { BUDGET_TEMPLATES_DEFAULT, COST_TYPES, GROUP1_PRESETS } from '@/lib/budgetTemplates';
 import { apiFetch } from '@/lib/fetchClient';
-
-// Normalize Vietnamese text for fuzzy matching
-const norm = (s) => (s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/đ/g, 'd').replace(/Đ/g, 'd').trim();
-
-// Smart product matching: exact name > exact code > normalized includes > word intersection
-function findProduct(products, searchName) {
-    if (!searchName || !products) return null;
-    const s = searchName.trim();
-    const sLow = s.toLowerCase();
-    const sNorm = norm(s);
-
-    let match = products.find(p => p.name?.toLowerCase() === sLow || p.code?.toLowerCase() === sLow);
-    if (match) return match;
-
-    match = products.find(p => norm(p.name) === sNorm);
-    if (match) return match;
-
-    match = products.find(p => norm(p.name).includes(sNorm) || sNorm.includes(norm(p.name)) || norm(p.code || '').includes(sNorm));
-    if (match) return match;
-
-    const searchWords = sNorm.split(' ').filter(Boolean);
-    if (searchWords.length > 1) {
-        match = products.find(p => {
-            const pNorm = norm(p.name);
-            return searchWords.every(w => pNorm.includes(w));
-        });
-        if (match) return match;
-    }
-
-    return null;
-}
+import { norm, findProduct } from '@/lib/productMatch';
 
 /**
  * Budget Template Tab for Settings page

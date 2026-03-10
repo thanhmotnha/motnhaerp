@@ -11,6 +11,10 @@ export const POST = withAuth(async (request) => {
         return NextResponse.json({ error: 'No products provided' }, { status: 400 });
     }
 
+    if (products.length > 100) {
+        return NextResponse.json({ error: 'Tối đa 100 sản phẩm mỗi lần' }, { status: 400 });
+    }
+
     const created = [];
 
     // Sequential to guarantee unique codes
@@ -32,7 +36,7 @@ export const POST = withAuth(async (request) => {
                     category: p.category || 'Khác',
                     categoryId,
                     importPrice: p.importPrice || 0,
-                    salePrice: p.importPrice || 0,
+                    salePrice: p.salePrice || p.importPrice || 0,
                     stock: 0,
                     minStock: 0,
                     status: 'Đang kinh doanh',

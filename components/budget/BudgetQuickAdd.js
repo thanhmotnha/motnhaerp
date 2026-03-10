@@ -2,43 +2,9 @@
 import { useState, useRef, useEffect } from 'react';
 import { BUDGET_TEMPLATES_DEFAULT, COST_TYPES, GROUP1_PRESETS } from '@/lib/budgetTemplates';
 import { apiFetch } from '@/lib/fetchClient';
+import { norm, findProduct } from '@/lib/productMatch';
 
 const fmt = (n) => new Intl.NumberFormat('vi-VN').format(Math.round(n));
-
-// Normalize Vietnamese text for fuzzy matching
-const norm = (s) => (s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/đ/g, 'd').replace(/Đ/g, 'd').trim();
-
-// Smart product matching: exact name > exact code > normalized includes > word intersection
-function findProduct(products, searchName) {
-    if (!searchName) return null;
-    const s = searchName.trim();
-    const sLow = s.toLowerCase();
-    const sNorm = norm(s);
-
-    // 1. Exact match (name or code)
-    let match = products.find(p => p.name?.toLowerCase() === sLow || p.code?.toLowerCase() === sLow);
-    if (match) return match;
-
-    // 2. Normalized exact match
-    match = products.find(p => norm(p.name) === sNorm);
-    if (match) return match;
-
-    // 3. Substring match (either A includes B or B includes A)
-    match = products.find(p => norm(p.name).includes(sNorm) || sNorm.includes(norm(p.name)) || norm(p.code || '').includes(sNorm));
-    if (match) return match;
-
-    // 4. Word intersection match (all words in search term exist in product name)
-    const searchWords = sNorm.split(' ').filter(Boolean);
-    if (searchWords.length > 1) {
-        match = products.find(p => {
-            const pNorm = norm(p.name);
-            return searchWords.every(w => pNorm.includes(w));
-        });
-        if (match) return match;
-    }
-
-    return null;
-}
 
 const SUPPLIER_TAGS = ['', 'Công ty cấp', 'Thầu phụ cấp'];
 const GROUP2_PRESETS = ['Phòng khách', 'Phòng ngủ 01', 'Phòng ngủ 02', 'Phòng bếp', 'Phòng tắm', 'Ban công', 'Tủ bếp', 'Tủ áo', 'Cầu thang', 'Sân vườn'];
@@ -214,6 +180,7 @@ export default function BudgetQuickAdd({ projectId, products, contractors = [], 
         try {
             // Auto-create products for unmatched rows
             const needCreate = saveable.filter(r => !r.productId);
+            const createdMap = new Map(); // productName → productId
             if (needCreate.length > 0) {
                 const createRes = await apiFetch('/api/products/batch-create', {
                     method: 'POST',
@@ -228,14 +195,15 @@ export default function BudgetQuickAdd({ projectId, products, contractors = [], 
                 });
                 if (createRes?.created) {
                     for (const cp of createRes.created) {
-                        saveable.forEach(r => {
-                            if (!r.productId && r.productName === cp.name) r.productId = cp.id;
-                        });
+                        createdMap.set(cp.name, cp.id);
                     }
                 }
             }
 
-            const validRows = saveable.filter(r => r.productId);
+            const validRows = saveable.map(r => ({
+                ...r,
+                productId: r.productId || createdMap.get(r.productName) || '',
+            })).filter(r => r.productId);
             if (validRows.length === 0) { setSaving(false); return alert('Không tạo được sản phẩm mới. Vui lòng thử lại.'); }
 
             const res = await apiFetch('/api/material-plans', {
