@@ -914,7 +914,7 @@ ${po.notes ? `<div class="notes-box"><strong>Ghi chú:</strong> ${po.notes}</div
         { key: 'milestones', label: 'Tiến độ', icon: '📊', count: p.milestones?.length },
         { key: 'contracts', label: 'Hợp đồng', icon: '📝', count: p.contracts?.length },
         { key: 'workorders', label: 'Phiếu CV', icon: '📋', count: p.workOrders?.length },
-        { key: 'materials', label: 'Vật tư', icon: '🧱', count: p.materialPlans?.length },
+        { key: 'materials', label: 'Theo dõi dự toán', icon: '🧱', count: p.materialPlans?.length },
         { key: 'purchase', label: 'Mua hàng', icon: '🛒', count: p.purchaseOrders?.length },
         { key: 'contractors', label: 'Thầu phụ', icon: '👷', count: p.contractorPays?.length },
         { key: 'finance', label: 'Tài chính', icon: '💰' },
@@ -1074,12 +1074,12 @@ ${po.notes ? `<div class="notes-box"><strong>Ghi chú:</strong> ${po.notes}</div
                                     setMpProducts(json.data || json || []);
                                 }
                                 setModal('budget_quick');
-                            }}>📋 Thêm dự toán vật tư</button>
+                            }}>📋 Nhập dự toán</button>
                             {p.quotations?.length > 0 && <button className="btn btn-ghost btn-sm" onClick={importMPFromQuotation}>📄 Tạo từ Báo giá</button>}
                         </div>
                     )}
                     <div className="card" style={{ padding: 20, marginTop: 16 }}>
-                        <h3 style={{ fontSize: 15, fontWeight: 700, marginBottom: 16 }}>📊 Bảng theo dõi Chênh lệch Vật tư</h3>
+                        <h3 style={{ fontSize: 15, fontWeight: 700, marginBottom: 16 }}>📊 Bảng theo dõi Chênh lệch Dự toán</h3>
                         <VarianceTable projectId={id} />
                     </div>
                     <div className="card" style={{ padding: 20, marginTop: 16 }}>
@@ -1343,26 +1343,39 @@ ${po.notes ? `<div class="notes-box"><strong>Ghi chú:</strong> ${po.notes}</div
                 </div>
             )}
 
-            {/* TAB: Vật tư */}
+            {/* TAB: Theo dõi dự toán */}
             {tab === 'materials' && (
                 <div>
                     <div className="stats-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', marginBottom: 24 }}>
-                        <div className="stat-card"><div style={{ fontSize: 20, fontWeight: 700 }}>{p.materialPlans.length}</div><div style={{ fontSize: 12, color: 'var(--text-muted)' }}>Loại vật tư</div></div>
+                        <div className="stat-card"><div style={{ fontSize: 20, fontWeight: 700 }}>{p.materialPlans.length}</div><div style={{ fontSize: 12, color: 'var(--text-muted)' }}>Tổng hạng mục</div></div>
                         <div className="stat-card"><div style={{ fontSize: 20, fontWeight: 700, color: 'var(--status-info)' }}>{fmt(p.materialPlans.reduce((s, m) => s + m.totalAmount, 0))}</div><div style={{ fontSize: 12, color: 'var(--text-muted)' }}>Tổng dự toán</div></div>
-                        <div className="stat-card"><div style={{ fontSize: 20, fontWeight: 700, color: 'var(--status-warning)' }}>{p.materialPlans.filter(m => m.status === 'Chưa đặt' || m.status === 'Đặt một phần').length}</div><div style={{ fontSize: 12, color: 'var(--text-muted)' }}>Cần đặt thêm</div></div>
+                        <div className="stat-card"><div style={{ fontSize: 20, fontWeight: 700, color: 'var(--status-warning)' }}>{p.materialPlans.filter(m => m.status === 'Chưa đặt' || m.status === 'Đặt một phần').length}</div><div style={{ fontSize: 12, color: 'var(--text-muted)' }}>Cần đặt thêm (VT)</div></div>
                         <div className="stat-card"><div style={{ fontSize: 20, fontWeight: 700, color: 'var(--status-danger)' }}>{p.materialPlans.filter(m => m.receivedQty > m.quantity).length}</div><div style={{ fontSize: 12, color: 'var(--text-muted)' }}>⚠ Vượt dự toán</div></div>
                     </div>
-                    <div className="card">
-                        <div style={{ display: 'flex', justifyContent: 'flex-end', padding: '12px 16px 0', gap: 8, flexWrap: 'wrap' }}>
-                            {p.quotations?.length > 0 && <button className="btn btn-ghost btn-sm" onClick={importMPFromQuotation}>📋 Tạo từ Báo giá</button>}
-                            <button className="btn btn-ghost btn-sm" onClick={openMPModal}>+ Thêm vật tư</button>
-                            {p.materialPlans.filter(m => m.status === 'Chưa đặt' || m.status === 'Đặt một phần').length > 0 && (
-                                <button className="btn btn-primary btn-sm" onClick={openPOModal}>🛒 Tạo PO ({p.materialPlans.filter(m => m.status === 'Chưa đặt' || m.status === 'Đặt một phần').length} vật tư)</button>
+
+                    <div style={{ display: 'flex', justifyContent: 'flex-end', padding: '0 0 16px', gap: 8, flexWrap: 'wrap' }}>
+                        {p.quotations?.length > 0 && <button className="btn btn-ghost btn-sm" onClick={importMPFromQuotation}>📋 Tạo từ Báo giá</button>}
+                        <button className="btn btn-primary btn-sm" onClick={async () => {
+                            if (mpProducts.length === 0) {
+                                const res = await fetch('/api/products?limit=5000');
+                                const json = await res.json();
+                                setMpProducts(json.data || json || []);
+                            }
+                            setModal('budget_quick');
+                        }}>+ Lập dự toán</button>
+                    </div>
+
+                    {/* Table: Dự toán vật tư */}
+                    <div className="card" style={{ marginBottom: 24 }}>
+                        <div className="card-header">
+                            <span className="card-title">🧱 Dự toán Vật tư / Máy / Khác</span>
+                            {p.materialPlans.filter(m => m.costType !== 'Thầu phụ' && (m.status === 'Chưa đặt' || m.status === 'Đặt một phần')).length > 0 && (
+                                <button className="btn btn-primary btn-sm" onClick={openPOModal}>🛒 Tạo PO ({p.materialPlans.filter(m => m.costType !== 'Thầu phụ' && (m.status === 'Chưa đặt' || m.status === 'Đặt một phần')).length} vật tư)</button>
                             )}
                         </div>
                         <div className="table-container"><table className="data-table">
-                            <thead><tr><th>Mã</th><th>Vật tư</th><th>SL cần</th><th>Đã đặt</th><th>Đã nhận</th><th>Còn thiếu</th><th title="Số lượng còn được yêu cầu = SL Cần - Đã Đặt">Được gọi</th><th>Đơn giá</th><th>TT</th><th></th></tr></thead>
-                            <tbody>{p.materialPlans.map(m => {
+                            <thead><tr><th>Mã</th><th>Hạng mục</th><th>SL cần</th><th>Đã đặt</th><th>Đã nhận</th><th>Còn thiếu</th><th title="Số lượng còn được yêu cầu = SL Cần - Đã Đặt">Được gọi</th><th>Đơn giá</th><th>TT</th><th></th></tr></thead>
+                            <tbody>{p.materialPlans.filter(m => m.costType !== 'Thầu phụ').map(m => {
                                 const missing = m.quantity - m.receivedQty;
                                 const canRequest = m.quantity - m.orderedQty;
                                 const overReceived = m.receivedQty > m.quantity;
@@ -1388,7 +1401,40 @@ ${po.notes ? `<div class="notes-box"><strong>Ghi chú:</strong> ${po.notes}</div
                                 );
                             })}</tbody>
                         </table></div>
-                        {p.materialPlans.length === 0 && <div style={{ color: 'var(--text-muted)', padding: 24, textAlign: 'center' }}>Chưa có kế hoạch vật tư — bấm "+ Thêm vật tư" để bắt đầu</div>}
+                        {p.materialPlans.filter(m => m.costType !== 'Thầu phụ').length === 0 && <div style={{ color: 'var(--text-muted)', padding: 24, textAlign: 'center' }}>Chưa có dự toán vật tư</div>}
+                    </div>
+
+                    {/* Table: Dự toán thầu phụ */}
+                    <div className="card">
+                        <div className="card-header">
+                            <span className="card-title">👷 Dự toán Thầu phụ</span>
+                        </div>
+                        <div className="table-container"><table className="data-table">
+                            <thead><tr><th>Mã</th><th>Hạng mục</th><th>SL cần</th><th>Đã đặt</th><th>Đã nhận</th><th>Còn thiếu</th><th>Đơn giá</th><th>TT</th><th></th></tr></thead>
+                            <tbody>{p.materialPlans.filter(m => m.costType === 'Thầu phụ').map(m => {
+                                const missing = m.quantity - m.receivedQty;
+                                const overReceived = m.receivedQty > m.quantity;
+                                return (
+                                    <tr key={m.id} style={{ background: overReceived ? 'rgba(239,68,68,0.08)' : '' }}>
+                                        <td className="accent" style={{ fontSize: 11 }}>{m.product?.code}</td>
+                                        <td>
+                                            <div style={{ fontWeight: 600, fontSize: 13 }}>{m.product?.name}</div>
+                                            {overReceived && <div style={{ fontSize: 11, color: 'var(--status-danger)', fontWeight: 600 }}>⚠ Nhận vượt {m.receivedQty - m.quantity} {m.product?.unit}</div>}
+                                        </td>
+                                        <td style={{ fontWeight: 600 }}>{m.quantity} <span style={{ fontSize: 11, opacity: 0.6 }}>{m.product?.unit}</span></td>
+                                        <td style={{ color: 'var(--status-info)' }}>{m.orderedQty}</td>
+                                        <td style={{ color: overReceived ? 'var(--status-danger)' : 'var(--status-success)', fontWeight: 600 }}>{m.receivedQty}</td>
+                                        <td style={{ color: missing > 0 ? 'var(--status-danger)' : 'var(--status-success)', fontWeight: 700 }}>{missing > 0 ? missing : '✓'}</td>
+                                        <td style={{ fontSize: 12 }}>{fmt(m.unitPrice)}</td>
+                                        <td><span className={`badge ${m.status === 'Đã đặt đủ' || m.status === 'Đã nhận đủ' ? 'success' : m.status === 'Đặt một phần' || m.status === 'Nhận một phần' ? 'warning' : 'danger'}`} style={{ fontSize: 11 }}>{m.status}</span></td>
+                                        <td style={{ display: 'flex', gap: 4 }}>
+                                            {m.orderedQty === 0 && <button className="btn btn-ghost btn-sm" title="Xóa" style={{ fontSize: 11, color: 'var(--status-danger)' }} onClick={() => deleteMaterialPlan(m.id)}>🗑</button>}
+                                        </td>
+                                    </tr>
+                                );
+                            })}</tbody>
+                        </table></div>
+                        {p.materialPlans.filter(m => m.costType === 'Thầu phụ').length === 0 && <div style={{ color: 'var(--text-muted)', padding: 24, textAlign: 'center' }}>Chưa có dự toán thầu phụ</div>}
                     </div>
                 </div>
             )}

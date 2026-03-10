@@ -65,8 +65,8 @@ export default function BudgetQuickAdd({ projectId, products, onDone, onClose })
     const [activeRowIdx, setActiveRowIdx] = useState(null);
     const fileRef = useRef(null);
 
-    function emptyRow() {
-        return { productId: '', productName: '', unit: '', quantity: 1, unitPrice: 0, category: '', costType: 'Vật tư', group1: '', group2: '', supplierTag: '', _key: Date.now() + Math.random() };
+    function emptyRow(costType = 'Vật tư') {
+        return { productId: '', productName: '', unit: '', quantity: 1, unitPrice: 0, category: '', costType, group1: '', group2: '', supplierTag: '', _key: Date.now() + Math.random() };
     }
 
     const filteredProducts = productSearch.length >= 1
@@ -101,7 +101,7 @@ export default function BudgetQuickAdd({ projectId, products, onDone, onClose })
     };
 
     const removeRow = (idx) => setRows(prev => prev.filter((_, i) => i !== idx));
-    const addRow = () => setRows(prev => [...prev, emptyRow()]);
+    const addRow = (costType = 'Vật tư') => setRows(prev => [...prev, emptyRow(costType)]);
 
     // Excel import
     const handleExcelFile = async (e) => {
@@ -204,8 +204,9 @@ export default function BudgetQuickAdd({ projectId, products, onDone, onClose })
                 });
                 if (createRes?.created) {
                     for (const cp of createRes.created) {
-                        const matchRow = saveable.find(r => !r.productId && r.productName === cp.name);
-                        if (matchRow) matchRow.productId = cp.id;
+                        saveable.forEach(r => {
+                            if (!r.productId && r.productName === cp.name) r.productId = cp.id;
+                        });
                     }
                 }
             }
@@ -250,7 +251,7 @@ export default function BudgetQuickAdd({ projectId, products, onDone, onClose })
         <div className="modal-overlay" onClick={onClose}>
             <div className="modal" style={{ maxWidth: 1100, width: '97vw', maxHeight: '93vh', display: 'flex', flexDirection: 'column' }} onClick={e => e.stopPropagation()}>
                 <div className="modal-header">
-                    <h3 style={{ margin: 0 }}>📋 Dự toán vật tư</h3>
+                    <h3 style={{ margin: 0 }}>📋 Dự toán (Vật tư & Thầu phụ)</h3>
                     <button onClick={onClose} style={{ background: 'none', border: 'none', fontSize: 18, cursor: 'pointer', color: 'var(--text-muted)' }}>✕</button>
                 </div>
 
@@ -325,114 +326,209 @@ export default function BudgetQuickAdd({ projectId, products, onDone, onClose })
                 )}
 
                 {/* Quick add table */}
-                {mode === 'quick' && (
-                    <div style={{ flex: 1, overflow: 'auto', padding: '12px 20px' }}>
-                        {unmatchedCount > 0 && (
-                            <div style={{ background: 'rgba(245,158,11,0.1)', border: '1px solid rgba(245,158,11,0.3)', borderRadius: 8, padding: '8px 12px', marginBottom: 12, fontSize: 12, color: '#d97706' }}>
-                                ⚠️ {unmatchedCount} dòng chưa khớp sản phẩm — cần chọn sản phẩm để lưu
+                {mode === 'quick' && (() => {
+                    const matRows = rows.map((r, i) => ({ ...r, oidx: i })).filter(r => r.costType !== 'Thầu phụ');
+                    const subRows = rows.map((r, i) => ({ ...r, oidx: i })).filter(r => r.costType === 'Thầu phụ');
+
+                    return (
+                        <div style={{ flex: 1, overflow: 'auto', padding: '12px 20px' }}>
+                            {unmatchedCount > 0 && (
+                                <div style={{ background: 'rgba(245,158,11,0.1)', border: '1px solid rgba(245,158,11,0.3)', borderRadius: 8, padding: '8px 12px', marginBottom: 12, fontSize: 12, color: '#d97706' }}>
+                                    ⚠️ {unmatchedCount} dòng chưa khớp sản phẩm — cần chọn sản phẩm để lưu
+                                </div>
+                            )}
+
+                            {/* Batch actions */}
+                            <div style={{ display: 'flex', gap: 6, marginBottom: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+                                <span style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 600 }}>Gán nhanh giai đoạn:</span>
+                                {GROUP1_PRESETS.map(g => (
+                                    <button key={g} className="btn btn-ghost" style={{ fontSize: 10, padding: '2px 8px' }}
+                                        onClick={() => batchSetGroup1(g)}>{g}</button>
+                                ))}
                             </div>
-                        )}
 
-                        {/* Batch actions */}
-                        <div style={{ display: 'flex', gap: 6, marginBottom: 8, flexWrap: 'wrap', alignItems: 'center' }}>
-                            <span style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 600 }}>Gán nhanh giai đoạn:</span>
-                            {GROUP1_PRESETS.map(g => (
-                                <button key={g} className="btn btn-ghost" style={{ fontSize: 10, padding: '2px 8px' }}
-                                    onClick={() => batchSetGroup1(g)}>{g}</button>
-                            ))}
-                        </div>
-
-                        <div style={{ overflowX: 'auto' }}>
-                            <table className="data-table" style={{ fontSize: 12, width: '100%' }}>
-                                <thead>
-                                    <tr>
-                                        <th style={{ width: 28 }}>#</th>
-                                        <th style={{ minWidth: 180 }}>Sản phẩm</th>
-                                        <th style={{ width: 55 }}>ĐVT</th>
-                                        <th style={{ width: 70 }}>SL</th>
-                                        <th style={{ width: 100 }}>Đơn giá</th>
-                                        <th style={{ width: 100 }}>Thành tiền</th>
-                                        <th style={{ width: 85 }}>Loại CP</th>
-                                        <th style={{ width: 100 }}>Giai đoạn</th>
-                                        <th style={{ width: 95 }}>Không gian</th>
-                                        <th style={{ width: 85 }}>NCC</th>
-                                        <th style={{ width: 28 }}></th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {rows.map((row, idx) => (
-                                        <tr key={row._key} style={{ background: !row.productId && row.productName ? 'rgba(245,158,11,0.06)' : '' }}>
-                                            <td style={{ textAlign: 'center', color: 'var(--text-muted)' }}>{idx + 1}</td>
-                                            <td style={{ position: 'relative' }}>
-                                                {row.productId ? (
-                                                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                                                        <span style={{ fontWeight: 600, fontSize: 11 }}>{row.productName}</span>
-                                                        <button onClick={() => updateRow(idx, 'productId', '')}
-                                                            style={{ background: 'none', border: 'none', fontSize: 11, cursor: 'pointer', color: 'var(--text-muted)', padding: 0 }}>✕</button>
-                                                    </div>
-                                                ) : (
-                                                    <div style={{ position: 'relative' }}>
-                                                        <input type="text" className="form-input"
-                                                            placeholder={row.productName || 'Tìm SP...'}
-                                                            value={activeRowIdx === idx ? productSearch : ''}
-                                                            onChange={e => { setProductSearch(e.target.value); setActiveRowIdx(idx); }}
-                                                            onFocus={() => setActiveRowIdx(idx)}
-                                                            style={{ padding: '3px 6px', fontSize: 11, width: '100%' }} />
-                                                        {activeRowIdx === idx && filteredProducts.length > 0 && (
-                                                            <div style={{
-                                                                position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 100,
-                                                                background: 'var(--bg-card)', border: '1px solid var(--border-light)',
-                                                                borderRadius: 8, maxHeight: 200, overflow: 'auto', boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
-                                                            }}>
-                                                                {filteredProducts.map(p => (
-                                                                    <div key={p.id} onClick={() => selectProduct(idx, p)}
-                                                                        style={{ padding: '5px 8px', cursor: 'pointer', fontSize: 11, borderBottom: '1px solid var(--border-light)' }}
-                                                                        onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-hover)'}
-                                                                        onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
-                                                                        <span style={{ fontWeight: 600 }}>{p.name}</span>
-                                                                        <span style={{ color: 'var(--text-muted)', marginLeft: 4 }}>{p.code}</span>
-                                                                    </div>
-                                                                ))}
-                                                            </div>
-                                                        )}
-                                                    </div>
-                                                )}
-                                            </td>
-                                            <td><input type="text" className="form-input" value={row.unit} onChange={e => updateRow(idx, 'unit', e.target.value)} style={{ padding: '3px 4px', fontSize: 11, width: '100%', textAlign: 'center' }} /></td>
-                                            <td><input type="number" className="form-input" value={row.quantity} onChange={e => updateRow(idx, 'quantity', e.target.value)} style={{ padding: '3px 4px', fontSize: 11, width: '100%', textAlign: 'right' }} /></td>
-                                            <td><input type="number" className="form-input" value={row.unitPrice} onChange={e => updateRow(idx, 'unitPrice', e.target.value)} style={{ padding: '3px 4px', fontSize: 11, width: '100%', textAlign: 'right' }} /></td>
-                                            <td style={{ textAlign: 'right', fontWeight: 600, fontSize: 11 }}>{fmt((Number(row.quantity) || 0) * (Number(row.unitPrice) || 0))}</td>
-                                            <td>
-                                                <select className="form-input" value={row.costType} onChange={e => updateRow(idx, 'costType', e.target.value)} style={{ padding: '3px 2px', fontSize: 10, width: '100%' }}>
-                                                    {COST_TYPES.map(ct => <option key={ct} value={ct}>{ct}</option>)}
-                                                </select>
-                                            </td>
-                                            <td>
-                                                <input type="text" className="form-input" list="group1-list" value={row.group1} onChange={e => updateRow(idx, 'group1', e.target.value)} style={{ padding: '3px 4px', fontSize: 10, width: '100%' }} placeholder="VD: Phần thô" />
-                                            </td>
-                                            <td>
-                                                <input type="text" className="form-input" list="group2-list" value={row.group2} onChange={e => updateRow(idx, 'group2', e.target.value)} style={{ padding: '3px 4px', fontSize: 10, width: '100%' }} placeholder="VD: P.Khách" />
-                                            </td>
-                                            <td>
-                                                <select className="form-input" value={row.supplierTag} onChange={e => updateRow(idx, 'supplierTag', e.target.value)} style={{ padding: '3px 2px', fontSize: 10, width: '100%' }}>
-                                                    {SUPPLIER_TAGS.map(t => <option key={t} value={t}>{t || '—'}</option>)}
-                                                </select>
-                                            </td>
-                                            <td>
-                                                <button onClick={() => removeRow(idx)}
-                                                    style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#ef4444', fontSize: 13, padding: 0 }}>🗑</button>
-                                            </td>
+                            <div style={{ overflowX: 'auto', marginBottom: 24 }}>
+                                <h4 style={{ margin: '0 0 8px 0', fontSize: 14 }}>🧱 Dự toán Vật tư / Máy / Khác</h4>
+                                <table className="data-table" style={{ fontSize: 12, width: '100%', marginBottom: 8 }}>
+                                    <thead>
+                                        <tr>
+                                            <th style={{ width: 28 }}>#</th>
+                                            <th style={{ minWidth: 180 }}>Sản phẩm</th>
+                                            <th style={{ width: 55 }}>ĐVT</th>
+                                            <th style={{ width: 70 }}>SL</th>
+                                            <th style={{ width: 100 }}>Đơn giá</th>
+                                            <th style={{ width: 100 }}>Thành tiền</th>
+                                            <th style={{ width: 85 }}>Loại CP</th>
+                                            <th style={{ width: 100 }}>Giai đoạn</th>
+                                            <th style={{ width: 95 }}>Không gian</th>
+                                            <th style={{ width: 85 }}>NCC</th>
+                                            <th style={{ width: 28 }}></th>
                                         </tr>
-                                    ))}
-                                </tbody>
-                            </table>
+                                    </thead>
+                                    <tbody>
+                                        {matRows.map((row, idx) => (
+                                            <tr key={row._key} style={{ background: !row.productId && row.productName ? 'rgba(245,158,11,0.06)' : '' }}>
+                                                <td style={{ textAlign: 'center', color: 'var(--text-muted)' }}>{idx + 1}</td>
+                                                <td style={{ position: 'relative' }}>
+                                                    {row.productId ? (
+                                                        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                                                            <span style={{ fontWeight: 600, fontSize: 11 }}>{row.productName}</span>
+                                                            <button onClick={() => updateRow(row.oidx, 'productId', '')}
+                                                                style={{ background: 'none', border: 'none', fontSize: 11, cursor: 'pointer', color: 'var(--text-muted)', padding: 0 }}>✕</button>
+                                                        </div>
+                                                    ) : (
+                                                        <div style={{ position: 'relative' }}>
+                                                            <input type="text" className="form-input"
+                                                                placeholder={row.productName || 'Tìm SP...'}
+                                                                value={activeRowIdx === row.oidx ? productSearch : ''}
+                                                                onChange={e => { setProductSearch(e.target.value); setActiveRowIdx(row.oidx); }}
+                                                                onFocus={() => setActiveRowIdx(row.oidx)}
+                                                                style={{ padding: '3px 6px', fontSize: 11, width: '100%' }} />
+                                                            {activeRowIdx === row.oidx && filteredProducts.length > 0 && (
+                                                                <div style={{
+                                                                    position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 100,
+                                                                    background: 'var(--bg-card)', border: '1px solid var(--border-light)',
+                                                                    borderRadius: 8, maxHeight: 200, overflow: 'auto', boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+                                                                }}>
+                                                                    {filteredProducts.map(p => (
+                                                                        <div key={p.id} onClick={() => selectProduct(row.oidx, p)}
+                                                                            style={{ padding: '5px 8px', cursor: 'pointer', fontSize: 11, borderBottom: '1px solid var(--border-light)' }}
+                                                                            onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-hover)'}
+                                                                            onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
+                                                                            <span style={{ fontWeight: 600 }}>{p.name}</span>
+                                                                            <span style={{ color: 'var(--text-muted)', marginLeft: 4 }}>{p.code}</span>
+                                                                        </div>
+                                                                    ))}
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    )}
+                                                </td>
+                                                <td><input type="text" className="form-input" value={row.unit} onChange={e => updateRow(row.oidx, 'unit', e.target.value)} style={{ padding: '3px 4px', fontSize: 11, width: '100%', textAlign: 'center' }} /></td>
+                                                <td><input type="number" className="form-input" value={row.quantity} onChange={e => updateRow(row.oidx, 'quantity', e.target.value)} style={{ padding: '3px 4px', fontSize: 11, width: '100%', textAlign: 'right' }} /></td>
+                                                <td><input type="number" className="form-input" value={row.unitPrice} onChange={e => updateRow(row.oidx, 'unitPrice', e.target.value)} style={{ padding: '3px 4px', fontSize: 11, width: '100%', textAlign: 'right' }} /></td>
+                                                <td style={{ textAlign: 'right', fontWeight: 600, fontSize: 11 }}>{fmt((Number(row.quantity) || 0) * (Number(row.unitPrice) || 0))}</td>
+                                                <td>
+                                                    <select className="form-input" value={row.costType} onChange={e => updateRow(row.oidx, 'costType', e.target.value)} style={{ padding: '3px 2px', fontSize: 10, width: '100%' }}>
+                                                        {COST_TYPES.map(ct => <option key={ct} value={ct}>{ct}</option>)}
+                                                    </select>
+                                                </td>
+                                                <td>
+                                                    <input type="text" className="form-input" list="group1-list" value={row.group1} onChange={e => updateRow(row.oidx, 'group1', e.target.value)} style={{ padding: '3px 4px', fontSize: 10, width: '100%' }} placeholder="VD: Phần thô" />
+                                                </td>
+                                                <td>
+                                                    <input type="text" className="form-input" list="group2-list" value={row.group2} onChange={e => updateRow(row.oidx, 'group2', e.target.value)} style={{ padding: '3px 4px', fontSize: 10, width: '100%' }} placeholder="VD: P.Khách" />
+                                                </td>
+                                                <td>
+                                                    <select className="form-input" value={row.supplierTag} onChange={e => updateRow(row.oidx, 'supplierTag', e.target.value)} style={{ padding: '3px 2px', fontSize: 10, width: '100%' }}>
+                                                        {SUPPLIER_TAGS.map(t => <option key={t} value={t}>{t || '—'}</option>)}
+                                                    </select>
+                                                </td>
+                                                <td>
+                                                    <button onClick={() => removeRow(row.oidx)}
+                                                        style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#ef4444', fontSize: 13, padding: 0 }}>🗑</button>
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                                <button onClick={() => addRow('Vật tư')} className="btn btn-ghost btn-sm">+ Thêm dòng vật tư</button>
+                            </div>
+
+                            <div style={{ overflowX: 'auto' }}>
+                                <h4 style={{ margin: '0 0 8px 0', fontSize: 14 }}>👷 Dự toán Thầu phụ</h4>
+                                <table className="data-table" style={{ fontSize: 12, width: '100%', marginBottom: 8 }}>
+                                    <thead>
+                                        <tr>
+                                            <th style={{ width: 28 }}>#</th>
+                                            <th style={{ minWidth: 180 }}>Hạng mục</th>
+                                            <th style={{ width: 55 }}>ĐVT</th>
+                                            <th style={{ width: 70 }}>SL</th>
+                                            <th style={{ width: 100 }}>Đơn giá</th>
+                                            <th style={{ width: 100 }}>Thành tiền</th>
+                                            <th style={{ width: 85 }}>Loại CP</th>
+                                            <th style={{ width: 100 }}>Giai đoạn</th>
+                                            <th style={{ width: 95 }}>Không gian</th>
+                                            <th style={{ width: 85 }}>NCC</th>
+                                            <th style={{ width: 28 }}></th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {subRows.map((row, idx) => (
+                                            <tr key={row._key} style={{ background: !row.productId && row.productName ? 'rgba(245,158,11,0.06)' : '' }}>
+                                                <td style={{ textAlign: 'center', color: 'var(--text-muted)' }}>{idx + 1}</td>
+                                                <td style={{ position: 'relative' }}>
+                                                    {row.productId ? (
+                                                        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                                                            <span style={{ fontWeight: 600, fontSize: 11 }}>{row.productName}</span>
+                                                            <button onClick={() => updateRow(row.oidx, 'productId', '')}
+                                                                style={{ background: 'none', border: 'none', fontSize: 11, cursor: 'pointer', color: 'var(--text-muted)', padding: 0 }}>✕</button>
+                                                        </div>
+                                                    ) : (
+                                                        <div style={{ position: 'relative' }}>
+                                                            <input type="text" className="form-input"
+                                                                placeholder={row.productName || 'Tìm SP...'}
+                                                                value={activeRowIdx === row.oidx ? productSearch : ''}
+                                                                onChange={e => { setProductSearch(e.target.value); setActiveRowIdx(row.oidx); }}
+                                                                onFocus={() => setActiveRowIdx(row.oidx)}
+                                                                style={{ padding: '3px 6px', fontSize: 11, width: '100%' }} />
+                                                            {activeRowIdx === row.oidx && filteredProducts.length > 0 && (
+                                                                <div style={{
+                                                                    position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 100,
+                                                                    background: 'var(--bg-card)', border: '1px solid var(--border-light)',
+                                                                    borderRadius: 8, maxHeight: 200, overflow: 'auto', boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+                                                                }}>
+                                                                    {filteredProducts.map(p => (
+                                                                        <div key={p.id} onClick={() => selectProduct(row.oidx, p)}
+                                                                            style={{ padding: '5px 8px', cursor: 'pointer', fontSize: 11, borderBottom: '1px solid var(--border-light)' }}
+                                                                            onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-hover)'}
+                                                                            onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
+                                                                            <span style={{ fontWeight: 600 }}>{p.name}</span>
+                                                                            <span style={{ color: 'var(--text-muted)', marginLeft: 4 }}>{p.code}</span>
+                                                                        </div>
+                                                                    ))}
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    )}
+                                                </td>
+                                                <td><input type="text" className="form-input" value={row.unit} onChange={e => updateRow(row.oidx, 'unit', e.target.value)} style={{ padding: '3px 4px', fontSize: 11, width: '100%', textAlign: 'center' }} /></td>
+                                                <td><input type="number" className="form-input" value={row.quantity} onChange={e => updateRow(row.oidx, 'quantity', e.target.value)} style={{ padding: '3px 4px', fontSize: 11, width: '100%', textAlign: 'right' }} /></td>
+                                                <td><input type="number" className="form-input" value={row.unitPrice} onChange={e => updateRow(row.oidx, 'unitPrice', e.target.value)} style={{ padding: '3px 4px', fontSize: 11, width: '100%', textAlign: 'right' }} /></td>
+                                                <td style={{ textAlign: 'right', fontWeight: 600, fontSize: 11 }}>{fmt((Number(row.quantity) || 0) * (Number(row.unitPrice) || 0))}</td>
+                                                <td>
+                                                    <select className="form-input" value={row.costType} onChange={e => updateRow(row.oidx, 'costType', e.target.value)} style={{ padding: '3px 2px', fontSize: 10, width: '100%' }}>
+                                                        {COST_TYPES.map(ct => <option key={ct} value={ct}>{ct}</option>)}
+                                                    </select>
+                                                </td>
+                                                <td>
+                                                    <input type="text" className="form-input" list="group1-list" value={row.group1} onChange={e => updateRow(row.oidx, 'group1', e.target.value)} style={{ padding: '3px 4px', fontSize: 10, width: '100%' }} placeholder="VD: Phần thô" />
+                                                </td>
+                                                <td>
+                                                    <input type="text" className="form-input" list="group2-list" value={row.group2} onChange={e => updateRow(row.oidx, 'group2', e.target.value)} style={{ padding: '3px 4px', fontSize: 10, width: '100%' }} placeholder="VD: P.Khách" />
+                                                </td>
+                                                <td>
+                                                    <select className="form-input" value={row.supplierTag} onChange={e => updateRow(row.oidx, 'supplierTag', e.target.value)} style={{ padding: '3px 2px', fontSize: 10, width: '100%' }}>
+                                                        {SUPPLIER_TAGS.map(t => <option key={t} value={t}>{t || '—'}</option>)}
+                                                    </select>
+                                                </td>
+                                                <td>
+                                                    <button onClick={() => removeRow(row.oidx)}
+                                                        style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#ef4444', fontSize: 13, padding: 0 }}>🗑</button>
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                                <button onClick={() => addRow('Thầu phụ')} className="btn btn-ghost btn-sm">+ Thêm dòng thầu phụ</button>
+                            </div>
+
+                            {/* Datalists for autocomplete */}
+                            <datalist id="group1-list">{GROUP1_PRESETS.map(g => <option key={g} value={g} />)}</datalist>
+                            <datalist id="group2-list">{GROUP2_PRESETS.map(g => <option key={g} value={g} />)}</datalist>
                         </div>
-                        {/* Datalists for autocomplete */}
-                        <datalist id="group1-list">{GROUP1_PRESETS.map(g => <option key={g} value={g} />)}</datalist>
-                        <datalist id="group2-list">{GROUP2_PRESETS.map(g => <option key={g} value={g} />)}</datalist>
-                        <button onClick={addRow} className="btn btn-ghost btn-sm" style={{ marginTop: 8 }}>+ Thêm dòng</button>
-                    </div>
-                )}
+                    );
+                })()}
 
                 {/* Footer */}
                 {mode === 'quick' && (
