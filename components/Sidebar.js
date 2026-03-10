@@ -7,7 +7,7 @@ import {
     LayoutDashboard, TrendingUp, Users, Building2, FileText,
     Package, ClipboardList, Wrench, CreditCard, Receipt,
     ShoppingCart, Truck, Warehouse, Wallet, UserCog,
-    BarChart3, ChevronRight, ChevronDown, Shield, X, Armchair, Factory,
+    BarChart3, ChevronRight, ChevronDown, Shield, X, Factory,
     ScrollText, Activity, ClipboardCheck, Banknote, Settings, ShieldCheck,
     Plus
 } from 'lucide-react';
@@ -44,7 +44,6 @@ const menuItems = [
     },
     {
         section: 'Sản xuất', items: [
-            { href: '/furniture', icon: Armchair, label: 'Nội thất May Đo' },
             { href: '/workshops', icon: Factory, label: 'Xưởng SX', roles: ['giam_doc', 'pho_gd', 'quan_ly_du_an'] },
         ]
     },

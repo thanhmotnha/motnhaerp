@@ -5,6 +5,41 @@ import { apiFetch } from '@/lib/fetchClient';
 
 const fmt = (n) => new Intl.NumberFormat('vi-VN').format(Math.round(n));
 
+// Normalize Vietnamese text for fuzzy matching
+const norm = (s) => (s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/đ/g, 'd').replace(/Đ/g, 'd').trim();
+
+// Smart product matching: exact name > exact code > normalized includes > word intersection
+function findProduct(products, searchName) {
+    if (!searchName) return null;
+    const s = searchName.trim();
+    const sLow = s.toLowerCase();
+    const sNorm = norm(s);
+
+    // 1. Exact match (name or code)
+    let match = products.find(p => p.name?.toLowerCase() === sLow || p.code?.toLowerCase() === sLow);
+    if (match) return match;
+
+    // 2. Normalized exact match
+    match = products.find(p => norm(p.name) === sNorm);
+    if (match) return match;
+
+    // 3. Substring match (either A includes B or B includes A)
+    match = products.find(p => norm(p.name).includes(sNorm) || sNorm.includes(norm(p.name)) || norm(p.code || '').includes(sNorm));
+    if (match) return match;
+
+    // 4. Word intersection match (all words in search term exist in product name)
+    const searchWords = sNorm.split(' ').filter(Boolean);
+    if (searchWords.length > 1) {
+        match = products.find(p => {
+            const pNorm = norm(p.name);
+            return searchWords.every(w => pNorm.includes(w));
+        });
+        if (match) return match;
+    }
+
+    return null;
+}
+
 const SUPPLIER_TAGS = ['', 'Công ty cấp', 'Thầu phụ cấp'];
 const GROUP2_PRESETS = ['Phòng khách', 'Phòng ngủ 01', 'Phòng ngủ 02', 'Phòng bếp', 'Phòng tắm', 'Ban công', 'Tủ bếp', 'Tủ áo', 'Cầu thang', 'Sân vườn'];
 
@@ -21,25 +56,34 @@ function useBudgetTemplates() {
     return templates;
 }
 
-export default function BudgetQuickAdd({ projectId, products, onDone, onClose }) {
+export default function BudgetQuickAdd({ projectId, products, contractors = [], defaultMode = 'materials', onDone, onClose }) {
     const BUDGET_TEMPLATES = useBudgetTemplates();
     const [mode, setMode] = useState('quick'); // quick | excel | template
-    const [rows, setRows] = useState([emptyRow()]);
+    const [rows, setRows] = useState([emptyRow(defaultMode === 'subcontractors' ? 'Thầu phụ' : 'Vật tư')]);
     const [saving, setSaving] = useState(false);
     const [productSearch, setProductSearch] = useState('');
+    const [contractorSearch, setContractorSearch] = useState('');
     const [activeRowIdx, setActiveRowIdx] = useState(null);
     const fileRef = useRef(null);
 
-    function emptyRow() {
-        return { productId: '', productName: '', unit: '', quantity: 1, unitPrice: 0, category: '', costType: 'Vật tư', group1: '', group2: '', supplierTag: '', _key: Date.now() + Math.random() };
+    function emptyRow(costType = 'Vật tư') {
+        return { productId: '', productName: '', unit: '', quantity: 1, unitPrice: 0, category: '', costType, group1: '', group2: '', supplierTag: '', _key: Date.now() + Math.random() };
     }
 
     const filteredProducts = productSearch.length >= 1
         ? products.filter(p =>
-            p.name.toLowerCase().includes(productSearch.toLowerCase()) ||
-            p.code.toLowerCase().includes(productSearch.toLowerCase())
+            norm(p.name).includes(norm(productSearch)) ||
+            norm(p.code).includes(norm(productSearch))
         ).slice(0, 10)
-        : [];
+        : products.slice(0, 10);
+
+    const filteredContractors = contractorSearch.length >= 1
+        ? contractors.filter(c =>
+            norm(c.name).includes(norm(contractorSearch)) ||
+            (c.code && norm(c.code).includes(norm(contractorSearch))) ||
+            (c.phone && c.phone.includes(contractorSearch))
+        ).slice(0, 10)
+        : contractors.slice(0, 10);
 
     const updateRow = (idx, field, value) => {
         setRows(prev => {
@@ -65,8 +109,23 @@ export default function BudgetQuickAdd({ projectId, products, onDone, onClose })
         setProductSearch('');
     };
 
+    const selectContractor = (idx, contractor) => {
+        setRows(prev => {
+            const updated = [...prev];
+            updated[idx] = {
+                ...updated[idx],
+                productName: contractor.name,
+                supplierTag: contractor.name,
+                unit: 'Gói',
+            };
+            return updated;
+        });
+        setActiveRowIdx(null);
+        setContractorSearch('');
+    };
+
     const removeRow = (idx) => setRows(prev => prev.filter((_, i) => i !== idx));
-    const addRow = () => setRows(prev => [...prev, emptyRow()]);
+    const addRow = (costType = 'Vật tư') => setRows(prev => [...prev, emptyRow(costType)]);
 
     // Excel import
     const handleExcelFile = async (e) => {
@@ -93,10 +152,7 @@ export default function BudgetQuickAdd({ projectId, products, onDone, onClose })
 
             if (!name || qty <= 0) continue;
 
-            const match = products.find(p =>
-                p.name.toLowerCase() === name.toLowerCase() ||
-                p.code.toLowerCase() === name.toLowerCase()
-            );
+            const match = findProduct(products, name);
 
             imported.push({
                 productId: match?.id || '',
@@ -128,9 +184,7 @@ export default function BudgetQuickAdd({ projectId, products, onDone, onClose })
         if (!template) return;
 
         const newRows = template.map(t => {
-            const match = products.find(p =>
-                p.name.toLowerCase().includes(t.name.toLowerCase())
-            );
+            const match = findProduct(products, t.name);
             return {
                 productId: match?.id || '',
                 productName: match?.name || t.name,
@@ -152,14 +206,40 @@ export default function BudgetQuickAdd({ projectId, products, onDone, onClose })
 
     // Save all
     const handleSaveAll = async () => {
-        const validRows = rows.filter(r => r.productId && r.quantity > 0);
-        if (validRows.length === 0) return alert('Không có dòng hợp lệ (cần chọn sản phẩm + SL > 0)');
+        // Rows with name + quantity (even without productId)
+        const saveable = rows.filter(r => r.productName && r.productName !== 'Vật tư mới' && Number(r.quantity) > 0);
+        if (saveable.length === 0) return alert('Không có dòng hợp lệ (cần có tên SP + SL > 0)');
 
         setSaving(true);
         try {
-            const res = await fetch('/api/material-plans', {
+            // Auto-create products for unmatched rows
+            const needCreate = saveable.filter(r => !r.productId);
+            if (needCreate.length > 0) {
+                const createRes = await apiFetch('/api/products/batch-create', {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        products: needCreate.map(r => ({
+                            name: r.productName,
+                            unit: r.unit || 'cái',
+                            category: 'Vật liệu',
+                            importPrice: Number(r.unitPrice) || 0,
+                        })),
+                    }),
+                });
+                if (createRes?.created) {
+                    for (const cp of createRes.created) {
+                        saveable.forEach(r => {
+                            if (!r.productId && r.productName === cp.name) r.productId = cp.id;
+                        });
+                    }
+                }
+            }
+
+            const validRows = saveable.filter(r => r.productId);
+            if (validRows.length === 0) { setSaving(false); return alert('Không tạo được sản phẩm mới. Vui lòng thử lại.'); }
+
+            const res = await apiFetch('/api/material-plans', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     projectId,
                     source: 'Dự toán nhanh',
@@ -175,12 +255,11 @@ export default function BudgetQuickAdd({ projectId, products, onDone, onClose })
                     })),
                 }),
             });
-            const result = await res.json();
-            if (!res.ok) return alert(result.error || 'Lỗi tạo');
-            alert(`Tạo ${result.created} kế hoạch vật tư${result.skipped > 0 ? ` (${result.skipped} đã tồn tại)` : ''}`);
+            if (res?.error) return alert(res.error);
+            alert(`Tạo ${res.created} kế hoạch vật tư${needCreate.length > 0 ? ` (đã tạo ${needCreate.length} SP mới)` : ''}${res.skipped > 0 ? ` · ${res.skipped} đã tồn tại` : ''}`);
             onDone?.();
         } catch (e) {
-            alert('Lỗi kết nối');
+            alert('Lỗi kết nối: ' + e.message);
         }
         setSaving(false);
     };
@@ -189,14 +268,14 @@ export default function BudgetQuickAdd({ projectId, products, onDone, onClose })
     const batchSetGroup1 = (val) => setRows(prev => prev.map(r => ({ ...r, group1: val })));
 
     const totalAmount = rows.reduce((s, r) => s + (Number(r.quantity) || 0) * (Number(r.unitPrice) || 0), 0);
-    const validCount = rows.filter(r => r.productId && r.quantity > 0).length;
-    const unmatchedCount = rows.filter(r => !r.productId && r.productName).length;
+    const validCount = rows.filter(r => (r.productId || r.productName) && Number(r.quantity) > 0).length;
+    const unmatchedCount = rows.filter(r => !r.productId && r.productName && r.costType !== 'Thầu phụ').length;
 
     return (
         <div className="modal-overlay" onClick={onClose}>
             <div className="modal" style={{ maxWidth: 1100, width: '97vw', maxHeight: '93vh', display: 'flex', flexDirection: 'column' }} onClick={e => e.stopPropagation()}>
                 <div className="modal-header">
-                    <h3 style={{ margin: 0 }}>📋 Dự toán vật tư</h3>
+                    <h3 style={{ margin: 0 }}>📋 Dự toán (Vật tư & Thầu phụ)</h3>
                     <button onClick={onClose} style={{ background: 'none', border: 'none', fontSize: 18, cursor: 'pointer', color: 'var(--text-muted)' }}>✕</button>
                 </div>
 
@@ -271,114 +350,209 @@ export default function BudgetQuickAdd({ projectId, products, onDone, onClose })
                 )}
 
                 {/* Quick add table */}
-                {mode === 'quick' && (
-                    <div style={{ flex: 1, overflow: 'auto', padding: '12px 20px' }}>
-                        {unmatchedCount > 0 && (
-                            <div style={{ background: 'rgba(245,158,11,0.1)', border: '1px solid rgba(245,158,11,0.3)', borderRadius: 8, padding: '8px 12px', marginBottom: 12, fontSize: 12, color: '#d97706' }}>
-                                ⚠️ {unmatchedCount} dòng chưa khớp sản phẩm — cần chọn sản phẩm để lưu
+                {mode === 'quick' && (() => {
+                    const matRows = rows.map((r, i) => ({ ...r, oidx: i })).filter(r => r.costType !== 'Thầu phụ');
+                    const subRows = rows.map((r, i) => ({ ...r, oidx: i })).filter(r => r.costType === 'Thầu phụ');
+
+                    return (
+                        <div style={{ flex: 1, overflow: 'auto', padding: '12px 20px' }}>
+                            {unmatchedCount > 0 && (
+                                <div style={{ background: 'rgba(245,158,11,0.1)', border: '1px solid rgba(245,158,11,0.3)', borderRadius: 8, padding: '8px 12px', marginBottom: 12, fontSize: 12, color: '#d97706' }}>
+                                    ⚠️ {unmatchedCount} dòng chưa khớp sản phẩm — cần chọn sản phẩm để lưu
+                                </div>
+                            )}
+
+                            {/* Batch actions */}
+                            <div style={{ display: 'flex', gap: 6, marginBottom: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+                                <span style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 600 }}>Gán nhanh giai đoạn:</span>
+                                {GROUP1_PRESETS.map(g => (
+                                    <button key={g} className="btn btn-ghost" style={{ fontSize: 10, padding: '2px 8px' }}
+                                        onClick={() => batchSetGroup1(g)}>{g}</button>
+                                ))}
                             </div>
-                        )}
 
-                        {/* Batch actions */}
-                        <div style={{ display: 'flex', gap: 6, marginBottom: 8, flexWrap: 'wrap', alignItems: 'center' }}>
-                            <span style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 600 }}>Gán nhanh giai đoạn:</span>
-                            {GROUP1_PRESETS.map(g => (
-                                <button key={g} className="btn btn-ghost" style={{ fontSize: 10, padding: '2px 8px' }}
-                                    onClick={() => batchSetGroup1(g)}>{g}</button>
-                            ))}
-                        </div>
-
-                        <div style={{ overflowX: 'auto' }}>
-                            <table className="data-table" style={{ fontSize: 12, width: '100%' }}>
-                                <thead>
-                                    <tr>
-                                        <th style={{ width: 28 }}>#</th>
-                                        <th style={{ minWidth: 180 }}>Sản phẩm</th>
-                                        <th style={{ width: 55 }}>ĐVT</th>
-                                        <th style={{ width: 70 }}>SL</th>
-                                        <th style={{ width: 100 }}>Đơn giá</th>
-                                        <th style={{ width: 100 }}>Thành tiền</th>
-                                        <th style={{ width: 85 }}>Loại CP</th>
-                                        <th style={{ width: 100 }}>Giai đoạn</th>
-                                        <th style={{ width: 95 }}>Không gian</th>
-                                        <th style={{ width: 85 }}>NCC</th>
-                                        <th style={{ width: 28 }}></th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {rows.map((row, idx) => (
-                                        <tr key={row._key} style={{ background: !row.productId && row.productName ? 'rgba(245,158,11,0.06)' : '' }}>
-                                            <td style={{ textAlign: 'center', color: 'var(--text-muted)' }}>{idx + 1}</td>
-                                            <td style={{ position: 'relative' }}>
-                                                {row.productId ? (
-                                                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                                                        <span style={{ fontWeight: 600, fontSize: 11 }}>{row.productName}</span>
-                                                        <button onClick={() => updateRow(idx, 'productId', '')}
-                                                            style={{ background: 'none', border: 'none', fontSize: 11, cursor: 'pointer', color: 'var(--text-muted)', padding: 0 }}>✕</button>
-                                                    </div>
-                                                ) : (
-                                                    <div style={{ position: 'relative' }}>
-                                                        <input type="text" className="form-input"
-                                                            placeholder={row.productName || 'Tìm SP...'}
-                                                            value={activeRowIdx === idx ? productSearch : ''}
-                                                            onChange={e => { setProductSearch(e.target.value); setActiveRowIdx(idx); }}
-                                                            onFocus={() => setActiveRowIdx(idx)}
-                                                            style={{ padding: '3px 6px', fontSize: 11, width: '100%' }} />
-                                                        {activeRowIdx === idx && filteredProducts.length > 0 && (
-                                                            <div style={{
-                                                                position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 100,
-                                                                background: 'var(--bg-card)', border: '1px solid var(--border-light)',
-                                                                borderRadius: 8, maxHeight: 200, overflow: 'auto', boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
-                                                            }}>
-                                                                {filteredProducts.map(p => (
-                                                                    <div key={p.id} onClick={() => selectProduct(idx, p)}
-                                                                        style={{ padding: '5px 8px', cursor: 'pointer', fontSize: 11, borderBottom: '1px solid var(--border-light)' }}
-                                                                        onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-hover)'}
-                                                                        onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
-                                                                        <span style={{ fontWeight: 600 }}>{p.name}</span>
-                                                                        <span style={{ color: 'var(--text-muted)', marginLeft: 4 }}>{p.code}</span>
+                            {defaultMode !== 'subcontractors' && (
+                                <div style={{ overflowX: 'auto', marginBottom: 24 }}>
+                                    <h4 style={{ margin: '0 0 8px 0', fontSize: 14 }}>🧱 Dự toán Vật tư / Máy / Khác</h4>
+                                    <table className="data-table" style={{ fontSize: 12, width: '100%', marginBottom: 8 }}>
+                                        <thead>
+                                            <tr>
+                                                <th style={{ width: 28 }}>#</th>
+                                                <th style={{ minWidth: 180 }}>Sản phẩm</th>
+                                                <th style={{ width: 55 }}>ĐVT</th>
+                                                <th style={{ width: 70 }}>SL</th>
+                                                <th style={{ width: 100 }}>Đơn giá</th>
+                                                <th style={{ width: 100 }}>Thành tiền</th>
+                                                <th style={{ width: 85 }}>Loại CP</th>
+                                                <th style={{ width: 100 }}>Giai đoạn</th>
+                                                <th style={{ width: 95 }}>Không gian</th>
+                                                <th style={{ width: 85 }}>NCC</th>
+                                                <th style={{ width: 28 }}></th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {matRows.map((row, idx) => (
+                                                <tr key={row._key} style={{ background: !row.productId && row.productName ? 'rgba(245,158,11,0.06)' : '' }}>
+                                                    <td style={{ textAlign: 'center', color: 'var(--text-muted)' }}>{idx + 1}</td>
+                                                    <td style={{ position: 'relative' }}>
+                                                        {row.productId ? (
+                                                            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                                                                <span style={{ fontWeight: 600, fontSize: 11 }}>{row.productName}</span>
+                                                                <button onClick={() => updateRow(row.oidx, 'productId', '')}
+                                                                    style={{ background: 'none', border: 'none', fontSize: 11, cursor: 'pointer', color: 'var(--text-muted)', padding: 0 }}>✕</button>
+                                                            </div>
+                                                        ) : (
+                                                            <div style={{ position: 'relative' }}>
+                                                                <input type="text" className="form-input"
+                                                                    placeholder={row.productName || 'Tìm SP...'}
+                                                                    value={activeRowIdx === row.oidx ? productSearch : ''}
+                                                                    onChange={e => { setProductSearch(e.target.value); setActiveRowIdx(row.oidx); }}
+                                                                    onFocus={() => setActiveRowIdx(row.oidx)}
+                                                                    style={{ padding: '3px 6px', fontSize: 11, width: '100%' }} />
+                                                                {activeRowIdx === row.oidx && filteredProducts.length > 0 && (
+                                                                    <div style={{
+                                                                        position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 100,
+                                                                        background: 'var(--bg-card)', border: '1px solid var(--border-light)',
+                                                                        borderRadius: 8, maxHeight: 200, overflow: 'auto', boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+                                                                    }}>
+                                                                        {filteredProducts.map(p => (
+                                                                            <div key={p.id} onClick={() => selectProduct(row.oidx, p)}
+                                                                                style={{ padding: '5px 8px', cursor: 'pointer', fontSize: 11, borderBottom: '1px solid var(--border-light)' }}
+                                                                                onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-hover)'}
+                                                                                onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
+                                                                                <span style={{ fontWeight: 600 }}>{p.name}</span>
+                                                                                <span style={{ color: 'var(--text-muted)', marginLeft: 4 }}>{p.code}</span>
+                                                                            </div>
+                                                                        ))}
                                                                     </div>
-                                                                ))}
+                                                                )}
                                                             </div>
                                                         )}
-                                                    </div>
-                                                )}
-                                            </td>
-                                            <td><input type="text" className="form-input" value={row.unit} onChange={e => updateRow(idx, 'unit', e.target.value)} style={{ padding: '3px 4px', fontSize: 11, width: '100%', textAlign: 'center' }} /></td>
-                                            <td><input type="number" className="form-input" value={row.quantity} onChange={e => updateRow(idx, 'quantity', e.target.value)} style={{ padding: '3px 4px', fontSize: 11, width: '100%', textAlign: 'right' }} /></td>
-                                            <td><input type="number" className="form-input" value={row.unitPrice} onChange={e => updateRow(idx, 'unitPrice', e.target.value)} style={{ padding: '3px 4px', fontSize: 11, width: '100%', textAlign: 'right' }} /></td>
-                                            <td style={{ textAlign: 'right', fontWeight: 600, fontSize: 11 }}>{fmt((Number(row.quantity) || 0) * (Number(row.unitPrice) || 0))}</td>
-                                            <td>
-                                                <select className="form-input" value={row.costType} onChange={e => updateRow(idx, 'costType', e.target.value)} style={{ padding: '3px 2px', fontSize: 10, width: '100%' }}>
-                                                    {COST_TYPES.map(ct => <option key={ct} value={ct}>{ct}</option>)}
-                                                </select>
-                                            </td>
-                                            <td>
-                                                <input type="text" className="form-input" list="group1-list" value={row.group1} onChange={e => updateRow(idx, 'group1', e.target.value)} style={{ padding: '3px 4px', fontSize: 10, width: '100%' }} placeholder="VD: Phần thô" />
-                                            </td>
-                                            <td>
-                                                <input type="text" className="form-input" list="group2-list" value={row.group2} onChange={e => updateRow(idx, 'group2', e.target.value)} style={{ padding: '3px 4px', fontSize: 10, width: '100%' }} placeholder="VD: P.Khách" />
-                                            </td>
-                                            <td>
-                                                <select className="form-input" value={row.supplierTag} onChange={e => updateRow(idx, 'supplierTag', e.target.value)} style={{ padding: '3px 2px', fontSize: 10, width: '100%' }}>
-                                                    {SUPPLIER_TAGS.map(t => <option key={t} value={t}>{t || '—'}</option>)}
-                                                </select>
-                                            </td>
-                                            <td>
-                                                <button onClick={() => removeRow(idx)}
-                                                    style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#ef4444', fontSize: 13, padding: 0 }}>🗑</button>
-                                            </td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
+                                                    </td>
+                                                    <td><input type="text" className="form-input" value={row.unit} onChange={e => updateRow(row.oidx, 'unit', e.target.value)} style={{ padding: '3px 4px', fontSize: 11, width: '100%', textAlign: 'center' }} /></td>
+                                                    <td><input type="number" className="form-input" value={row.quantity} onChange={e => updateRow(row.oidx, 'quantity', e.target.value)} style={{ padding: '3px 4px', fontSize: 11, width: '100%', textAlign: 'right' }} /></td>
+                                                    <td><input type="number" className="form-input" value={row.unitPrice} onChange={e => updateRow(row.oidx, 'unitPrice', e.target.value)} style={{ padding: '3px 4px', fontSize: 11, width: '100%', textAlign: 'right' }} /></td>
+                                                    <td style={{ textAlign: 'right', fontWeight: 600, fontSize: 11 }}>{fmt((Number(row.quantity) || 0) * (Number(row.unitPrice) || 0))}</td>
+                                                    <td>
+                                                        <select className="form-input" value={row.costType} onChange={e => updateRow(row.oidx, 'costType', e.target.value)} style={{ padding: '3px 2px', fontSize: 10, width: '100%' }}>
+                                                            {COST_TYPES.map(ct => <option key={ct} value={ct}>{ct}</option>)}
+                                                        </select>
+                                                    </td>
+                                                    <td>
+                                                        <input type="text" className="form-input" list="group1-list" value={row.group1} onChange={e => updateRow(row.oidx, 'group1', e.target.value)} style={{ padding: '3px 4px', fontSize: 10, width: '100%' }} placeholder="VD: Phần thô" />
+                                                    </td>
+                                                    <td>
+                                                        <input type="text" className="form-input" list="group2-list" value={row.group2} onChange={e => updateRow(row.oidx, 'group2', e.target.value)} style={{ padding: '3px 4px', fontSize: 10, width: '100%' }} placeholder="VD: P.Khách" />
+                                                    </td>
+                                                    <td>
+                                                        <select className="form-input" value={row.supplierTag} onChange={e => updateRow(row.oidx, 'supplierTag', e.target.value)} style={{ padding: '3px 2px', fontSize: 10, width: '100%' }}>
+                                                            {SUPPLIER_TAGS.map(t => <option key={t} value={t}>{t || '—'}</option>)}
+                                                        </select>
+                                                    </td>
+                                                    <td>
+                                                        <button onClick={() => removeRow(row.oidx)}
+                                                            style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#ef4444', fontSize: 13, padding: 0 }}>🗑</button>
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                    <button onClick={() => addRow('Vật tư')} className="btn btn-ghost btn-sm">+ Thêm dòng vật tư</button>
+                                </div>
+                            )}
+
+                            {defaultMode !== 'materials' && (
+                                <div style={{ overflowX: 'auto' }}>
+                                    <h4 style={{ margin: '0 0 8px 0', fontSize: 14 }}>👷 Dự toán Thầu phụ</h4>
+                                    <table className="data-table" style={{ fontSize: 12, width: '100%', marginBottom: 8 }}>
+                                        <thead>
+                                            <tr>
+                                                <th style={{ width: 28 }}>#</th>
+                                                <th style={{ minWidth: 180 }}>Hạng mục</th>
+                                                <th style={{ width: 55 }}>ĐVT</th>
+                                                <th style={{ width: 70 }}>SL</th>
+                                                <th style={{ width: 100 }}>Đơn giá</th>
+                                                <th style={{ width: 100 }}>Thành tiền</th>
+                                                <th style={{ width: 85 }}>Loại CP</th>
+                                                <th style={{ width: 100 }}>Giai đoạn</th>
+                                                <th style={{ width: 95 }}>Không gian</th>
+                                                <th style={{ width: 85 }}>NCC</th>
+                                                <th style={{ width: 28 }}></th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {subRows.map((row, idx) => (
+                                                <tr key={row._key} style={{ background: !row.productId && row.productName ? 'rgba(245,158,11,0.06)' : '' }}>
+                                                    <td style={{ textAlign: 'center', color: 'var(--text-muted)' }}>{idx + 1}</td>
+                                                    <td style={{ position: 'relative' }}>
+                                                        <div style={{ position: 'relative' }}>
+                                                            <input type="text" className="form-input"
+                                                                placeholder={row.productName || 'Tìm nhà thầu / hạng mục...'}
+                                                                value={activeRowIdx === row.oidx ? contractorSearch : (row.productName || '')}
+                                                                onChange={e => {
+                                                                    setContractorSearch(e.target.value);
+                                                                    updateRow(row.oidx, 'productName', e.target.value);
+                                                                    setActiveRowIdx(row.oidx);
+                                                                }}
+                                                                onFocus={() => setActiveRowIdx(row.oidx)}
+                                                                style={{ padding: '3px 6px', fontSize: 11, width: '100%' }} />
+                                                            {activeRowIdx === row.oidx && filteredContractors.length > 0 && (
+                                                                <div style={{
+                                                                    position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 100,
+                                                                    background: 'var(--bg-card)', border: '1px solid var(--border-light)',
+                                                                    borderRadius: 8, maxHeight: 200, overflow: 'auto', boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+                                                                }}>
+                                                                    {filteredContractors.map(c => (
+                                                                        <div key={c.id} onClick={() => selectContractor(row.oidx, c)}
+                                                                            style={{ padding: '5px 8px', cursor: 'pointer', fontSize: 11, borderBottom: '1px solid var(--border-light)' }}
+                                                                            onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-hover)'}
+                                                                            onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
+                                                                            <span style={{ fontWeight: 600 }}>{c.name}</span>
+                                                                            {c.phone && <span style={{ color: 'var(--text-muted)', marginLeft: 4 }}>- {c.phone}</span>}
+                                                                        </div>
+                                                                    ))}
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    </td>
+                                                    <td><input type="text" className="form-input" value={row.unit} onChange={e => updateRow(row.oidx, 'unit', e.target.value)} style={{ padding: '3px 4px', fontSize: 11, width: '100%', textAlign: 'center' }} /></td>
+                                                    <td><input type="number" className="form-input" value={row.quantity} onChange={e => updateRow(row.oidx, 'quantity', e.target.value)} style={{ padding: '3px 4px', fontSize: 11, width: '100%', textAlign: 'right' }} /></td>
+                                                    <td><input type="number" className="form-input" value={row.unitPrice} onChange={e => updateRow(row.oidx, 'unitPrice', e.target.value)} style={{ padding: '3px 4px', fontSize: 11, width: '100%', textAlign: 'right' }} /></td>
+                                                    <td style={{ textAlign: 'right', fontWeight: 600, fontSize: 11 }}>{fmt((Number(row.quantity) || 0) * (Number(row.unitPrice) || 0))}</td>
+                                                    <td>
+                                                        <select className="form-input" value={row.costType} onChange={e => updateRow(row.oidx, 'costType', e.target.value)} style={{ padding: '3px 2px', fontSize: 10, width: '100%' }}>
+                                                            {COST_TYPES.map(ct => <option key={ct} value={ct}>{ct}</option>)}
+                                                        </select>
+                                                    </td>
+                                                    <td>
+                                                        <input type="text" className="form-input" list="group1-list" value={row.group1} onChange={e => updateRow(row.oidx, 'group1', e.target.value)} style={{ padding: '3px 4px', fontSize: 10, width: '100%' }} placeholder="VD: Phần thô" />
+                                                    </td>
+                                                    <td>
+                                                        <input type="text" className="form-input" list="group2-list" value={row.group2} onChange={e => updateRow(row.oidx, 'group2', e.target.value)} style={{ padding: '3px 4px', fontSize: 10, width: '100%' }} placeholder="VD: P.Khách" />
+                                                    </td>
+                                                    <td>
+                                                        <select className="form-input" value={row.supplierTag} onChange={e => updateRow(row.oidx, 'supplierTag', e.target.value)} style={{ padding: '3px 2px', fontSize: 10, width: '100%' }}>
+                                                            {SUPPLIER_TAGS.map(t => <option key={t} value={t}>{t || '—'}</option>)}
+                                                        </select>
+                                                    </td>
+                                                    <td>
+                                                        <button onClick={() => removeRow(row.oidx)}
+                                                            style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#ef4444', fontSize: 13, padding: 0 }}>🗑</button>
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                    <button onClick={() => addRow('Thầu phụ')} className="btn btn-ghost btn-sm">+ Thêm dòng thầu phụ</button>
+                                </div>
+                            )}
+
+                            {/* Datalists for autocomplete */}
+                            <datalist id="group1-list">{GROUP1_PRESETS.map(g => <option key={g} value={g} />)}</datalist>
+                            <datalist id="group2-list">{GROUP2_PRESETS.map(g => <option key={g} value={g} />)}</datalist>
                         </div>
-                        {/* Datalists for autocomplete */}
-                        <datalist id="group1-list">{GROUP1_PRESETS.map(g => <option key={g} value={g} />)}</datalist>
-                        <datalist id="group2-list">{GROUP2_PRESETS.map(g => <option key={g} value={g} />)}</datalist>
-                        <button onClick={addRow} className="btn btn-ghost btn-sm" style={{ marginTop: 8 }}>+ Thêm dòng</button>
-                    </div>
-                )}
+                    );
+                })()}
 
                 {/* Footer */}
                 {mode === 'quick' && (
@@ -395,6 +569,6 @@ export default function BudgetQuickAdd({ projectId, products, onDone, onClose })
                     </div>
                 )}
             </div>
-        </div>
+        </div >
     );
 }
