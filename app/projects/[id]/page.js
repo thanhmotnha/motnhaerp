@@ -1457,18 +1457,37 @@ ${po.notes ? `<div class="notes-box"><strong>Ghi chú:</strong> ${po.notes}</div
                                 const overReceived = m.receivedQty > m.quantity;
                                 return (
                                     <tr key={m.id} style={{ background: overReceived ? 'rgba(239,68,68,0.08)' : '' }}>
-                                        <td className="accent" style={{ fontSize: 11 }}>{m.product?.code}</td>
+                                        <td className="accent" style={{ fontSize: 11 }}>{m.product?.code || '—'}</td>
                                         <td>
-                                            <div style={{ fontWeight: 600, fontSize: 13 }}>{m.product?.name}</div>
-                                            {overReceived && <div style={{ fontSize: 11, color: 'var(--status-danger)', fontWeight: 600 }}>⚠ Nhận vượt {m.receivedQty - m.quantity} {m.product?.unit}</div>}
+                                            <div style={{ fontWeight: 600, fontSize: 13, display: 'flex', alignItems: 'center', gap: 6 }}>
+                                                {m.supplierTag || m.product?.name}
+                                            </div>
+                                            {overReceived && <div style={{ fontSize: 11, color: 'var(--status-danger)', fontWeight: 600 }}>⚠ Nhận vượt {m.receivedQty - m.quantity} {m.product?.unit || 'Gói'}</div>}
                                         </td>
-                                        <td style={{ fontWeight: 600 }}>{m.quantity} <span style={{ fontSize: 11, opacity: 0.6 }}>{m.product?.unit}</span></td>
+                                        <td style={{ fontWeight: 600 }}>{m.quantity} <span style={{ fontSize: 11, opacity: 0.6 }}>{m.product?.unit || 'Gói'}</span></td>
                                         <td style={{ color: 'var(--status-info)' }}>{m.orderedQty}</td>
                                         <td style={{ color: overReceived ? 'var(--status-danger)' : 'var(--status-success)', fontWeight: 600 }}>{m.receivedQty}</td>
                                         <td style={{ color: missing > 0 ? 'var(--status-danger)' : 'var(--status-success)', fontWeight: 700 }}>{missing > 0 ? missing : '✓'}</td>
                                         <td style={{ fontSize: 12 }}>{fmt(m.unitPrice)}</td>
                                         <td><span className={`badge ${m.status === 'Đã đặt đủ' || m.status === 'Đã nhận đủ' ? 'success' : m.status === 'Đặt một phần' || m.status === 'Nhận một phần' ? 'warning' : 'danger'}`} style={{ fontSize: 11 }}>{m.status}</span></td>
                                         <td style={{ display: 'flex', gap: 4 }}>
+                                            <button className="btn btn-ghost btn-sm" title="Xem thanh toán thầu phụ" style={{ fontSize: 11, color: 'var(--accent-primary)' }} onClick={async () => {
+                                                const contractorName = m.supplierTag || m.product?.name;
+                                                let cList = contractorList;
+                                                if (cList.length === 0) {
+                                                    const res = await fetch('/api/contractors?limit=1000');
+                                                    const json = await res.json();
+                                                    cList = json.data || [];
+                                                    setContractorList(cList);
+                                                }
+                                                const contractor = cList.find(c => c.name === contractorName);
+                                                if (contractor) {
+                                                    setCpForm({ contractorId: contractor.id, contractAmount: String(m.totalAmount || m.quantity * m.unitPrice), paidAmount: '0', description: `TT: ${m.supplierTag || m.product?.name}`, dueDate: '', status: 'Chưa TT' });
+                                                    setModal('contractor_pay');
+                                                } else {
+                                                    alert('Chưa lưu nhà thầu này vào danh bạ (Mục Nhà thầu). Vui lòng thêm nhà thầu trước.');
+                                                }
+                                            }}>💳 Thanh toán</button>
                                             {m.orderedQty === 0 && <button className="btn btn-ghost btn-sm" title="Xóa" style={{ fontSize: 11, color: 'var(--status-danger)' }} onClick={() => deleteMaterialPlan(m.id)}>🗑</button>}
                                         </td>
                                     </tr>
