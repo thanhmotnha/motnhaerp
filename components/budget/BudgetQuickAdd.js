@@ -56,12 +56,13 @@ function useBudgetTemplates() {
     return templates;
 }
 
-export default function BudgetQuickAdd({ projectId, products, onDone, onClose }) {
+export default function BudgetQuickAdd({ projectId, products, contractors = [], onDone, onClose }) {
     const BUDGET_TEMPLATES = useBudgetTemplates();
     const [mode, setMode] = useState('quick'); // quick | excel | template
     const [rows, setRows] = useState([emptyRow()]);
     const [saving, setSaving] = useState(false);
     const [productSearch, setProductSearch] = useState('');
+    const [contractorSearch, setContractorSearch] = useState('');
     const [activeRowIdx, setActiveRowIdx] = useState(null);
     const fileRef = useRef(null);
 
@@ -73,6 +74,13 @@ export default function BudgetQuickAdd({ projectId, products, onDone, onClose })
         ? products.filter(p =>
             p.name.toLowerCase().includes(productSearch.toLowerCase()) ||
             p.code.toLowerCase().includes(productSearch.toLowerCase())
+        ).slice(0, 10)
+        : [];
+
+    const filteredContractors = contractorSearch.length >= 1
+        ? contractors.filter(c =>
+            c.name.toLowerCase().includes(contractorSearch.toLowerCase()) ||
+            (c.code && c.code.toLowerCase().includes(contractorSearch.toLowerCase()))
         ).slice(0, 10)
         : [];
 
@@ -98,6 +106,21 @@ export default function BudgetQuickAdd({ projectId, products, onDone, onClose })
         });
         setActiveRowIdx(null);
         setProductSearch('');
+    };
+
+    const selectContractor = (idx, contractor) => {
+        setRows(prev => {
+            const updated = [...prev];
+            updated[idx] = {
+                ...updated[idx],
+                productName: contractor.name,
+                supplierTag: contractor.name,
+                unit: 'Gói',
+            };
+            return updated;
+        });
+        setActiveRowIdx(null);
+        setContractorSearch('');
     };
 
     const removeRow = (idx) => setRows(prev => prev.filter((_, i) => i !== idx));
@@ -458,39 +481,35 @@ export default function BudgetQuickAdd({ projectId, products, onDone, onClose })
                                             <tr key={row._key} style={{ background: !row.productId && row.productName ? 'rgba(245,158,11,0.06)' : '' }}>
                                                 <td style={{ textAlign: 'center', color: 'var(--text-muted)' }}>{idx + 1}</td>
                                                 <td style={{ position: 'relative' }}>
-                                                    {row.productId ? (
-                                                        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                                                            <span style={{ fontWeight: 600, fontSize: 11 }}>{row.productName}</span>
-                                                            <button onClick={() => updateRow(row.oidx, 'productId', '')}
-                                                                style={{ background: 'none', border: 'none', fontSize: 11, cursor: 'pointer', color: 'var(--text-muted)', padding: 0 }}>✕</button>
-                                                        </div>
-                                                    ) : (
-                                                        <div style={{ position: 'relative' }}>
-                                                            <input type="text" className="form-input"
-                                                                placeholder={row.productName || 'Tìm SP...'}
-                                                                value={activeRowIdx === row.oidx ? productSearch : ''}
-                                                                onChange={e => { setProductSearch(e.target.value); setActiveRowIdx(row.oidx); }}
-                                                                onFocus={() => setActiveRowIdx(row.oidx)}
-                                                                style={{ padding: '3px 6px', fontSize: 11, width: '100%' }} />
-                                                            {activeRowIdx === row.oidx && filteredProducts.length > 0 && (
-                                                                <div style={{
-                                                                    position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 100,
-                                                                    background: 'var(--bg-card)', border: '1px solid var(--border-light)',
-                                                                    borderRadius: 8, maxHeight: 200, overflow: 'auto', boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
-                                                                }}>
-                                                                    {filteredProducts.map(p => (
-                                                                        <div key={p.id} onClick={() => selectProduct(row.oidx, p)}
-                                                                            style={{ padding: '5px 8px', cursor: 'pointer', fontSize: 11, borderBottom: '1px solid var(--border-light)' }}
-                                                                            onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-hover)'}
-                                                                            onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
-                                                                            <span style={{ fontWeight: 600 }}>{p.name}</span>
-                                                                            <span style={{ color: 'var(--text-muted)', marginLeft: 4 }}>{p.code}</span>
-                                                                        </div>
-                                                                    ))}
-                                                                </div>
-                                                            )}
-                                                        </div>
-                                                    )}
+                                                    <div style={{ position: 'relative' }}>
+                                                        <input type="text" className="form-input"
+                                                            placeholder={row.productName || 'Tìm nhà thầu / hạng mục...'}
+                                                            value={activeRowIdx === row.oidx ? contractorSearch : (row.productName || '')}
+                                                            onChange={e => {
+                                                                setContractorSearch(e.target.value);
+                                                                updateRow(row.oidx, 'productName', e.target.value);
+                                                                setActiveRowIdx(row.oidx);
+                                                            }}
+                                                            onFocus={() => setActiveRowIdx(row.oidx)}
+                                                            style={{ padding: '3px 6px', fontSize: 11, width: '100%' }} />
+                                                        {activeRowIdx === row.oidx && filteredContractors.length > 0 && (
+                                                            <div style={{
+                                                                position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 100,
+                                                                background: 'var(--bg-card)', border: '1px solid var(--border-light)',
+                                                                borderRadius: 8, maxHeight: 200, overflow: 'auto', boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+                                                            }}>
+                                                                {filteredContractors.map(c => (
+                                                                    <div key={c.id} onClick={() => selectContractor(row.oidx, c)}
+                                                                        style={{ padding: '5px 8px', cursor: 'pointer', fontSize: 11, borderBottom: '1px solid var(--border-light)' }}
+                                                                        onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-hover)'}
+                                                                        onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
+                                                                        <span style={{ fontWeight: 600 }}>{c.name}</span>
+                                                                        {c.phone && <span style={{ color: 'var(--text-muted)', marginLeft: 4 }}>- {c.phone}</span>}
+                                                                    </div>
+                                                                ))}
+                                                            </div>
+                                                        )}
+                                                    </div>
                                                 </td>
                                                 <td><input type="text" className="form-input" value={row.unit} onChange={e => updateRow(row.oidx, 'unit', e.target.value)} style={{ padding: '3px 4px', fontSize: 11, width: '100%', textAlign: 'center' }} /></td>
                                                 <td><input type="number" className="form-input" value={row.quantity} onChange={e => updateRow(row.oidx, 'quantity', e.target.value)} style={{ padding: '3px 4px', fontSize: 11, width: '100%', textAlign: 'right' }} /></td>

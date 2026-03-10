@@ -610,8 +610,8 @@ export default function ProjectDetailPage() {
     const [expenseForm, setExpenseForm] = useState({ description: '', category: 'Vận chuyển', amount: '', submittedBy: '' });
     const [logForm, setLogForm] = useState({ type: 'Điện thoại', content: '', createdBy: '' });
     const [cpForm, setCpForm] = useState({ contractorId: '', contractAmount: '', paidAmount: '0', description: '', dueDate: '', status: 'Chưa TT' });
-    const [contractorList, setContractorList] = useState([]);
     const [editCp, setEditCp] = useState(null); // { id, paidAmount, status }
+    const [selectedPOPlans, setSelectedPOPlans] = useState([]);
     const [ntModal, setNtModal] = useState(null); // cp object being viewed for nghiem thu
     const [ntForm, setNtForm] = useState({ description: '', unit: 'm²', quantity: '', unitPrice: '', notes: '' });
     const [savingNt, setSavingNt] = useState(false);
@@ -709,8 +709,13 @@ export default function ProjectDetailPage() {
             const json = await res.json();
             setSuppliers(json.data || json || []);
         }
-        const unordered = (data?.materialPlans || []).filter(m => m.status === 'Chưa đặt' || m.status === 'Đặt một phần');
-        setPoItems(unordered.map(m => ({ productName: m.product?.name || '', unit: m.product?.unit || '', quantity: m.quantity - m.orderedQty, unitPrice: m.unitPrice || 0, amount: (m.quantity - m.orderedQty) * (m.unitPrice || 0), productId: m.productId, _mpId: m.id })));
+        if (selectedPOPlans.length > 0) {
+            const selectedMp = (data?.materialPlans || []).filter(m => selectedPOPlans.includes(m.id));
+            setPoItems(selectedMp.map(m => ({ productName: m.product?.name || '', unit: m.product?.unit || '', quantity: m.quantity - m.orderedQty, unitPrice: m.unitPrice || 0, amount: (m.quantity - m.orderedQty) * (m.unitPrice || 0), productId: m.productId, _mpId: m.id })));
+        } else {
+            const unordered = (data?.materialPlans || []).filter(m => m.status === 'Chưa đặt' || m.status === 'Đặt một phần');
+            setPoItems(unordered.map(m => ({ productName: m.product?.name || '', unit: m.product?.unit || '', quantity: m.quantity - m.orderedQty, unitPrice: m.unitPrice || 0, amount: (m.quantity - m.orderedQty) * (m.unitPrice || 0), productId: m.productId, _mpId: m.id })));
+        }
         setPoForm({ supplier: '', supplierId: '', deliveryDate: '', notes: '', deliveryType: 'Giao thẳng dự án', deliveryAddress: data?.address || '' });
         setSupplierSearch('');
         setModal('po');
@@ -1370,17 +1375,29 @@ ${po.notes ? `<div class="notes-box"><strong>Ghi chú:</strong> ${po.notes}</div
                         <div className="card-header">
                             <span className="card-title">🧱 Dự toán Vật tư / Máy / Khác</span>
                             {p.materialPlans.filter(m => m.costType !== 'Thầu phụ' && (m.status === 'Chưa đặt' || m.status === 'Đặt một phần')).length > 0 && (
-                                <button className="btn btn-primary btn-sm" onClick={openPOModal}>🛒 Tạo PO ({p.materialPlans.filter(m => m.costType !== 'Thầu phụ' && (m.status === 'Chưa đặt' || m.status === 'Đặt một phần')).length} vật tư)</button>
+                                <button className="btn btn-primary btn-sm" onClick={openPOModal}>
+                                    🛒 Tạo PO ({selectedPOPlans.length > 0 ? `${selectedPOPlans.length} vật tư đã chọn` : `${p.materialPlans.filter(m => m.costType !== 'Thầu phụ' && (m.status === 'Chưa đặt' || m.status === 'Đặt một phần')).length} vật tư`})
+                                </button>
                             )}
                         </div>
                         <div className="table-container"><table className="data-table">
-                            <thead><tr><th>Mã</th><th>Hạng mục</th><th>SL cần</th><th>Đã đặt</th><th>Đã nhận</th><th>Còn thiếu</th><th title="Số lượng còn được yêu cầu = SL Cần - Đã Đặt">Được gọi</th><th>Đơn giá</th><th>TT</th><th></th></tr></thead>
+                            <thead><tr>
+                                <th style={{ width: 30 }}><input type="checkbox" checked={selectedPOPlans.length > 0 && selectedPOPlans.length === p.materialPlans.filter(m => m.costType !== 'Thầu phụ' && (m.status === 'Chưa đặt' || m.status === 'Đặt một phần')).length} onChange={(e) => {
+                                    if (e.target.checked) setSelectedPOPlans(p.materialPlans.filter(m => m.costType !== 'Thầu phụ' && (m.status === 'Chưa đặt' || m.status === 'Đặt một phần')).map(m => m.id));
+                                    else setSelectedPOPlans([]);
+                                }} /></th>
+                                <th>Mã</th><th>Hạng mục</th><th>SL cần</th><th>Đã đặt</th><th>Đã nhận</th><th>Còn thiếu</th><th title="Số lượng còn được yêu cầu = SL Cần - Đã Đặt">Được gọi</th><th>Đơn giá</th><th>TT</th><th></th>
+                            </tr></thead>
                             <tbody>{p.materialPlans.filter(m => m.costType !== 'Thầu phụ').map(m => {
                                 const missing = m.quantity - m.receivedQty;
                                 const canRequest = m.quantity - m.orderedQty;
                                 const overReceived = m.receivedQty > m.quantity;
+                                const canOrder = m.status === 'Chưa đặt' || m.status === 'Đặt một phần';
                                 return (
                                     <tr key={m.id} style={{ background: overReceived ? 'rgba(239,68,68,0.08)' : '' }}>
+                                        <td>{canOrder && <input type="checkbox" checked={selectedPOPlans.includes(m.id)} onChange={() => {
+                                            setSelectedPOPlans(prev => prev.includes(m.id) ? prev.filter(id => id !== m.id) : [...prev, m.id]);
+                                        }} />}</td>
                                         <td className="accent" style={{ fontSize: 11 }}>{m.product?.code}</td>
                                         <td>
                                             <div style={{ fontWeight: 600, fontSize: 13 }}>{m.product?.name}</div>
@@ -2040,6 +2057,7 @@ ${po.notes ? `<div class="notes-box"><strong>Ghi chú:</strong> ${po.notes}</div
                 <BudgetQuickAdd
                     projectId={id}
                     products={mpProducts}
+                    contractors={contractorList}
                     onClose={() => setModal(null)}
                     onDone={() => { setModal(null); fetchData(); }}
                 />
