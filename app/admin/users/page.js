@@ -19,7 +19,7 @@ const ROLE_BADGE = {
     quan_ly_du_an: 'primary', nhan_vien: 'muted', ky_thuat: 'muted',
 };
 
-const emptyForm = { name: '', email: '', password: '', role: 'nhan_vien' };
+const emptyForm = { name: '', email: '', username: '', password: '', role: 'nhan_vien' };
 
 export default function AdminUsersPage() {
     const { role } = useRole();
@@ -64,13 +64,13 @@ export default function AdminUsersPage() {
 
     const startEdit = (u) => {
         setEditId(u.id);
-        setEditData({ name: u.name, role: u.role, active: u.active, password: '' });
+        setEditData({ name: u.name, username: u.username || '', role: u.role, active: u.active, password: '' });
     };
 
     const saveEdit = async (id) => {
         setSaving(true);
         try {
-            const body = { name: editData.name, role: editData.role, active: editData.active };
+            const body = { name: editData.name, username: editData.username, role: editData.role, active: editData.active };
             if (editData.password) body.password = editData.password;
             await apiFetch(`/api/admin/users/${id}`, { method: 'PUT', body });
             toast.success('Đã cập nhật');
@@ -107,6 +107,8 @@ export default function AdminUsersPage() {
                             onChange={e => setForm(f => ({ ...f, name: e.target.value }))} style={{ flex: '1 1 180px' }} />
                         <input className="form-input" type="email" placeholder="Email *" required value={form.email}
                             onChange={e => setForm(f => ({ ...f, email: e.target.value }))} style={{ flex: '1 1 200px' }} />
+                        <input className="form-input" placeholder="Username" value={form.username}
+                            onChange={e => setForm(f => ({ ...f, username: e.target.value }))} style={{ flex: '1 1 140px' }} />
                         <input className="form-input" type="password" placeholder="Mật khẩu *" required value={form.password}
                             onChange={e => setForm(f => ({ ...f, password: e.target.value }))} style={{ flex: '1 1 160px' }} />
                         <select className="form-select" value={form.role} onChange={e => setForm(f => ({ ...f, role: e.target.value }))} style={{ flex: '1 1 160px' }}>
@@ -123,7 +125,7 @@ export default function AdminUsersPage() {
                 ) : (
                     <table className="data-table">
                         <thead><tr>
-                            <th>Họ tên</th><th>Email</th><th>Vai trò</th><th>Trạng thái</th><th>Ngày tạo</th><th></th>
+                            <th>Họ tên</th><th>Username</th><th>Email</th><th>Vai trò</th><th>Trạng thái</th><th>Ngày tạo</th><th></th>
                         </tr></thead>
                         <tbody>
                             {users.map(u => (
@@ -133,6 +135,13 @@ export default function AdminUsersPage() {
                                             ? <input className="form-input" value={editData.name}
                                                 onChange={e => setEditData(d => ({ ...d, name: e.target.value }))} style={{ width: 160 }} />
                                             : <span style={{ fontWeight: 600 }}>{u.name}</span>
+                                        }
+                                    </td>
+                                    <td>
+                                        {editId === u.id
+                                            ? <input className="form-input" value={editData.username}
+                                                onChange={e => setEditData(d => ({ ...d, username: e.target.value }))} style={{ width: 120 }} placeholder="username" />
+                                            : <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>{u.username || '—'}</span>
                                         }
                                     </td>
                                     <td style={{ color: 'var(--text-muted)', fontSize: 13 }}>{u.email}</td>

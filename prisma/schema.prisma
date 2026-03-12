@@ -16,6 +16,7 @@ model SystemSetting {
 model User {
   id            String    @id @default(cuid())
   email         String    @unique
+  username      String    @default("")
   name          String
   password      String
   role          String    @default("ky_thuat")
@@ -23,6 +24,8 @@ model User {
   pushToken     String    @default("")
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
+
+  @@index([username])
 }
 
 model Customer {
