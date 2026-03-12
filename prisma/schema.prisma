@@ -39,7 +39,7 @@ model Customer {
   birthday        DateTime?
   source          String      @default("")
   notes           String      @default("") @db.Text
-  totalRevenue    Decimal       @default(0)
+  totalRevenue    Float       @default(0)
   gender          String      @default("Nam")
   projectAddress  String      @default("") @db.Text
   projectName     String      @default("")
@@ -48,7 +48,7 @@ model Customer {
   contactPerson2  String      @default("")
   phone2          String      @default("")
   pipelineStage   String      @default("Lead")
-  estimatedValue  Decimal       @default(0)
+  estimatedValue  Float       @default(0)
   nextFollowUp    DateTime?
   score           Int         @default(0)
   lastContactAt   DateTime?
@@ -70,12 +70,12 @@ model Project {
   type            String
   address         String      @default("") @db.Text
   description     String      @default("") @db.Text
-  area            Decimal       @default(0)
+  area            Float       @default(0)
   floors          Int         @default(0)
-  budget          Decimal       @default(0)
-  spent           Decimal       @default(0)
-  contractValue   Decimal       @default(0)
-  paidAmount      Decimal       @default(0)
+  budget          Float       @default(0)
+  spent           Float       @default(0)
+  contractValue   Float       @default(0)
+  paidAmount      Float       @default(0)
   status          String      @default("Khảo sát")
   phase           String      @default("")
   progress        Int         @default(0)
@@ -88,7 +88,7 @@ model Project {
   budgetStatus    String      @default("draft")
   budgetLockedAt  DateTime?
   budgetLockedBy  String      @default("")
-  budgetTotal     Decimal       @default(0)
+  budgetTotal     Float       @default(0)
   siteReadyFlag   Boolean     @default(false)
   customerId      String
   customer        Customer    @relation(fields: [customerId], references: [id])
@@ -143,14 +143,14 @@ model Product {
   name          String
   category      String
   unit          String
-  importPrice   Decimal       @default(0)
-  salePrice     Decimal       @default(0)
+  importPrice   Float       @default(0)
+  salePrice     Float       @default(0)
   stock         Int         @default(0)
   minStock      Int         @default(0)
   supplier      String      @default("")
   description   String      @default("") @db.Text
   dimensions    String      @default("")
-  weight        Decimal       @default(0)
+  weight        Float       @default(0)
   color         String      @default("")
   material      String      @default("")
   origin        String      @default("")
@@ -183,22 +183,22 @@ model Product {
 model Quotation {
   id                String          @id @default(cuid())
   code              String          @unique
-  total             Decimal           @default(0)
-  discount          Decimal           @default(0)
-  vat               Decimal           @default(10)
-  grandTotal        Decimal           @default(0)
+  total             Float           @default(0)
+  discount          Float           @default(0)
+  vat               Float           @default(10)
+  grandTotal        Float           @default(0)
   status            String          @default("Nháp")
   validUntil        DateTime?
   notes             String          @default("") @db.Text
   type              String          @default("Thi công")
-  directCost        Decimal           @default(0)
-  managementFeeRate Decimal           @default(5)
-  managementFee     Decimal           @default(0)
-  designFee         Decimal           @default(0)
-  otherFee          Decimal           @default(0)
-  adjustment        Decimal           @default(0)
+  directCost        Float           @default(0)
+  managementFeeRate Float           @default(5)
+  managementFee     Float           @default(0)
+  designFee         Float           @default(0)
+  otherFee          Float           @default(0)
+  adjustment        Float           @default(0)
   adjustmentType    String          @default("amount")
-  adjustmentAmount  Decimal           @default(0)
+  adjustmentAmount  Float           @default(0)
   deductions        Json?           @default("[]")
   revision          Int             @default(1)
   approvalStatus    String          @default("draft")
@@ -230,7 +230,7 @@ model QuotationCategory {
   group         String          @default("")
   image         String          @default("")
   order         Int             @default(0)
-  subtotal      Decimal           @default(0)
+  subtotal      Float           @default(0)
   quotationId   String
   quotation     Quotation       @relation(fields: [quotationId], references: [id], onDelete: Cascade)
   items         QuotationItem[]
@@ -242,17 +242,17 @@ model QuotationItem {
   name         String
   order        Int                 @default(0)
   unit         String              @default("")
-  quantity     Decimal               @default(0)
-  volume       Decimal               @default(0)
-  mainMaterial Decimal               @default(0)
-  auxMaterial  Decimal               @default(0)
-  labor        Decimal               @default(0)
-  unitPrice    Decimal               @default(0)
-  amount       Decimal               @default(0)
+  quantity     Float               @default(0)
+  volume       Float               @default(0)
+  mainMaterial Float               @default(0)
+  auxMaterial  Float               @default(0)
+  labor        Float               @default(0)
+  unitPrice    Float               @default(0)
+  amount       Float               @default(0)
   description  String              @default("")
-  length       Decimal               @default(0)
-  width        Decimal               @default(0)
-  height       Decimal               @default(0)
+  length       Float               @default(0)
+  width        Float               @default(0)
+  height       Float               @default(0)
   image        String              @default("")
   productId    String?
   product      Product?            @relation(fields: [productId], references: [id])
@@ -281,7 +281,7 @@ model InventoryTransaction {
   id                   String    @id @default(cuid())
   code                 String    @unique
   type                 String
-  quantity             Decimal
+  quantity             Float
   unit                 String    @default("")
   note                 String    @default("")
   date                 DateTime  @default(now())
@@ -307,7 +307,7 @@ model Transaction {
   code         String   @unique
   type         String
   description  String
-  amount       Decimal
+  amount       Float
   category     String   @default("")
   date         DateTime @default(now())
   projectId    String?
@@ -330,8 +330,8 @@ model Employee {
   position        String   @default("")
   phone           String   @default("")
   email           String   @default("")
-  salary          Decimal    @default(0)
-  insuranceSalary Decimal    @default(0)
+  salary          Float    @default(0)
+  insuranceSalary Float    @default(0)
   status          String   @default("Đang làm")
   joinDate        DateTime?
   departmentId    String
@@ -366,9 +366,9 @@ model Contractor {
   rating        Int      @default(3)
   notes         String   @default("") @db.Text
   isBlacklisted Boolean  @default(false)
-  creditLimit   Decimal    @default(0)
+  creditLimit   Float    @default(0)
   category      String   @default("")
-  advanceAmount Decimal    @default(0)
+  advanceAmount Float    @default(0)
   payments      ContractorPayment[]
   tasks         SubContractorTask[]
   documents     ProjectDocument[]
@@ -379,9 +379,9 @@ model Contractor {
 
 model ContractorPayment {
   id                String   @id @default(cuid())
-  contractAmount    Decimal    @default(0)
-  paidAmount        Decimal    @default(0)
-  netAmount         Decimal    @default(0)
+  contractAmount    Float    @default(0)
+  paidAmount        Float    @default(0)
+  netAmount         Float    @default(0)
   status            String   @default("pending_technical")
   phase             String   @default("")
   description       String   @default("")
@@ -389,8 +389,8 @@ model ContractorPayment {
   approvedBy        String   @default("")
   approvedAt        DateTime?
   attachments       Json?
-  retentionRate     Decimal    @default(5)
-  retentionAmount   Decimal    @default(0)
+  retentionRate     Float    @default(5)
+  retentionAmount   Float    @default(0)
   retentionReleased Boolean  @default(false)
   contractorId      String
   contractor        Contractor @relation(fields: [contractorId], references: [id])
@@ -407,9 +407,9 @@ model ContractorPaymentItem {
   id                  String            @id @default(cuid())
   description         String
   unit                String            @default("")
-  quantity            Decimal             @default(0)
-  unitPrice           Decimal             @default(0)
-  amount              Decimal             @default(0)
+  quantity            Float             @default(0)
+  unitPrice           Float             @default(0)
+  amount              Float             @default(0)
   notes               String            @default("")
   acceptedAt          DateTime          @default(now())
   contractorPaymentId String
@@ -432,7 +432,7 @@ model Supplier {
   rating         Int      @default(3)
   notes          String   @default("") @db.Text
   isBlacklisted  Boolean  @default(false)
-  creditLimit    Decimal    @default(0)
+  creditLimit    Float    @default(0)
   deletedAt      DateTime?
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
@@ -458,8 +458,8 @@ model ProjectMilestone {
 model ProjectBudget {
   id           String  @id @default(cuid())
   category     String
-  budgetAmount Decimal   @default(0)
-  actualAmount Decimal   @default(0)
+  budgetAmount Float   @default(0)
+  actualAmount Float   @default(0)
   notes        String  @default("")
   projectId    String
   project      Project @relation(fields: [projectId], references: [id])
@@ -473,7 +473,7 @@ model ContractAddendum {
   code        String   @unique
   title       String
   description String   @default("") @db.Text
-  amount      Decimal    @default(0)
+  amount      Float    @default(0)
   signDate    DateTime?
   status      String   @default("Nháp")
   fileUrl     String   @default("")
@@ -489,9 +489,9 @@ model Contract {
   code            String   @unique
   name            String
   type            String   @default("Thi công")
-  contractValue   Decimal    @default(0)
-  paidAmount      Decimal    @default(0)
-  variationAmount Decimal    @default(0)
+  contractValue   Float    @default(0)
+  paidAmount      Float    @default(0)
+  variationAmount Float    @default(0)
   status          String   @default("Nháp")
   signDate        DateTime?
   startDate       DateTime?
@@ -519,16 +519,16 @@ model Contract {
 model ContractPayment {
   id                  String   @id @default(cuid())
   phase               String
-  amount              Decimal    @default(0)
-  paidAmount          Decimal    @default(0)
+  amount              Float    @default(0)
+  paidAmount          Float    @default(0)
   category            String   @default("Hợp đồng")
   status              String   @default("Chưa thu")
   dueDate             DateTime?
   paidDate            DateTime?
   notes               String   @default("")
   proofUrl            String   @default("")
-  retentionRate       Decimal    @default(0)
-  retentionAmount     Decimal    @default(0)
+  retentionRate       Float    @default(0)
+  retentionAmount     Float    @default(0)
   retentionReleasedAt DateTime?
   contractId          String
   contract            Contract @relation(fields: [contractId], references: [id], onDelete: Cascade)
@@ -561,16 +561,16 @@ model WorkOrder {
 
 model MaterialPlan {
   id              String   @id @default(cuid())
-  quantity        Decimal    @default(0)
-  orderedQty      Decimal    @default(0)
-  receivedQty     Decimal    @default(0)
-  unitPrice       Decimal    @default(0)
-  totalAmount     Decimal    @default(0)
+  quantity        Float    @default(0)
+  orderedQty      Float    @default(0)
+  receivedQty     Float    @default(0)
+  unitPrice       Float    @default(0)
+  totalAmount     Float    @default(0)
   status          String   @default("Chưa đặt")
   type            String   @default("Chính")
   category        String   @default("")
-  budgetUnitPrice Decimal    @default(0)
-  wastePercent    Decimal    @default(5)
+  budgetUnitPrice Float    @default(0)
+  wastePercent    Float    @default(5)
   isLocked        Boolean  @default(false)
   notes           String   @default("")
   costType        String   @default("Vật tư")
@@ -596,10 +596,10 @@ model BudgetChangeOrder {
   project        Project  @relation(fields: [projectId], references: [id])
   materialPlanId String?
   reason         String   @db.Text
-  oldQty         Decimal    @default(0)
-  newQty         Decimal    @default(0)
-  oldPrice       Decimal    @default(0)
-  newPrice       Decimal    @default(0)
+  oldQty         Float    @default(0)
+  newQty         Float    @default(0)
+  oldPrice       Float    @default(0)
+  newPrice       Float    @default(0)
   status         String   @default("pending")
   requestedBy    String   @default("")
   approvedBy     String   @default("")
@@ -611,12 +611,12 @@ model BudgetChangeOrder {
 model MaterialRequisition {
   id              String   @id @default(cuid())
   code            String   @unique
-  requestedQty    Decimal    @default(0)
+  requestedQty    Float    @default(0)
   requestedDate   DateTime?
   notes           String   @default("") @db.Text
   status          String   @default("Chờ xử lý")
   createdBy       String   @default("")
-  receivedQty     Decimal    @default(0)
+  receivedQty     Float    @default(0)
   receivedPhotos  Json?    @default("[]")
   receivedAt      DateTime?
   receivedBy      String   @default("")
@@ -636,8 +636,8 @@ model PurchaseOrder {
   id              String   @id @default(cuid())
   code            String   @unique
   supplier        String
-  totalAmount     Decimal    @default(0)
-  paidAmount      Decimal    @default(0)
+  totalAmount     Float    @default(0)
+  paidAmount      Float    @default(0)
   status          String   @default("Chờ duyệt")
   deliveryType    String   @default("Giao thẳng dự án")
   deliveryAddress String   @default("")
@@ -661,10 +661,10 @@ model PurchaseOrderItem {
   id                   String   @id @default(cuid())
   productName          String
   unit                 String   @default("")
-  quantity             Decimal    @default(0)
-  unitPrice            Decimal    @default(0)
-  amount               Decimal    @default(0)
-  receivedQty          Decimal    @default(0)
+  quantity             Float    @default(0)
+  unitPrice            Float    @default(0)
+  amount               Float    @default(0)
+  receivedQty          Float    @default(0)
   notes                String   @default("")
   productId            String?
   product              Product?      @relation(fields: [productId], references: [id])
@@ -684,8 +684,8 @@ model ProjectExpense {
   code          String   @unique
   expenseType   String   @default("Dự án")
   description   String   @db.Text
-  amount        Decimal    @default(0)
-  paidAmount    Decimal    @default(0)
+  amount        Float    @default(0)
+  paidAmount    Float    @default(0)
   category      String   @default("Khác")
   status        String   @default("Chờ duyệt")
   submittedBy   String   @default("")
@@ -773,7 +773,7 @@ model DocumentFolder {
 
 model ProductBOM {
   id          String   @id @default(cuid())
-  quantity    Decimal    @default(1)
+  quantity    Float    @default(1)
   unit        String   @default("")
   notes       String   @default("")
   productId   String
@@ -803,7 +803,7 @@ model ProductAttribute {
 model ProductAttributeOption {
   id          String           @id @default(cuid())
   label       String
-  priceAddon  Decimal            @default(0)
+  priceAddon  Float            @default(0)
   order       Int              @default(0)
   attributeId String
   attribute   ProductAttribute @relation(fields: [attributeId], references: [id], onDelete: Cascade)
@@ -823,7 +823,7 @@ model VariantTemplate {
 model VariantTemplateOption {
   id         String          @id @default(cuid())
   label      String
-  priceAddon Decimal           @default(0)
+  priceAddon Float           @default(0)
   order      Int             @default(0)
   templateId String
   template   VariantTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
@@ -838,10 +838,10 @@ model WorkItemLibrary {
   category     String   @default("Phần thô")
   subcategory  String   @default("")
   unit         String   @default("m²")
-  mainMaterial Decimal    @default(0)
-  auxMaterial  Decimal    @default(0)
-  labor        Decimal    @default(0)
-  unitPrice    Decimal    @default(0)
+  mainMaterial Float    @default(0)
+  auxMaterial  Float    @default(0)
+  labor        Float    @default(0)
+  unitPrice    Float    @default(0)
   description  String   @default("")
   image        String   @default("")
   createdAt    DateTime @default(now())
@@ -854,10 +854,10 @@ model QuotationTemplate {
   name              String
   type              String   @default("Thi công thô")
   description       String   @default("")
-  managementFeeRate Decimal    @default(5)
-  designFee         Decimal    @default(0)
-  vat               Decimal    @default(10)
-  discount          Decimal    @default(0)
+  managementFeeRate Float    @default(5)
+  designFee         Float    @default(0)
+  vat               Float    @default(10)
+  discount          Float    @default(0)
   categories        QuotationTemplateCategory[]
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
@@ -877,11 +877,11 @@ model QuotationTemplateItem {
   name         String
   order        Int      @default(0)
   unit         String   @default("")
-  quantity     Decimal    @default(0)
-  mainMaterial Decimal    @default(0)
-  auxMaterial  Decimal    @default(0)
-  labor        Decimal    @default(0)
-  unitPrice    Decimal    @default(0)
+  quantity     Float    @default(0)
+  mainMaterial Float    @default(0)
+  auxMaterial  Float    @default(0)
+  labor        Float    @default(0)
+  unitPrice    Float    @default(0)
   description  String   @default("")
   categoryId   String
   category     QuotationTemplateCategory @relation(fields: [categoryId], references: [id], onDelete: Cascade)
@@ -899,7 +899,7 @@ model ScheduleTask {
   endDate         DateTime
   duration        Int      @default(1)
   progress        Int      @default(0)
-  weight          Decimal    @default(1)
+  weight          Float    @default(1)
   status          String   @default("Chưa bắt đầu")
   isLocked        Boolean  @default(false)
   assignee        String   @default("")
@@ -992,7 +992,7 @@ model ScheduleTemplateItem {
   level         Int      @default(0)
   wbs           String   @default("")
   duration      Int      @default(1)
-  weight        Decimal    @default(1)
+  weight        Float    @default(1)
   color         String   @default("")
   parentId      String?
   parent        ScheduleTemplateItem? @relation("TplItemTree", fields: [parentId], references: [id])
@@ -1086,13 +1086,13 @@ model Attendance {
   employee    Employee @relation(fields: [employeeId], references: [id])
   month       Int
   year        Int
-  workDays    Decimal    @default(0)
-  leaveDays   Decimal    @default(0)
-  unpaidDays  Decimal    @default(0)
-  overtimeHrs Decimal    @default(0)
-  bonus       Decimal    @default(0)
-  deduction   Decimal    @default(0)
-  netSalary   Decimal    @default(0)
+  workDays    Float    @default(0)
+  leaveDays   Float    @default(0)
+  unpaidDays  Float    @default(0)
+  overtimeHrs Float    @default(0)
+  bonus       Float    @default(0)
+  deduction   Float    @default(0)
+  netSalary   Float    @default(0)
   notes       String   @default("")
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -1109,7 +1109,7 @@ model LeaveRequest {
   type       String   @default("Nghỉ phép năm")
   startDate  DateTime
   endDate    DateTime
-  days       Decimal    @default(1)
+  days       Float    @default(1)
   reason     String   @default("") @db.Text
   status     String   @default("Chờ duyệt")
   approvedBy String   @default("")
@@ -1208,10 +1208,10 @@ model FurnitureOrder {
   internalNote     String   @default("") @db.Text
 
   // Tài chính stored — cập nhật qua API transaction khi item thay đổi
-  confirmedAmount  Decimal    @default(0)
-  cancelledAmount  Decimal    @default(0)
-  depositAmount    Decimal    @default(0)
-  paidAmount       Decimal    @default(0)
+  confirmedAmount  Float    @default(0)
+  cancelledAmount  Float    @default(0)
+  depositAmount    Float    @default(0)
+  paidAmount       Float    @default(0)
 
   // draft | confirmed | design_review | design_approved | material_confirmed
   // | in_production | qc_done | installing | completed | cancelled
@@ -1260,9 +1260,9 @@ model FurnitureOrderItem {
   name             String
   description      String   @default("")
   unit             String   @default("bộ")
-  quantity         Decimal    @default(1)
-  unitPrice        Decimal    @default(0)
-  amount           Decimal    @default(0)
+  quantity         Float    @default(1)
+  unitPrice        Float    @default(0)
+  amount           Float    @default(0)
 
   specs            Json?    // { width, height, depth, material, color, ... }
 
@@ -1364,9 +1364,9 @@ model MaterialSelectionItem {
   supplier            String   @default("")
   swatchImageUrl      String   @default("")
   applicationArea     String   @default("")
-  quantity            Decimal    @default(0)
+  quantity            Float    @default(0)
   unit                String   @default("")
-  unitPrice           Decimal    @default(0)
+  unitPrice           Float    @default(0)
   notes               String   @default("")
 
   @@index([materialSelectionId])
@@ -1413,14 +1413,14 @@ model ProductionBatchItem {
   furnitureOrderItemId String
   furnitureOrderItem   FurnitureOrderItem @relation(fields: [furnitureOrderItemId], references: [id])
 
-  plannedQty   Decimal
-  completedQty Decimal    @default(0)
+  plannedQty   Float
+  completedQty Float    @default(0)
 
   // pending | in_progress | completed | rejected
   status       String   @default("pending")
 
-  qcPassedQty  Decimal?
-  qcFailedQty  Decimal?
+  qcPassedQty  Float?
+  qcFailedQty  Float?
   qcNote       String   @default("")
   qcAt         DateTime?
   qcBy         String   @default("")
@@ -1439,7 +1439,7 @@ model FurniturePayment {
   furnitureOrderId String
   furnitureOrder   FurnitureOrder @relation(fields: [furnitureOrderId], references: [id])
 
-  amount    Decimal
+  amount    Float
   paidAt    DateTime @default(now())
   // deposit | installment | final | refund
   type      String
@@ -1483,22 +1483,22 @@ model PayrollRecord {
   employee        Employee @relation(fields: [employeeId], references: [id])
   month           Int
   year            Int
-  baseSalary      Decimal    @default(0)
-  workDays        Decimal    @default(0)
-  actualDays      Decimal    @default(0)
-  overtimeHours   Decimal    @default(0)
-  overtimePay     Decimal    @default(0)
-  allowances      Decimal    @default(0) // phụ cấp
-  bonus           Decimal    @default(0)
-  bhxhEmployee    Decimal    @default(0) // BHXH phần NV
-  bhxhCompany     Decimal    @default(0) // BHXH phần cty
-  bhytEmployee    Decimal    @default(0)
-  bhtnEmployee    Decimal    @default(0)
-  taxableIncome   Decimal    @default(0)
-  personalTax     Decimal    @default(0) // Thuế TNCN
-  deductions      Decimal    @default(0) // khấu trừ khác
-  advances        Decimal    @default(0) // tạm ứng
-  netSalary       Decimal    @default(0) // thực lĩnh
+  baseSalary      Float    @default(0)
+  workDays        Float    @default(0)
+  actualDays      Float    @default(0)
+  overtimeHours   Float    @default(0)
+  overtimePay     Float    @default(0)
+  allowances      Float    @default(0) // phụ cấp
+  bonus           Float    @default(0)
+  bhxhEmployee    Float    @default(0) // BHXH phần NV
+  bhxhCompany     Float    @default(0) // BHXH phần cty
+  bhytEmployee    Float    @default(0)
+  bhtnEmployee    Float    @default(0)
+  taxableIncome   Float    @default(0)
+  personalTax     Float    @default(0) // Thuế TNCN
+  deductions      Float    @default(0) // khấu trừ khác
+  advances        Float    @default(0) // tạm ứng
+  netSalary       Float    @default(0) // thực lĩnh
   notes           String   @default("")
   status          String   @default("Nháp") // Nháp, Đã duyệt, Đã chi
   approvedBy      String   @default("")
