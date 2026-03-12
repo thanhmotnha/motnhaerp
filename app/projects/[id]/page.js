@@ -921,12 +921,11 @@ ${po.notes ? `<div class="notes-box"><strong>Ghi chú:</strong> ${po.notes}</div
         { key: 'milestones', label: 'Tiến độ', icon: '📊', count: p.milestones?.length },
         { key: 'contracts', label: 'Hợp đồng', icon: '📝', count: p.contracts?.length },
         { key: 'workorders', label: 'Phiếu CV', icon: '📋', count: p.workOrders?.length },
-        { key: 'materials', label: 'Theo dõi dự toán', icon: '🧱', count: p.materialPlans?.length },
+        { key: 'materials', label: 'Dự toán', icon: '🧱', count: p.materialPlans?.length },
         { key: 'purchase', label: 'Mua hàng', icon: '🛒', count: p.purchaseOrders?.length },
         { key: 'contractors', label: 'Thầu phụ', icon: '👷', count: p.contractorPays?.length },
         { key: 'finance', label: 'Tài chính', icon: '💰' },
         { key: 'documents', label: 'Tài liệu', icon: '📁', count: p.documents?.length },
-        { key: 'budget', label: 'Dự toán', icon: '💰' },
         { key: 'journal', label: 'Nhật ký AI', icon: '🤖' },
         { key: 'punchlist', label: 'Punch List', icon: '✅' },
         { key: 'warranty', label: 'Bảo hành', icon: '🛡️' },
@@ -1028,8 +1027,8 @@ ${po.notes ? `<div class="notes-box"><strong>Ghi chú:</strong> ${po.notes}</div
                 ))}
             </div>
 
-            {/* Budget Alert — shown on overview + budget tabs */}
-            {(tab === 'overview' || tab === 'budget') && <BudgetAlertBanner projectId={id} />}
+            {/* Budget Alert — shown on overview + materials tabs */}
+            {(tab === 'overview' || tab === 'materials') && <BudgetAlertBanner projectId={id} />}
 
             {/* TAB: Nhật ký */}
             {tab === 'logs' && (
@@ -1061,40 +1060,7 @@ ${po.notes ? `<div class="notes-box"><strong>Ghi chú:</strong> ${po.notes}</div
                 </div>
             )}
 
-            {/* TAB: Dự toán & Chi phí */}
-            {tab === 'budget' && (
-                <div>
-                    <BudgetLockBar
-                        projectId={id}
-                        budgetStatus={p.budgetStatus}
-                        budgetTotal={p.budgetTotal}
-                        budgetLockedAt={p.budgetLockedAt}
-                        budgetLockedBy={p.budgetLockedBy}
-                        onLocked={() => window.location.reload()}
-                    />
-                    {p.budgetStatus !== 'locked' && (
-                        <div style={{ display: 'flex', gap: 8, marginTop: 12, flexWrap: 'wrap' }}>
-                            <button className="btn btn-primary btn-sm" onClick={async () => {
-                                if (mpProducts.length === 0) {
-                                    const res = await fetch('/api/products?limit=5000');
-                                    const json = await res.json();
-                                    setMpProducts(json.data || json || []);
-                                }
-                                setModal('budget_quick');
-                            }}>📋 Nhập dự toán</button>
-                            {p.quotations?.length > 0 && <button className="btn btn-ghost btn-sm" onClick={importMPFromQuotation}>📄 Tạo từ Báo giá</button>}
-                        </div>
-                    )}
-                    <div className="card" style={{ padding: 20, marginTop: 16 }}>
-                        <h3 style={{ fontSize: 15, fontWeight: 700, marginBottom: 16 }}>📊 Bảng theo dõi Chênh lệch Dự toán</h3>
-                        <VarianceTable projectId={id} />
-                    </div>
-                    <div className="card" style={{ padding: 20, marginTop: 16 }}>
-                        <h3 style={{ fontSize: 15, fontWeight: 700, marginBottom: 16 }}>📈 S-Curve — Tiến độ Chi phí</h3>
-                        <SCurveChart projectId={id} />
-                    </div>
-                </div>
-            )}
+
 
             {/* TAB: Tổng quan */}
             {tab === 'overview' && (
@@ -1156,12 +1122,12 @@ ${po.notes ? `<div class="notes-box"><strong>Ghi chú:</strong> ${po.notes}</div
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}><h3 style={{ margin: 0 }}>📝 Hợp đồng</h3><button className="btn btn-primary btn-sm" onClick={() => setModal('contract')}>+ Thêm HĐ</button></div>
                     <div className="stats-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', marginBottom: 24 }}>
                         <div className="stat-card"><div className="stat-card-header"><span className="stat-card-icon revenue">📝</span></div><div className="stat-card .stat-value" style={{ fontSize: 20, fontWeight: 700 }}>{p.contracts.length}</div><div style={{ fontSize: 12, color: 'var(--text-muted)' }}>Tổng HĐ</div></div>
-                        <div className="stat-card"><div className="stat-card-header"><span className="stat-card-icon customers">💰</span></div><div style={{ fontSize: 20, fontWeight: 700, color: 'var(--status-success)' }}>{fmt(p.contracts.reduce((s, c) => s + c.contractValue, 0))}</div><div style={{ fontSize: 12, color: 'var(--text-muted)' }}>Tổng giá trị</div></div>
-                        <div className="stat-card"><div className="stat-card-header"><span className="stat-card-icon projects">✅</span></div><div style={{ fontSize: 20, fontWeight: 700 }}>{fmt(p.contracts.reduce((s, c) => s + c.paidAmount, 0))}</div><div style={{ fontSize: 12, color: 'var(--text-muted)' }}>Đã thu</div></div>
+                        <div className="stat-card"><div className="stat-card-header"><span className="stat-card-icon customers">💰</span></div><div style={{ fontSize: 20, fontWeight: 700, color: 'var(--status-success)' }}>{fmt(p.contracts.filter(c => c.status !== 'Nháp').reduce((s, c) => s + c.contractValue, 0))}</div><div style={{ fontSize: 12, color: 'var(--text-muted)' }}>Tổng giá trị</div></div>
+                        <div className="stat-card"><div className="stat-card-header"><span className="stat-card-icon projects">✅</span></div><div style={{ fontSize: 20, fontWeight: 700 }}>{fmt(p.contracts.filter(c => c.status !== 'Nháp').reduce((s, c) => s + c.paidAmount, 0))}</div><div style={{ fontSize: 12, color: 'var(--text-muted)' }}>Đã thu</div></div>
                     </div>
                     <div className="card">
                         <div className="table-container"><table className="data-table">
-                            <thead><tr><th>Mã HĐ</th><th>Tên</th><th>Loại</th><th>Giá trị</th><th>Biến động</th><th>Đã thu</th><th>Tỷ lệ</th><th>Trạng thái</th></tr></thead>
+                            <thead><tr><th>Mã HĐ</th><th>Tên</th><th>Loại</th><th>Giá trị</th><th>Biến động</th><th>Đã thu</th><th>Tỷ lệ</th><th>Trạng thái</th><th></th></tr></thead>
                             <tbody>{p.contracts.map(c => {
                                 const rate = pct(c.paidAmount, c.contractValue + c.variationAmount);
                                 return (
@@ -1174,6 +1140,7 @@ ${po.notes ? `<div class="notes-box"><strong>Ghi chú:</strong> ${po.notes}</div
                                         <td style={{ color: 'var(--status-success)', fontWeight: 600 }}>{fmt(c.paidAmount)}</td>
                                         <td><div style={{ display: 'flex', alignItems: 'center', gap: 6 }}><div className="progress-bar" style={{ flex: 1, maxWidth: 60 }}><div className="progress-fill" style={{ width: `${rate}%` }}></div></div><span style={{ fontSize: 12 }}>{rate}%</span></div></td>
                                         <td><span className={`badge ${c.status === 'Hoàn thành' ? 'success' : c.status === 'Đang thực hiện' ? 'warning' : c.status === 'Đã ký' ? 'info' : 'muted'}`}>{c.status}</span></td>
+                                        <td>{c.status === 'Nháp' && <button className="btn btn-sm" style={{ color: 'var(--status-danger)', background: 'none', border: 'none', cursor: 'pointer', padding: '4px 8px', fontSize: 15 }} title="Xóa hợp đồng nháp" onClick={async (e) => { e.stopPropagation(); if (!confirm('Xóa hợp đồng nháp này?')) return; await fetch(`/api/contracts/${c.id}`, { method: 'DELETE' }); fetchData(); }}>🗑️</button>}</td>
                                     </tr>
                                 );
                             })}</tbody>
@@ -1350,10 +1317,18 @@ ${po.notes ? `<div class="notes-box"><strong>Ghi chú:</strong> ${po.notes}</div
                 </div>
             )}
 
-            {/* TAB: Theo dõi dự toán */}
+            {/* TAB: Dự toán & Theo dõi */}
             {tab === 'materials' && (
                 <div>
-                    <div className="stats-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', marginBottom: 24 }}>
+                    <BudgetLockBar
+                        projectId={id}
+                        budgetStatus={p.budgetStatus}
+                        budgetTotal={p.budgetTotal}
+                        budgetLockedAt={p.budgetLockedAt}
+                        budgetLockedBy={p.budgetLockedBy}
+                        onLocked={() => window.location.reload()}
+                    />
+                    <div className="stats-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', marginBottom: 24, marginTop: 16 }}>
                         <div className="stat-card"><div style={{ fontSize: 20, fontWeight: 700 }}>{p.materialPlans.length}</div><div style={{ fontSize: 12, color: 'var(--text-muted)' }}>Tổng hạng mục</div></div>
                         <div className="stat-card"><div style={{ fontSize: 20, fontWeight: 700, color: 'var(--status-info)' }}>{fmt(p.materialPlans.reduce((s, m) => s + m.totalAmount, 0))}</div><div style={{ fontSize: 12, color: 'var(--text-muted)' }}>Tổng dự toán</div></div>
                         <div className="stat-card"><div style={{ fontSize: 20, fontWeight: 700, color: 'var(--status-warning)' }}>{p.materialPlans.filter(m => m.status === 'Chưa đặt' || m.status === 'Đặt một phần').length}</div><div style={{ fontSize: 12, color: 'var(--text-muted)' }}>Cần đặt thêm (VT)</div></div>
@@ -1451,9 +1426,8 @@ ${po.notes ? `<div class="notes-box"><strong>Ghi chú:</strong> ${po.notes}</div
                             }}>+ Dự toán thầu phụ</button>
                         </div>
                         <div className="table-container"><table className="data-table">
-                            <thead><tr><th>Mã</th><th>Hạng mục</th><th>SL cần</th><th>Đã đặt</th><th>Đã nhận</th><th>Còn thiếu</th><th>Đơn giá</th><th>TT</th><th></th></tr></thead>
+                            <thead><tr><th>Mã</th><th>Hạng mục</th><th>Khối lượng</th><th>Nghiệm thu</th><th>Đơn giá</th><th>Thành tiền</th><th>TT</th><th></th></tr></thead>
                             <tbody>{p.materialPlans.filter(m => m.costType === 'Thầu phụ').map(m => {
-                                const missing = m.quantity - m.receivedQty;
                                 const overReceived = m.receivedQty > m.quantity;
                                 return (
                                     <tr key={m.id} style={{ background: overReceived ? 'rgba(239,68,68,0.08)' : '' }}>
@@ -1462,13 +1436,12 @@ ${po.notes ? `<div class="notes-box"><strong>Ghi chú:</strong> ${po.notes}</div
                                             <div style={{ fontWeight: 600, fontSize: 13, display: 'flex', alignItems: 'center', gap: 6 }}>
                                                 {m.supplierTag || m.product?.name}
                                             </div>
-                                            {overReceived && <div style={{ fontSize: 11, color: 'var(--status-danger)', fontWeight: 600 }}>⚠ Nhận vượt {m.receivedQty - m.quantity} {m.product?.unit || 'Gói'}</div>}
+                                            {overReceived && <div style={{ fontSize: 11, color: 'var(--status-danger)', fontWeight: 600 }}>⚠ Nghiệm thu vượt {m.receivedQty - m.quantity} {m.product?.unit || 'Gói'}</div>}
                                         </td>
                                         <td style={{ fontWeight: 600 }}>{m.quantity} <span style={{ fontSize: 11, opacity: 0.6 }}>{m.product?.unit || 'Gói'}</span></td>
-                                        <td style={{ color: 'var(--status-info)' }}>{m.orderedQty}</td>
                                         <td style={{ color: overReceived ? 'var(--status-danger)' : 'var(--status-success)', fontWeight: 600 }}>{m.receivedQty}</td>
-                                        <td style={{ color: missing > 0 ? 'var(--status-danger)' : 'var(--status-success)', fontWeight: 700 }}>{missing > 0 ? missing : '✓'}</td>
                                         <td style={{ fontSize: 12 }}>{fmt(m.unitPrice)}</td>
+                                        <td style={{ fontSize: 12, fontWeight: 600 }}>{fmt(m.totalAmount || (m.quantity * m.unitPrice))}</td>
                                         <td><span className={`badge ${m.status === 'Đã đặt đủ' || m.status === 'Đã nhận đủ' ? 'success' : m.status === 'Đặt một phần' || m.status === 'Nhận một phần' ? 'warning' : 'danger'}`} style={{ fontSize: 11 }}>{m.status}</span></td>
                                         <td style={{ display: 'flex', gap: 4 }}>
                                             <button className="btn btn-ghost btn-sm" title="Xem thanh toán thầu phụ" style={{ fontSize: 11, color: 'var(--accent-primary)' }} onClick={async () => {
@@ -1495,6 +1468,15 @@ ${po.notes ? `<div class="notes-box"><strong>Ghi chú:</strong> ${po.notes}</div
                             })}</tbody>
                         </table></div>
                         {p.materialPlans.filter(m => m.costType === 'Thầu phụ').length === 0 && <div style={{ color: 'var(--text-muted)', padding: 24, textAlign: 'center' }}>Chưa có dự toán thầu phụ</div>}
+                    </div>
+
+                    <div className="card" style={{ padding: 20, marginTop: 16 }}>
+                        <h3 style={{ fontSize: 15, fontWeight: 700, marginBottom: 16 }}>📊 Bảng theo dõi Chênh lệch Dự toán</h3>
+                        <VarianceTable projectId={id} />
+                    </div>
+                    <div className="card" style={{ padding: 20, marginTop: 16 }}>
+                        <h3 style={{ fontSize: 15, fontWeight: 700, marginBottom: 16 }}>📈 S-Curve — Tiến độ Chi phí</h3>
+                        <SCurveChart projectId={id} />
                     </div>
                 </div>
             )}
