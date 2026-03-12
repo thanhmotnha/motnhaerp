@@ -1,4 +1,4 @@
-import { withAuth, withAuthAndLog } from '@/lib/apiHandler';
+import { withAuth } from '@/lib/apiHandler';
 import prisma from '@/lib/prisma';
 import { NextResponse } from 'next/server';
 import { projectUpdateSchema } from '@/lib/validations/project';
@@ -82,7 +82,7 @@ export const GET = withAuth(async (request, { params }) => {
     });
 });
 
-export const PUT = withAuthAndLog(async (request, { params }) => {
+export const PUT = withAuth(async (request, { params }) => {
     const { id } = await params;
     const body = await request.json();
     const data = projectUpdateSchema.parse(body);
@@ -91,7 +91,7 @@ export const PUT = withAuthAndLog(async (request, { params }) => {
     return NextResponse.json(project);
 }, { entityType: 'Project' });
 
-export const DELETE = withAuthAndLog(async (request, { params }) => {
+export const DELETE = withAuth(async (request, { params }) => {
     const { id } = await params;
 
     await prisma.$transaction(async (tx) => {
