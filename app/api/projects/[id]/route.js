@@ -29,12 +29,14 @@ export const GET = withAuth(async (request, { params }) => {
     if (!project) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
     // Revenue = sum of actual payments from ContractPayment records
-    const totalContractValue = project.contracts.reduce((s, c) => s + (c.contractValue ?? 0), 0);
-    const totalVariation = project.contracts.reduce((s, c) => s + (c.variationAmount ?? 0), 0);
+    // Only count signed/active contracts (exclude drafts and soft-deleted)
+    const activeContracts = project.contracts.filter(c => !c.deletedAt && c.status !== 'Nháp');
+    const totalContractValue = activeContracts.reduce((s, c) => s + (c.contractValue ?? 0), 0);
+    const totalVariation = activeContracts.reduce((s, c) => s + (c.variationAmount ?? 0), 0);
     const totalA = totalContractValue + totalVariation;
 
     // Actual collected = sum of paidAmount in each ContractPayment (per-phase payment)
-    const totalCollected = project.contracts.reduce((s, c) =>
+    const totalCollected = activeContracts.reduce((s, c) =>
         s + c.payments.reduce((ps, pay) => ps + (pay.paidAmount ?? 0), 0), 0);
 
     // P&L — uses actual collected, not stale project fields

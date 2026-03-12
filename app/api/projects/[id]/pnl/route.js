@@ -15,7 +15,7 @@ export const GET = withAuth(async (request, { params }) => {
     ] = await Promise.all([
         // Revenue: contract payments received
         prisma.contract.findMany({
-            where: { projectId: id, deletedAt: null },
+            where: { projectId: id, deletedAt: null, status: { not: 'Nháp' } },
             include: { payments: true },
         }),
         // Cost: project expenses (approved/paid)

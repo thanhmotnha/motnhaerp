@@ -10,7 +10,7 @@ export const GET = withAuth(async (request) => {
     const project = await prisma.project.findUnique({
         where: { id: projectId },
         include: {
-            contracts: { select: { contractValue: true, variationAmount: true, payments: { select: { paidAmount: true } } } },
+            contracts: { where: { deletedAt: null, status: { not: 'Nháp' } }, select: { contractValue: true, variationAmount: true, payments: { select: { paidAmount: true } } } },
             expenses: { select: { amount: true, paidAmount: true, status: true } },
             contractorPays: { select: { contractAmount: true, paidAmount: true, status: true } },
         },

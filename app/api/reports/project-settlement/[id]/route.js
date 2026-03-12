@@ -20,7 +20,7 @@ export const GET = withAuth(async (request, context, session) => {
 
     // Revenue: contract payments
     const contracts = await prisma.contract.findMany({
-        where: { projectId: id, deletedAt: null },
+        where: { projectId: id, deletedAt: null, status: { not: 'Nháp' } },
         include: {
             payments: { orderBy: { createdAt: 'asc' } },
             addenda: true,

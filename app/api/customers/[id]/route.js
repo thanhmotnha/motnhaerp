@@ -11,7 +11,7 @@ export const GET = withAuth(async (request, { params }) => {
             projects: {
                 include: {
                     milestones: { orderBy: { order: 'asc' } },
-                    contracts: { select: { id: true, code: true, name: true, contractValue: true, paidAmount: true, status: true } },
+                    contracts: { where: { deletedAt: null }, select: { id: true, code: true, name: true, contractValue: true, paidAmount: true, status: true } },
                     _count: { select: { workOrders: true, expenses: true } },
                 },
                 orderBy: { createdAt: 'desc' },
@@ -45,9 +45,10 @@ export const GET = withAuth(async (request, { params }) => {
         take: 20,
     }) : [];
 
-    // Aggregates
-    const totalContractValue = customer.contracts.reduce((s, c) => s + c.contractValue, 0);
-    const totalPaid = customer.contracts.reduce((s, c) => s + c.paidAmount, 0);
+    // Aggregates — exclude draft contracts from financial sums
+    const activeContracts = customer.contracts.filter(c => c.status !== 'Nháp');
+    const totalContractValue = activeContracts.reduce((s, c) => s + c.contractValue, 0);
+    const totalPaid = activeContracts.reduce((s, c) => s + c.paidAmount, 0);
     const totalDebt = totalContractValue - totalPaid;
 
     return NextResponse.json({

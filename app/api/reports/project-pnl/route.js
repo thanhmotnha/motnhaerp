@@ -12,7 +12,7 @@ export const GET = withAuth(async (req) => {
             id: true, code: true, name: true, status: true, startDate: true, endDate: true,
             customer: { select: { name: true } },
             contracts: {
-                where: { deletedAt: null },
+                where: { deletedAt: null, status: { not: 'Nháp' } },
                 select: {
                     contractValue: true, paidAmount: true,
                     payments: { select: { amount: true, paidAmount: true, status: true } },

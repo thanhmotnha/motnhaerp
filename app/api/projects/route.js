@@ -24,7 +24,7 @@ export const GET = withAuth(async (request) => {
             where,
             include: {
                 customer: { select: { name: true } },
-                contracts: { select: { contractValue: true, variationAmount: true, payments: { select: { paidAmount: true } } } },
+                contracts: { where: { deletedAt: null, status: { not: 'Nháp' } }, select: { contractValue: true, variationAmount: true, payments: { select: { paidAmount: true } } } },
             },
             orderBy: { createdAt: 'desc' },
             skip,
