@@ -21,7 +21,7 @@ export default function AppShell({ children }) {
 
     // Login page and public pages: no shell
     const noShellPaths = ['/login'];
-    const isNoShell = noShellPaths.some(p => pathname.startsWith(p));
+    const isNoShell = noShellPaths.some(p => pathname.startsWith(p)) || pathname.includes('/pdf');
 
     if (isNoShell || status === 'unauthenticated') {
         return children;

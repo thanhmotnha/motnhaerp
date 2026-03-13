@@ -28,7 +28,7 @@ const ALLOWED_EXTENSIONS = [
     '.zip', '.rar', '.dwg', '.dxf',
 ];
 
-const ALLOWED_UPLOAD_TYPES = ['products', 'library', 'proofs', 'documents', 'acceptance', 'contracts'];
+const ALLOWED_UPLOAD_TYPES = ['products', 'library', 'proofs', 'documents', 'acceptance', 'contracts', 'pdf-covers'];
 
 const MAX_FILE_SIZE_DEFAULT = 5 * 1024 * 1024; // 5MB
 const MAX_FILE_SIZE_DOCUMENTS = 200 * 1024 * 1024; // 200MB
@@ -67,8 +67,8 @@ export const POST = withAuth(async (request) => {
     }
 
     // Validate file size (documents allow 50MB, others 5MB)
-    const maxSize = type === 'documents' ? MAX_FILE_SIZE_DOCUMENTS : MAX_FILE_SIZE_DEFAULT;
-    const maxLabel = type === 'documents' ? '200MB' : '5MB';
+    const maxSize = (type === 'documents') ? MAX_FILE_SIZE_DOCUMENTS : (type === 'pdf-covers') ? 10 * 1024 * 1024 : MAX_FILE_SIZE_DEFAULT;
+    const maxLabel = (type === 'documents') ? '200MB' : (type === 'pdf-covers') ? '10MB' : '5MB';
     const bytes = await file.arrayBuffer();
     if (bytes.byteLength > maxSize) {
         return NextResponse.json({ error: `File quá lớn (tối đa ${maxLabel})` }, { status: 400 });

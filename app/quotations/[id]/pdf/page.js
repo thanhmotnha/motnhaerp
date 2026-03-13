@@ -1,6 +1,7 @@
 'use client';
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useParams } from 'next/navigation';
+import { PDFDocument } from 'pdf-lib';
 
 /* =============================================
    BRAND COLORS - MỘT NHÀ
@@ -126,6 +127,82 @@ export default function QuotationPDFPage() {
     const { id } = useParams();
     const [data, setData] = useState(null);
     const [copied, setCopied] = useState(false);
+    const [showCoverMerge, setShowCoverMerge] = useState(false);
+    const [pdfCovers, setPdfCovers] = useState(null);
+    const [merging, setMerging] = useState(false);
+    const fileInputRef = useRef(null);
+
+    // Fetch PDF covers from settings
+    useEffect(() => {
+        fetch('/api/settings')
+            .then(r => r.ok ? r.json() : {})
+            .then(s => {
+                if (s?.pdf_covers) {
+                    try { setPdfCovers(JSON.parse(s.pdf_covers)); } catch { }
+                }
+            })
+            .catch(() => { });
+    }, []);
+
+    const hasCovers = pdfCovers?.top?.url || pdfCovers?.bottom?.url;
+
+    // Client-side PDF merge with covers
+    async function handleCoverMerge(e) {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        setMerging(true);
+        try {
+            const mainBuf = await file.arrayBuffer();
+            const merged = await PDFDocument.create();
+
+            // Helper: fetch external PDF
+            async function loadPdf(url) {
+                const fullUrl = url.startsWith('http') ? url : `${window.location.origin}${url}`;
+                const res = await fetch(fullUrl);
+                if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                return PDFDocument.load(await res.arrayBuffer());
+            }
+
+            // 1. Top cover
+            if (pdfCovers?.top?.url) {
+                try {
+                    const topDoc = await loadPdf(pdfCovers.top.url);
+                    const pages = await merged.copyPages(topDoc, topDoc.getPageIndices());
+                    pages.forEach(p => merged.addPage(p));
+                } catch (err) { console.warn('Top cover failed:', err); }
+            }
+
+            // 2. Main content
+            const mainDoc = await PDFDocument.load(mainBuf);
+            const mainPages = await merged.copyPages(mainDoc, mainDoc.getPageIndices());
+            mainPages.forEach(p => merged.addPage(p));
+
+            // 3. Bottom cover
+            if (pdfCovers?.bottom?.url) {
+                try {
+                    const bottomDoc = await loadPdf(pdfCovers.bottom.url);
+                    const pages = await merged.copyPages(bottomDoc, bottomDoc.getPageIndices());
+                    pages.forEach(p => merged.addPage(p));
+                } catch (err) { console.warn('Bottom cover failed:', err); }
+            }
+
+            // Download
+            const mergedBytes = await merged.save();
+            const blob = new Blob([mergedBytes], { type: 'application/pdf' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `${data?.code || 'baogia'}_tronbo.pdf`;
+            a.click();
+            URL.revokeObjectURL(url);
+            setShowCoverMerge(false);
+        } catch (err) {
+            alert('Lỗi ghép PDF: ' + err.message);
+        } finally {
+            setMerging(false);
+            if (fileInputRef.current) fileInputRef.current.value = '';
+        }
+    }
 
     useEffect(() => {
         fetch(`/api/quotations/${id}`)
@@ -628,8 +705,40 @@ export default function QuotationPDFPage() {
                 <button onClick={() => window.print()} style={{ padding: '7px 20px', background: BRAND.gold, color: BRAND.blue, border: 'none', borderRadius: 6, fontSize: 13, fontWeight: 800, cursor: 'pointer', fontFamily: 'Montserrat' }}>
                     🖨️ Xuất PDF
                 </button>
+                {hasCovers && (
+                    <button onClick={() => setShowCoverMerge(true)} style={{ padding: '7px 14px', background: '#1e40af', color: '#fff', border: 'none', borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'Montserrat' }}>
+                        📎 PDF trọn bộ
+                    </button>
+                )}
                 <span style={{ color: '#64748b', fontSize: 11, fontFamily: 'Montserrat' }}>Ctrl+P → Save as PDF</span>
             </div>
+
+            {/* COVER MERGE MODAL */}
+            {showCoverMerge && (
+                <div className="no-print" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <div style={{ background: '#1e293b', borderRadius: 12, padding: 28, width: 420, maxWidth: '90vw', color: '#fff', fontFamily: 'Montserrat, sans-serif' }}>
+                        <h3 style={{ margin: '0 0 12px', fontSize: 16, color: BRAND.gold }}>📎 Xuất PDF trọn bộ (có bìa)</h3>
+                        <div style={{ background: '#334155', borderRadius: 8, padding: 14, marginBottom: 16, fontSize: 13, lineHeight: 1.6, color: '#94a3b8' }}>
+                            <strong style={{ color: '#e2e8f0' }}>Hướng dẫn:</strong><br/>
+                            1. Ấn <strong style={{ color: BRAND.gold }}>"🖨️ Xuất PDF"</strong> để in nội dung → Save as PDF<br/>
+                            2. Chọn file PDF vừa lưu bên dưới<br/>
+                            3. Hệ thống tự ghép: {pdfCovers?.top?.name && <><strong>Bìa đầu</strong> + </>}Nội dung{pdfCovers?.bottom?.name && <> + <strong>Bìa cuối</strong></>}<br/>
+                            4. File PDF trọn bộ sẽ tự tải về
+                        </div>
+                        <div style={{ display: 'flex', gap: 10, marginBottom: 16, fontSize: 12, color: '#64748b' }}>
+                            {pdfCovers?.top?.name && <span>🔝 Bìa đầu: <strong style={{ color: '#10b981' }}>{pdfCovers.top.name}</strong></span>}
+                            {pdfCovers?.bottom?.name && <span>🔚 Bìa cuối: <strong style={{ color: '#10b981' }}>{pdfCovers.bottom.name}</strong></span>}
+                        </div>
+                        <label style={{ display: 'block', padding: '14px', background: '#0f172a', border: '2px dashed #475569', borderRadius: 8, textAlign: 'center', cursor: merging ? 'wait' : 'pointer', fontSize: 13, color: '#94a3b8' }}>
+                            {merging ? '⏳ Đang ghép PDF...' : '📂 Chọn file PDF nội dung'}
+                            <input ref={fileInputRef} type="file" accept=".pdf" onChange={handleCoverMerge} disabled={merging} style={{ display: 'none' }} />
+                        </label>
+                        <button onClick={() => setShowCoverMerge(false)} disabled={merging} style={{ marginTop: 12, width: '100%', padding: '8px', background: '#334155', color: '#94a3b8', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 12 }}>
+                            Đóng
+                        </button>
+                    </div>
+                </div>
+            )}
 
             <div className="pdf-page">
                 {/* WATERMARK */}

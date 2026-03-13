@@ -11,6 +11,8 @@ import BudgetTemplateTab from '@/components/settings/BudgetTemplateTab';
 import ScheduleTemplateTab from '@/components/settings/ScheduleTemplateTab';
 import UsersTab from '@/components/settings/UsersTab';
 import ActivityLogTab from '@/components/settings/ActivityLogTab';
+import PdfCoverTab from '@/components/settings/PdfCoverTab';
+import QuotationTermsTab from '@/components/settings/QuotationTermsTab';
 
 // ========= Company Settings Keys =========
 const SETTING_KEYS = [
@@ -31,6 +33,7 @@ const SETTING_KEYS = [
 const MAIN_TABS = [
     { key: 'company', label: '🏢 Công ty' },
     { key: 'templates', label: '📋 Mẫu biểu' },
+    { key: 'pdf_covers', label: '📎 PDF Bìa' },
     { key: 'users', label: '👥 Tài khoản' },
     { key: 'activity', label: '📝 Nhật ký' },
 ];
@@ -39,6 +42,7 @@ const SUB_TABS = [
     { key: 'payment', label: '💵 Thanh toán', icon: '💵' },
     { key: 'budget', label: '🧱 Dự toán', icon: '🧱' },
     { key: 'quotation', label: '📋 Báo giá', icon: '📋' },
+    { key: 'terms', label: '📜 Điều khoản', icon: '📜' },
     { key: 'schedule', label: '📅 Tiến độ', icon: '📅' },
 ];
 
@@ -60,6 +64,8 @@ export default function SettingsPage() {
     const [quotationCategories, setQuotationCategories] = useState([]);
     const [budgetTemplates, setBudgetTemplates] = useState({});
     const [unitOptions, setUnitOptions] = useState([...DEFAULT_UNIT_OPTIONS]);
+    const [pdfCovers, setPdfCovers] = useState({ top: {}, bottom: {} });
+    const [quotationTerms, setQuotationTerms] = useState([]);
 
     useEffect(() => {
         if (role && role !== 'giam_doc') { router.replace('/'); return; }
@@ -86,6 +92,12 @@ export default function SettingsPage() {
             if (data?.unit_options) {
                 try { const parsed = JSON.parse(data.unit_options); if (Array.isArray(parsed) && parsed.length) setUnitOptions(parsed); } catch { }
             }
+            if (data?.pdf_covers) {
+                try { setPdfCovers(JSON.parse(data.pdf_covers)); } catch { setPdfCovers({ top: {}, bottom: {} }); }
+            }
+            if (data?.quotation_terms) {
+                try { const parsed = JSON.parse(data.quotation_terms); if (Array.isArray(parsed)) setQuotationTerms(parsed); } catch { }
+            }
         } catch {
             const defaults = {};
             SETTING_KEYS.forEach(s => { defaults[s.key] = s.default; });
@@ -105,6 +117,8 @@ export default function SettingsPage() {
                 quotation_categories: JSON.stringify(quotationCategories),
                 budget_templates: JSON.stringify(budgetTemplates),
                 unit_options: JSON.stringify(unitOptions),
+                pdf_covers: JSON.stringify(pdfCovers),
+                quotation_terms: JSON.stringify(quotationTerms),
             };
             await apiFetch('/api/admin/settings', {
                 method: 'PUT',
@@ -270,6 +284,10 @@ export default function SettingsPage() {
                                 />
                             )}
 
+                            {subTab === 'terms' && (
+                                <QuotationTermsTab value={quotationTerms} onChange={setQuotationTerms} />
+                            )}
+
                             {subTab === 'schedule' && (
                                 <ScheduleTemplateTab toast={toast} />
                             )}
@@ -279,6 +297,12 @@ export default function SettingsPage() {
                     {tab === 'users' && (
                         <div style={{ padding: 20 }}>
                             <UsersTab />
+                        </div>
+                    )}
+
+                    {tab === 'pdf_covers' && (
+                        <div style={{ padding: 20 }}>
+                            <PdfCoverTab pdfCovers={pdfCovers} setPdfCovers={setPdfCovers} toast={toast} />
                         </div>
                     )}
 

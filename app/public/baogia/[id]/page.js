@@ -346,11 +346,18 @@ export default function PublicQuotationPage() {
                         <div className="mn-footer-grid">
                             <div className="mn-validity">
                                 <strong>Điều khoản & Cam kết:</strong><br />
-                                • Báo giá có hiệu lực {validStr ? `đến ${validStr}` : '30 ngày'} kể từ ngày lập.<br />
-                                • Thanh toán theo tiến độ giai đoạn được thỏa thuận trong hợp đồng.<br />
-                                • Giá trên đã bao gồm nhân công, vật tư theo bảng chi tiết.<br />
-                                • Một Nhà cam kết thi công đúng tiến độ, đúng chất lượng.<br />
-                                • Mọi thay đổi phát sinh sẽ được thông báo và xác nhận trước khi thực hiện.
+                                {(Array.isArray(q.quotationTerms) && q.quotationTerms.length > 0
+                                    ? q.quotationTerms
+                                    : [
+                                        `Báo giá có hiệu lực ${validStr ? `đến ${validStr}` : '30 ngày'} kể từ ngày lập.`,
+                                        'Thanh toán theo tiến độ giai đoạn được thỏa thuận trong hợp đồng.',
+                                        'Giá trên đã bao gồm nhân công, vật tư theo bảng chi tiết.',
+                                        'Một Nhà cam kết thi công đúng tiến độ, đúng chất lượng.',
+                                        'Mọi thay đổi phát sinh sẽ được thông báo và xác nhận trước khi thực hiện.',
+                                    ]
+                                ).filter(t => t && t.trim()).map((term, i) => (
+                                    <span key={i}>• {term}<br /></span>
+                                ))}
                             </div>
                             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
                                 <div className="mn-sign-area">
