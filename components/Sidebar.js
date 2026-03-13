@@ -7,8 +7,8 @@ import {
     LayoutDashboard, TrendingUp, Users, Building2, FileText,
     Package, ClipboardList, Wrench, CreditCard, Receipt,
     ShoppingCart, Truck, Warehouse, Wallet, UserCog,
-    BarChart3, ChevronRight, ChevronDown, Shield, X, Factory,
-    ScrollText, Activity, ClipboardCheck, Banknote, Settings, ShieldCheck,
+    BarChart3, ChevronRight, ChevronDown, X, Factory,
+    Activity, ClipboardCheck, Banknote, Settings, ShieldCheck,
     Plus
 } from 'lucide-react';
 import { useRole } from '@/contexts/RoleContext';
@@ -60,8 +60,6 @@ const menuItems = [
     {
         section: 'Hệ thống', items: [
             { href: '/admin/settings', icon: Settings, label: 'Cài đặt', roles: ['giam_doc'] },
-            { href: '/admin/users', icon: Shield, label: 'Tài khoản', roles: ['giam_doc'] },
-            { href: '/admin/activity-log', icon: ScrollText, label: 'Nhật ký', roles: ['giam_doc', 'pho_gd'] },
         ]
     },
 ];

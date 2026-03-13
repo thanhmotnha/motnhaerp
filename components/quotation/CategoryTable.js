@@ -118,6 +118,7 @@ function InlineVariants({ productId, basePrice, onPriceChange, onDescChange }) {
 
 function SubcategorySection({ sub, mi, si, hook, onImageClick, onSubcategoryImageClick }) {
     const { updateSubcategoryName, removeSubcategory, updateItem, removeItem, addItem, addFromLibrary, addFromProduct, allSearchItems, mainCategories, addSubItem, removeSubItem, updateSubItem, products } = hook;
+    const unitOpts = hook.unitOptions || UNIT_OPTIONS;
 
     // Quick-add autocomplete state
     const [quickSearch, setQuickSearch] = useState('');

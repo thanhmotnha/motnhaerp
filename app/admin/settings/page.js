@@ -9,6 +9,8 @@ import { PRESET_CATEGORIES, QUOTATION_TYPES, UNIT_OPTIONS, DEFAULT_UNIT_OPTIONS 
 import { BUDGET_TEMPLATES_DEFAULT, COST_TYPES, GROUP1_PRESETS } from '@/lib/budgetTemplates';
 import BudgetTemplateTab from '@/components/settings/BudgetTemplateTab';
 import ScheduleTemplateTab from '@/components/settings/ScheduleTemplateTab';
+import UsersTab from '@/components/settings/UsersTab';
+import ActivityLogTab from '@/components/settings/ActivityLogTab';
 
 // ========= Company Settings Keys =========
 const SETTING_KEYS = [
@@ -29,6 +31,8 @@ const SETTING_KEYS = [
 const MAIN_TABS = [
     { key: 'company', label: '🏢 Công ty' },
     { key: 'templates', label: '📋 Mẫu biểu' },
+    { key: 'users', label: '👥 Tài khoản' },
+    { key: 'activity', label: '📝 Nhật ký' },
 ];
 
 const SUB_TABS = [
@@ -270,6 +274,18 @@ export default function SettingsPage() {
                                 <ScheduleTemplateTab toast={toast} />
                             )}
                         </>
+                    )}
+
+                    {tab === 'users' && (
+                        <div style={{ padding: 20 }}>
+                            <UsersTab />
+                        </div>
+                    )}
+
+                    {tab === 'activity' && (
+                        <div style={{ padding: 20 }}>
+                            <ActivityLogTab />
+                        </div>
                     )}
                 </div>
             </div>

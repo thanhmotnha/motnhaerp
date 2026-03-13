@@ -41,7 +41,7 @@ export default function useQuotationForm() {
     useEffect(() => {
         apiFetch('/api/customers?limit=1000').then(d => setCustomers(d.data || [])).catch(() => { });
         apiFetch('/api/projects?limit=1000').then(d => setProjects(d.data || [])).catch(() => { });
-        apiFetch('/api/products?limit=5000').then(d => setProducts(d.data || [])).catch(() => { });
+        apiFetch('/api/products?limit=5000&sort=name_asc').then(d => setProducts(d.data || [])).catch(() => { });
         apiFetch('/api/work-item-library?limit=1000').then(d => setLibrary(d.data || d || [])).catch(() => { });
         apiFetch('/api/product-categories').then(cats => setProdCategories(cats || [])).catch(() => { });
         apiFetch('/api/admin/settings').then(data => {
@@ -534,6 +534,7 @@ export default function useQuotationForm() {
         const items = [];
         library.forEach(l => items.push({ ...l, _type: 'library', _label: l.name, _sub: l.category || '', _price: l.unitPrice }));
         products.forEach(p => items.push({ ...p, _type: 'product', _label: p.name, _sub: p.category || '', _price: p.salePrice }));
+        items.sort((a, b) => (a._label || '').localeCompare(b._label || '', 'vi'));
         return items;
     }, [library, products]);
 

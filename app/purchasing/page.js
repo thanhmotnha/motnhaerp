@@ -78,7 +78,7 @@ function PurchasingContent() {
         const createPO = searchParams.get('createPO');
         const productIds = searchParams.get('products')?.split(',').filter(Boolean) || [];
         if (createPO && productIds.length > 0) {
-            fetch('/api/products?limit=1000').then(r => r.json()).then(d => {
+            fetch('/api/products?limit=1000&sort=name_asc').then(r => r.json()).then(d => {
                 const all = d.data || [];
                 const items = productIds.map(pid => {
                     const p = all.find(x => x.id === pid);
