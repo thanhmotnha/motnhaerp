@@ -1,7 +1,7 @@
 'use client';
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { apiFetch } from '@/lib/fetchClient';
-import { emptyItem, emptySubcategory, emptyMainCategory, PRESET_CATEGORIES } from '@/lib/quotation-constants';
+import { emptyItem, emptySubcategory, emptyMainCategory, PRESET_CATEGORIES, DEFAULT_UNIT_OPTIONS } from '@/lib/quotation-constants';
 
 export default function useQuotationForm() {
     // Reference data
@@ -10,6 +10,7 @@ export default function useQuotationForm() {
     const [products, setProducts] = useState([]);
     const [library, setLibrary] = useState([]);
     const [prodCategories, setProdCategories] = useState([]);
+    const [unitOptions, setUnitOptions] = useState([...DEFAULT_UNIT_OPTIONS]);
 
     // Tree sidebar state
     const [expandedNodes, setExpandedNodes] = useState({});
@@ -43,6 +44,11 @@ export default function useQuotationForm() {
         apiFetch('/api/products?limit=5000').then(d => setProducts(d.data || [])).catch(() => { });
         apiFetch('/api/work-item-library?limit=1000').then(d => setLibrary(d.data || d || [])).catch(() => { });
         apiFetch('/api/product-categories').then(cats => setProdCategories(cats || [])).catch(() => { });
+        apiFetch('/api/admin/settings').then(data => {
+            if (data?.unit_options) {
+                try { const parsed = JSON.parse(data.unit_options); if (Array.isArray(parsed) && parsed.length) setUnitOptions(parsed); } catch { }
+            }
+        }).catch(() => { });
     }, []);
 
     // Filtered projects
@@ -682,6 +688,8 @@ export default function useQuotationForm() {
         totalDeductions,
         // Deductions
         deductions, setDeductions, addDeduction, removeDeduction, updateDeduction,
+        // Unit options
+        unitOptions,
         // Build
         buildPayload,
     };

@@ -278,7 +278,7 @@ function SubcategorySection({ sub, mi, si, hook, onImageClick, onSubcategoryImag
                                         </td>
                                         <td>
                                             {(() => {
-                                                const opts = UNIT_OPTIONS.includes(item.unit) ? UNIT_OPTIONS : [item.unit, ...UNIT_OPTIONS];
+                                                const opts = unitOpts.includes(item.unit) ? unitOpts : [item.unit, ...unitOpts];
                                                 return (
                                                     <select className="form-select form-input-compact" value={item.unit} onChange={e => updateItem(mi, si, ii, 'unit', e.target.value)}>
                                                         {opts.map(u => <option key={u} value={u}>{u}</option>)}
@@ -321,7 +321,7 @@ function SubcategorySection({ sub, mi, si, hook, onImageClick, onSubcategoryImag
                                             <td style={{ textAlign: 'right', fontSize: 11, opacity: 0.6 }}>{fmt(si_item.volume || 0)}</td>
                                             <td>
                                                 <select className="form-select form-input-compact" value={si_item.unit || 'cái'} onChange={e => updateSubItem(mi, si, ii, sii, 'unit', e.target.value)}>
-                                                    {UNIT_OPTIONS.map(u => <option key={u} value={u}>{u}</option>)}
+                                                    {unitOpts.map(u => <option key={u} value={u}>{u}</option>)}
                                                 </select>
                                             </td>
                                             <td><input className="form-input form-input-compact" type="number" value={si_item.unitPrice || ''} onChange={e => updateSubItem(mi, si, ii, sii, 'unitPrice', e.target.value)} /></td>
@@ -372,6 +372,7 @@ function SubcategorySection({ sub, mi, si, hook, onImageClick, onSubcategoryImag
 }
 
 export default function CategoryTable({ mi, hook, onImageClick, onSubcategoryImageClick }) {
+    const unitOpts = hook.unitOptions || UNIT_OPTIONS;
     const { mainCategories, addSubcategory } = hook;
     const mc = mainCategories[mi];
     if (!mc) return null;

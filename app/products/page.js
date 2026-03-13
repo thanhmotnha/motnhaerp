@@ -66,7 +66,7 @@ export default function ProductsPage() {
     const [newProduct, setNewProduct] = useState(null);
     const [selectedIds, setSelectedIds] = useState(new Set());
     const [showAddModal, setShowAddModal] = useState(false);
-    const [addForm, setAddForm] = useState({ name: '', category: 'Nội thất thành phẩm', unit: 'cái', salePrice: 0, importPrice: 0, brand: '', supplyType: 'Mua ngoài', stock: 0, minStock: 0, supplier: '', coreBoard: '', surfaceCode: '', image: '' });
+    const [addForm, setAddForm] = useState({ name: '', category: 'Nội thất thành phẩm', unit: 'cái', salePrice: 0, importPrice: 0, brand: '', description: '', supplyType: 'Mua ngoài', stock: 0, minStock: 0, supplier: '', coreBoard: '', surfaceCode: '', image: '' });
     const [categories, setCategories] = useState([]);
     const [activeCatId, setActiveCatId] = useState(null);
     const [activeCatName, setActiveCatName] = useState(null);
@@ -1033,6 +1033,10 @@ export default function ProductsPage() {
                                 </div>
                             </div>
                             <div className="form-group">
+                                <label className="form-label">Mô tả</label>
+                                <textarea className="form-input" rows={2} value={addForm.description} onChange={e => setAddForm(f => ({ ...f, description: e.target.value }))} placeholder="Quy cách, kích thước, ghi chú nhanh..." style={{ resize: 'vertical', minHeight: 48 }} />
+                            </div>
+                            <div className="form-group" style={{ marginTop: 8 }}>
                                 <label className="form-label">Nguồn cung *</label>
                                 <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
                                     {SUPPLY_TYPES.map(t => (

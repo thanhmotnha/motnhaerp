@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { apiFetch } from '@/lib/fetchClient';
 import { useToast } from '@/components/ui/Toast';
 import { CONTRACT_TYPES, PAYMENT_TEMPLATES, CONTRACT_STATUSES, TYPE_ICONS } from '@/lib/contractTemplates';
-import { PRESET_CATEGORIES, QUOTATION_TYPES, UNIT_OPTIONS } from '@/lib/quotation-constants';
+import { PRESET_CATEGORIES, QUOTATION_TYPES, UNIT_OPTIONS, DEFAULT_UNIT_OPTIONS } from '@/lib/quotation-constants';
 import { BUDGET_TEMPLATES_DEFAULT, COST_TYPES, GROUP1_PRESETS } from '@/lib/budgetTemplates';
 import BudgetTemplateTab from '@/components/settings/BudgetTemplateTab';
 import ScheduleTemplateTab from '@/components/settings/ScheduleTemplateTab';
@@ -55,6 +55,7 @@ export default function SettingsPage() {
     });
     const [quotationCategories, setQuotationCategories] = useState([]);
     const [budgetTemplates, setBudgetTemplates] = useState({});
+    const [unitOptions, setUnitOptions] = useState([...DEFAULT_UNIT_OPTIONS]);
 
     useEffect(() => {
         if (role && role !== 'giam_doc') { router.replace('/'); return; }
@@ -78,6 +79,9 @@ export default function SettingsPage() {
             if (data?.budget_templates) {
                 try { setBudgetTemplates(JSON.parse(data.budget_templates)); } catch { setBudgetTemplates({ ...BUDGET_TEMPLATES_DEFAULT }); }
             } else { setBudgetTemplates({ ...BUDGET_TEMPLATES_DEFAULT }); }
+            if (data?.unit_options) {
+                try { const parsed = JSON.parse(data.unit_options); if (Array.isArray(parsed) && parsed.length) setUnitOptions(parsed); } catch { }
+            }
         } catch {
             const defaults = {};
             SETTING_KEYS.forEach(s => { defaults[s.key] = s.default; });
@@ -96,6 +100,7 @@ export default function SettingsPage() {
                 quotation_defaults: JSON.stringify(quotationDefaults),
                 quotation_categories: JSON.stringify(quotationCategories),
                 budget_templates: JSON.stringify(budgetTemplates),
+                unit_options: JSON.stringify(unitOptions),
             };
             await apiFetch('/api/admin/settings', {
                 method: 'PUT',
@@ -256,6 +261,8 @@ export default function SettingsPage() {
                                     setQuotationDefaults={setQuotationDefaults}
                                     quotationCategories={quotationCategories}
                                     setQuotationCategories={setQuotationCategories}
+                                    unitOptions={unitOptions}
+                                    setUnitOptions={setUnitOptions}
                                 />
                             )}
 
@@ -323,7 +330,7 @@ function PaymentTemplateContent({ paymentTemplates, addPhase, removePhase, updat
 }
 
 // ====== Quotation sub-tab ======
-function QuotationTemplateContent({ quotationDefaults, setQuotationDefaults, quotationCategories, setQuotationCategories }) {
+function QuotationTemplateContent({ quotationDefaults, setQuotationDefaults, quotationCategories, setQuotationCategories, unitOptions, setUnitOptions }) {
     return (
         <>
             <SectionTitle icon="📋" title="Giá trị mặc định báo giá" />
@@ -407,6 +414,43 @@ function QuotationTemplateContent({ quotationDefaults, setQuotationDefaults, quo
                     </div>
                 </div>
             ))}
+
+            {/* ĐVT Management */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, marginTop: 24 }}>
+                <div>
+                    <SectionTitle icon="📏" title="Đơn vị tính (ĐVT)" />
+                    <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: '-8px 0 0 0' }}>Danh sách ĐVT hiển thị trong dropdown khi tạo báo giá.</p>
+                </div>
+                <div style={{ display: 'flex', gap: 6 }}>
+                    <button className="btn btn-ghost btn-sm" style={{ fontSize: 11 }} onClick={() => setUnitOptions([...DEFAULT_UNIT_OPTIONS])}>🔄 Reset mặc định</button>
+                </div>
+            </div>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 12 }}>
+                {unitOptions.map((u, i) => (
+                    <span key={i} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, background: 'var(--bg-secondary)', border: '1px solid var(--border)', borderRadius: 6, padding: '4px 10px', fontSize: 12 }}>
+                        {u}
+                        <button onClick={() => setUnitOptions(prev => prev.filter((_, j) => j !== i))} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--status-danger)', fontSize: 13, lineHeight: 1, padding: 0, marginLeft: 2 }}>✕</button>
+                    </span>
+                ))}
+            </div>
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 24 }}>
+                <input id="new-unit-input" className="form-input" placeholder="Thêm ĐVT mới..." style={{ maxWidth: 200, fontSize: 13 }}
+                    onKeyDown={e => {
+                        if (e.key === 'Enter' && e.target.value.trim()) {
+                            const v = e.target.value.trim();
+                            if (!unitOptions.includes(v)) setUnitOptions(prev => [...prev, v]);
+                            e.target.value = '';
+                        }
+                    }} />
+                <button className="btn btn-primary btn-sm" style={{ fontSize: 12 }} onClick={() => {
+                    const inp = document.getElementById('new-unit-input');
+                    if (inp && inp.value.trim()) {
+                        const v = inp.value.trim();
+                        if (!unitOptions.includes(v)) setUnitOptions(prev => [...prev, v]);
+                        inp.value = '';
+                    }
+                }}>➕ Thêm</button>
+            </div>
 
             <SectionTitle icon="📐" title="Loại báo giá" />
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
