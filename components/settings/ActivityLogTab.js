@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, Fragment } from 'react';
 import { apiFetch } from '@/lib/fetchClient';
 import { useToast } from '@/components/ui/Toast';
 import Pagination from '@/components/ui/Pagination';
@@ -76,7 +76,7 @@ export default function ActivityLogTab() {
                         </tr></thead>
                         <tbody>
                             {logs.map(log => (
-                                <>
+                                <Fragment key={log.id}>
                                     <tr key={log.id} style={{ cursor: log.diff ? 'pointer' : undefined }}
                                         onClick={() => log.diff && setExpanded(expanded === log.id ? null : log.id)}>
                                         <td style={{ fontSize: 12, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
@@ -103,7 +103,7 @@ export default function ActivityLogTab() {
                                             </td>
                                         </tr>
                                     )}
-                                </>
+                                </Fragment>
                             ))}
                         </tbody>
                     </table>

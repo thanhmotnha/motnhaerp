@@ -9,7 +9,7 @@ import {
     ShoppingCart, Truck, Warehouse, Wallet, UserCog,
     BarChart3, ChevronRight, ChevronDown, X, Factory,
     Activity, ClipboardCheck, Banknote, Settings, ShieldCheck,
-    Plus
+    Shield, Plus
 } from 'lucide-react';
 import { useRole } from '@/contexts/RoleContext';
 
