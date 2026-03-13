@@ -65,7 +65,7 @@ export default function SettingsPage() {
     const [budgetTemplates, setBudgetTemplates] = useState({});
     const [unitOptions, setUnitOptions] = useState([...DEFAULT_UNIT_OPTIONS]);
     const [pdfCovers, setPdfCovers] = useState({ top: {}, bottom: {} });
-    const [quotationTerms, setQuotationTerms] = useState([]);
+    const [quotationTerms, setQuotationTerms] = useState({});
 
     useEffect(() => {
         if (role && role !== 'giam_doc') { router.replace('/'); return; }
@@ -96,7 +96,7 @@ export default function SettingsPage() {
                 try { setPdfCovers(JSON.parse(data.pdf_covers)); } catch { setPdfCovers({ top: {}, bottom: {} }); }
             }
             if (data?.quotation_terms) {
-                try { const parsed = JSON.parse(data.quotation_terms); if (Array.isArray(parsed)) setQuotationTerms(parsed); } catch { }
+                try { const parsed = JSON.parse(data.quotation_terms); if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) setQuotationTerms(parsed); } catch { }
             }
         } catch {
             const defaults = {};

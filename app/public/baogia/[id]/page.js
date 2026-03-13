@@ -346,16 +346,25 @@ export default function PublicQuotationPage() {
                         <div className="mn-footer-grid">
                             <div className="mn-validity">
                                 <strong>Điều khoản & Cam kết:</strong><br />
-                                {(Array.isArray(q.quotationTerms) && q.quotationTerms.length > 0
-                                    ? q.quotationTerms
-                                    : [
+                                {(() => {
+                                    const defaults = [
                                         `Báo giá có hiệu lực ${validStr ? `đến ${validStr}` : '30 ngày'} kể từ ngày lập.`,
                                         'Thanh toán theo tiến độ giai đoạn được thỏa thuận trong hợp đồng.',
                                         'Giá trên đã bao gồm nhân công, vật tư theo bảng chi tiết.',
                                         'Một Nhà cam kết thi công đúng tiến độ, đúng chất lượng.',
                                         'Mọi thay đổi phát sinh sẽ được thông báo và xác nhận trước khi thực hiện.',
-                                    ]
-                                ).filter(t => t && t.trim()).map((term, i) => (
+                                    ];
+                                    let terms = defaults;
+                                    if (q.quotationTerms) {
+                                        if (Array.isArray(q.quotationTerms) && q.quotationTerms.length > 0) {
+                                            terms = q.quotationTerms; // backward compat: old flat array
+                                        } else if (typeof q.quotationTerms === 'object' && !Array.isArray(q.quotationTerms)) {
+                                            const typed = q.quotationTerms[q.type];
+                                            if (Array.isArray(typed) && typed.length > 0) terms = typed;
+                                        }
+                                    }
+                                    return terms;
+                                })().filter(t => t && t.trim()).map((term, i) => (
                                     <span key={i}>• {term}<br /></span>
                                 ))}
                             </div>
