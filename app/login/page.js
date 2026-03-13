@@ -17,7 +17,7 @@ function LoginForm() {
     const router = useRouter();
     const searchParams = useSearchParams();
     const callbackUrl = searchParams.get('callbackUrl') || '/';
-    const [email, setEmail] = useState('');
+    const [login, setLogin] = useState('');
     const [password, setPassword] = useState('');
     const [showPassword, setShowPassword] = useState(false);
     const [error, setError] = useState('');
@@ -29,7 +29,7 @@ function LoginForm() {
         setLoading(true);
 
         const result = await signIn('credentials', {
-            email,
+            login,
             password,
             redirect: false,
         });
@@ -37,7 +37,7 @@ function LoginForm() {
         setLoading(false);
 
         if (result?.error) {
-            setError('Email hoặc mật khẩu không đúng');
+            setError('Tài khoản hoặc mật khẩu không đúng');
         } else {
             router.push(callbackUrl);
             router.refresh();
@@ -87,13 +87,13 @@ function LoginForm() {
 
                     <div style={{ marginBottom: 16 }}>
                         <label style={{ display: 'block', fontSize: 14, fontWeight: 500, color: '#374151', marginBottom: 6 }}>
-                            Email
+                            Tài khoản
                         </label>
                         <input
-                            type="email"
-                            value={email}
-                            onChange={e => setEmail(e.target.value)}
-                            placeholder="admin@motnha.vn"
+                            type="text"
+                            value={login}
+                            onChange={e => setLogin(e.target.value)}
+                            placeholder="Username hoặc email"
                             required
                             autoFocus
                             style={{

@@ -5,10 +5,18 @@ import { NextResponse } from 'next/server';
 
 export const PUT = withAuth(async (request, { params }) => {
     const { id } = await params;
-    const { name, role, active, password } = await request.json();
+    const { name, username, role, active, password } = await request.json();
 
     const data = {};
     if (name !== undefined) data.name = name.trim();
+    if (username !== undefined) {
+        const val = username.toLowerCase().trim();
+        data.username = val;
+        if (val) {
+            const dup = await prisma.user.findFirst({ where: { username: val, id: { not: id } } });
+            if (dup) return NextResponse.json({ error: 'Username đã tồn tại' }, { status: 400 });
+        }
+    }
     if (role !== undefined) data.role = role;
     if (active !== undefined) data.active = active;
     if (password) data.password = hashSync(password, 10);
@@ -16,7 +24,7 @@ export const PUT = withAuth(async (request, { params }) => {
     const user = await prisma.user.update({
         where: { id },
         data,
-        select: { id: true, email: true, name: true, role: true, active: true, createdAt: true },
+        select: { id: true, email: true, username: true, name: true, role: true, active: true, createdAt: true },
     });
     return NextResponse.json(user);
 }, { roles: ['giam_doc'] });

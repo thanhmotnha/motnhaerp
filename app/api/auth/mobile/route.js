@@ -8,22 +8,29 @@ const TOKEN_EXPIRY = '8h';
 
 export async function POST(request) {
   try {
-    const { email, password } = await request.json();
+    const { login, password } = await request.json();
 
-    if (!email || !password) {
+    if (!login || !password) {
       return NextResponse.json(
-        { error: 'Vui lòng nhập email và mật khẩu' },
+        { error: 'Vui lòng nhập tài khoản và mật khẩu' },
         { status: 400 }
       );
     }
 
-    const user = await prisma.user.findUnique({
-      where: { email },
+    const loginValue = login.trim().toLowerCase();
+    const user = await prisma.user.findFirst({
+      where: {
+        OR: [
+          { email: loginValue },
+          { username: loginValue },
+        ],
+        active: true,
+      },
     });
 
-    if (!user || !user.active) {
+    if (!user) {
       return NextResponse.json(
-        { error: 'Email hoặc mật khẩu không đúng' },
+        { error: 'Tài khoản hoặc mật khẩu không đúng' },
         { status: 401 }
       );
     }
@@ -31,7 +38,7 @@ export async function POST(request) {
     const valid = compareSync(password, user.password);
     if (!valid) {
       return NextResponse.json(
-        { error: 'Email hoặc mật khẩu không đúng' },
+        { error: 'Tài khoản hoặc mật khẩu không đúng' },
         { status: 401 }
       );
     }
