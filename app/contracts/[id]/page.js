@@ -539,6 +539,35 @@ export default function ContractDetailPage() {
                             </div>
                         </div>
 
+                        {/* Tracking */}
+                        <div className="card">
+                            <div className="card-header"><h3>👀 Tracking</h3></div>
+                            <div className="card-body">
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: 8, fontSize: 13 }}>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                                        <span style={{ color: 'var(--text-muted)' }}>Lượt xem</span>
+                                        <span style={{ fontWeight: 700, color: data.viewCount > 0 ? 'var(--accent-primary)' : 'var(--text-muted)' }}>
+                                            {data.viewCount || 0} lượt
+                                        </span>
+                                    </div>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                                        <span style={{ color: 'var(--text-muted)' }}>Xem lần cuối</span>
+                                        <span style={{ fontWeight: 600, fontSize: 12 }}>
+                                            {data.lastViewedAt ? new Date(data.lastViewedAt).toLocaleString('vi-VN') : '—'}
+                                        </span>
+                                    </div>
+                                    {data.sentAt && (
+                                        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                                            <span style={{ color: 'var(--text-muted)' }}>Đã gửi</span>
+                                            <span style={{ fontWeight: 600, fontSize: 12, color: 'var(--status-success)' }}>
+                                                {data.sentTo} ({new Date(data.sentAt).toLocaleDateString('vi-VN')})
+                                            </span>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+
                         {/* Ký HĐ & tạo dự án */}
                         {data.status === 'Nháp' && (
                             <div className="card" style={{ border: '1px solid var(--status-warning)', background: 'var(--bg-warning, #fffbeb)' }}>

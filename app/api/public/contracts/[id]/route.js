@@ -18,5 +18,12 @@ export const GET = withAuth(async (request, { params }) => {
     if (!contract || contract.status === 'Nháp' || contract.deletedAt) {
         return NextResponse.json({ error: 'Hợp đồng không tồn tại' }, { status: 404 });
     }
+
+    // Track view (non-blocking)
+    prisma.contract.update({
+        where: { id },
+        data: { viewCount: { increment: 1 }, lastViewedAt: new Date() },
+    }).catch(() => { });
+
     return NextResponse.json(contract);
 }, { public: true });

@@ -29,6 +29,12 @@ const SETTING_KEYS = [
     { key: 'warranty_months', label: 'Bảo hành (tháng)', type: 'number', default: '12', group: 'defaults' },
     { key: 'payment_terms_default', label: 'Điều khoản thanh toán mặc định', type: 'textarea', default: 'Thanh toán theo tiến độ thi công', group: 'defaults' },
     { key: 'email_footer', label: 'Footer email', type: 'textarea', default: 'Trân trọng, MỘT NHÀ Team', group: 'defaults' },
+    { key: 'smtp_host', label: 'SMTP Host', type: 'text', default: '', group: 'email' },
+    { key: 'smtp_port', label: 'SMTP Port', type: 'number', default: '587', group: 'email' },
+    { key: 'smtp_user', label: 'SMTP Username', type: 'text', default: '', group: 'email' },
+    { key: 'smtp_pass', label: 'SMTP Password', type: 'password', default: '', group: 'email' },
+    { key: 'smtp_from', label: 'Email gửi (From)', type: 'text', default: '', group: 'email' },
+    { key: 'smtp_secure', label: 'SSL/TLS', type: 'text', default: 'false', group: 'email' },
 ];
 
 const MAIN_TABS = [
@@ -230,6 +236,21 @@ export default function SettingsPage() {
                                     <textarea className="form-input" rows={3} value={settings[s.key] || ''} onChange={e => setSettings({ ...settings, [s.key]: e.target.value })} style={{ resize: 'vertical' }} />
                                 </div>
                             ))}
+
+                            <SectionTitle icon="📧" title="Cấu hình Email (SMTP)" />
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 16, marginBottom: 24 }}>
+                                {SETTING_KEYS.filter(s => s.group === 'email').map(s => (
+                                    <div key={s.key} className="form-group">
+                                        <label className="form-label">{s.label}</label>
+                                        <input className="form-input" type={s.type === 'password' ? 'password' : s.type === 'number' ? 'number' : 'text'}
+                                            value={settings[s.key] || ''} onChange={e => setSettings({ ...settings, [s.key]: e.target.value })}
+                                            placeholder={s.key === 'smtp_host' ? 'smtp.gmail.com' : s.key === 'smtp_from' ? 'noreply@motnha.vn' : ''} />
+                                    </div>
+                                ))}
+                            </div>
+                            <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 16, padding: '8px 12px', background: 'var(--bg-secondary)', borderRadius: 6 }}>
+                                💡 Gmail: Host=smtp.gmail.com, Port=587, SSL=false, dùng App Password. Zoho: smtp.zoho.com, Port=465, SSL=true.
+                            </div>
 
                             <GeminiStatusWidget />
                         </>

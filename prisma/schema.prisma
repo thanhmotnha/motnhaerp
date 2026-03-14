@@ -506,6 +506,10 @@ model Contract {
   contractBody    String   @default("") @db.Text
   selectedItems   Json?    @default("[]")
   templateId      String   @default("")
+  sentAt          DateTime?
+  sentTo          String   @default("")
+  viewCount       Int      @default(0)
+  lastViewedAt    DateTime?
   customerId      String
   customer        Customer   @relation(fields: [customerId], references: [id])
   projectId       String?
