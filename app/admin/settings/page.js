@@ -13,6 +13,7 @@ import UsersTab from '@/components/settings/UsersTab';
 import ActivityLogTab from '@/components/settings/ActivityLogTab';
 import PdfCoverTab from '@/components/settings/PdfCoverTab';
 import QuotationTermsTab from '@/components/settings/QuotationTermsTab';
+import ContractTemplateTab from '@/components/settings/ContractTemplateTab';
 
 // ========= Company Settings Keys =========
 const SETTING_KEYS = [
@@ -35,6 +36,7 @@ const MAIN_TABS = [
     { key: 'templates', label: '📋 Mẫu biểu' },
     { key: 'pdf_covers', label: '📎 PDF Bìa' },
     { key: 'users', label: '👥 Tài khoản' },
+    { key: 'contract_templates', label: '📝 Mẫu HĐ' },
     { key: 'activity', label: '📝 Nhật ký' },
 ];
 
@@ -303,6 +305,12 @@ export default function SettingsPage() {
                     {tab === 'pdf_covers' && (
                         <div style={{ padding: 20 }}>
                             <PdfCoverTab pdfCovers={pdfCovers} setPdfCovers={setPdfCovers} toast={toast} />
+                        </div>
+                    )}
+
+                    {tab === 'contract_templates' && (
+                        <div style={{ padding: 20 }}>
+                            <ContractTemplateTab />
                         </div>
                     )}
 

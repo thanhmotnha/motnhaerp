@@ -204,6 +204,14 @@ export default function PublicContractPage() {
                         </div>
                     </div>
 
+                    {/* CONTRACT BODY - Rich text content */}
+                    {c.contractBody && (
+                        <div style={{ margin: '24px 0', padding: '20px 0', borderTop: `1px solid ${BRAND.grey}`, borderBottom: `1px solid ${BRAND.grey}` }}>
+                            <div style={{ fontSize: 14, lineHeight: 1.8, fontFamily: "'Times New Roman', serif", color: BRAND.textDark }}
+                                dangerouslySetInnerHTML={{ __html: c.contractBody }} />
+                        </div>
+                    )}
+
                     {/* TIMELINE */}
                     {(c.startDate || c.endDate) && (
                         <div style={{ display: 'flex', gap: 16, margin: '16px 0' }}>

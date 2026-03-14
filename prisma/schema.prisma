@@ -38,6 +38,7 @@ model Customer {
   type            String      @default("Cá nhân")
   status          String      @default("Lead")
   taxCode         String      @default("")
+  citizenId       String      @default("")      // CCCD
   representative  String      @default("")
   birthday        DateTime?
   source          String      @default("")
@@ -502,6 +503,9 @@ model Contract {
   paymentTerms    String   @default("") @db.Text
   notes           String   @default("") @db.Text
   fileUrl         String   @default("")
+  contractBody    String   @default("") @db.Text
+  selectedItems   Json?    @default("[]")
+  templateId      String   @default("")
   customerId      String
   customer        Customer   @relation(fields: [customerId], references: [id])
   projectId       String?
@@ -1531,3 +1535,15 @@ model FurnitureTemplate {
   @@index([isActive])
 }
 
+// ============ HỢP ĐỒNG MẪU ============
+
+model ContractTemplate {
+  id        String   @id @default(cuid())
+  name      String
+  type      String   @default("Thi công")
+  body      String   @default("") @db.Text
+  isDefault Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@index([type])
+}

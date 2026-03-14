@@ -8,7 +8,7 @@ export const GET = withAuth(async (request, { params }) => {
     const contract = await prisma.contract.findUnique({
         where: { id },
         include: {
-            customer: { select: { name: true, phone: true, email: true, address: true } },
+            customer: { select: { name: true, phone: true, email: true, address: true, citizenId: true } },
             project: { select: { name: true, address: true, code: true } },
             quotation: { select: { code: true, type: true, grandTotal: true } },
             payments: { orderBy: { createdAt: 'asc' } },

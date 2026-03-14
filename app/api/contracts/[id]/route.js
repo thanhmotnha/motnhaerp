@@ -10,7 +10,11 @@ export const GET = withAuth(async (request, { params }) => {
         include: {
             customer: true,
             project: true,
-            quotation: true,
+            quotation: {
+                include: {
+                    categories: { orderBy: { order: 'asc' }, include: { items: { orderBy: { order: 'asc' } } } },
+                },
+            },
             payments: { orderBy: { createdAt: 'asc' } },
             addenda: { orderBy: { createdAt: 'desc' } },
         },
