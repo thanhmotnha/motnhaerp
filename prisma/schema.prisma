@@ -1531,14 +1531,3 @@ model FurnitureTemplate {
   @@index([isActive])
 }
 
-model QuotationTemplate {
-  id         String   @id @default(cuid())
-  name       String
-  type       String   @default("")
-  categories String   @default("[]") @db.Text  // JSON: full categories+items snapshot
-  isActive   Boolean  @default(true)
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
-
-  @@index([isActive])
-}
