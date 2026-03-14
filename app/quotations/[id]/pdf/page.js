@@ -150,6 +150,24 @@ export default function QuotationPDFPage() {
         const el = document.querySelector('.pdf-page');
         if (!el) throw new Error('No .pdf-page element found');
 
+        // Wait for all images to load (or fail) before capturing
+        const images = el.querySelectorAll('img');
+        await Promise.allSettled(
+            [...images].map(img =>
+                img.complete ? Promise.resolve() : new Promise(resolve => {
+                    img.addEventListener('load', resolve, { once: true });
+                    img.addEventListener('error', resolve, { once: true });
+                })
+            )
+        );
+
+        // If header image failed, hide its container
+        const headerDiv = el.querySelector('#mn-header-img');
+        const headerImg = headerDiv?.querySelector('img');
+        if (headerDiv && headerImg && (!headerImg.naturalWidth || headerImg.naturalWidth === 0)) {
+            headerDiv.style.display = 'none';
+        }
+
         // Temporarily hide toolbar
         const noPrintEls = document.querySelectorAll('.no-print');
         noPrintEls.forEach(e => e.style.display = 'none');
@@ -169,6 +187,8 @@ export default function QuotationPDFPage() {
             return blob;
         } finally {
             noPrintEls.forEach(e => e.style.display = '');
+            // Restore header visibility
+            if (headerDiv) headerDiv.style.display = '';
         }
     }
 
@@ -360,11 +380,14 @@ export default function QuotationPDFPage() {
                     position: relative;
                     z-index: 1;
                     overflow: hidden;
-                    max-height: 180px;
+                    max-height: 120px;
+                }
+                .mn-header-img.img-failed {
+                    display: none !important;
                 }
                 .mn-header-img img {
                     width: 100%;
-                    height: auto;
+                    height: 120px;
                     display: block;
                     object-fit: cover;
                     object-position: center bottom;
@@ -786,8 +809,12 @@ export default function QuotationPDFPage() {
                 <div className="watermark">MỘT NHÀ</div>
 
                 {/* ====== HEADER IMAGE ====== */}
-                <div className="mn-header-img">
-                    <img src="https://pub-1e1be66737b446708af785e6cc8fe673.r2.dev/assets/motnha-header.jpg" alt="Một Nhà - Bảng Báo Giá" />
+                <div className="mn-header-img" id="mn-header-img">
+                    <img
+                        src="https://pub-1e1be66737b446708af785e6cc8fe673.r2.dev/assets/motnha-header.jpg"
+                        alt="Một Nhà - Bảng Báo Giá"
+                        onError={(e) => { e.target.parentElement.classList.add('img-failed'); }}
+                    />
                 </div>
                 <div className="mn-doc-bar">
                     <span className="code">{q.code}</span>
