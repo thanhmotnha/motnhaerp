@@ -568,6 +568,21 @@ export default function ContractDetailPage() {
                             </div>
                         </div>
 
+                        {/* Chữ ký điện tử */}
+                        {data.signatureData && (
+                            <div className="card" style={{ border: '1px solid var(--status-success)' }}>
+                                <div className="card-header"><h3>✒️ Chữ ký KH</h3></div>
+                                <div className="card-body" style={{ textAlign: 'center' }}>
+                                    <img src={data.signatureData} alt="Chữ ký" style={{ maxWidth: '100%', height: 'auto', borderRadius: 4, border: '1px solid var(--border)', marginBottom: 8 }} />
+                                    <div style={{ fontSize: 13, fontWeight: 700 }}>{data.signedByName}</div>
+                                    <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+                                        {data.signedAt && new Date(data.signedAt).toLocaleString('vi-VN')}
+                                        {data.signatureIp && ` • IP: ${data.signatureIp}`}
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
                         {/* Ký HĐ & tạo dự án */}
                         {data.status === 'Nháp' && (
                             <div className="card" style={{ border: '1px solid var(--status-warning)', background: 'var(--bg-warning, #fffbeb)' }}>

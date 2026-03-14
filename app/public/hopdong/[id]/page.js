@@ -1,6 +1,9 @@
 'use client';
 import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
+import dynamic from 'next/dynamic';
+
+const SignaturePad = dynamic(() => import('@/components/ui/SignaturePad'), { ssr: false });
 
 const BRAND = {
     blue: '#234093',
@@ -39,14 +42,16 @@ export default function PublicContractPage() {
     const [acceptForm, setAcceptForm] = useState({ customerName: '', notes: '' });
     const [accepting, setAccepting] = useState(false);
     const [accepted, setAccepted] = useState(false);
+    const [signatureData, setSignatureData] = useState(null);
 
     const handleAccept = async () => {
         if (!acceptForm.customerName.trim()) return alert('Vui lòng nhập tên xác nhận');
+        if (!signatureData) return alert('Vui lòng vẽ chữ ký');
         setAccepting(true);
         const res = await fetch(`/api/public/contracts/${id}/accept`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(acceptForm),
+            body: JSON.stringify({ ...acceptForm, signatureData }),
         });
         setAccepting(false);
         if (res.ok) { setAccepted(true); setAcceptModal(false); }
@@ -313,11 +318,23 @@ export default function PublicContractPage() {
                     <div style={{ marginTop: 24, paddingTop: 16, borderTop: `2px solid ${BRAND.blue}` }}>
                         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 30, marginBottom: 28 }}>
                             <div style={{ textAlign: 'center' }}>
-                                <div style={{ fontWeight: 700, fontSize: 11, color: BRAND.blue, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 55 }}>Đại diện<br />Khách hàng</div>
-                                <div style={{ borderTop: `1px solid ${BRAND.grey}`, paddingTop: 6, fontSize: 9, color: BRAND.textLight, fontStyle: 'italic' }}>(Ký, ghi rõ họ tên)</div>
+                                <div style={{ fontWeight: 700, fontSize: 11, color: BRAND.blue, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 8 }}>Đại diện<br />Khách hàng</div>
+                                {(c.signatureData || signatureData) ? (
+                                    <>
+                                        <img src={c.signatureData || signatureData} alt="Chữ ký" style={{ maxWidth: 200, height: 'auto', margin: '0 auto 6px', display: 'block' }} />
+                                        <div style={{ fontSize: 12, fontWeight: 700, color: BRAND.textDark }}>{c.signedByName || acceptForm.customerName}</div>
+                                        {c.signedAt && <div style={{ fontSize: 9, color: BRAND.textLight }}>{new Date(c.signedAt).toLocaleString('vi-VN')}</div>}
+                                    </>
+                                ) : (
+                                    <>
+                                        <div style={{ height: 55 }} />
+                                        <div style={{ borderTop: `1px solid ${BRAND.grey}`, paddingTop: 6, fontSize: 9, color: BRAND.textLight, fontStyle: 'italic' }}>(Ký, ghi rõ họ tên)</div>
+                                    </>
+                                )}
                             </div>
                             <div style={{ textAlign: 'center' }}>
-                                <div style={{ fontWeight: 700, fontSize: 11, color: BRAND.blue, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 55 }}>Đại diện<br />Một Nhà</div>
+                                <div style={{ fontWeight: 700, fontSize: 11, color: BRAND.blue, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 8 }}>Đại diện<br />Một Nhà</div>
+                                <div style={{ height: 55 }} />
                                 <div style={{ borderTop: `1px solid ${BRAND.grey}`, paddingTop: 6, fontSize: 9, color: BRAND.textLight, fontStyle: 'italic' }}>(Ký tên, đóng dấu)</div>
                             </div>
                         </div>
@@ -334,28 +351,37 @@ export default function PublicContractPage() {
                 </div>
             </div>
 
-            {/* Accept Modal */}
+            {/* Accept Modal with SignaturePad */}
             {acceptModal && (
-                <div className="no-print" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                    <div style={{ background: '#fff', borderRadius: 12, padding: 32, maxWidth: 420, width: '90%', fontFamily: 'Montserrat, sans-serif' }}>
-                        <div style={{ fontSize: 18, fontWeight: 800, color: BRAND.blue, marginBottom: 8 }}>✍️ Xác nhận ký hợp đồng</div>
+                <div className="no-print" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
+                    <div style={{ background: '#fff', borderRadius: 12, padding: 28, maxWidth: 520, width: '100%', fontFamily: 'Montserrat, sans-serif', maxHeight: '90vh', overflow: 'auto' }}>
+                        <div style={{ fontSize: 18, fontWeight: 800, color: BRAND.blue, marginBottom: 8 }}>✒️ Ký xác nhận hợp đồng</div>
                         <div style={{ fontSize: 13, color: BRAND.textMid, marginBottom: 20 }}>Hợp đồng <strong>{c.code}</strong> — {fmt(c.contractValue)}</div>
                         <div style={{ marginBottom: 14 }}>
                             <label style={{ fontSize: 12, fontWeight: 700, color: BRAND.blue, display: 'block', marginBottom: 4 }}>Họ tên xác nhận *</label>
                             <input value={acceptForm.customerName} onChange={e => setAcceptForm(f => ({ ...f, customerName: e.target.value }))}
                                 placeholder="Nhập tên của bạn" style={{ width: '100%', padding: '10px 12px', border: `1.5px solid ${BRAND.grey}`, borderRadius: 6, fontSize: 13, fontFamily: 'Montserrat' }} />
                         </div>
-                        <div style={{ marginBottom: 20 }}>
+                        <div style={{ marginBottom: 14 }}>
+                            <label style={{ fontSize: 12, fontWeight: 700, color: BRAND.blue, display: 'block', marginBottom: 6 }}>✒️ Chữ ký *</label>
+                            <SignaturePad
+                                width={460}
+                                height={180}
+                                onSave={(data) => setSignatureData(data)}
+                            />
+                            {signatureData && <div style={{ fontSize: 11, color: '#16a34a', fontWeight: 600, marginTop: 6 }}>✅ Đã ký</div>}
+                        </div>
+                        <div style={{ marginBottom: 14 }}>
                             <label style={{ fontSize: 12, fontWeight: 700, color: BRAND.blue, display: 'block', marginBottom: 4 }}>Ghi chú</label>
                             <textarea value={acceptForm.notes} onChange={e => setAcceptForm(f => ({ ...f, notes: e.target.value }))}
-                                rows={3} placeholder="Ghi chú thêm (nếu có)..." style={{ width: '100%', padding: '10px 12px', border: `1.5px solid ${BRAND.grey}`, borderRadius: 6, fontSize: 13, fontFamily: 'Montserrat', resize: 'vertical' }} />
+                                rows={2} placeholder="Ghi chú thêm (nếu có)..." style={{ width: '100%', padding: '10px 12px', border: `1.5px solid ${BRAND.grey}`, borderRadius: 6, fontSize: 13, fontFamily: 'Montserrat', resize: 'vertical' }} />
                         </div>
                         <div style={{ display: 'flex', gap: 10 }}>
-                            <button onClick={handleAccept} disabled={accepting}
-                                style={{ flex: 1, padding: '12px 0', background: '#16a34a', color: '#fff', border: 'none', borderRadius: 6, fontSize: 14, fontWeight: 800, cursor: 'pointer' }}>
-                                {accepting ? 'Đang gửi...' : '✍️ Xác nhận ký'}
+                            <button onClick={handleAccept} disabled={accepting || !signatureData}
+                                style={{ flex: 1, padding: '12px 0', background: signatureData ? '#16a34a' : '#e2e8f0', color: signatureData ? '#fff' : '#94a3b8', border: 'none', borderRadius: 6, fontSize: 14, fontWeight: 800, cursor: signatureData ? 'pointer' : 'not-allowed' }}>
+                                {accepting ? 'Đang gửi...' : '✒️ Xác nhận ký'}
                             </button>
-                            <button onClick={() => setAcceptModal(false)}
+                            <button onClick={() => { setAcceptModal(false); setSignatureData(null); }}
                                 style={{ padding: '12px 20px', background: BRAND.grey, color: BRAND.dark, border: 'none', borderRadius: 6, fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
                                 Hủy
                             </button>

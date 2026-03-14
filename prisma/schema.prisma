@@ -510,6 +510,10 @@ model Contract {
   sentTo          String   @default("")
   viewCount       Int      @default(0)
   lastViewedAt    DateTime?
+  signatureData   String   @default("") @db.Text
+  signatureIp     String   @default("")
+  signedByName    String   @default("")
+  signedAt        DateTime?
   customerId      String
   customer        Customer   @relation(fields: [customerId], references: [id])
   projectId       String?

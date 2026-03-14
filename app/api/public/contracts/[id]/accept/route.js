@@ -7,7 +7,7 @@ import { NextResponse } from 'next/server';
 export const POST = withAuth(async (request, { params }) => {
     const { id } = await params;
     const body = await request.json();
-    const { customerName, notes } = body;
+    const { customerName, notes, signatureData } = body;
 
     const contract = await prisma.contract.findUnique({
         where: { id },
@@ -20,21 +20,27 @@ export const POST = withAuth(async (request, { params }) => {
     if (contract.status === 'Nháp') {
         return NextResponse.json({ error: 'Hợp đồng chưa sẵn sàng' }, { status: 400 });
     }
-    if (contract.status === 'Đã ký') {
-        return NextResponse.json({ error: 'Hợp đồng đã được ký trước đó' }, { status: 400 });
-    }
-    if (['Hoàn thành', 'Hủy'].includes(contract.status)) {
-        return NextResponse.json({ error: 'Hợp đồng không thể ký ở trạng thái hiện tại' }, { status: 400 });
+    if (['Đã ký', 'Hoàn thành', 'Hủy'].includes(contract.status)) {
+        return NextResponse.json({ error: 'Hợp đồng đã được ký hoặc không thể ký' }, { status: 400 });
     }
 
+    // Get client IP
+    const forwarded = request.headers.get('x-forwarded-for');
+    const ip = forwarded ? forwarded.split(',')[0].trim() : request.headers.get('x-real-ip') || 'unknown';
+
+    const now = new Date();
     const updated = await prisma.contract.update({
         where: { id },
         data: {
             status: 'Đã ký',
-            signDate: new Date(),
+            signDate: now,
+            signedAt: now,
+            signedByName: customerName || 'Không rõ',
+            signatureData: signatureData || '',
+            signatureIp: ip,
             notes: notes
-                ? `[KH ký: ${customerName || 'Không rõ'}] ${notes}`
-                : `[KH ký: ${customerName || 'Không rõ'}]`,
+                ? `[KH ký: ${customerName || 'Không rõ'} — IP: ${ip}] ${notes}`
+                : `[KH ký: ${customerName || 'Không rõ'} — IP: ${ip}]`,
         },
     });
 
