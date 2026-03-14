@@ -223,8 +223,31 @@ export default function ContractDetailPage() {
                 <button className="btn btn-secondary" onClick={() => router.push('/contracts')}>← Hợp đồng</button>
                 <span style={{ color: 'var(--text-muted)' }}>/</span>
                 <span className="accent" style={{ fontWeight: 700 }}>{data.code}</span>
-                <span style={{ marginLeft: 'auto', display: 'flex', gap: 8 }}>
-                    {saved && <span style={{ color: 'var(--status-success)', fontWeight: 600, alignSelf: 'center' }}>✅ Đã lưu!</span>}
+                <span style={{ marginLeft: 'auto', display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                    {saved && <span style={{ color: 'var(--status-success)', fontWeight: 600 }}>✅ Đã lưu!</span>}
+                    <button className="btn btn-ghost btn-sm" title="Xem trang public"
+                        onClick={() => window.open(`/public/hopdong/${id}`, '_blank')}
+                        style={{ fontSize: 12 }}>
+                        🌐 Xem public
+                    </button>
+                    <button className="btn btn-ghost btn-sm" title="Copy link gửi KH"
+                        onClick={() => {
+                            const url = `${window.location.origin}/public/hopdong/${id}`;
+                            navigator.clipboard.writeText(url);
+                            alert('Đã copy link: ' + url);
+                        }}
+                        style={{ fontSize: 12 }}>
+                        📋 Copy link
+                    </button>
+                    <button className="btn btn-ghost btn-sm" title="Gửi Zalo"
+                        onClick={() => {
+                            const url = `${window.location.origin}/public/hopdong/${id}`;
+                            const text = `Hợp đồng ${data.code} - ${data.customer?.name || ''}\nXem tại: ${url}`;
+                            window.open(`https://zalo.me/share?url=${encodeURIComponent(url)}&title=${encodeURIComponent(text)}`, '_blank');
+                        }}
+                        style={{ fontSize: 12 }}>
+                        💬 Zalo
+                    </button>
                     <button className="btn btn-danger" onClick={deleteContract}>🗑 Xóa HĐ</button>
                     <button className="btn btn-primary" onClick={save} disabled={saving}>
                         {saving ? '⏳ Đang lưu...' : '💾 Lưu thay đổi'}

@@ -19,6 +19,8 @@ export default function CreateContractPage() {
     const [contractFile, setContractFile] = useState(null);
     const [fileUploading, setFileUploading] = useState(false);
     const [fileUrl, setFileUrl] = useState('');
+    const [quotationDetail, setQuotationDetail] = useState(null);
+    const [selectedItems, setSelectedItems] = useState([]);
 
     const [form, setForm] = useState({
         name: '', type: 'Thi công thô', contractValue: 0, signDate: '', startDate: '', endDate: '',
@@ -90,7 +92,7 @@ export default function CreateContractPage() {
     const totalPhasePct = paymentPhases.reduce((s, p) => s + (p.pct || 0), 0);
     const totalPhaseAmount = paymentPhases.reduce((s, p) => s + (p.amount || 0), 0);
 
-    const selectQuotation = (qId) => {
+    const selectQuotation = async (qId) => {
         const q = quotations.find(x => x.id === qId);
         if (q) {
             setForm(f => ({
@@ -101,8 +103,18 @@ export default function CreateContractPage() {
                 contractValue: q.grandTotal || q.total || f.contractValue,
                 name: f.name || `HĐ ${q.type} - ${q.customer?.name || ''}`.trim(),
             }));
+            // Load quotation detail for item selection
+            try {
+                const detail = await fetch(`/api/quotations/${qId}`).then(r => r.json());
+                setQuotationDetail(detail);
+                // Select all items by default
+                const allIds = (detail.categories || []).flatMap(c => (c.items || []).map(i => i.id));
+                setSelectedItems(allIds);
+            } catch { setQuotationDetail(null); }
         } else {
             setForm(f => ({ ...f, quotationId: '' }));
+            setQuotationDetail(null);
+            setSelectedItems([]);
         }
     };
 
@@ -144,7 +156,7 @@ export default function CreateContractPage() {
         try {
             const saved = await apiFetch('/api/contracts', {
                 method: 'POST',
-                body: JSON.stringify({ ...form, fileUrl, projectId: form.projectId || null, paymentPhases }),
+                body: JSON.stringify({ ...form, fileUrl, projectId: form.projectId || null, paymentPhases, selectedItems: JSON.stringify(selectedItems) }),
             });
             alert('Đã tạo hợp đồng thành công!');
             router.push(`/contracts/${saved.id}`);
@@ -186,6 +198,60 @@ export default function CreateContractPage() {
                     )}
                 </div>
             </div>
+
+            {/* Tick chọn hạng mục từ BG */}
+            {quotationDetail?.categories?.length > 0 && (
+                <div className="card" style={{ marginBottom: 20 }}>
+                    <div className="card-header">
+                        <h3>✅ Chọn hạng mục đưa vào hợp đồng</h3>
+                        <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+                            {selectedItems.length}/{quotationDetail.categories.flatMap(c => c.items || []).length} hạng mục
+                        </span>
+                    </div>
+                    <div className="card-body" style={{ padding: 0, maxHeight: 400, overflow: 'auto' }}>
+                        {/* Select all */}
+                        <div style={{ padding: '8px 16px', borderBottom: '1px solid var(--border)', background: 'var(--bg-secondary)' }}>
+                            <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 13, fontWeight: 700 }}>
+                                <input type="checkbox"
+                                    checked={selectedItems.length === quotationDetail.categories.flatMap(c => c.items || []).length}
+                                    onChange={() => {
+                                        const allIds = quotationDetail.categories.flatMap(c => (c.items || []).map(i => i.id));
+                                        setSelectedItems(prev => prev.length === allIds.length ? [] : allIds);
+                                    }} />
+                                Chọn tất cả
+                            </label>
+                        </div>
+                        {quotationDetail.categories.map(cat => {
+                            const catItems = cat.items || [];
+                            const catIds = catItems.map(i => i.id);
+                            const allCatSel = catIds.every(id => selectedItems.includes(id));
+                            return (
+                                <div key={cat.id}>
+                                    <div style={{ padding: '6px 16px', background: 'var(--bg-hover)', borderBottom: '1px solid var(--border)' }}>
+                                        <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 12, fontWeight: 600 }}>
+                                            <input type="checkbox" checked={allCatSel} onChange={() => {
+                                                setSelectedItems(prev => allCatSel ? prev.filter(id => !catIds.includes(id)) : [...new Set([...prev, ...catIds])]);
+                                            }} />
+                                            📁 {cat.name}
+                                            <span style={{ color: 'var(--text-muted)', fontWeight: 400 }}>({catItems.length})</span>
+                                        </label>
+                                    </div>
+                                    {catItems.map(item => (
+                                        <div key={item.id} style={{ padding: '4px 16px 4px 36px', borderBottom: '1px solid var(--border)', fontSize: 12 }}>
+                                            <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
+                                                <input type="checkbox" checked={selectedItems.includes(item.id)}
+                                                    onChange={() => setSelectedItems(prev => prev.includes(item.id) ? prev.filter(id => id !== item.id) : [...prev, item.id])} />
+                                                <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.name}</span>
+                                                <span style={{ color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>{fmt(item.amount || 0)}</span>
+                                            </label>
+                                        </div>
+                                    ))}
+                                </div>
+                            );
+                        })}
+                    </div>
+                </div>
+            )}
 
             {/* Form thông tin hợp đồng */}
             <div className="card" style={{ marginBottom: 20 }}>
