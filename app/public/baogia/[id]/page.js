@@ -121,14 +121,26 @@ export default function PublicQuotationPage() {
                 body { background: #e8ecf1 !important; font-family: 'Montserrat', sans-serif; color: ${BRAND.textDark}; }
                 @media print {
                     .no-print { display: none !important; }
-                    body { background: white !important; }
-                    .pdf-page { box-shadow: none !important; margin: 0 !important; max-width: 100% !important; border-radius: 0 !important; }
-                    @page { size: A4 landscape; margin: 0; }
+                    body { background: white !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+                    .pdf-page { box-shadow: none !important; margin: 0 !important; max-width: 100% !important; border-radius: 0 !important; overflow: visible !important; }
+                    @page { size: A4 landscape; margin: 8mm 6mm; }
+                    .mn-header-img { margin: 0 -6mm; width: calc(100% + 12mm); }
+                    .mn-header-img img { width: 100% !important; height: auto !important; }
+                    .mn-cat-main { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+                    .mn-table th { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+                    .mn-sum-row.total { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+                    .mn-brand-strip { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; margin: 0 -6mm; width: calc(100% + 12mm); }
+                    .mn-info-row { page-break-inside: avoid; }
+                    .mn-cat-main { page-break-after: avoid; }
+                    .mn-table { page-break-inside: auto; }
+                    .mn-table tr { page-break-inside: avoid; }
+                    .mn-footer-section { page-break-inside: avoid; }
+                    .mn-summary-wrap { page-break-inside: avoid; }
                 }
                 .pdf-page { max-width: 1100px; margin: 20px auto 40px; background: #fff; box-shadow: 0 4px 40px rgba(0,0,0,0.12); border-radius: 4px; position: relative; overflow: hidden; }
                 .watermark { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%) rotate(-30deg); font-size: 120px; font-weight: 900; color: ${BRAND.blue}; opacity: 0.025; pointer-events: none; white-space: nowrap; letter-spacing: 20px; z-index: 0; }
-                .mn-header-img { width: 100%; display: block; position: relative; z-index: 1; }
-                .mn-header-img img { width: 100%; height: auto; display: block; }
+                .mn-header-img { width: 100%; display: block; position: relative; z-index: 1; line-height: 0; }
+                .mn-header-img img { width: 100%; height: auto; display: block; object-fit: contain; }
                 .mn-doc-bar { display: flex; justify-content: flex-end; align-items: center; gap: 20px; padding: 6px 38px; font-size: 10px; font-style: italic; color: ${BRAND.textMid}; position: relative; z-index: 1; }
                 .mn-doc-bar .code { font-weight: 700; color: ${BRAND.blue}; font-style: italic; }
                 .mn-doc-bar .meta { font-weight: 400; font-style: italic; }
