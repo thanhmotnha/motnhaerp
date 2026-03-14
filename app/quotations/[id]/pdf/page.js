@@ -159,7 +159,7 @@ export default function QuotationPDFPage() {
             filename: `${data?.code || 'baogia'}.pdf`,
             image: { type: 'jpeg', quality: 0.98 },
             html2canvas: { scale: 2, useCORS: true, logging: false },
-            jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
+            jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' },
             pagebreak: { mode: ['avoid-all', 'css', 'legacy'] },
         };
 
@@ -301,6 +301,12 @@ export default function QuotationPDFPage() {
                 * { box-sizing: border-box; margin: 0; padding: 0; }
                 body { background: #e8ecf1 !important; font-family: 'Montserrat', sans-serif; color: ${BRAND.textDark}; }
 
+                /* Page break for each category section */
+                .mn-page-break {
+                    page-break-before: always;
+                    break-before: page;
+                }
+
                 @media print {
                     .no-print { display: none !important; }
                     body { background: white !important; }
@@ -354,12 +360,14 @@ export default function QuotationPDFPage() {
                     position: relative;
                     z-index: 1;
                     overflow: hidden;
-                    padding-top: 20px;
+                    max-height: 180px;
                 }
                 .mn-header-img img {
                     width: 100%;
                     height: auto;
                     display: block;
+                    object-fit: cover;
+                    object-position: center bottom;
                 }
                 .mn-doc-bar {
                     display: flex;
@@ -861,7 +869,7 @@ export default function QuotationPDFPage() {
                             const subs = grouped[groupName];
                             const groupTotal = subs.reduce((s, c) => s + (c.subtotal || 0), 0);
                             return (
-                                <div key={gi}>
+                                <div key={gi} className={gi > 0 ? 'mn-page-break' : ''}>
                                     {subs.map((cat, ci) => {
                                         const items = cat.items || [];
                                         const hasAnyImage = items.some(i => i.image);

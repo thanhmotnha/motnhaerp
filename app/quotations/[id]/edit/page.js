@@ -248,7 +248,18 @@ export default function EditQuotationPage() {
                     </div>
                     <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                         <button className="btn btn-ghost" onClick={() => router.push('/quotations')}>← Quay lại</button>
-                        <button className="btn btn-ghost" onClick={() => window.open(`/quotations/${params.id}/pdf`, '_blank')}>📄 PDF</button>
+                        <button className="btn btn-ghost" onClick={() => window.open(`/quotations/${params.id}/pdf`, '_blank')}>📄 Xem báo giá</button>
+                        <button className="btn btn-ghost" onClick={() => { const w = window.open(`/quotations/${params.id}/pdf`, '_blank'); w && w.addEventListener('load', () => w.print()); }}>🖨️ In</button>
+                        <button className="btn btn-ghost" onClick={async () => {
+                            try {
+                                const payload = buildPayload();
+                                const res = await apiFetch('/api/quotation-templates', {
+                                    method: 'POST',
+                                    body: JSON.stringify({ name: mainCategories[activeMainIdx]?.name || 'Mẫu báo giá', categories: payload.categories }),
+                                });
+                                toast.success('Đã lưu thành mẫu!');
+                            } catch (e) { toast.error('Lỗi lưu mẫu: ' + e.message); }
+                        }}>💾 Lưu thành mẫu</button>
                         {canCreateAddendum && (
                             <button className="btn btn-success btn-sm" onClick={handleCreateAddendum} style={{ fontSize: 12 }}>📑 Tạo HĐ phụ lục</button>
                         )}
