@@ -10,6 +10,10 @@ export const GET = withAuth(async (req) => {
     const where = {};
     if (projectId) where.projectId = projectId;
     if (status) where.status = status;
+    const slaBreached = searchParams.get('slaBreached');
+    if (slaBreached === 'true') where.slaBreached = true;
+    const category = searchParams.get('category');
+    if (category) where.category = category;
 
     const tickets = await prisma.warrantyTicket.findMany({
         where,
@@ -27,7 +31,13 @@ export const POST = withAuth(async (req) => {
     }
     const code = await generateCode('warrantyTicket', 'BH');
     const ticket = await prisma.warrantyTicket.create({
-        data: { code, projectId, title: title.trim(), description, reportedBy, assignee, priority },
+        data: {
+            code, projectId, title: title.trim(), description, reportedBy, assignee, priority,
+            warrantyEndDate: body.warrantyEndDate ? new Date(body.warrantyEndDate) : null,
+            slaDeadline: body.slaDeadline ? new Date(body.slaDeadline) : null,
+            category: body.category || '',
+            furnitureOrderId: body.furnitureOrderId || null,
+        },
     });
     return NextResponse.json(ticket, { status: 201 });
 });

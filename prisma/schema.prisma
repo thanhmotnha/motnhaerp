@@ -57,6 +57,7 @@ model Customer {
   score           Int         @default(0)
   lastContactAt   DateTime?
   lostReason      String      @default("")
+  tags            String      @default("") // comma-separated: "VIP,Ưu tiên,Đại lý"
   deletedAt       DateTime?
   createdAt       DateTime    @default(now())
   updatedAt       DateTime    @updatedAt
@@ -66,6 +67,7 @@ model Customer {
   trackingLogs    TrackingLog[]
   documents       ProjectDocument[]
   furnitureOrders FurnitureOrder[]
+  interactions    CustomerInteraction[]
 }
 
 model Project {
@@ -363,6 +365,9 @@ model Employee {
   dailyAttendances DailyAttendance[]
   leaveRequests   LeaveRequest[]
   payrollRecords  PayrollRecord[]
+  reviews         EmployeeReview[]
+  salaryAdvances  SalaryAdvance[]
+  contracts       EmployeeContract[]
   deletedAt       DateTime?
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
@@ -1171,6 +1176,10 @@ model WarrantyTicket {
   priority         String   @default("Trung bình")
   status           String   @default("Mới")
   resolvedAt       DateTime?
+  warrantyEndDate  DateTime?
+  slaDeadline      DateTime?
+  slaBreached      Boolean  @default(false)
+  category         String   @default("")
   images           String   @default("[]") @db.Text
   notes            String   @default("") @db.Text
   createdAt        DateTime @default(now())
@@ -1178,6 +1187,7 @@ model WarrantyTicket {
   @@index([projectId])
   @@index([furnitureOrderId])
   @@index([status])
+  @@index([slaBreached])
 }
 
 // ============ NHẬT KÝ CÔNG TRÌNH ============
@@ -1429,6 +1439,7 @@ model ProductionBatch {
 
   batchItems    ProductionBatchItem[]
   inventoryTxns InventoryTransaction[]
+  costs         ProductionCost[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1610,4 +1621,95 @@ model Notification {
   @@index([isRead])
   @@index([createdAt])
   @@index([source])
+}
+
+// ── Lịch sử tương tác khách hàng ──────────────────────────────
+model CustomerInteraction {
+  id         String   @id @default(cuid())
+  type       String   // Gọi điện, Gặp mặt, Email, Khảo sát, Ghi chú
+  content    String   @db.Text
+  date       DateTime @default(now())
+  customerId String
+  customer   Customer @relation(fields: [customerId], references: [id])
+  createdBy  String   @default("")
+  createdAt  DateTime @default(now())
+  @@index([customerId])
+  @@index([date])
+}
+
+// ── Đánh giá nhân sự ─────────────────────────────────────────
+model EmployeeReview {
+  id         String   @id @default(cuid())
+  period     String   // "2026-Q1", "2026-H1"
+  score      Float    @default(0) // 1-5
+  criteria   Json     @default("[]") // [{name, score, weight}]
+  strengths  String   @default("") @db.Text
+  weaknesses String   @default("") @db.Text
+  reviewer   String   @default("")
+  status     String   @default("Nháp") // Nháp, Đã duyệt
+  employeeId String
+  employee   Employee @relation(fields: [employeeId], references: [id])
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  @@index([employeeId])
+  @@index([period])
+}
+
+// ── Tạm ứng lương ────────────────────────────────────────────
+model SalaryAdvance {
+  id           String    @id @default(cuid())
+  amount       Float
+  reason       String    @default("") @db.Text
+  requestDate  DateTime  @default(now())
+  status       String    @default("Chờ duyệt") // Chờ duyệt, Đã duyệt, Từ chối, Đã trừ lương
+  approvedBy   String    @default("")
+  approvedAt   DateTime?
+  deductMonth  String    @default("") // "2026-03"
+  employeeId   String
+  employee     Employee  @relation(fields: [employeeId], references: [id])
+  createdAt    DateTime  @default(now())
+  @@index([employeeId])
+  @@index([status])
+}
+
+// ── Hợp đồng lao động ──────────────────────────────────────────
+model EmployeeContract {
+  id              String    @id @default(cuid())
+  code            String    @unique
+  employeeId      String
+  employee        Employee  @relation(fields: [employeeId], references: [id])
+  type            String    @default("Chính thức") // Chính thức | Thử việc | CTV | Thời vụ
+  startDate       DateTime
+  endDate         DateTime?
+  salary          Float     @default(0)
+  insuranceSalary Float     @default(0)
+  position        String    @default("")
+  department      String    @default("")
+  status          String    @default("Hiệu lực") // Hiệu lực | Hết hạn | Thanh lý
+  attachmentUrl   String    @default("")
+  notes           String    @default("") @db.Text
+  signedAt        DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  @@index([employeeId])
+  @@index([status])
+}
+
+// ── Chi phí sản xuất ──────────────────────────────────────────
+model ProductionCost {
+  id          String          @id @default(cuid())
+  batchId     String
+  batch       ProductionBatch @relation(fields: [batchId], references: [id], onDelete: Cascade)
+  category    String          @default("Vật tư") // Vật tư | Nhân công | Gia công ngoài | Vận chuyển | Khác
+  description String          @default("")
+  amount      Float           @default(0)
+  quantity    Float           @default(1)
+  unit        String          @default("")
+  totalAmount Float           @default(0)
+  receiptUrl  String          @default("")
+  createdBy   String          @default("")
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+  @@index([batchId])
+  @@index([category])
 }

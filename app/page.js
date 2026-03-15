@@ -122,6 +122,62 @@ function TodayTasksWidget({ tasks }) {
     );
 }
 
+function PaymentAlertsCard() {
+    const [alerts, setAlerts] = useState(null);
+    useEffect(() => { fetch('/api/dashboard/payment-alerts').then(r => r.json()).then(setAlerts).catch(() => {}); }, []);
+    if (!alerts || alerts.count === 0) return null;
+    return (
+        <div className="card" style={{ marginBottom: 16, borderLeft: '4px solid #D97706' }}>
+            <div className="card-header">
+                <h3 style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    💳 Thanh toán cần thu
+                    <span style={{ background: '#DC2626', color: '#fff', fontSize: 11, fontWeight: 700, padding: '1px 8px', borderRadius: 10 }}>{alerts.count}</span>
+                </h3>
+            </div>
+            <div style={{ padding: '0 16px 16px' }}>
+                {alerts.overdue.length > 0 && (
+                    <div style={{ marginBottom: 12 }}>
+                        <div style={{ fontSize: 11, fontWeight: 700, color: '#DC2626', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Quá hạn ({alerts.overdue.length}) — {fmt(alerts.totalOverdue)}</div>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                            {alerts.overdue.slice(0, 5).map(p => (
+                                <a key={p.id} href={`/contracts/${p.contractId}`} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '7px 12px', background: 'rgba(220,38,38,0.04)', borderRadius: 6, textDecoration: 'none', color: 'inherit', border: '1px solid rgba(220,38,38,0.12)' }}>
+                                    <div>
+                                        <span style={{ fontWeight: 600, fontSize: 13 }}>{p.phase}</span>
+                                        <span style={{ fontSize: 11, color: 'var(--text-muted)', marginLeft: 8 }}>{p.contract?.code} · {p.contract?.customer?.name || p.contract?.project?.name}</span>
+                                    </div>
+                                    <div style={{ textAlign: 'right' }}>
+                                        <div style={{ fontSize: 12, fontWeight: 700, color: '#DC2626' }}>{fmt(p.amount - p.paidAmount)}</div>
+                                        <div style={{ fontSize: 10, color: '#DC2626' }}>Trễ {Math.abs(daysDiff(p.dueDate))} ngày</div>
+                                    </div>
+                                </a>
+                            ))}
+                        </div>
+                    </div>
+                )}
+                {alerts.upcoming.length > 0 && (
+                    <div>
+                        <div style={{ fontSize: 11, fontWeight: 700, color: '#D97706', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Sắp đến hạn ({alerts.upcoming.length}) — {fmt(alerts.totalUpcoming)}</div>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                            {alerts.upcoming.slice(0, 5).map(p => (
+                                <a key={p.id} href={`/contracts/${p.contractId}`} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '7px 12px', background: 'rgba(217,119,6,0.04)', borderRadius: 6, textDecoration: 'none', color: 'inherit', border: '1px solid rgba(217,119,6,0.12)' }}>
+                                    <div>
+                                        <span style={{ fontWeight: 600, fontSize: 13 }}>{p.phase}</span>
+                                        <span style={{ fontSize: 11, color: 'var(--text-muted)', marginLeft: 8 }}>{p.contract?.code} · {p.contract?.customer?.name || p.contract?.project?.name}</span>
+                                    </div>
+                                    <div style={{ textAlign: 'right' }}>
+                                        <div style={{ fontSize: 12, fontWeight: 600 }}>{fmt(p.amount - p.paidAmount)}</div>
+                                        <div style={{ fontSize: 10, color: '#D97706' }}>{daysDiff(p.dueDate) === 0 ? 'Hôm nay' : `${daysDiff(p.dueDate)} ngày`}</div>
+                                    </div>
+                                </a>
+                            ))}
+                        </div>
+                    </div>
+                )}
+            </div>
+        </div>
+    );
+}
+
 export default function Dashboard() {
     const [data, setData] = useState(null);
     const [loading, setLoading] = useState(true);
@@ -186,6 +242,9 @@ export default function Dashboard() {
 
             {/* Urgent tasks */}
             {data.todayTasks && <TodayTasksWidget tasks={data.todayTasks} />}
+
+            {/* Payment alerts */}
+            <PaymentAlertsCard />
 
             {/* KPI Cards — Tier 1: Revenue + Collection + Profit */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginBottom: 12 }}>

@@ -3,6 +3,8 @@ import { useState, useEffect, useCallback } from 'react';
 
 const PRIORITY = ['Thấp', 'Trung bình', 'Cao', 'Khẩn'];
 const STATUS = ['Mới', 'Đang xử lý', 'Đã xử lý', 'Đóng'];
+const CATEGORIES = ['Bảo hành', 'Sửa chữa', 'Khiếu nại', 'Khác'];
+const fmtDate = (d) => d ? new Date(d).toLocaleDateString('vi-VN') : '—';
 
 const STATUS_COLOR = {
     'Mới': 'var(--status-info)',
@@ -129,6 +131,7 @@ export default function WarrantyPage() {
     const [showForm, setShowForm] = useState(false);
     const [filterProject, setFilterProject] = useState('');
     const [filterStatus, setFilterStatus] = useState('');
+    const [filterCategory, setFilterCategory] = useState('');
     const [editingId, setEditingId] = useState(null);
 
     const load = useCallback(() => {
@@ -136,8 +139,9 @@ export default function WarrantyPage() {
         const params = new URLSearchParams();
         if (filterProject) params.set('projectId', filterProject);
         if (filterStatus) params.set('status', filterStatus);
+        if (filterCategory) params.set('category', filterCategory);
         fetch(`/api/warranty?${params}`).then(r => r.json()).then(d => { setTickets(d || []); setLoading(false); });
-    }, [filterProject, filterStatus]);
+    }, [filterProject, filterStatus, filterCategory]);
 
     useEffect(() => { load(); }, [load]);
     useEffect(() => {
@@ -145,6 +149,12 @@ export default function WarrantyPage() {
     }, []);
 
     const counts = STATUS.reduce((acc, s) => ({ ...acc, [s]: tickets.filter(t => t.status === s).length }), {});
+    const slaBreachedCount = tickets.filter(t => t.slaBreached).length;
+
+    const checkSLA = async () => {
+        await fetch('/api/warranty/check-sla', { method: 'POST' });
+        load();
+    };
 
     return (
         <div>
@@ -162,6 +172,11 @@ export default function WarrantyPage() {
                         <option value="">Tất cả trạng thái</option>
                         {STATUS.map(s => <option key={s}>{s}</option>)}
                     </select>
+                    <select className="form-select" style={{ width: 150 }} value={filterCategory} onChange={e => setFilterCategory(e.target.value)}>
+                        <option value="">Tất cả loại</option>
+                        {CATEGORIES.map(c => <option key={c}>{c}</option>)}
+                    </select>
+                    <button className="btn btn-ghost" onClick={checkSLA} title="Kiểm tra & đánh dấu vi phạm SLA">🔄 Check SLA</button>
                     <button className="btn btn-primary" onClick={() => setShowForm(v => !v)}>{showForm ? 'Đóng' : '+ Tạo phiếu'}</button>
                 </div>
             </div>
@@ -175,6 +190,13 @@ export default function WarrantyPage() {
                     </div>
                 ))}
             </div>
+            {slaBreachedCount > 0 && (
+                <div className="card" style={{ padding: '10px 16px', marginBottom: 16, borderLeft: '3px solid var(--status-danger)', display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <span style={{ fontSize: 18 }}>⚠️</span>
+                    <span style={{ fontWeight: 600, color: 'var(--status-danger)' }}>{slaBreachedCount} phiếu vi phạm SLA</span>
+                    <span style={{ color: 'var(--text-muted)', fontSize: 12 }}>— cần xử lý gấp</span>
+                </div>
+            )}
 
             {showForm && (
                 <div className="card" style={{ marginBottom: 20 }}>
@@ -200,6 +222,9 @@ export default function WarrantyPage() {
                                     <th>Người báo cáo</th>
                                     <th>Xử lý</th>
                                     <th>Ngày tạo</th>
+                                    <th>Loại</th>
+                                    <th>Hạn BH</th>
+                                    <th>SLA</th>
                                     <th></th>
                                 </tr>
                             </thead>
@@ -228,6 +253,15 @@ export default function WarrantyPage() {
                                             <td style={{ fontSize: 12 }}>{t.reportedBy || '—'}</td>
                                             <td style={{ fontSize: 12 }}>{t.assignee || <span style={{ color: 'var(--status-warning)' }}>Chưa assign</span>}</td>
                                             <td style={{ fontSize: 12, color: 'var(--text-muted)' }}>{new Date(t.createdAt).toLocaleDateString('vi-VN')}</td>
+                                            <td><span style={{ fontSize: 11, padding: '2px 6px', borderRadius: 4, background: '#f1f5f9' }}>{t.category || '—'}</span></td>
+                                            <td style={{ fontSize: 11 }}>{fmtDate(t.warrantyEndDate)}</td>
+                                            <td>
+                                                {t.slaBreached ? (
+                                                    <span style={{ fontSize: 11, fontWeight: 700, color: '#dc2626', padding: '2px 8px', borderRadius: 8, background: '#fee2e2' }}>⚠ Quá hạn</span>
+                                                ) : t.slaDeadline ? (
+                                                    <span style={{ fontSize: 11, color: '#15803d' }}>✅ {fmtDate(t.slaDeadline)}</span>
+                                                ) : '—'}
+                                            </td>
                                             <td>
                                                 <button className="btn btn-ghost btn-sm" onClick={e => { e.stopPropagation(); setEditingId(editingId === t.id ? null : t.id); }}>
                                                     {editingId === t.id ? 'Đóng' : 'Sửa'}

@@ -25,6 +25,7 @@ export const GET = withAuth(async (request, { params }) => {
                 },
                 orderBy: { createdAt: 'desc' },
             },
+            interactions: { orderBy: { date: 'desc' }, take: 50 },
         },
     });
     if (!customer) return NextResponse.json({ error: 'Not found' }, { status: 404 });
@@ -106,6 +107,7 @@ export const DELETE = withAuth(async (request, { params }) => {
         // Delete customer-level tracking logs & documents
         await tx.trackingLog.deleteMany({ where: { customerId: id } });
         await tx.projectDocument.deleteMany({ where: { customerId: id } });
+        await tx.customerInteraction.deleteMany({ where: { customerId: id } });
         await tx.customer.delete({ where: { id } });
     });
 

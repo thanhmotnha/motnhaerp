@@ -12,12 +12,13 @@ const STATUS_COLORS = {
     'Quá hạn': 'danger',
 };
 
-export default function ScheduleListView({ tasks, flat, projectId, onUpdate, onDelete, onRefresh }) {
+export default function ScheduleListView({ tasks, flat, projectId, onUpdate, onDelete, onRefresh, criticalPathIds }) {
     const [reportModal, setReportModal] = useState(null); // task obj
     const [historyModal, setHistoryModal] = useState(null); // task obj
 
     const renderTask = (task, depth = 0) => {
         const isGroup = task.children && task.children.length > 0;
+        const isCritical = criticalPathIds && criticalPathIds.has(task.id);
         const isOverdue = task.status !== 'Hoàn thành' && new Date(task.endDate) < new Date();
         const actualStatus = isOverdue && task.status !== 'Hoàn thành' ? 'Quá hạn' : task.status;
         const hasBaseline = task.baselineStart && task.baselineEnd;
@@ -34,7 +35,8 @@ export default function ScheduleListView({ tasks, flat, projectId, onUpdate, onD
                     alignItems: 'center',
                     padding: '10px 16px',
                     borderBottom: '1px solid var(--border-light)',
-                    background: isGroup ? 'var(--bg-elevated)' : 'transparent',
+                    background: isCritical ? 'rgba(220,38,38,0.06)' : isGroup ? 'var(--bg-elevated)' : 'transparent',
+                    borderLeft: isCritical ? '3px solid #dc2626' : 'none',
                     fontSize: 13,
                 }}>
                     {/* Name */}

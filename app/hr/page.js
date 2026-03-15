@@ -6,6 +6,9 @@ import dynamic from 'next/dynamic';
 const PayrollTab = dynamic(() => import('@/components/hr/PayrollTab'), { ssr: false, loading: () => <div style={{ padding: 40, textAlign: 'center' }}>Đang tải...</div> });
 const DailyAttendanceTab = dynamic(() => import('@/components/hr/DailyAttendanceTab'), { ssr: false, loading: () => <div style={{ padding: 40, textAlign: 'center' }}>Đang tải...</div> });
 const LeaveCalendarTab = dynamic(() => import('@/components/hr/LeaveCalendarTab'), { ssr: false, loading: () => <div style={{ padding: 40, textAlign: 'center' }}>Đang tải...</div> });
+const EmployeeReviewTab = dynamic(() => import('@/components/hr/EmployeeReviewTab'), { ssr: false, loading: () => <div style={{ padding: 40, textAlign: 'center' }}>Đang tải...</div> });
+const SalaryAdvanceTab = dynamic(() => import('@/components/hr/SalaryAdvanceTab'), { ssr: false, loading: () => <div style={{ padding: 40, textAlign: 'center' }}>Đang tải...</div> });
+const EmployeeContractTab = dynamic(() => import('@/components/EmployeeContractTab'), { ssr: false, loading: () => <div style={{ padding: 40, textAlign: 'center' }}>Đang tải...</div> });
 const fmt = (n) => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(n || 0);
 const fmtDate = (d) => d ? new Date(d).toLocaleDateString('vi-VN') : '—';
 const MONTHS = ['T1', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'T8', 'T9', 'T10', 'T11', 'T12'];
@@ -564,7 +567,7 @@ function HRContent() {
 
             {/* Tab switcher */}
             <div style={{ display: 'flex', gap: 4, marginBottom: 24, borderBottom: '2px solid var(--border)' }}>
-                {[{ key: 'employees', label: '👥 Nhân viên' }, { key: 'attendance', label: '📅 Chấm công & Lương' }, { key: 'daily-attendance', label: '⏰ Chấm công ngày' }, { key: 'leave', label: '🗓️ Nghỉ phép' }, { key: 'leave-calendar', label: '📆 Lịch nghỉ' }, { key: 'payroll', label: '💰 Bảng lương' }].map(t => (
+                {[{ key: 'employees', label: '👥 Nhân viên' }, { key: 'attendance', label: '📅 Chấm công & Lương' }, { key: 'daily-attendance', label: '⏰ Chấm công ngày' }, { key: 'leave', label: '🗓️ Nghỉ phép' }, { key: 'leave-calendar', label: '📆 Lịch nghỉ' }, { key: 'payroll', label: '💰 Bảng lương' }, { key: 'reviews', label: '📊 Đánh giá' }, { key: 'advances', label: '💸 Tạm ứng' }, { key: 'contracts', label: '📄 Hợp đồng' }].map(t => (
                     <button key={t.key} onClick={() => setMainTab(t.key)}
                         style={{ padding: '8px 18px', border: 'none', borderBottom: mainTab === t.key ? '2px solid var(--accent-primary)' : '2px solid transparent', background: 'none', cursor: 'pointer', fontWeight: mainTab === t.key ? 700 : 400, color: mainTab === t.key ? 'var(--accent-primary)' : 'var(--text-muted)', fontSize: 13, marginBottom: -2 }}>
                         {t.label}
@@ -587,6 +590,25 @@ function HRContent() {
             ) : mainTab === 'payroll' ? (
                 <div className="card" style={{ padding: 24 }}>
                     <PayrollTab />
+                </div>
+            ) : mainTab === 'reviews' ? (
+                <div className="card" style={{ padding: 24 }}>
+                    <EmployeeReviewTab />
+                </div>
+            ) : mainTab === 'advances' ? (
+                <div className="card" style={{ padding: 24 }}>
+                    <SalaryAdvanceTab />
+                </div>
+            ) : mainTab === 'contracts' ? (
+                <div className="card" style={{ padding: 24 }}>
+                    <div style={{ marginBottom: 16 }}>
+                        <label style={{ fontWeight: 500, marginRight: 8 }}>Chọn nhân viên:</label>
+                        <select onChange={e => setFilterDept(e.target.value)} style={{ padding: '6px 12px', borderRadius: 8, border: '1px solid var(--border)' }}>
+                            <option value="">-- Chọn --</option>
+                            {allEmployees.map(emp => <option key={emp.id} value={emp.id}>{emp.name} ({emp.code})</option>)}
+                        </select>
+                    </div>
+                    {filterDept && <EmployeeContractTab employeeId={filterDept} />}
                 </div>
             ) : (<>
 

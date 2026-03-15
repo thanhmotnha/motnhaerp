@@ -39,6 +39,9 @@ export default function CustomerDetailPage() {
     const [showEditModal, setShowEditModal] = useState(false);
     const [logForm, setLogForm] = useState({ type: 'Điện thoại', content: '', createdBy: '', nextFollowUp: '' });
     const [editForm, setEditForm] = useState({});
+    const [tagInput, setTagInput] = useState('');
+    const [interactionForm, setInteractionForm] = useState({ type: 'Ghi chú', content: '', createdBy: '' });
+    const [showInteractionForm, setShowInteractionForm] = useState(false);
 
     const fetchData = () => { fetch(`/api/customers/${id}`).then(r => r.ok ? r.json() : null).then(d => { setData(d); setLoading(false); }); };
     useEffect(fetchData, [id]);
@@ -93,9 +96,31 @@ export default function CustomerDetailPage() {
         { key: 'projects', label: 'Dự án', icon: '🏗️', count: c.projects?.length },
         { key: 'contracts', label: 'Hợp đồng', icon: '📝', count: c.contracts?.length },
         { key: 'quotations', label: 'Báo giá', icon: '📄', count: c.quotations?.length },
+        { key: 'interactions', label: 'Tương tác', icon: '💬', count: c.interactions?.length },
         { key: 'timeline', label: 'Timeline', icon: '🕐', count: c.trackingLogs?.length },
         { key: 'transactions', label: 'Giao dịch', icon: '💰', count: c.transactions?.length },
     ];
+
+    const addTag = async () => {
+        const tag = tagInput.trim();
+        if (!tag) return;
+        const tags = [...(c.tags || []), tag];
+        await fetch(`/api/customers/${id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ tags }) });
+        setTagInput('');
+        fetchData();
+    };
+    const removeTag = async (tag) => {
+        const tags = (c.tags || []).filter(t => t !== tag);
+        await fetch(`/api/customers/${id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ tags }) });
+        fetchData();
+    };
+    const addInteraction = async () => {
+        if (!interactionForm.content.trim()) return alert('Nhập nội dung');
+        await fetch(`/api/customers/${id}/interactions`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(interactionForm) });
+        setInteractionForm({ type: 'Ghi chú', content: '', createdBy: '' });
+        setShowInteractionForm(false);
+        fetchData();
+    };
 
     return (
         <div>
@@ -122,6 +147,18 @@ export default function CustomerDetailPage() {
                             {c.address && <span>📍 {c.address}</span>}
                         </div>
                         {c.representative && <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4 }}>Người đại diện: {c.representative}</div>}
+                        {/* Tags */}
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 8, alignItems: 'center' }}>
+                            {(c.tags || []).map(tag => (
+                                <span key={tag} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 11, fontWeight: 600, padding: '3px 10px', borderRadius: 10, background: 'var(--bg-primary)', color: 'var(--text-accent)', border: '1px solid var(--border-light)' }}>
+                                    🏷️ {tag}
+                                    <button onClick={() => removeTag(tag)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--status-danger)', fontSize: 12, padding: 0, lineHeight: 1 }}>×</button>
+                                </span>
+                            ))}
+                            <div style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                                <input value={tagInput} onChange={e => setTagInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && addTag()} placeholder="+ Tag" style={{ width: 80, fontSize: 11, padding: '3px 8px', borderRadius: 8, border: '1px solid var(--border-light)', background: 'var(--bg-card)', color: 'var(--text-primary)' }} />
+                            </div>
+                        </div>
                     </div>
                     {/* Score */}
                     <div style={{ textAlign: 'center', flexShrink: 0 }}>
@@ -290,6 +327,58 @@ export default function CustomerDetailPage() {
                         ))}</tbody>
                     </table></div>
                     {(!c.quotations || c.quotations.length === 0) && <div style={{ color: 'var(--text-muted)', padding: 24, textAlign: 'center' }}>Chưa có báo giá</div>}
+                </div>
+            )}
+
+            {/* TAB: Tương tác */}
+            {tab === 'interactions' && (
+                <div className="card" style={{ padding: 24 }}>
+                    <div className="card-header">
+                        <span className="card-title">💬 Lịch sử tương tác</span>
+                        <button className="btn btn-primary btn-sm" onClick={() => setShowInteractionForm(!showInteractionForm)}>+ Thêm</button>
+                    </div>
+                    {showInteractionForm && (
+                        <div style={{ background: 'var(--bg-secondary)', borderRadius: 10, padding: 16, marginBottom: 16, border: '1px solid var(--border-light)' }}>
+                            <div className="form-row">
+                                <div className="form-group">
+                                    <select className="form-select" value={interactionForm.type} onChange={e => setInteractionForm({ ...interactionForm, type: e.target.value })}>
+                                        <option>Ghi chú</option><option>Cuộc gọi</option><option>Họp</option><option>Email</option><option>Zalo</option><option>Khiếu nại</option><option>Yêu cầu</option>
+                                    </select>
+                                </div>
+                                <div className="form-group">
+                                    <input className="form-input" value={interactionForm.createdBy} onChange={e => setInteractionForm({ ...interactionForm, createdBy: e.target.value })} placeholder="Người ghi" />
+                                </div>
+                            </div>
+                            <div className="form-group">
+                                <textarea className="form-input" rows={2} value={interactionForm.content} onChange={e => setInteractionForm({ ...interactionForm, content: e.target.value })} placeholder="Nội dung tương tác..." />
+                            </div>
+                            <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+                                <button className="btn btn-ghost btn-sm" onClick={() => setShowInteractionForm(false)}>Hủy</button>
+                                <button className="btn btn-primary btn-sm" onClick={addInteraction}>Lưu</button>
+                            </div>
+                        </div>
+                    )}
+                    <div style={{ position: 'relative', paddingLeft: 32 }}>
+                        <div style={{ position: 'absolute', left: 15, top: 0, bottom: 0, width: 2, background: 'var(--border-light)' }} />
+                        {(c.interactions || []).map(int => (
+                            <div key={int.id} style={{ position: 'relative', paddingBottom: 20, paddingLeft: 24 }}>
+                                <div style={{ position: 'absolute', left: -24, top: 4, width: 32, height: 32, borderRadius: '50%', background: 'var(--bg-card)', border: '2px solid var(--border-light)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, zIndex: 1 }}>
+                                    {{'Cuộc gọi': '📞', 'Họp': '🤝', 'Email': '📧', 'Zalo': '💬', 'Khiếu nại': '⚠️', 'Yêu cầu': '📋'}[int.type] || '📝'}
+                                </div>
+                                <div style={{ background: 'var(--bg-secondary)', borderRadius: 10, padding: '12px 16px', border: '1px solid var(--border-light)' }}>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+                                        <span style={{ fontWeight: 600, fontSize: 14 }}>{int.content}</span>
+                                        <span style={{ fontSize: 11, color: 'var(--text-muted)', flexShrink: 0 }}>{timeAgo(int.date)}</span>
+                                    </div>
+                                    <div style={{ fontSize: 12, color: 'var(--text-muted)', display: 'flex', gap: 10 }}>
+                                        {int.createdBy && <span>👤 {int.createdBy}</span>}
+                                        <span className="badge muted" style={{ fontSize: 10 }}>{int.type}</span>
+                                    </div>
+                                </div>
+                            </div>
+                        ))}
+                        {(!c.interactions || c.interactions.length === 0) && <div style={{ color: 'var(--text-muted)', padding: 40, textAlign: 'center' }}>Chưa có tương tác nào</div>}
+                    </div>
                 </div>
             )}
 

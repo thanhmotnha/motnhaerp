@@ -14,6 +14,7 @@ export default function ScheduleManager({ projectId, projectCode, projectStartDa
     const [view, setView] = useState('list'); // list | gantt
     const [modal, setModal] = useState(null);
     const [alerts, setAlerts] = useState([]);
+    const [criticalPathIds, setCriticalPathIds] = useState(null);
     const [addForm, setAddForm] = useState({ name: '', startDate: '', endDate: '', parentId: '', weight: 1, assignee: '' });
     const onProgressRef = useRef(onProgressUpdate);
     onProgressRef.current = onProgressUpdate;
@@ -91,6 +92,21 @@ export default function ScheduleManager({ projectId, projectCode, projectStartDa
         fetchTasks();
     };
 
+    const toggleCriticalPath = async () => {
+        if (criticalPathIds) { setCriticalPathIds(null); return; }
+        try {
+            const res = await fetch('/api/schedule-tasks/critical-path', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ projectId }),
+            });
+            if (res.ok) {
+                const d = await res.json();
+                setCriticalPathIds(new Set((d.criticalPath || []).map(t => t.id)));
+            }
+        } catch { /* ignore */ }
+    };
+
     if (loading) return <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-muted)' }}>Đang tải tiến độ...</div>;
     if (error) return <div style={{ padding: 40, textAlign: 'center', color: 'var(--status-danger)' }}><div style={{ fontSize: 32, marginBottom: 8 }}>⚠️</div>Lỗi tải tiến độ: {error}<br /><button className="btn btn-ghost btn-sm" style={{ marginTop: 12 }} onClick={fetchTasks}>Thử lại</button></div>;
 
@@ -149,6 +165,7 @@ export default function ScheduleManager({ projectId, projectCode, projectStartDa
                         <button className={`btn ${view === 'gantt' ? 'btn-primary' : 'btn-ghost'} btn-sm`} onClick={() => setView('gantt')}>📊 Gantt</button>
                     </div>
                     <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                        <button className={`btn ${criticalPathIds ? 'btn-primary' : 'btn-ghost'} btn-sm`} onClick={toggleCriticalPath}>🔴 Critical Path</button>
                         <button className="btn btn-ghost btn-sm" onClick={() => setModal('import')}>📥 Thêm từ Mẫu</button>
                         <button className="btn btn-ghost btn-sm" onClick={saveBaseline}>📌 Chốt Tiến độ</button>
                         <button className="btn btn-primary btn-sm" onClick={() => setModal('add')}>+ Thêm hạng mục</button>
@@ -166,6 +183,7 @@ export default function ScheduleManager({ projectId, projectCode, projectStartDa
                     onUpdate={updateTask}
                     onDelete={deleteTask}
                     onRefresh={fetchTasks}
+                    criticalPathIds={criticalPathIds}
                 />
             )}
             {view === 'gantt' && flat.length > 0 && (
@@ -173,6 +191,7 @@ export default function ScheduleManager({ projectId, projectCode, projectStartDa
                     tasks={tasks}
                     flat={flat}
                     onUpdate={updateTask}
+                    criticalPathIds={criticalPathIds}
                 />
             )}
 

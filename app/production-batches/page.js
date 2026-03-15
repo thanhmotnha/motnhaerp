@@ -1,6 +1,9 @@
 'use client';
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
+import dynamic from 'next/dynamic';
+
+const ProductionCostTab = dynamic(() => import('@/components/ProductionCostTab'), { ssr: false });
 
 const fmtDate = (d) => d ? new Date(d).toLocaleDateString('vi-VN') : '—';
 
@@ -25,6 +28,7 @@ export default function ProductionBatchesPage() {
     const [loading, setLoading] = useState(true);
     const [filterStatus, setFilterStatus] = useState('');
     const [stats, setStats] = useState({ total: 0, pending: 0, inProgress: 0, completed: 0 });
+    const [expandedId, setExpandedId] = useState(null);
     const router = useRouter();
 
     const load = useCallback(async () => {
@@ -91,8 +95,8 @@ export default function ProductionBatchesPage() {
                         <tbody>{batches.map(b => {
                             const st = STATUS_MAP[b.status] || STATUS_MAP.pending;
                             const qc = QC_MAP[b.qualityStatus] || QC_MAP.pending;
-                            return (
-                                <tr key={b.id}>
+                            return (<>
+                                <tr key={b.id} style={{ cursor: 'pointer' }} onClick={() => setExpandedId(expandedId === b.id ? null : b.id)}>
                                     <td className="accent">{b.code}</td>
                                     <td className="primary" style={{ cursor: 'pointer' }} onClick={() => b.furnitureOrder?.id && router.push(`/furniture-orders/${b.furnitureOrder.id}`)}>
                                         {b.furnitureOrder?.code || '—'} <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>{b.furnitureOrder?.name || ''}</span>
@@ -121,7 +125,12 @@ export default function ProductionBatchesPage() {
                                         </div>
                                     </td>
                                 </tr>
-                            );
+                                {expandedId === b.id && (
+                                    <tr key={`cost-${b.id}`}><td colSpan={9} style={{ padding: '16px 24px', background: 'var(--bg-secondary)' }}>
+                                        <ProductionCostTab batchId={b.id} />
+                                    </td></tr>
+                                )}
+                            </>);
                         })}</tbody>
                     </table></div>
                     {batches.length === 0 && <div style={{ color: 'var(--text-muted)', padding: 40, textAlign: 'center' }}>Chưa có lô sản xuất nào</div>}
