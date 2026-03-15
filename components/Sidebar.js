@@ -9,7 +9,8 @@ import {
     ShoppingCart, Truck, Warehouse, Wallet, UserCog,
     BarChart3, ChevronRight, ChevronDown, X, Factory,
     Activity, ClipboardCheck, Banknote, Settings, ShieldCheck,
-    Shield, Plus, ArrowRightLeft, Calculator
+    Shield, Plus, ArrowRightLeft, Calculator,
+    CheckCircle, BookOpen, HardHat, PiggyBank, DollarSign
 } from 'lucide-react';
 import { useRole } from '@/contexts/RoleContext';
 
@@ -32,6 +33,9 @@ const menuItems = [
         section: 'Dự án', items: [
             { href: '/projects', icon: Building2, label: 'Dự án' },
             { href: '/work-orders', icon: ClipboardCheck, label: 'Lệnh công việc' },
+            { href: '/daily-logs', icon: BookOpen, label: 'Nhật ký CT' },
+            { href: '/acceptance', icon: CheckCircle, label: 'Nghiệm thu' },
+            { href: '/contractors', icon: HardHat, label: 'Nhà thầu phụ' },
             { href: '/warranty', icon: ShieldCheck, label: 'Bảo hành', roles: ['giam_doc', 'pho_gd', 'quan_ly_du_an'] },
         ]
     },
@@ -55,6 +59,8 @@ const menuItems = [
     {
         section: 'Tài chính', items: [
             { href: '/finance', icon: Wallet, label: 'Tài chính', roles: ['giam_doc', 'pho_gd', 'ke_toan'] },
+            { href: '/expenses', icon: DollarSign, label: 'Chi phí DA', roles: ['giam_doc', 'pho_gd', 'ke_toan', 'quan_ly_du_an'] },
+            { href: '/budget', icon: PiggyBank, label: 'Ngân sách', roles: ['giam_doc', 'pho_gd', 'ke_toan', 'quan_ly_du_an'] },
             { href: '/accounting', icon: Calculator, label: 'Kế toán', roles: ['giam_doc', 'pho_gd', 'ke_toan'] },
         ]
     },

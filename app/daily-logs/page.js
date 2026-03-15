@@ -1,201 +1,142 @@
 'use client';
 import { useState, useEffect, useCallback } from 'react';
+import { useRole } from '@/contexts/RoleContext';
 import { apiFetch } from '@/lib/fetchClient';
 import { useToast } from '@/components/ui/Toast';
 
-const fmtDate = (d) => d ? new Date(d).toLocaleDateString('vi-VN') : '—';
-const WEATHER_OPTIONS = ['Nắng', 'Mưa', 'Có mây', 'Giông bão', 'Sương mù'];
+const weatherIcons = { 'Nắng': '☀️', 'Mưa': '🌧️', 'Âm u': '☁️', 'Mưa nhẹ': '🌦️' };
 
-function DailyLogForm({ projects, onSaved, onCancel }) {
-    const { showToast } = useToast();
-    const [form, setForm] = useState({
-        projectId: '',
-        date: new Date().toISOString().split('T')[0],
-        weather: 'Nắng',
-        workforce: '',
-        workDone: '',
-        issues: '',
-    });
-    const [saving, setSaving] = useState(false);
+export default function DailyLogsPage() {
+    const { role } = useRole();
+    const toast = useToast();
+    const [logs, setLogs] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [showForm, setShowForm] = useState(false);
+    const canLog = ['giam_doc', 'pho_gd', 'quan_ly_du_an', 'giam_sat'].includes(role);
 
-    const set = (field, val) => setForm(f => ({ ...f, [field]: val }));
-
-    const save = async () => {
-        if (!form.projectId) return showToast('Vui lòng chọn dự án', 'error');
-        if (!form.workDone.trim()) return showToast('Nhập nội dung công việc', 'error');
-        setSaving(true);
+    const fetchData = useCallback(async () => {
+        setLoading(true);
         try {
-            await apiFetch('/api/daily-logs', {
-                method: 'POST',
-                body: JSON.stringify({ ...form, workforce: Number(form.workforce) || 0 }),
-            });
-            showToast('Đã tạo nhật ký', 'success');
-            onSaved?.();
-        } catch (e) { showToast(e.message, 'error'); }
-        setSaving(false);
-    };
+            const res = await apiFetch('/api/daily-logs?limit=100');
+            setLogs(res.data || []);
+        } catch (e) { toast.error(e.message); }
+        setLoading(false);
+    }, []);
+
+    useEffect(() => { fetchData(); }, [fetchData]);
+
+    const todayLogs = logs.filter(l => {
+        const d = new Date(l.date);
+        const now = new Date();
+        return d.toDateString() === now.toDateString();
+    });
 
     return (
-        <div style={{ padding: '16px 20px' }}>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 14 }}>
+        <div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, flexWrap: 'wrap', gap: 12 }}>
                 <div>
-                    <label className="form-label">Dự án *</label>
-                    <select className="form-select" value={form.projectId} onChange={e => set('projectId', e.target.value)}>
-                        <option value="">-- Chọn dự án --</option>
-                        {projects.map(p => <option key={p.id} value={p.id}>{p.code} - {p.name}</option>)}
-                    </select>
+                    <h2 style={{ margin: 0 }}>Nhật ký Công trường</h2>
+                    <div style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 2 }}>Ghi nhận tiến độ hàng ngày</div>
                 </div>
-                <div>
-                    <label className="form-label">Ngày</label>
-                    <input type="date" className="form-input" value={form.date} onChange={e => set('date', e.target.value)} />
+                {canLog && <button className="btn btn-primary" onClick={() => setShowForm(true)}>+ Ghi nhật ký</button>}
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 12, marginBottom: 20 }}>
+                {[
+                    { label: 'Tổng bản ghi', value: logs.length, color: 'var(--primary)' },
+                    { label: 'Hôm nay', value: todayLogs.length, color: '#22c55e' },
+                    { label: 'Nhân sự TB', value: logs.length ? Math.round(logs.reduce((s, l) => s + (l.workerCount || 0), 0) / logs.length) : 0, color: '#3b82f6' },
+                ].map(k => (
+                    <div key={k.label} className="card" style={{ padding: '14px 16px', textAlign: 'center' }}>
+                        <div style={{ fontSize: 22, fontWeight: 700, color: k.color }}>{k.value}</div>
+                        <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>{k.label}</div>
+                    </div>
+                ))}
+            </div>
+
+            {loading ? (
+                <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-muted)' }}>Đang tải...</div>
+            ) : logs.length === 0 ? (
+                <div className="card" style={{ padding: 40, textAlign: 'center', color: 'var(--text-muted)' }}>Chưa có nhật ký nào</div>
+            ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                    {logs.map(l => (
+                        <div key={l.id} className="card" style={{ padding: '16px 20px' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8, flexWrap: 'wrap', gap: 8 }}>
+                                <div>
+                                    <span style={{ fontWeight: 600 }}>{l.project?.name || '—'}</span>
+                                    <span style={{ fontSize: 12, color: 'var(--text-muted)', marginLeft: 8 }}>{l.project?.code}</span>
+                                </div>
+                                <div style={{ display: 'flex', gap: 12, alignItems: 'center', fontSize: 13 }}>
+                                    <span>{weatherIcons[l.weather] || '🌤️'} {l.weather}</span>
+                                    <span>👷 {l.workerCount} người</span>
+                                    <span style={{ color: 'var(--text-muted)' }}>{new Date(l.date).toLocaleDateString('vi-VN')}</span>
+                                </div>
+                            </div>
+                            <div style={{ fontSize: 14, lineHeight: 1.5 }}>
+                                <strong>Công việc:</strong> {l.progress || '—'}
+                            </div>
+                            {l.issues && <div style={{ fontSize: 13, color: '#ef4444', marginTop: 4 }}>⚠️ {l.issues}</div>}
+                            <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 6 }}>Người ghi: {l.createdBy || '—'}</div>
+                        </div>
+                    ))}
                 </div>
-                <div>
-                    <label className="form-label">Thời tiết</label>
-                    <select className="form-select" value={form.weather} onChange={e => set('weather', e.target.value)}>
-                        {WEATHER_OPTIONS.map(w => <option key={w}>{w}</option>)}
-                    </select>
-                </div>
-                <div>
-                    <label className="form-label">Số nhân công</label>
-                    <input type="number" className="form-input" min={0} value={form.workforce}
-                        onChange={e => set('workforce', e.target.value)} placeholder="0" />
-                </div>
-            </div>
-            <div style={{ marginBottom: 12 }}>
-                <label className="form-label">Công việc thực hiện *</label>
-                <textarea className="form-input" rows={3} value={form.workDone}
-                    onChange={e => set('workDone', e.target.value)}
-                    placeholder="Mô tả công việc đã thực hiện trong ngày..." />
-            </div>
-            <div style={{ marginBottom: 16 }}>
-                <label className="form-label">Sự cố / Vấn đề phát sinh</label>
-                <textarea className="form-input" rows={2} value={form.issues}
-                    onChange={e => set('issues', e.target.value)} placeholder="Nếu có..." />
-            </div>
-            <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-                {onCancel && <button className="btn btn-ghost" onClick={onCancel}>Hủy</button>}
-                <button className="btn btn-primary" onClick={save} disabled={saving}>
-                    {saving ? 'Đang lưu...' : 'Tạo nhật ký'}
-                </button>
-            </div>
+            )}
+
+            {showForm && <DailyLogForm onClose={() => setShowForm(false)} onSuccess={() => { setShowForm(false); fetchData(); }} toast={toast} />}
         </div>
     );
 }
 
-export default function DailyLogsPage() {
-    const [logs, setLogs] = useState([]);
+function DailyLogForm({ onClose, onSuccess, toast }) {
+    const [form, setForm] = useState({ projectId: '', weather: 'Nắng', workforce: '', workDone: '', issues: '' });
     const [projects, setProjects] = useState([]);
-    const [loading, setLoading] = useState(true);
-    const [showForm, setShowForm] = useState(false);
-    const [filterProject, setFilterProject] = useState('');
+    const [saving, setSaving] = useState(false);
 
-    const load = useCallback(() => {
-        setLoading(true);
-        const q = filterProject ? `?projectId=${filterProject}&limit=100` : '?limit=100';
-        apiFetch(`/api/daily-logs${q}`)
-            .then(d => { setLogs(d.data || []); setLoading(false); })
-            .catch(() => setLoading(false));
-    }, [filterProject]);
-
-    useEffect(() => { load(); }, [load]);
     useEffect(() => {
-        apiFetch('/api/projects?limit=200').then(d => setProjects(d.data || [])).catch(() => {});
+        apiFetch('/api/projects?limit=200').then(r => setProjects(r.data || [])).catch(() => {});
     }, []);
 
-    const weatherIcon = { 'Nắng': '☀️', 'Mưa': '🌧️', 'Có mây': '⛅', 'Giông bão': '⛈️', 'Sương mù': '🌫️' };
+    const handleSubmit = async (e) => {
+        e.preventDefault();
+        if (!form.projectId || !form.workDone) return toast.error('Vui lòng nhập đầy đủ');
+        setSaving(true);
+        try {
+            await apiFetch('/api/daily-logs', { method: 'POST', body: JSON.stringify(form) });
+            toast.success('Ghi nhật ký thành công');
+            onSuccess();
+        } catch (e) { toast.error(e.message); }
+        setSaving(false);
+    };
 
     return (
-        <div>
-            <div className="page-header">
-                <div className="page-header-left">
-                    <h1>📋 Nhật ký công trường</h1>
-                    <p>Ghi nhận tiến độ, nhân công và sự cố hàng ngày tại công trình</p>
-                </div>
-                <div className="page-header-right">
-                    <select className="form-select" style={{ width: 220 }} value={filterProject}
-                        onChange={e => setFilterProject(e.target.value)}>
-                        <option value="">Tất cả dự án</option>
-                        {projects.map(p => <option key={p.id} value={p.id}>{p.code} - {p.name}</option>)}
-                    </select>
-                    <button className="btn btn-primary" onClick={() => setShowForm(!showForm)}>
-                        {showForm ? 'Đóng' : '+ Tạo nhật ký'}
-                    </button>
-                </div>
-            </div>
-
-            {showForm && (
-                <div className="card" style={{ marginBottom: 20 }}>
-                    <div className="card-header"><h3>Tạo nhật ký mới</h3></div>
-                    <DailyLogForm
-                        projects={projects}
-                        onSaved={() => { load(); setShowForm(false); }}
-                        onCancel={() => setShowForm(false)}
-                    />
-                </div>
-            )}
-
-            <div className="card">
-                <div className="card-header">
-                    <span className="card-title">Danh sách nhật ký ({logs.length})</span>
-                </div>
-                {loading ? (
-                    <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-muted)' }}>Đang tải...</div>
-                ) : logs.length === 0 ? (
-                    <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-muted)' }}>
-                        Chưa có nhật ký nào. Bấm "+ Tạo nhật ký" để bắt đầu.
+        <div className="modal-overlay" onClick={onClose}>
+            <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: 560 }}>
+                <h3 style={{ marginTop: 0 }}>Ghi nhật ký Công trường</h3>
+                <form onSubmit={handleSubmit}>
+                    <div className="form-group">
+                        <label className="form-label">Dự án *</label>
+                        <select className="form-input" value={form.projectId} onChange={e => setForm({ ...form, projectId: e.target.value })} required>
+                            <option value="">Chọn dự án</option>
+                            {projects.map(p => <option key={p.id} value={p.id}>{p.code} — {p.name}</option>)}
+                        </select>
                     </div>
-                ) : (
-                    <div className="table-container">
-                        <table className="data-table">
-                            <thead>
-                                <tr>
-                                    <th>Ngày</th>
-                                    <th>Dự án</th>
-                                    <th>Thời tiết</th>
-                                    <th>Nhân công</th>
-                                    <th>Công việc thực hiện</th>
-                                    <th>Sự cố</th>
-                                    <th>Người ghi</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {logs.map(log => (
-                                    <tr key={log.id}>
-                                        <td style={{ fontWeight: 600, whiteSpace: 'nowrap' }}>
-                                            {fmtDate(log.date)}
-                                        </td>
-                                        <td>
-                                            <span className="badge info" style={{ fontSize: 11 }}>
-                                                {log.project?.code}
-                                            </span>
-                                            <span style={{ fontSize: 12, marginLeft: 6, color: 'var(--text-muted)' }}>
-                                                {log.project?.name}
-                                            </span>
-                                        </td>
-                                        <td style={{ fontSize: 14 }}>
-                                            {weatherIcon[log.weather] || ''}  {log.weather}
-                                        </td>
-                                        <td style={{ textAlign: 'center', fontWeight: 600 }}>
-                                            {log.workerCount || 0}
-                                        </td>
-                                        <td style={{ fontSize: 13, maxWidth: 280 }}>
-                                            <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                                                {log.progress || '—'}
-                                            </div>
-                                        </td>
-                                        <td style={{ fontSize: 12, color: log.issues ? 'var(--status-warning)' : 'var(--text-muted)' }}>
-                                            {log.issues
-                                                ? <span title={log.issues}>⚠️ {log.issues.substring(0, 40)}{log.issues.length > 40 ? '...' : ''}</span>
-                                                : '—'
-                                            }
-                                        </td>
-                                        <td style={{ fontSize: 12, color: 'var(--text-muted)' }}>{log.createdBy || '—'}</td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                        <div className="form-group">
+                            <label className="form-label">Thời tiết</label>
+                            <select className="form-input" value={form.weather} onChange={e => setForm({ ...form, weather: e.target.value })}>
+                                {Object.keys(weatherIcons).map(w => <option key={w} value={w}>{weatherIcons[w]} {w}</option>)}
+                            </select>
+                        </div>
+                        <div className="form-group"><label className="form-label">Số nhân công</label><input className="form-input" type="number" value={form.workforce} onChange={e => setForm({ ...form, workforce: e.target.value })} /></div>
                     </div>
-                )}
+                    <div className="form-group"><label className="form-label">Công việc đã làm *</label><textarea className="form-input" rows={3} value={form.workDone} onChange={e => setForm({ ...form, workDone: e.target.value })} required /></div>
+                    <div className="form-group"><label className="form-label">Vấn đề / sự cố</label><textarea className="form-input" rows={2} value={form.issues} onChange={e => setForm({ ...form, issues: e.target.value })} /></div>
+                    <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 16 }}>
+                        <button type="button" className="btn" onClick={onClose}>Hủy</button>
+                        <button type="submit" className="btn btn-primary" disabled={saving}>{saving ? 'Đang lưu...' : 'Ghi nhật ký'}</button>
+                    </div>
+                </form>
             </div>
         </div>
     );
