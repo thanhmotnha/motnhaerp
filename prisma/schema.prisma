@@ -56,6 +56,7 @@ model Customer {
   nextFollowUp    DateTime?
   score           Int         @default(0)
   lastContactAt   DateTime?
+  lostReason      String      @default("")
   deletedAt       DateTime?
   createdAt       DateTime    @default(now())
   updatedAt       DateTime    @updatedAt
@@ -345,10 +346,21 @@ model Employee {
   insuranceSalary Float    @default(0)
   status          String   @default("Đang làm")
   joinDate        DateTime?
+  dateOfBirth     DateTime?
+  gender          String   @default("")
+  address         String   @default("") @db.Text
+  idNumber        String   @default("") // CMND/CCCD
+  bankAccount     String   @default("")
+  bankName        String   @default("")
+  emergencyContact String  @default("")
+  emergencyPhone  String   @default("")
+  leaveBalance    Float    @default(12)
+  avatar          String   @default("")
   departmentId    String
   department      Department @relation(fields: [departmentId], references: [id])
   projects        ProjectEmployee[]
   attendances     Attendance[]
+  dailyAttendances DailyAttendance[]
   leaveRequests   LeaveRequest[]
   payrollRecords  PayrollRecord[]
   deletedAt       DateTime?
@@ -1561,4 +1573,41 @@ model ContractTemplate {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   @@index([type])
+}
+
+// ── Chấm công theo ngày ───────────────────────────────────────
+model DailyAttendance {
+  id          String   @id @default(cuid())
+  employeeId  String
+  employee    Employee @relation(fields: [employeeId], references: [id])
+  date        DateTime @db.Date
+  checkIn     DateTime?
+  checkOut    DateTime?
+  // Đi làm | Nghỉ phép | Nghỉ không lương | Vắng | Nửa ngày
+  status      String   @default("Đi làm")
+  overtimeHrs Float    @default(0)
+  notes       String   @default("")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  @@unique([employeeId, date])
+  @@index([employeeId])
+  @@index([date])
+}
+
+// ── Thông báo hệ thống ──────────────────────────────────────
+model Notification {
+  id        String   @id @default(cuid())
+  type      String   // warning, info, danger, success
+  icon      String   @default("")
+  title     String
+  message   String   @default("") @db.Text
+  link      String   @default("")
+  source    String   @default("") // module gốc: work-order, purchase, hr...
+  isRead    Boolean  @default(false)
+  readAt    DateTime?
+  expiresAt DateTime?
+  createdAt DateTime @default(now())
+  @@index([isRead])
+  @@index([createdAt])
+  @@index([source])
 }

@@ -16,6 +16,9 @@ export const GET = withAuth(async (request) => {
         recentProjects, projectsByStatus, lowStockProducts,
         overdueWOs, pendingPOs, urgentCommitments, overdueContractPayments,
         openWarranty, pendingLeave, overdueContractPaymentsTotal,
+        // Phase 1 additions
+        employeeCount, todayAttendance, pendingLeaveCount,
+        pipelineCustomers,
     ] = await Promise.all([
         prisma.customer.count({ where: { deletedAt: null } }),
         prisma.project.count({ where: { deletedAt: null } }),
@@ -73,6 +76,25 @@ export const GET = withAuth(async (request) => {
             where: { status: { notIn: ['Đã thu', 'Đã thanh toán'] }, dueDate: { lt: now } },
             _sum: { amount: true },
         }).catch(() => ({ _sum: { amount: 0 } })),
+        // ── HR Summary ──
+        prisma.employee.count({ where: { status: 'Đang làm', deletedAt: null } }).catch(() => 0),
+        prisma.dailyAttendance.findMany({
+            where: {
+                date: {
+                    gte: new Date(now.getFullYear(), now.getMonth(), now.getDate()),
+                    lt: new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1),
+                },
+            },
+            select: { status: true },
+        }).catch(() => []),
+        prisma.leaveRequest.count({ where: { status: 'Chờ duyệt' } }).catch(() => 0),
+        // ── Pipeline Summary ──
+        prisma.customer.groupBy({
+            by: ['pipelineStage'],
+            where: { deletedAt: null },
+            _count: true,
+            _sum: { estimatedValue: true },
+        }).catch(() => []),
     ]);
 
     const thisMonthRev = thisMonthIncome._sum.amount || 0;
@@ -108,5 +130,17 @@ export const GET = withAuth(async (request) => {
             urgentCommitments,
             overdueContractPayments,
         },
+        hrSummary: {
+            totalEmployees: employeeCount,
+            presentToday: todayAttendance.filter(a => a.status === 'Đi làm').length,
+            absentToday: todayAttendance.filter(a => ['Vắng', 'Nghỉ phép', 'Nghỉ không lương'].includes(a.status)).length,
+            lateToday: todayAttendance.filter(a => a.status === 'Đi trễ').length,
+            pendingLeave: pendingLeaveCount,
+        },
+        pipelineSummary: pipelineCustomers.map(p => ({
+            stage: p.pipelineStage,
+            count: p._count,
+            estimatedValue: p._sum.estimatedValue || 0,
+        })),
     });
 });
