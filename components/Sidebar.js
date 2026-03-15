@@ -31,12 +31,14 @@ const menuItems = [
     {
         section: 'Dự án', items: [
             { href: '/projects', icon: Building2, label: 'Dự án' },
+            { href: '/work-orders', icon: ClipboardCheck, label: 'Lệnh công việc' },
             { href: '/warranty', icon: ShieldCheck, label: 'Bảo hành', roles: ['giam_doc', 'pho_gd', 'quan_ly_du_an'] },
         ]
     },
     {
         section: 'Vật tư & Kho', items: [
             { href: '/products', icon: Package, label: 'Sản phẩm & VT' },
+            { href: '/material-plans', icon: ClipboardList, label: 'KH Vật tư' },
             { href: '/purchasing', icon: ShoppingCart, label: 'Mua sắm', roles: ['giam_doc', 'pho_gd', 'ke_toan'] },
             { href: '/inventory', icon: Warehouse, label: 'Kho & Tồn kho' },
             { href: '/warehouse-transfers', icon: ArrowRightLeft, label: 'Chuyển kho' },
