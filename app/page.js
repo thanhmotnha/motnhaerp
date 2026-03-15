@@ -2,6 +2,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { SkeletonDashboard } from '@/components/ui/Skeleton';
 import { useDashboardWidgets, WidgetConfigurator } from '@/components/dashboard/WidgetConfigurator';
+import NotificationBell from '@/components/ui/NotificationBell';
 
 const fmt = (n) => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(n || 0);
 const fmtShort = (n) => {
@@ -176,6 +177,7 @@ export default function Dashboard() {
                     <button onClick={() => load(true)} disabled={refreshing} style={{ background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: 8, padding: '6px 14px', color: '#fff', fontSize: 12, cursor: 'pointer', transition: 'background 0.2s' }}>
                         {refreshing ? '...' : '↻ Làm mới'}
                     </button>
+                    <NotificationBell style={{ filter: 'brightness(10)' }} />
                 </div>
             </div>
 
@@ -223,6 +225,36 @@ export default function Dashboard() {
                     </div>
                 ))}
             </div>
+
+            {/* KPI Cards — Tier 3: HR & Pipeline */}
+            {(data.hrSummary || data.pipelineSummary?.length > 0) && (
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 12, marginBottom: 20 }}>
+                    {data.hrSummary && <>
+                        <a href="/hr" className="card" style={{ padding: '12px 16px', textDecoration: 'none', color: 'inherit', transition: 'box-shadow 0.2s' }}>
+                            <div style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 4 }}>Chấm công hôm nay</div>
+                            <div style={{ fontSize: 22, fontWeight: 800, color: '#16A34A' }}>{data.hrSummary.presentToday}<span style={{ fontSize: 13, fontWeight: 500, color: 'var(--text-muted)' }}>/{data.hrSummary.totalEmployees}</span></div>
+                            <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>Vắng: {data.hrSummary.absentToday}</div>
+                        </a>
+                        <a href="/hr" className="card" style={{ padding: '12px 16px', textDecoration: 'none', color: 'inherit' }}>
+                            <div style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 4 }}>Đi trễ hôm nay</div>
+                            <div style={{ fontSize: 22, fontWeight: 800, color: data.hrSummary.lateToday > 0 ? '#D97706' : '#16A34A' }}>{data.hrSummary.lateToday}</div>
+                            <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>nhân viên</div>
+                        </a>
+                        <a href="/hr" className="card" style={{ padding: '12px 16px', textDecoration: 'none', color: 'inherit' }}>
+                            <div style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 4 }}>Đơn nghỉ chờ duyệt</div>
+                            <div style={{ fontSize: 22, fontWeight: 800, color: data.hrSummary.pendingLeave > 0 ? '#DC2626' : '#234093' }}>{data.hrSummary.pendingLeave}</div>
+                            <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>đơn pending</div>
+                        </a>
+                    </>}
+                    {data.pipelineSummary?.length > 0 && (
+                        <a href="/customers" className="card" style={{ padding: '12px 16px', textDecoration: 'none', color: 'inherit' }}>
+                            <div style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 4 }}>Pipeline KH</div>
+                            <div style={{ fontSize: 22, fontWeight: 800, color: '#2D5CA3' }}>{data.pipelineSummary.reduce((a, p) => a + p.count, 0)}</div>
+                            <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>{fmtShort(data.pipelineSummary.reduce((a, p) => a + p.estimatedValue, 0))} ước tính</div>
+                        </a>
+                    )}
+                </div>
+            )}
 
             {/* Financial + Project Status */}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 20 }}>

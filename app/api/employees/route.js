@@ -11,8 +11,11 @@ export const GET = withAuth(async (request) => {
     const departmentId = searchParams.get('departmentId');
     const search = searchParams.get('search');
 
+    const status = searchParams.get('status');
+
     const where = { deletedAt: null };
     if (departmentId) where.departmentId = departmentId;
+    if (status) where.status = status;
     if (search) where.name = { contains: search, mode: 'insensitive' };
 
     const [data, total, departments] = await Promise.all([

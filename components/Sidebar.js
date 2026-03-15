@@ -44,6 +44,8 @@ const menuItems = [
     },
     {
         section: 'Sản xuất', items: [
+            { href: '/furniture-orders', icon: ClipboardList, label: 'Đơn nội thất' },
+            { href: '/production-batches', icon: Activity, label: 'Lô sản xuất' },
             { href: '/workshops', icon: Factory, label: 'Xưởng SX', roles: ['giam_doc', 'pho_gd', 'quan_ly_du_an'] },
         ]
     },
