@@ -9,7 +9,7 @@ import {
     ShoppingCart, Truck, Warehouse, Wallet, UserCog,
     BarChart3, ChevronRight, ChevronDown, X, Factory,
     Activity, ClipboardCheck, Banknote, Settings, ShieldCheck,
-    Shield, Plus
+    Shield, Plus, ArrowRightLeft, Calculator
 } from 'lucide-react';
 import { useRole } from '@/contexts/RoleContext';
 
@@ -39,6 +39,7 @@ const menuItems = [
             { href: '/products', icon: Package, label: 'Sản phẩm & VT' },
             { href: '/purchasing', icon: ShoppingCart, label: 'Mua sắm', roles: ['giam_doc', 'pho_gd', 'ke_toan'] },
             { href: '/inventory', icon: Warehouse, label: 'Kho & Tồn kho' },
+            { href: '/warehouse-transfers', icon: ArrowRightLeft, label: 'Chuyển kho' },
             { href: '/partners', icon: Truck, label: 'Đối tác NCC/TP', roles: ['giam_doc', 'pho_gd', 'ke_toan'] },
         ]
     },
@@ -52,6 +53,7 @@ const menuItems = [
     {
         section: 'Tài chính', items: [
             { href: '/finance', icon: Wallet, label: 'Tài chính', roles: ['giam_doc', 'pho_gd', 'ke_toan'] },
+            { href: '/accounting', icon: Calculator, label: 'Kế toán', roles: ['giam_doc', 'pho_gd', 'ke_toan'] },
         ]
     },
     {

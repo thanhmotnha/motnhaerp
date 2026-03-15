@@ -15,6 +15,7 @@ const STATUS_MAP = {
     delivered: { label: 'Đã giao', color: '#06b6d4', bg: '#cffafe', icon: '🚚' },
     cancelled: { label: 'Hủy', color: '#ef4444', bg: '#fee2e2', icon: '❌' },
 };
+const KANBAN_COLS = ['pending', 'in_progress', 'quality_check', 'completed', 'delivered'];
 
 const QC_MAP = {
     pending: { label: 'Chờ QC', color: '#94a3b8' },
@@ -23,10 +24,62 @@ const QC_MAP = {
     rework: { label: 'Sửa lại', color: '#f59e0b' },
 };
 
+/* ── Kanban Card ────────────────────────────────────── */
+function KanbanCard({ b, onMove, router }) {
+    const st = STATUS_MAP[b.status] || STATUS_MAP.pending;
+    const qc = QC_MAP[b.qualityStatus] || QC_MAP.pending;
+    const nextMap = { pending: 'in_progress', in_progress: 'quality_check', quality_check: 'completed', completed: 'delivered' };
+    const nextStatus = nextMap[b.status];
+    return (
+        <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 10, padding: '10px 12px', marginBottom: 8, cursor: 'pointer', transition: 'box-shadow .15s', boxShadow: '0 1px 3px rgba(0,0,0,0.06)' }}
+            onClick={() => b.furnitureOrder?.id && router.push(`/furniture-orders/${b.furnitureOrder.id}`)}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                <span style={{ fontWeight: 700, fontSize: 13, color: 'var(--accent-primary)' }}>{b.code}</span>
+                <span style={{ fontSize: 10, fontWeight: 600, color: qc.color }}>{qc.label}</span>
+            </div>
+            <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginBottom: 4 }}>{b.furnitureOrder?.code || '—'} {b.furnitureOrder?.name || ''}</div>
+            <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 6 }}>🏭 {b.workshop?.name || '—'} · {b._count?.batchItems || 0} HM</div>
+            <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 6 }}>📅 {fmtDate(b.expectedStart)} → {fmtDate(b.expectedEnd)}</div>
+            {nextStatus && (
+                <button className="btn btn-ghost btn-sm" style={{ fontSize: 11, padding: '2px 8px', width: '100%' }}
+                    onClick={e => { e.stopPropagation(); onMove(b.id, nextStatus); }}>
+                    → {STATUS_MAP[nextStatus]?.label}
+                </button>
+            )}
+        </div>
+    );
+}
+
+/* ── Kanban Board ───────────────────────────────────── */
+function KanbanBoard({ batches, onMove, router }) {
+    return (
+        <div style={{ display: 'flex', gap: 12, overflowX: 'auto', paddingBottom: 16 }}>
+            {KANBAN_COLS.map(col => {
+                const st = STATUS_MAP[col];
+                const items = batches.filter(b => b.status === col);
+                return (
+                    <div key={col} style={{ flex: '0 0 240px', minWidth: 220 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 10, padding: '6px 10px', borderRadius: 8, background: st.bg }}>
+                            <span style={{ fontSize: 14 }}>{st.icon}</span>
+                            <span style={{ fontWeight: 700, fontSize: 13, color: st.color }}>{st.label}</span>
+                            <span style={{ marginLeft: 'auto', fontSize: 12, fontWeight: 700, color: st.color, background: 'rgba(255,255,255,0.6)', borderRadius: 10, padding: '0 8px' }}>{items.length}</span>
+                        </div>
+                        <div style={{ minHeight: 120, background: 'var(--bg-secondary)', borderRadius: 10, padding: 8 }}>
+                            {items.length === 0 && <div style={{ color: 'var(--text-muted)', fontSize: 12, textAlign: 'center', padding: 20 }}>Trống</div>}
+                            {items.map(b => <KanbanCard key={b.id} b={b} onMove={onMove} router={router} />)}
+                        </div>
+                    </div>
+                );
+            })}
+        </div>
+    );
+}
+
 export default function ProductionBatchesPage() {
     const [batches, setBatches] = useState([]);
     const [loading, setLoading] = useState(true);
     const [filterStatus, setFilterStatus] = useState('');
+    const [viewMode, setViewMode] = useState('table'); // 'table' | 'kanban'
     const [stats, setStats] = useState({ total: 0, pending: 0, inProgress: 0, completed: 0 });
     const [expandedId, setExpandedId] = useState(null);
     const router = useRouter();
@@ -78,13 +131,20 @@ export default function ProductionBatchesPage() {
                         <option value="">Tất cả trạng thái</option>
                         {Object.entries(STATUS_MAP).map(([k, v]) => <option key={k} value={k}>{v.icon} {v.label}</option>)}
                     </select>
+                    {/* View mode toggle */}
+                    <div style={{ display: 'flex', borderRadius: 8, overflow: 'hidden', border: '1px solid var(--border)' }}>
+                        <button className={`btn btn-sm ${viewMode === 'table' ? 'btn-primary' : 'btn-ghost'}`} style={{ borderRadius: 0, fontSize: 12 }} onClick={() => setViewMode('table')}>📋 Bảng</button>
+                        <button className={`btn btn-sm ${viewMode === 'kanban' ? 'btn-primary' : 'btn-ghost'}`} style={{ borderRadius: 0, fontSize: 12 }} onClick={() => setViewMode('kanban')}>📊 Kanban</button>
+                    </div>
                     <div style={{ flex: 1 }} />
                     <button className="btn btn-ghost" onClick={load}>↻ Làm mới</button>
                 </div>
             </div>
 
-            {/* Table */}
-            {loading ? <div style={{ padding: 60, textAlign: 'center', color: 'var(--text-muted)' }}>Đang tải...</div> : (
+            {loading ? <div style={{ padding: 60, textAlign: 'center', color: 'var(--text-muted)' }}>Đang tải...</div> : viewMode === 'kanban' ? (
+                <KanbanBoard batches={batches} onMove={updateStatus} router={router} />
+            ) : (
+                /* Table */
                 <div className="card">
                     <div className="table-container"><table className="data-table">
                         <thead><tr>
