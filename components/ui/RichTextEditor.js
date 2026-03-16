@@ -108,6 +108,7 @@ export default function RichTextEditor({ value = '', onChange, placeholder = 'Nh
                     initialValue={value}
                     onEditorChange={handleEditorChange}
                     init={{
+                        license_key: 'gpl',
                         height: 500,
                         menubar: 'file edit view insert format table',
                         plugins: [
