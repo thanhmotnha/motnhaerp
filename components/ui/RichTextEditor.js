@@ -272,6 +272,9 @@ function Toolbar({ editor, variables }) {
 export default function RichTextEditor({ value = '', onChange, placeholder = 'Nhập nội dung...', variables = [], style = {}, editorKey = 0 }) {
     const onChangeRef = useRef(onChange);
     onChangeRef.current = onChange;
+    const valueRef = useRef(value);
+    valueRef.current = value;
+    const prevKeyRef = useRef(editorKey);
 
     const extensions = useMemo(() => [
         StarterKit.configure({
@@ -298,7 +301,15 @@ export default function RichTextEditor({ value = '', onChange, placeholder = 'Nh
         onUpdate: ({ editor: ed }) => {
             onChangeRef.current?.(ed.getHTML());
         },
-    }, [editorKey]); // re-create editor when editorKey changes
+    }); // NO deps → editor created once, never re-created
+
+    // Chỉ setContent khi editorKey thay đổi (áp mẫu / import template)
+    useEffect(() => {
+        if (editor && prevKeyRef.current !== editorKey) {
+            prevKeyRef.current = editorKey;
+            editor.commands.setContent(valueRef.current || '', false);
+        }
+    }, [editor, editorKey]);
 
     return (
         <div style={{
