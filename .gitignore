@@ -42,6 +42,10 @@ yarn-error.log*
 # uploads
 public/uploads/
 
+# TinyMCE (copied from node_modules via scripts/copy-tinymce.js)
+public/tinymce/
+!public/tinymce/langs/
+
 # vercel
 .vercel
 

@@ -1,204 +1,159 @@
 'use client';
-import { useEditor, EditorContent } from '@tiptap/react';
-import StarterKit from '@tiptap/starter-kit';
-import Underline from '@tiptap/extension-underline';
-import TextAlign from '@tiptap/extension-text-align';
-import { Table } from '@tiptap/extension-table';
-import { TableRow } from '@tiptap/extension-table-row';
-import { TableCell } from '@tiptap/extension-table-cell';
-import { TableHeader } from '@tiptap/extension-table-header';
-import { Image } from '@tiptap/extension-image';
-import { Color } from '@tiptap/extension-color';
-import { TextStyle } from '@tiptap/extension-text-style';
-import { Placeholder } from '@tiptap/extension-placeholder';
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useRef, useCallback, useEffect, useState } from 'react';
+import { Editor } from '@tinymce/tinymce-react';
 
-const TOOLBAR_BTN = {
-    padding: '4px 8px', border: '1px solid var(--border)', borderRadius: 4,
-    background: 'var(--bg-primary)', cursor: 'pointer', fontSize: 13,
-    minWidth: 30, textAlign: 'center', lineHeight: 1.2, transition: 'all 0.15s',
-};
-const ACTIVE_BTN = { ...TOOLBAR_BTN, background: 'var(--accent-primary)', color: '#fff', borderColor: 'var(--accent-primary)' };
+// ─── Font & Size configs ────────────────────────────
+const FONTS = [
+    'Times New Roman=Times New Roman,Times,serif',
+    'Arial=Arial,Helvetica,sans-serif',
+    'Roboto=Roboto,sans-serif',
+    'Georgia=Georgia,serif',
+    'Tahoma=Tahoma,sans-serif',
+    'Verdana=Verdana,sans-serif',
+    'Courier New=Courier New,Courier,monospace',
+].join(';');
+
+const FONT_SIZES = '11px 12px 13px 14px 15px 16px 18px 20px 22px 24px 28px 32px 36px';
+
+// ─── Content CSS for document feel ──────────────────
+const CONTENT_STYLE = `
+    @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap');
+
+    body {
+        font-family: 'Times New Roman', Times, serif;
+        font-size: 14px;
+        line-height: 1.8;
+        color: #1e293b;
+        padding: 20px 28px;
+        max-width: 100%;
+        margin: 0;
+    }
+    h1 { font-size: 22px; font-weight: 800; margin: 18px 0 10px; color: #0f172a; }
+    h2 { font-size: 18px; font-weight: 700; margin: 15px 0 8px; color: #1e293b; }
+    h3 { font-size: 15px; font-weight: 700; margin: 12px 0 6px; color: #334155; }
+    p { margin: 6px 0; }
+    ul, ol { padding-left: 24px; margin: 8px 0; }
+    table { border-collapse: collapse; width: 100%; margin: 12px 0; }
+    td, th { border: 1px solid #cbd5e1; padding: 6px 10px; min-width: 50px; vertical-align: top; }
+    th { background: #f1f5f9; font-weight: 700; text-align: left; }
+    img { max-width: 100%; height: auto; border-radius: 4px; }
+    blockquote { border-left: 3px solid #3b82f6; padding-left: 16px; margin: 12px 0; color: #64748b; font-style: italic; }
+    a { color: #2563eb; }
+    hr { border: 0; border-top: 1px solid #e2e8f0; margin: 16px 0; }
+`;
 
 export default function RichTextEditor({ value = '', onChange, placeholder = 'Nhập nội dung...', variables = [], style = {} }) {
-    const [varDropdown, setVarDropdown] = useState(false);
-    const dropdownRef = useRef(null);
+    const editorRef = useRef(null);
     const onChangeRef = useRef(onChange);
+    const [ready, setReady] = useState(false);
     onChangeRef.current = onChange;
 
-    const editor = useEditor({
-        extensions: [
-            StarterKit.configure({
-                heading: { levels: [1, 2, 3] },
-            }),
-            Underline,
-            TextAlign.configure({ types: ['heading', 'paragraph'] }),
-            Table.configure({ resizable: true }),
-            TableRow,
-            TableCell,
-            TableHeader,
-            Image,
-            Color,
-            TextStyle,
-            Placeholder.configure({ placeholder }),
-        ],
-        content: value,
-        onUpdate: ({ editor }) => {
-            onChangeRef.current?.(editor.getHTML());
-        },
-    });
-
-    // Sync external value changes
-    const lastValue = useRef(value);
+    // Sync external value changes (e.g. from import)
+    const lastExternalValue = useRef(value);
     useEffect(() => {
-        if (editor && value !== lastValue.current) {
-            const currentHTML = editor.getHTML();
+        if (editorRef.current && value !== lastExternalValue.current) {
+            const currentHTML = editorRef.current.getContent();
             if (value !== currentHTML) {
-                editor.commands.setContent(value, false);
+                editorRef.current.setContent(value || '');
             }
-            lastValue.current = value;
+            lastExternalValue.current = value;
         }
-    }, [value, editor]);
+    }, [value]);
 
-    // Close dropdown on outside click
-    useEffect(() => {
-        const handler = (e) => { if (dropdownRef.current && !dropdownRef.current.contains(e.target)) setVarDropdown(false); };
-        document.addEventListener('mousedown', handler);
-        return () => document.removeEventListener('mousedown', handler);
+    const handleEditorChange = useCallback((content) => {
+        lastExternalValue.current = content;
+        onChangeRef.current?.(content);
     }, []);
 
-    const insertVariable = useCallback((varKey) => {
-        if (!editor) return;
-        editor.chain().focus().insertContent(`{{${varKey}}}`).run();
-        setVarDropdown(false);
-    }, [editor]);
+    // Build variable menu items
+    const setupVariableButton = useCallback((editor) => {
+        if (!variables || variables.length === 0) return;
 
-    if (!editor) return null;
-
-    const btn = (active, onClick, children, title) => (
-        <button type="button" style={active ? ACTIVE_BTN : TOOLBAR_BTN} onClick={onClick} title={title}>{children}</button>
-    );
+        editor.ui.registry.addMenuButton('variablesBtn', {
+            text: '{ } Chèn biến',
+            tooltip: 'Chèn biến tự động vào hợp đồng',
+            fetch: (callback) => {
+                const items = variables.map(v => ({
+                    type: 'menuitem',
+                    text: `{{${v.key}}} — ${v.label}`,
+                    onAction: () => {
+                        editor.insertContent(`{{${v.key}}}`);
+                    },
+                }));
+                callback(items);
+            },
+        });
+    }, [variables]);
 
     return (
-        <div style={{ border: '1px solid var(--border)', borderRadius: 8, overflow: 'hidden', ...style }}>
-            {/* Toolbar */}
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 2, padding: '6px 8px', background: 'var(--bg-secondary)', borderBottom: '1px solid var(--border)', alignItems: 'center' }}>
-                {/* Text format */}
-                {btn(editor.isActive('bold'), () => editor.chain().focus().toggleBold().run(), <b>B</b>, 'Bold')}
-                {btn(editor.isActive('italic'), () => editor.chain().focus().toggleItalic().run(), <i>I</i>, 'Italic')}
-                {btn(editor.isActive('underline'), () => editor.chain().focus().toggleUnderline().run(), <u>U</u>, 'Underline')}
-                {btn(editor.isActive('strike'), () => editor.chain().focus().toggleStrike().run(), <s>S</s>, 'Strikethrough')}
-
-                <span style={{ width: 1, height: 20, background: 'var(--border)', margin: '0 4px' }} />
-
-                {/* Headings */}
-                {btn(editor.isActive('heading', { level: 1 }), () => editor.chain().focus().toggleHeading({ level: 1 }).run(), 'H1', 'Heading 1')}
-                {btn(editor.isActive('heading', { level: 2 }), () => editor.chain().focus().toggleHeading({ level: 2 }).run(), 'H2', 'Heading 2')}
-                {btn(editor.isActive('heading', { level: 3 }), () => editor.chain().focus().toggleHeading({ level: 3 }).run(), 'H3', 'Heading 3')}
-
-                <span style={{ width: 1, height: 20, background: 'var(--border)', margin: '0 4px' }} />
-
-                {/* Lists */}
-                {btn(editor.isActive('bulletList'), () => editor.chain().focus().toggleBulletList().run(), '•', 'Bullet list')}
-                {btn(editor.isActive('orderedList'), () => editor.chain().focus().toggleOrderedList().run(), '1.', 'Numbered list')}
-
-                <span style={{ width: 1, height: 20, background: 'var(--border)', margin: '0 4px' }} />
-
-                {/* Alignment */}
-                {btn(editor.isActive({ textAlign: 'left' }), () => editor.chain().focus().setTextAlign('left').run(), '⬅', 'Align left')}
-                {btn(editor.isActive({ textAlign: 'center' }), () => editor.chain().focus().setTextAlign('center').run(), '↔', 'Center')}
-                {btn(editor.isActive({ textAlign: 'right' }), () => editor.chain().focus().setTextAlign('right').run(), '➡', 'Align right')}
-
-                <span style={{ width: 1, height: 20, background: 'var(--border)', margin: '0 4px' }} />
-
-                {/* Table */}
-                {btn(false, () => editor.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run(), '⊞', 'Insert table')}
-
-                <span style={{ width: 1, height: 20, background: 'var(--border)', margin: '0 4px' }} />
-
-                {/* Undo/Redo */}
-                {btn(false, () => editor.chain().focus().undo().run(), '↩', 'Undo')}
-                {btn(false, () => editor.chain().focus().redo().run(), '↪', 'Redo')}
-
-                {/* Variables dropdown */}
-                {variables.length > 0 && (
-                    <>
-                        <span style={{ width: 1, height: 20, background: 'var(--border)', margin: '0 4px' }} />
-                        <div style={{ position: 'relative' }} ref={dropdownRef}>
-                            <button type="button" style={{ ...TOOLBAR_BTN, background: '#e0f2fe', color: '#0369a1', fontWeight: 700, fontSize: 12, padding: '4px 10px' }}
-                                onClick={() => setVarDropdown(!varDropdown)}>
-                                {'{ } Chèn biến ▾'}
-                            </button>
-                            {varDropdown && (
-                                <div style={{
-                                    position: 'absolute', top: '100%', left: 0, zIndex: 100,
-                                    background: 'var(--bg-primary)', border: '1px solid var(--border)', borderRadius: 8,
-                                    boxShadow: '0 8px 30px rgba(0,0,0,0.15)', minWidth: 280, maxHeight: 320, overflow: 'auto',
-                                    marginTop: 4,
-                                }}>
-                                    {variables.map(v => (
-                                        <button key={v.key} type="button" onClick={() => insertVariable(v.key)}
-                                            style={{
-                                                display: 'flex', alignItems: 'center', gap: 10, width: '100%',
-                                                padding: '8px 14px', border: 'none', background: 'transparent',
-                                                cursor: 'pointer', textAlign: 'left', fontSize: 12,
-                                                borderBottom: '1px solid var(--border)',
-                                            }}>
-                                            <code style={{ background: '#e0f2fe', color: '#0369a1', padding: '2px 6px', borderRadius: 4, fontSize: 11, fontWeight: 700, whiteSpace: 'nowrap' }}>
-                                                {`{{${v.key}}}`}
-                                            </code>
-                                            <span style={{ color: 'var(--text-muted)' }}>{v.label}</span>
-                                        </button>
-                                    ))}
-                                </div>
-                            )}
-                        </div>
-                    </>
-                )}
+        <div style={{
+            border: '1px solid var(--border)',
+            borderRadius: 10,
+            overflow: 'hidden',
+            background: '#fff',
+            boxShadow: '0 1px 3px rgba(0,0,0,0.06)',
+            ...style
+        }}>
+            {!ready && (
+                <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-muted)', fontSize: 13 }}>
+                    ⏳ Đang tải trình soạn thảo...
+                </div>
+            )}
+            <div style={{ display: ready ? 'block' : 'none' }}>
+                <Editor
+                    tinymceScriptSrc="/tinymce/tinymce.min.js"
+                    onInit={(evt, editor) => {
+                        editorRef.current = editor;
+                        setReady(true);
+                    }}
+                    initialValue={value}
+                    onEditorChange={handleEditorChange}
+                    init={{
+                        height: 500,
+                        menubar: 'file edit view insert format table',
+                        plugins: [
+                            'advlist', 'autolink', 'lists', 'link', 'image', 'charmap',
+                            'preview', 'anchor', 'searchreplace', 'visualblocks', 'code',
+                            'fullscreen', 'insertdatetime', 'media', 'table', 'help',
+                            'wordcount', 'pagebreak',
+                        ],
+                        toolbar: [
+                            'undo redo | fontfamily fontsize | bold italic underline strikethrough | forecolor backcolor',
+                            'alignleft aligncenter alignright alignjustify | bullist numlist outdent indent | table link image | variablesBtn | pagebreak | fullscreen preview',
+                        ].join(' | '),
+                        font_family_formats: FONTS,
+                        font_size_formats: FONT_SIZES,
+                        content_style: CONTENT_STYLE,
+                        placeholder: placeholder,
+                        branding: false,
+                        promotion: false,
+                        statusbar: true,
+                        resize: true,
+                        language: 'vi',
+                        language_url: '/tinymce/langs/vi.js',
+                        // Document-like appearance
+                        skin: 'oxide',
+                        content_css: false,
+                        // Table defaults
+                        table_default_styles: {
+                            'border-collapse': 'collapse',
+                            'width': '100%',
+                        },
+                        table_default_attributes: {
+                            border: '1',
+                        },
+                        // Paste cleanup
+                        paste_as_text: false,
+                        paste_word_valid_elements: 'b,strong,i,em,h1,h2,h3,p,br,table,tr,td,th,thead,tbody,ul,ol,li,a,span,div',
+                        // Setup custom buttons
+                        setup: (editor) => {
+                            setupVariableButton(editor);
+                        },
+                        // Auto-save
+                        autosave_interval: '30s',
+                    }}
+                />
             </div>
-
-            {/* Editor */}
-            <div className="rte-content">
-                <EditorContent editor={editor} />
-            </div>
-
-            {/* Editor styles */}
-            <style>{`
-                .rte-content .tiptap {
-                    padding: 16px 20px;
-                    min-height: 300px;
-                    outline: none;
-                    font-size: 14px;
-                    line-height: 1.7;
-                    color: var(--text-primary);
-                }
-                .rte-content .tiptap p.is-editor-empty:first-child::before {
-                    content: attr(data-placeholder);
-                    float: left;
-                    color: var(--text-muted);
-                    pointer-events: none;
-                    height: 0;
-                }
-                .rte-content .tiptap h1 { font-size: 22px; font-weight: 800; margin: 16px 0 8px; }
-                .rte-content .tiptap h2 { font-size: 18px; font-weight: 700; margin: 14px 0 6px; }
-                .rte-content .tiptap h3 { font-size: 15px; font-weight: 700; margin: 12px 0 4px; }
-                .rte-content .tiptap ul, .rte-content .tiptap ol { padding-left: 24px; margin: 8px 0; }
-                .rte-content .tiptap table { border-collapse: collapse; width: 100%; margin: 12px 0; }
-                .rte-content .tiptap td, .rte-content .tiptap th {
-                    border: 1px solid var(--border);
-                    padding: 6px 10px;
-                    min-width: 60px;
-                    vertical-align: top;
-                }
-                .rte-content .tiptap th { background: var(--bg-secondary); font-weight: 700; }
-                .rte-content .tiptap img { max-width: 100%; height: auto; border-radius: 4px; }
-                .rte-content .tiptap blockquote {
-                    border-left: 3px solid var(--accent-primary);
-                    padding-left: 16px;
-                    margin: 12px 0;
-                    color: var(--text-muted);
-                }
-            `}</style>
         </div>
     );
 }

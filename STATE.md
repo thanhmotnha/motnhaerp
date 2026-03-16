@@ -1,6 +1,6 @@
 # STATE.md — Một Nhà ERP
 
-> Cập nhật: 2026-03-16T10:37
+> Cập nhật: 2026-03-16T11:30
 
 ## Project Overview
 - **Stack**: Next.js 16 + React 19 + Prisma 6 + PostgreSQL + Docker
@@ -13,14 +13,11 @@
 
 ## Done (gần đây)
 - [x] Phase 1-3: Schema, APIs, Dashboard, HR tabs, Furniture Orders, Production Batches
-- [x] Phase 4: CustomerInteraction, EmployeeReview, SalaryAdvance, Customer tags, Dashboard PaymentAlerts
-- [x] Phase 5: EmployeeContract, ProductionCost, Warranty SLA, Schedule Critical Path
-- [x] Phase 6: Schema updates, API enhancements, Frontend (Quotation versioning, Warehouse transfers, Production Kanban, Accounting)
-- [x] Phase 7: Sidebar — added `/work-orders` + `/material-plans`. Notification bell in Header.
-- [x] Phase 8: 5 new pages — Daily Logs, Acceptance, Contractors, Expenses, Budget
-- [x] Phase 9: Admin Settings (6 tabs), Dashboard Tier 4 (activity feed, quick actions, calendar)
-- [x] Phase 10: Full test suite — 61/61 pass. Schema sync audit — fix prisma.setting→systemSetting
-- [x] Code review: infrastructure, API, frontend — all patterns consistent
+- [x] Phase 4-6: CustomerInteraction, EmployeeReview, SalaryAdvance, Quotation versioning, Accounting
+- [x] Phase 7-9: Sidebar, Notification bell, Daily Logs, Admin Settings, Dashboard Tier 4
+- [x] Phase 10: Full test suite 61/61, Schema sync audit
+- [x] Export hợp đồng → Word (.docx) + Import mẫu Word → template
+- [x] Chuyển trình soạn thảo hợp đồng TipTap → TinyMCE (Word-like, font selector, pro toolbar)
 
 ## In Progress
 - (none)
@@ -31,4 +28,4 @@
 
 ## Commit
 - Branch: `main`
-- Last commit: Phase 4–10 (pending push)
+- Last commit: `17795e2` — feat: export/import Word
