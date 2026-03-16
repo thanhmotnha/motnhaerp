@@ -89,7 +89,6 @@ export default function RichTextEditor({ value = '', onChange, placeholder = 'Nh
         <div style={{
             border: '1px solid var(--border)',
             borderRadius: 10,
-            overflow: 'hidden',
             background: '#fff',
             boxShadow: '0 1px 3px rgba(0,0,0,0.06)',
             ...style
@@ -117,10 +116,8 @@ export default function RichTextEditor({ value = '', onChange, placeholder = 'Nh
                             'fullscreen', 'insertdatetime', 'media', 'table', 'help',
                             'wordcount', 'pagebreak',
                         ],
-                        toolbar: [
-                            'undo redo | fontfamily fontsize | bold italic underline strikethrough | forecolor backcolor',
-                            'alignleft aligncenter alignright alignjustify | bullist numlist outdent indent | table link image | variablesBtn | pagebreak | fullscreen preview',
-                        ].join(' | '),
+                        toolbar1: 'undo redo | fontfamily fontsize | bold italic underline strikethrough | forecolor backcolor',
+                        toolbar2: 'alignleft aligncenter alignright alignjustify | bullist numlist outdent indent | table link image | variablesBtn | pagebreak | fullscreen preview',
                         font_family_formats: FONTS,
                         font_size_formats: FONT_SIZES,
                         content_style: CONTENT_STYLE,
