@@ -142,7 +142,11 @@ export default function RichTextEditor({ value = '', onChange, placeholder = 'Nh
                         },
                         // Paste cleanup
                         paste_as_text: false,
-                        paste_word_valid_elements: 'b,strong,i,em,h1,h2,h3,p,br,table,tr,td,th,thead,tbody,ul,ol,li,a,span,div',
+                        paste_retain_style_properties: 'color,font-size,font-family,background-color,text-align,text-decoration,font-weight,font-style',
+                        paste_word_valid_elements: 'b,strong,i,em,h1,h2,h3,h4,p,br,table,tr,td,th,thead,tbody,ul,ol,li,a[href],span[style],div[style],sub,sup',
+                        valid_styles: {
+                            '*': 'font-family,font-size,color,background-color,text-align,text-decoration,font-weight,font-style,margin,margin-left,margin-right,padding,line-height,text-indent,border,border-collapse,width,height',
+                        },
                         // Setup custom buttons
                         setup: (editor) => {
                             setupVariableButton(editor);
