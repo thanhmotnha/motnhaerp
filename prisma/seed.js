@@ -5,32 +5,14 @@ const prisma = new PrismaClient();
 async function main() {
     console.log('Seeding database...');
 
-    // Clean all tables
-    await prisma.user.deleteMany();
-    await prisma.contractPayment.deleteMany();
-    await prisma.contract.deleteMany();
-    await prisma.workOrder.deleteMany();
-    await prisma.materialPlan.deleteMany();
-    await prisma.purchaseOrderItem.deleteMany();
-    await prisma.purchaseOrder.deleteMany();
-    await prisma.projectExpense.deleteMany();
-    await prisma.trackingLog.deleteMany();
-    await prisma.projectDocument.deleteMany();
-    await prisma.contractorPayment.deleteMany();
-    await prisma.projectMilestone.deleteMany();
-    await prisma.projectBudget.deleteMany();
-    await prisma.projectEmployee.deleteMany();
-    await prisma.quotationItem.deleteMany();
-    await prisma.quotation.deleteMany();
-    await prisma.inventoryTransaction.deleteMany();
-    await prisma.transaction.deleteMany();
-    await prisma.project.deleteMany();
-    await prisma.customer.deleteMany();
-    await prisma.product.deleteMany();
-    await prisma.warehouse.deleteMany();
-    await prisma.contractor.deleteMany();
-    await prisma.employee.deleteMany();
-    await prisma.department.deleteMany();
+    // Clean all tables using raw SQL to avoid FK constraint issues
+    const tables = await prisma.$queryRawUnsafe(
+      `SELECT tablename FROM pg_tables WHERE schemaname = 'public' AND tablename != '_prisma_migrations'`
+    );
+    for (const { tablename } of tables) {
+      await prisma.$executeRawUnsafe(`TRUNCATE TABLE "${tablename}" CASCADE`);
+    }
+    console.log('All tables truncated');
 
     // Users
     const hashedPassword = hashSync('admin123', 10);
