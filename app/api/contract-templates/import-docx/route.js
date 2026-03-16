@@ -106,7 +106,19 @@ export const POST = withAuth(async (request) => {
             // No images, that's fine
         }
 
-        // 7. Cleanup empty lines thừa
+        // 7. Clean inline styles trên headings (LibreOffice thêm margin:0 etc gây sít chữ)
+        html = html.replace(/<(h[1-6])([^>]*?)style="([^"]*)"([^>]*?)>/gi, (match, tag, pre, style, post) => {
+            // Strip margin, line-height, padding khỏi heading inline styles
+            const cleaned = style
+                .replace(/margin[^;]*;?/gi, '')
+                .replace(/line-height[^;]*;?/gi, '')
+                .replace(/padding[^;]*;?/gi, '')
+                .trim();
+            if (!cleaned) return `<${tag}${pre}${post}>`;
+            return `<${tag}${pre}style="${cleaned}"${post}>`;
+        });
+
+        // 8. Cleanup empty lines thừa
         html = html.replace(/\n{3,}/g, '\n\n').trim();
 
         // Nếu có styles, prefix vào html

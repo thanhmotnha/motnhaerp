@@ -337,10 +337,10 @@ export default function RichTextEditor({ value = '', onChange, placeholder = 'Nh
                     outline: none;
                 }
                 .tiptap:focus { outline: none; }
-                .tiptap h1 { font-size: 22px; font-weight: 800; margin: 18px 0 10px; color: #0f172a; }
-                .tiptap h2 { font-size: 18px; font-weight: 700; margin: 15px 0 8px; color: #1e293b; }
-                .tiptap h3 { font-size: 15px; font-weight: 700; margin: 12px 0 6px; color: #334155; }
-                .tiptap p { margin: 6px 0; }
+                .tiptap h1 { font-size: 22px; font-weight: 800; margin: 20px 0 10px !important; line-height: 1.4 !important; color: #0f172a; }
+                .tiptap h2 { font-size: 18px; font-weight: 700; margin: 16px 0 8px !important; line-height: 1.4 !important; color: #1e293b; }
+                .tiptap h3 { font-size: 15px; font-weight: 700; margin: 14px 0 6px !important; line-height: 1.4 !important; color: #334155; }
+                .tiptap p { margin: 6px 0; line-height: 1.8; }
                 .tiptap ul, .tiptap ol { padding-left: 24px; margin: 8px 0; }
                 .tiptap table { border-collapse: collapse; width: 100%; margin: 12px 0; }
                 .tiptap td, .tiptap th { border: 1px solid #cbd5e1; padding: 6px 10px; min-width: 50px; vertical-align: top; }
