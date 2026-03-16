@@ -48,20 +48,20 @@ export default function RichTextEditor({ value = '', onChange, placeholder = 'Nh
     const [ready, setReady] = useState(false);
     onChangeRef.current = onChange;
 
-    // Sync external value changes (e.g. from import)
-    const lastExternalValue = useRef(value);
+    // Sync external value changes (e.g. from import) — skip khi user đang gõ
+    const isInternalChange = useRef(false);
     useEffect(() => {
-        if (editorRef.current && value !== lastExternalValue.current) {
+        if (editorRef.current && !isInternalChange.current) {
             const currentHTML = editorRef.current.getContent();
             if (value !== currentHTML) {
                 editorRef.current.setContent(value || '');
             }
-            lastExternalValue.current = value;
         }
+        isInternalChange.current = false;
     }, [value]);
 
     const handleEditorChange = useCallback((content) => {
-        lastExternalValue.current = content;
+        isInternalChange.current = true;
         onChangeRef.current?.(content);
     }, []);
 
