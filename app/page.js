@@ -178,6 +178,106 @@ function PaymentAlertsCard() {
     );
 }
 
+function ActivityFeed() {
+    const [items, setItems] = useState(null);
+    useEffect(() => {
+        fetch('/api/activity-log?limit=12').then(r => r.json()).then(d => setItems(d.items || d)).catch(() => setItems([]));
+    }, []);
+    const ago = (d) => {
+        const mins = Math.floor((Date.now() - new Date(d)) / 60000);
+        if (mins < 1) return 'vừa xong';
+        if (mins < 60) return `${mins} phút trước`;
+        const hrs = Math.floor(mins / 60);
+        if (hrs < 24) return `${hrs} giờ trước`;
+        return `${Math.floor(hrs / 24)} ngày trước`;
+    };
+    const iconMap = { CREATE: '🆕', UPDATE: '✏️', DELETE: '🗑️', APPROVE: '✅', REJECT: '❌' };
+    return (
+        <div className="card">
+            <div className="card-header" style={{ borderLeft: '4px solid #2D5CA3', paddingLeft: 12, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <h3>📰 Hoạt động gần đây</h3>
+                <a href="/activity-log" style={{ fontSize: 12, color: '#234093', textDecoration: 'none', fontWeight: 600 }}>Xem tất cả →</a>
+            </div>
+            <div style={{ padding: '8px 16px 16px', maxHeight: 380, overflowY: 'auto' }}>
+                {items === null ? (
+                    <div style={{ textAlign: 'center', padding: 20, color: 'var(--text-muted)', fontSize: 13 }}>Đang tải...</div>
+                ) : items.length === 0 ? (
+                    <div style={{ textAlign: 'center', padding: 20, color: 'var(--text-muted)', fontSize: 13 }}>Chưa có hoạt động</div>
+                ) : (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                        {items.map((item, i) => (
+                            <div key={item.id || i} style={{
+                                display: 'flex', alignItems: 'flex-start', gap: 10,
+                                padding: '10px 12px', borderRadius: 8,
+                                background: i % 2 === 0 ? 'transparent' : 'rgba(35,64,147,0.02)',
+                                borderBottom: '1px solid var(--border-color)',
+                            }}>
+                                <span style={{ fontSize: 16, marginTop: 1 }}>{iconMap[item.action] || '📌'}</span>
+                                <div style={{ flex: 1, minWidth: 0 }}>
+                                    <div style={{ fontSize: 13, lineHeight: 1.4 }}>
+                                        <strong style={{ color: '#234093' }}>{item.userName || item.user?.name || 'Hệ thống'}</strong>
+                                        <span style={{ color: 'var(--text-secondary)', marginLeft: 4 }}>
+                                            {item.action === 'CREATE' ? 'đã tạo' : item.action === 'UPDATE' ? 'đã cập nhật' : item.action === 'APPROVE' ? 'đã duyệt' : item.action === 'DELETE' ? 'đã xóa' : item.action?.toLowerCase() || ''}
+                                        </span>
+                                        <span style={{ fontWeight: 600, marginLeft: 4 }}>{item.entityType || item.module || ''}</span>
+                                        {item.entityName && <span style={{ color: 'var(--text-muted)', marginLeft: 4 }}>"{item.entityName}"</span>}
+                                    </div>
+                                    <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>{ago(item.createdAt)}</div>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                )}
+            </div>
+        </div>
+    );
+}
+
+function UpcomingMilestones() {
+    const [milestones, setMilestones] = useState(null);
+    useEffect(() => {
+        fetch('/api/dashboard/milestones').then(r => r.json()).then(setMilestones).catch(() => setMilestones([]));
+    }, []);
+    return (
+        <div className="card">
+            <div className="card-header" style={{ borderLeft: '4px solid #7C3AED', paddingLeft: 12 }}>
+                <h3>📅 Mốc sắp tới</h3>
+            </div>
+            <div style={{ padding: '8px 16px 16px', maxHeight: 380, overflowY: 'auto' }}>
+                {milestones === null ? (
+                    <div style={{ textAlign: 'center', padding: 20, color: 'var(--text-muted)', fontSize: 13 }}>Đang tải...</div>
+                ) : milestones.length === 0 ? (
+                    <div style={{ textAlign: 'center', padding: 20, color: 'var(--text-muted)', fontSize: 13 }}>🎉 Không có mốc nào sắp tới</div>
+                ) : (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                        {milestones.map((m, i) => {
+                            const d = daysDiff(m.dueDate);
+                            const urgentColor = d <= 1 ? '#DC2626' : d <= 3 ? '#D97706' : '#234093';
+                            return (
+                                <a key={m.id || i} href={m.href || '#'} style={{
+                                    display: 'block', padding: '10px 12px', borderRadius: 8,
+                                    border: `1px solid ${urgentColor}22`, background: `${urgentColor}06`,
+                                    textDecoration: 'none', color: 'inherit',
+                                    transition: 'background 0.15s',
+                                }}>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+                                        <span style={{ fontSize: 12, fontWeight: 700, color: urgentColor }}>
+                                            {d === 0 ? '🔴 Hôm nay' : d === 1 ? '🟠 Ngày mai' : `📌 ${d} ngày`}
+                                        </span>
+                                        <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>{fmtDate(m.dueDate)}</span>
+                                    </div>
+                                    <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 2 }}>{m.title}</div>
+                                    <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{m.subTitle || m.projectName || ''}</div>
+                                </a>
+                            );
+                        })}
+                    </div>
+                )}
+            </div>
+        </div>
+    );
+}
+
 export default function Dashboard() {
     const [data, setData] = useState(null);
     const [loading, setLoading] = useState(true);
@@ -411,6 +511,42 @@ export default function Dashboard() {
                 </div>
             </div>
 
+            {/* Quick Actions */}
+            <div className="card" style={{ marginBottom: 16 }}>
+                <div className="card-header" style={{ borderLeft: '4px solid #DBB35E', paddingLeft: 12 }}>
+                    <h3>⚡ Thao tác nhanh</h3>
+                </div>
+                <div style={{ padding: '12px 20px 16px', display: 'flex', flexWrap: 'wrap', gap: 10 }}>
+                    {[
+                        { href: '/quotations?new=1', icon: '📋', label: 'Tạo báo giá', bg: '#234093' },
+                        { href: '/customers?new=1', icon: '👤', label: 'Thêm khách hàng', bg: '#2D5CA3' },
+                        { href: '/projects?new=1', icon: '🏗️', label: 'Tạo dự án', bg: '#16A34A' },
+                        { href: '/purchasing?new=1', icon: '🛒', label: 'Tạo PO', bg: '#D97706' },
+                        { href: '/work-orders?new=1', icon: '📝', label: 'Tạo lệnh CV', bg: '#7C3AED' },
+                        { href: '/expenses?new=1', icon: '💰', label: 'Ghi chi phí', bg: '#DC2626' },
+                    ].map(a => (
+                        <a key={a.href} href={a.href} style={{
+                            display: 'flex', alignItems: 'center', gap: 8,
+                            padding: '10px 18px', borderRadius: 10,
+                            background: a.bg, color: '#fff',
+                            textDecoration: 'none', fontSize: 13, fontWeight: 600,
+                            transition: 'opacity 0.2s, transform 0.15s',
+                            boxShadow: `0 2px 8px ${a.bg}33`,
+                        }}
+                            onMouseEnter={e => { e.currentTarget.style.opacity = '0.88'; e.currentTarget.style.transform = 'translateY(-1px)'; }}
+                            onMouseLeave={e => { e.currentTarget.style.opacity = '1'; e.currentTarget.style.transform = 'translateY(0)'; }}
+                        >
+                            <span style={{ fontSize: 16 }}>{a.icon}</span> {a.label}
+                        </a>
+                    ))}
+                </div>
+            </div>
+
+            {/* Activity Feed + Upcoming Milestones */}
+            <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 16, marginBottom: 16 }}>
+                <ActivityFeed />
+                <UpcomingMilestones />
+            </div>
 
             {/* Low stock */}
             {data.lowStockProducts?.length > 0 && (

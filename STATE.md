@@ -1,6 +1,6 @@
 # STATE.md — Một Nhà ERP
 
-> Cập nhật: 2026-03-16T00:40
+> Cập nhật: 2026-03-16T08:10
 
 ## Project Overview
 - **Stack**: Next.js 16 + React 19 + Prisma 6 + PostgreSQL + Docker
@@ -18,16 +18,18 @@
 - [x] Phase 6: Schema updates, API enhancements, Frontend (Quotation versioning, Warehouse transfers, Production Kanban, Accounting)
 - [x] Phase 7: Sidebar — added `/work-orders` + `/material-plans`. Notification bell in Header.
 - [x] Phase 8: 5 new pages — Daily Logs, Acceptance, Contractors, Expenses, Budget. All with KPI cards + tables + form modals. Sidebar updated.
+- [x] Phase 9: Admin Settings (6 tabs), Dashboard Tier 4 (activity feed, quick actions, calendar)
+- [x] Phase 10: Full test suite — 61/61 pass (26 pages + 34 APIs + 1 auth)
 
 ## In Progress
 - (none)
 
 ## Next
-- [ ] Phase 9: Dashboard enhancements (activity feed, quick actions)
-- [ ] Phase 10: Mobile responsive polish
 - [ ] Deployment / staging test
+- [ ] Mobile responsive polish
+- [ ] Git commit + push all changes
 
 ## Commit
 - Branch: `main`
 - Last commit: `b4bd170` — feat: Phase 3
-- Pending: Phase 4 + 5 + 6 + 7 + 8 changes → committing now
+- Pending: Phase 4–10 changes
