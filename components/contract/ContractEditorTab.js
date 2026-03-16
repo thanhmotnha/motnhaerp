@@ -17,6 +17,7 @@ export default function ContractEditorTab({ contract, quotation, customer, proje
     const [saving, setSaving] = useState(false);
     const [downloading, setDownloading] = useState(false);
     const [previewMode, setPreviewMode] = useState(false);
+    const [editorKey, setEditorKey] = useState(0);
 
     // Load templates
     useEffect(() => {
@@ -73,6 +74,7 @@ export default function ContractEditorTab({ contract, quotation, customer, proje
             selectedItemIds: selectedItems.length > 0 ? selectedItems : null,
         });
         setContractBody(filled);
+        setEditorKey(k => k + 1);
     }, [selectedTemplate, templates, contract, customer, project, quotation, payments, selectedItems]);
 
     // Live preview
@@ -267,6 +269,7 @@ export default function ContractEditorTab({ contract, quotation, customer, proje
                         placeholder="Soạn nội dung hợp đồng tại đây... Hoặc chọn biểu mẫu ở cột trái → Áp mẫu"
                         variables={CONTRACT_VARIABLES}
                         style={{ minHeight: 600 }}
+                        editorKey={editorKey}
                     />
                 )}
             </div>

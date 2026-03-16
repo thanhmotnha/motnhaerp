@@ -14,6 +14,7 @@ export default function ContractTemplateTab() {
     const [importing, setImporting] = useState(false);
     const [previewMode, setPreviewMode] = useState(false);
     const fileInputRef = useRef(null);
+    const [editorKey, setEditorKey] = useState(0);
 
     const load = () => {
         setLoading(true);
@@ -31,6 +32,7 @@ export default function ContractTemplateTab() {
 
     const startEdit = (t) => {
         setEditing({ ...t, isNew: false });
+        setEditorKey(k => k + 1);
         setPreviewMode(false);
     };
 
@@ -84,6 +86,7 @@ export default function ContractTemplateTab() {
                 isDefault: false,
                 isNew: true,
             });
+            setEditorKey(k => k + 1);
             setPreviewMode(false);
 
             if (data.messages?.length > 0) {
@@ -159,6 +162,7 @@ export default function ContractTemplateTab() {
                         onChange={body => setEditing(prev => ({ ...prev, body }))}
                         placeholder="Soạn nội dung mẫu hợp đồng tại đây... Dùng nút {  } Chèn biến để thêm biến tự động"
                         variables={CONTRACT_VARIABLES}
+                        editorKey={editorKey}
                     />
                 )}
             </div>

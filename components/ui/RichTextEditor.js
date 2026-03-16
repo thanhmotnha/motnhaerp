@@ -42,26 +42,16 @@ const CONTENT_STYLE = `
     hr { border: 0; border-top: 1px solid #e2e8f0; margin: 16px 0; }
 `;
 
-export default function RichTextEditor({ value = '', onChange, placeholder = 'Nhập nội dung...', variables = [], style = {} }) {
+export default function RichTextEditor({ value = '', onChange, placeholder = 'Nhập nội dung...', variables = [], style = {}, editorKey = 0 }) {
     const editorRef = useRef(null);
     const onChangeRef = useRef(onChange);
     const [ready, setReady] = useState(false);
     onChangeRef.current = onChange;
 
-    // Sync external value changes (e.g. from import) — skip khi user đang gõ
-    const isInternalChange = useRef(false);
-    useEffect(() => {
-        if (editorRef.current && !isInternalChange.current) {
-            const currentHTML = editorRef.current.getContent();
-            if (value !== currentHTML) {
-                editorRef.current.setContent(value || '');
-            }
-        }
-        isInternalChange.current = false;
-    }, [value]);
+    // Reset ready state when editorKey changes (e.g. after import)
+    useEffect(() => { setReady(false); }, [editorKey]);
 
     const handleEditorChange = useCallback((content) => {
-        isInternalChange.current = true;
         onChangeRef.current?.(content);
     }, []);
 
@@ -100,6 +90,7 @@ export default function RichTextEditor({ value = '', onChange, placeholder = 'Nh
             )}
             <div style={{ display: ready ? 'block' : 'none' }}>
                 <Editor
+                    key={editorKey}
                     tinymceScriptSrc="/tinymce/tinymce.min.js"
                     onInit={(evt, editor) => {
                         editorRef.current = editor;
