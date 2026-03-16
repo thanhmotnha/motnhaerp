@@ -30,7 +30,11 @@ RUN npm run build
 # ============================================
 FROM node:22-alpine AS runner
 
-RUN apk add --no-cache libc6-compat openssl
+RUN apk add --no-cache libc6-compat openssl \
+    libreoffice \
+    font-noto font-noto-cjk font-noto-extra \
+    ttf-dejavu ttf-liberation ttf-freefont \
+    && rm -rf /var/cache/apk/*
 
 WORKDIR /app
 
@@ -56,6 +60,9 @@ RUN chmod +x ./entrypoint.sh
 RUN mkdir -p .next/cache && chown -R nextjs:nodejs .next/cache
 RUN mkdir -p public/uploads && chown -R nextjs:nodejs public/uploads
 RUN chown -R nextjs:nodejs public-seed
+
+RUN mkdir -p /tmp && chmod 1777 /tmp
+RUN mkdir -p /home/nextjs/.config && chown -R nextjs:nodejs /home/nextjs
 
 USER nextjs
 
