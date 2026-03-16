@@ -12,13 +12,14 @@ COPY package.json package-lock.json ./
 COPY prisma ./prisma/
 
 # Install all dependencies (including devDependencies for build)
-RUN npm ci
-
-# Generate Prisma client
-RUN npx prisma generate
+# Note: ignore lifecycle scripts here because repo postinstall references files copied later.
+RUN npm ci --ignore-scripts
 
 # Copy source code
 COPY . .
+
+# Generate Prisma client + optional TinyMCE copy after source is present
+RUN npx prisma generate && node scripts/copy-tinymce.js || true
 
 # Build Next.js (standalone output)
 ENV NEXT_TELEMETRY_DISABLED=1
