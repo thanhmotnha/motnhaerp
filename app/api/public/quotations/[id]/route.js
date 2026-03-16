@@ -26,7 +26,7 @@ export const GET = withAuth(async (request, { params }) => {
                 items: { where: { parentItemId: null }, orderBy: { order: 'asc' }, include: { subItems: { orderBy: { order: 'asc' } } } },
             },
         }),
-        prisma.setting.findUnique({ where: { key: 'quotation_terms' } }),
+        prisma.systemSetting.findUnique({ where: { key: 'quotation_terms' } }),
     ]);
 
     if (!quotation || quotation.status === 'Nháp') {

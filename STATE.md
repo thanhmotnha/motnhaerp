@@ -1,12 +1,12 @@
 # STATE.md — Một Nhà ERP
 
-> Cập nhật: 2026-03-16T08:10
+> Cập nhật: 2026-03-16T10:37
 
 ## Project Overview
 - **Stack**: Next.js 16 + React 19 + Prisma 6 + PostgreSQL + Docker
 - **Mục đích**: ERP quản lý doanh nghiệp nội thất/xây dựng
 - **API Routes**: 170+ routes, 70+ modules
-- **DB Models**: 69+ Prisma models (mới: WarehouseTransfer, AccountEntry)
+- **DB Models**: 79 Prisma models
 - **Auth**: JWT (web) + Bearer Token (mobile) + Public pages
 - **Storage**: Cloudflare R2
 - **AI**: Gemini (Journal Assistant)
@@ -17,9 +17,10 @@
 - [x] Phase 5: EmployeeContract, ProductionCost, Warranty SLA, Schedule Critical Path
 - [x] Phase 6: Schema updates, API enhancements, Frontend (Quotation versioning, Warehouse transfers, Production Kanban, Accounting)
 - [x] Phase 7: Sidebar — added `/work-orders` + `/material-plans`. Notification bell in Header.
-- [x] Phase 8: 5 new pages — Daily Logs, Acceptance, Contractors, Expenses, Budget. All with KPI cards + tables + form modals. Sidebar updated.
+- [x] Phase 8: 5 new pages — Daily Logs, Acceptance, Contractors, Expenses, Budget
 - [x] Phase 9: Admin Settings (6 tabs), Dashboard Tier 4 (activity feed, quick actions, calendar)
-- [x] Phase 10: Full test suite — 61/61 pass (26 pages + 34 APIs + 1 auth)
+- [x] Phase 10: Full test suite — 61/61 pass. Schema sync audit — fix prisma.setting→systemSetting
+- [x] Code review: infrastructure, API, frontend — all patterns consistent
 
 ## In Progress
 - (none)
@@ -27,9 +28,7 @@
 ## Next
 - [ ] Deployment / staging test
 - [ ] Mobile responsive polish
-- [ ] Git commit + push all changes
 
 ## Commit
 - Branch: `main`
-- Last commit: `b4bd170` — feat: Phase 3
-- Pending: Phase 4–10 changes
+- Last commit: Phase 4–10 (pending push)

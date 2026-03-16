@@ -15,6 +15,7 @@ export default function ContractEditorTab({ contract, quotation, customer, proje
         try { return JSON.parse(contract?.selectedItems || '[]'); } catch { return []; }
     });
     const [saving, setSaving] = useState(false);
+    const [downloading, setDownloading] = useState(false);
     const [previewMode, setPreviewMode] = useState(false);
 
     // Load templates
@@ -104,6 +105,26 @@ export default function ContractEditorTab({ contract, quotation, customer, proje
             }
         } catch (e) { alert('Lỗi: ' + e.message); }
         setSaving(false);
+    };
+
+    // Export DOCX
+    const handleExportDocx = async () => {
+        setDownloading(true);
+        try {
+            const res = await fetch(`/api/contracts/${contract.id}/export-docx`);
+            if (!res.ok) {
+                const err = await res.json().catch(() => ({}));
+                throw new Error(err.error || 'Lỗi xuất file');
+            }
+            const blob = await res.blob();
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `HD-${contract.contractNumber || contract.id}.docx`;
+            a.click();
+            URL.revokeObjectURL(url);
+        } catch (e) { alert('Lỗi: ' + e.message); }
+        setDownloading(false);
     };
 
     return (
@@ -198,10 +219,15 @@ export default function ContractEditorTab({ contract, quotation, customer, proje
                     </div>
                 </div>
 
-                {/* Save button */}
-                <button className="btn btn-primary" onClick={handleSave} disabled={saving} style={{ fontSize: 13 }}>
-                    {saving ? '⏳ Đang lưu...' : '💾 Lưu nội dung hợp đồng'}
-                </button>
+                {/* Save + Export buttons */}
+                <div style={{ display: 'flex', gap: 8 }}>
+                    <button className="btn btn-primary" onClick={handleSave} disabled={saving} style={{ fontSize: 13, flex: 1 }}>
+                        {saving ? '⏳ Đang lưu...' : '💾 Lưu nội dung'}
+                    </button>
+                    <button className="btn btn-outline" onClick={handleExportDocx} disabled={downloading} style={{ fontSize: 13, flex: 1 }}>
+                        {downloading ? '⏳ Đang tải...' : '📥 Tải Word'}
+                    </button>
+                </div>
             </div>
 
             {/* RIGHT: Editor / Preview */}

@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import dynamic from 'next/dynamic';
 import { CONTRACT_VARIABLES, fillVariables } from '@/lib/contractVariables';
 import { CONTRACT_TYPES } from '@/lib/contractTemplates';
@@ -11,7 +11,9 @@ export default function ContractTemplateTab() {
     const [loading, setLoading] = useState(true);
     const [editing, setEditing] = useState(null); // null = list view, object = edit view
     const [saving, setSaving] = useState(false);
+    const [importing, setImporting] = useState(false);
     const [previewMode, setPreviewMode] = useState(false);
+    const fileInputRef = useRef(null);
 
     const load = () => {
         setLoading(true);
@@ -53,6 +55,44 @@ export default function ContractTemplateTab() {
         if (!confirm('Xóa mẫu hợp đồng này?')) return;
         await fetch(`/api/contract-templates/${id}`, { method: 'DELETE' });
         load();
+    };
+
+    // Import from Word (.docx)
+    const handleImportDocx = async (e) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        e.target.value = ''; // reset input
+
+        setImporting(true);
+        try {
+            const formData = new FormData();
+            formData.append('file', file);
+
+            const res = await fetch('/api/contract-templates/import-docx', {
+                method: 'POST',
+                body: formData,
+            });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.error || 'Lỗi import');
+
+            // Open editor with imported HTML
+            const nameFromFile = file.name.replace(/\.docx?$/i, '');
+            setEditing({
+                name: nameFromFile,
+                type: 'Thi công thô',
+                body: data.html,
+                isDefault: false,
+                isNew: true,
+            });
+            setPreviewMode(false);
+
+            if (data.messages?.length > 0) {
+                console.warn('Import warnings:', data.messages);
+            }
+        } catch (err) {
+            alert('Lỗi import Word: ' + err.message);
+        }
+        setImporting(false);
     };
 
     // Preview with sample data
@@ -134,7 +174,13 @@ export default function ContractTemplateTab() {
                         Quản lý biểu mẫu hợp đồng với biến tự động <code>{`{{Tên_biến}}`}</code>
                     </div>
                 </div>
-                <button className="btn btn-primary" onClick={startCreate}>➕ Tạo mẫu mới</button>
+                <div style={{ display: 'flex', gap: 8 }}>
+                    <input type="file" ref={fileInputRef} accept=".docx" style={{ display: 'none' }} onChange={handleImportDocx} />
+                    <button className="btn btn-outline" onClick={() => fileInputRef.current?.click()} disabled={importing}>
+                        {importing ? '⏳ Đang import...' : '📤 Import từ Word'}
+                    </button>
+                    <button className="btn btn-primary" onClick={startCreate}>➕ Tạo mẫu mới</button>
+                </div>
             </div>
 
             {loading ? (
