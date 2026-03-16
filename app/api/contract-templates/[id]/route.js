@@ -30,10 +30,10 @@ export const PUT = withAuth(async (req, { params }) => {
 
     const template = await prisma.contractTemplate.update({ where: { id }, data });
     return NextResponse.json(template);
-}, { roles: ['admin', 'manager'] });
+}, { roles: ['giam_doc', 'pho_gd'] });
 
 export const DELETE = withAuth(async (req, { params }) => {
     const { id } = await params;
     await prisma.contractTemplate.delete({ where: { id } });
     return NextResponse.json({ success: true });
-}, { roles: ['admin', 'manager'] });
+}, { roles: ['giam_doc', 'pho_gd'] });
