@@ -31,7 +31,15 @@ export const GET = withAuth(async (request) => {
     });
     const expenseSpent = project.expenses.reduce((s, e) => s + (e.paidAmount || 0), 0);
     const contractorSpent = project.contractorPays.reduce((s, c) => s + (c.paidAmount || 0), 0);
-    const totalSpent = (materialSpent._sum.paidAmount || 0) + expenseSpent + contractorSpent;
+
+    // Expense allocations phân bổ vào project này (từ expense KHÁC project)
+    const allocatedExpenses = await prisma.expenseAllocation.aggregate({
+        where: { projectId, expense: { projectId: { not: projectId } } },
+        _sum: { amount: true },
+    });
+    const allocatedAmount = allocatedExpenses._sum.amount || 0;
+
+    const totalSpent = (materialSpent._sum.paidAmount || 0) + expenseSpent + contractorSpent + allocatedAmount;
 
     // Remaining committed (ordered but not paid)
     const materialCommitted = await prisma.purchaseOrder.aggregate({

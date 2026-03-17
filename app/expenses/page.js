@@ -12,11 +12,13 @@ export default function ExpensesPage() {
     const { role } = useRole();
     const toast = useToast();
     const [expenses, setExpenses] = useState([]);
+    const [categories, setCategories] = useState([]);
     const [loading, setLoading] = useState(true);
     const [showForm, setShowForm] = useState(false);
     const [search, setSearch] = useState('');
     const [filterType, setFilterType] = useState('');
     const [filterStatus, setFilterStatus] = useState('');
+    const [filterCategory, setFilterCategory] = useState('');
     const canManage = ['giam_doc', 'pho_gd', 'ke_toan', 'quan_ly_du_an'].includes(role);
 
     const fetchData = useCallback(async () => {
@@ -25,12 +27,17 @@ export default function ExpensesPage() {
             const params = new URLSearchParams({ limit: '500' });
             if (filterType) params.set('expenseType', filterType);
             if (filterStatus) params.set('status', filterStatus);
+            if (filterCategory) params.set('categoryId', filterCategory);
             if (search) params.set('search', search);
-            const res = await apiFetch(`/api/project-expenses?${params}`);
+            const [res, cats] = await Promise.all([
+                apiFetch(`/api/project-expenses?${params}`),
+                apiFetch('/api/expense-categories'),
+            ]);
             setExpenses(res.data || []);
+            setCategories(cats || []);
         } catch (e) { toast.error(e.message); }
         setLoading(false);
-    }, [filterType, filterStatus, search]);
+    }, [filterType, filterStatus, filterCategory, search]);
 
     useEffect(() => { fetchData(); }, [fetchData]);
 
@@ -69,6 +76,10 @@ export default function ExpensesPage() {
                     <option value="">Loại chi phí</option>
                     {expenseTypes.map(t => <option key={t} value={t}>{t}</option>)}
                 </select>
+                <select className="form-input" value={filterCategory} onChange={e => setFilterCategory(e.target.value)} style={{ maxWidth: 180 }}>
+                    <option value="">Hạng mục</option>
+                    {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                </select>
                 <select className="form-input" value={filterStatus} onChange={e => setFilterStatus(e.target.value)} style={{ maxWidth: 160 }}>
                     <option value="">Trạng thái</option>
                     {Object.keys(statusColors).map(s => <option key={s} value={s}>{s}</option>)}
@@ -81,16 +92,21 @@ export default function ExpensesPage() {
                 <div className="card" style={{ overflow: 'auto' }}>
                     <table className="data-table">
                         <thead>
-                            <tr><th>Mã</th><th>Mô tả</th><th>Dự án</th><th>Loại</th><th>Số tiền</th><th>Trạng thái</th><th>Ngày</th></tr>
+                            <tr><th>Mã</th><th>Mô tả</th><th>Dự án</th><th>Hạng mục</th><th>Loại</th><th>Số tiền</th><th>Trạng thái</th><th>Ngày</th></tr>
                         </thead>
                         <tbody>
                             {expenses.map(e => {
                                 const sc = statusColors[e.status] || '#888';
+                                const allocCount = e.allocations?.length || 0;
                                 return (
                                     <tr key={e.id}>
                                         <td style={{ fontWeight: 600, fontFamily: 'monospace' }}>{e.code}</td>
-                                        <td>{e.description || '—'}</td>
+                                        <td>
+                                            {e.description || '—'}
+                                            {allocCount > 0 && <span style={{ fontSize: 10, color: 'var(--primary)', marginLeft: 4 }} title={e.allocations.map(a => `${a.project?.code}: ${fmt(a.amount)}`).join(', ')}>({allocCount} DA)</span>}
+                                        </td>
                                         <td>{e.project?.name || '—'}</td>
+                                        <td><span style={{ fontSize: 11, padding: '2px 6px', borderRadius: 6, background: 'var(--bg-tertiary)' }}>{e.expenseCategory?.name || e.category || '—'}</span></td>
                                         <td><span style={{ fontSize: 11, padding: '2px 6px', borderRadius: 6, background: 'var(--bg-tertiary)' }}>{e.expenseType || '—'}</span></td>
                                         <td style={{ textAlign: 'right', fontFamily: 'monospace', fontWeight: 600 }}>{fmt(e.amount)}</td>
                                         <td><span style={{ padding: '2px 8px', borderRadius: 12, fontSize: 11, fontWeight: 600, background: sc + '18', color: sc }}>{e.status || 'Chờ duyệt'}</span></td>
@@ -98,32 +114,52 @@ export default function ExpensesPage() {
                                     </tr>
                                 );
                             })}
-                            {expenses.length === 0 && <tr><td colSpan={7} style={{ textAlign: 'center', color: 'var(--text-muted)', padding: 30 }}>Chưa có chi phí nào</td></tr>}
+                            {expenses.length === 0 && <tr><td colSpan={8} style={{ textAlign: 'center', color: 'var(--text-muted)', padding: 30 }}>Chưa có chi phí nào</td></tr>}
                         </tbody>
                     </table>
                 </div>
             )}
 
-            {showForm && <ExpenseForm onClose={() => setShowForm(false)} onSuccess={() => { setShowForm(false); fetchData(); }} toast={toast} />}
+            {showForm && <ExpenseForm categories={categories} onClose={() => setShowForm(false)} onSuccess={() => { setShowForm(false); fetchData(); }} toast={toast} />}
         </div>
     );
 }
 
-function ExpenseForm({ onClose, onSuccess, toast }) {
-    const [form, setForm] = useState({ projectId: '', description: '', amount: '', expenseType: 'Vật tư', notes: '' });
+function ExpenseForm({ categories, onClose, onSuccess, toast }) {
+    const [form, setForm] = useState({ projectId: '', description: '', amount: '', expenseType: 'Vật tư', categoryId: '', notes: '' });
     const [projects, setProjects] = useState([]);
+    const [allocations, setAllocations] = useState([]);
     const [saving, setSaving] = useState(false);
 
     useEffect(() => {
         apiFetch('/api/projects?limit=200').then(r => setProjects(r.data || [])).catch(() => {});
     }, []);
 
+    const addAllocation = () => setAllocations([...allocations, { projectId: '', amount: '', ratio: '' }]);
+    const removeAllocation = (i) => setAllocations(allocations.filter((_, j) => j !== i));
+    const updateAllocation = (i, field, value) => {
+        const updated = [...allocations];
+        updated[i] = { ...updated[i], [field]: value };
+        setAllocations(updated);
+    };
+
     const handleSubmit = async (e) => {
         e.preventDefault();
-        if (!form.projectId || !form.amount) return toast.error('Vui lòng nhập đầy đủ');
+        if (!form.description || !form.amount) return toast.error('Vui lòng nhập mô tả và số tiền');
         setSaving(true);
         try {
-            await apiFetch('/api/project-expenses', { method: 'POST', body: JSON.stringify({ ...form, amount: Number(form.amount) }) });
+            const payload = {
+                ...form,
+                amount: Number(form.amount),
+                projectId: form.projectId || null,
+                categoryId: form.categoryId || null,
+                allocations: allocations.filter(a => a.projectId).map(a => ({
+                    projectId: a.projectId,
+                    amount: Number(a.amount) || 0,
+                    ratio: Number(a.ratio) || 0,
+                })),
+            };
+            await apiFetch('/api/project-expenses', { method: 'POST', body: JSON.stringify(payload) });
             toast.success('Tạo chi phí thành công');
             onSuccess();
         } catch (e) { toast.error(e.message); }
@@ -132,27 +168,56 @@ function ExpenseForm({ onClose, onSuccess, toast }) {
 
     return (
         <div className="modal-overlay" onClick={onClose}>
-            <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: 520 }}>
+            <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: 600 }}>
                 <h3 style={{ marginTop: 0 }}>Tạo phiếu Chi phí</h3>
                 <form onSubmit={handleSubmit}>
                     <div className="form-group">
-                        <label className="form-label">Dự án *</label>
-                        <select className="form-input" value={form.projectId} onChange={e => setForm({ ...form, projectId: e.target.value })} required>
-                            <option value="">Chọn dự án</option>
+                        <label className="form-label">Dự án chính</label>
+                        <select className="form-input" value={form.projectId} onChange={e => setForm({ ...form, projectId: e.target.value })}>
+                            <option value="">Không gắn dự án</option>
                             {projects.map(p => <option key={p.id} value={p.id}>{p.code} — {p.name}</option>)}
                         </select>
                     </div>
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                        <div className="form-group">
+                            <label className="form-label">Hạng mục</label>
+                            <select className="form-input" value={form.categoryId} onChange={e => setForm({ ...form, categoryId: e.target.value })}>
+                                <option value="">Chọn hạng mục</option>
+                                {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                            </select>
+                        </div>
                         <div className="form-group">
                             <label className="form-label">Loại chi phí</label>
                             <select className="form-input" value={form.expenseType} onChange={e => setForm({ ...form, expenseType: e.target.value })}>
                                 {expenseTypes.map(t => <option key={t} value={t}>{t}</option>)}
                             </select>
                         </div>
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 12 }}>
+                        <div className="form-group"><label className="form-label">Mô tả *</label><input className="form-input" value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} required /></div>
                         <div className="form-group"><label className="form-label">Số tiền *</label><input className="form-input" type="number" value={form.amount} onChange={e => setForm({ ...form, amount: e.target.value })} required /></div>
                     </div>
-                    <div className="form-group"><label className="form-label">Mô tả</label><textarea className="form-input" rows={2} value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} /></div>
                     <div className="form-group"><label className="form-label">Ghi chú</label><textarea className="form-input" rows={2} value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })} /></div>
+
+                    {/* Phân bổ multi-project */}
+                    <div style={{ borderTop: '1px solid var(--border)', paddingTop: 12, marginTop: 12 }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                            <label className="form-label" style={{ margin: 0 }}>Phân bổ sang dự án khác</label>
+                            <button type="button" className="btn" style={{ fontSize: 12, padding: '4px 10px' }} onClick={addAllocation}>+ Thêm DA</button>
+                        </div>
+                        {allocations.map((a, i) => (
+                            <div key={i} style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr auto', gap: 8, marginBottom: 6, alignItems: 'end' }}>
+                                <select className="form-input" value={a.projectId} onChange={e => updateAllocation(i, 'projectId', e.target.value)}>
+                                    <option value="">Chọn DA</option>
+                                    {projects.filter(p => p.id !== form.projectId).map(p => <option key={p.id} value={p.id}>{p.code} — {p.name}</option>)}
+                                </select>
+                                <input className="form-input" type="number" placeholder="Số tiền" value={a.amount} onChange={e => updateAllocation(i, 'amount', e.target.value)} />
+                                <input className="form-input" type="number" placeholder="% tỷ lệ" value={a.ratio} onChange={e => updateAllocation(i, 'ratio', e.target.value)} />
+                                <button type="button" className="btn" style={{ padding: '6px 8px', color: '#ef4444' }} onClick={() => removeAllocation(i)}>✕</button>
+                            </div>
+                        ))}
+                    </div>
+
                     <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 16 }}>
                         <button type="button" className="btn" onClick={onClose}>Hủy</button>
                         <button type="submit" className="btn btn-primary" disabled={saving}>{saving ? 'Đang lưu...' : 'Tạo phiếu'}</button>

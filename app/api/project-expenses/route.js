@@ -11,19 +11,33 @@ export const GET = withAuth(async (request) => {
 
     const status = searchParams.get('status');
     const expenseType = searchParams.get('expenseType');
+    const categoryId = searchParams.get('categoryId');
     const search = searchParams.get('search');
     const projectId = searchParams.get('projectId');
 
     const where = {};
     if (status) where.status = status;
     if (expenseType) where.expenseType = expenseType;
-    if (projectId) where.projectId = projectId;
+    if (categoryId) where.categoryId = categoryId;
+    if (projectId) {
+        // Tìm cả expense trực tiếp + expense có allocation vào project
+        where.OR = [
+            { projectId },
+            { allocations: { some: { projectId } } },
+        ];
+    }
     if (search) where.description = { contains: search, mode: 'insensitive' };
 
     const [data, total] = await Promise.all([
         prisma.projectExpense.findMany({
             where,
-            include: { project: { select: { name: true, code: true } } },
+            include: {
+                project: { select: { name: true, code: true } },
+                expenseCategory: { select: { id: true, name: true, code: true, linkType: true } },
+                allocations: {
+                    include: { project: { select: { id: true, name: true, code: true } } },
+                },
+            },
             skip,
             take: limit,
             orderBy: { createdAt: 'desc' },
@@ -35,11 +49,36 @@ export const GET = withAuth(async (request) => {
 
 export const POST = withAuth(async (request) => {
     const body = await request.json();
-    const data = expenseCreateSchema.parse(body);
+    const { allocations, ...data } = expenseCreateSchema.parse(body);
     const code = await generateCode('projectExpense', 'CP');
-    const expense = await prisma.projectExpense.create({
-        data: { code, ...data },
+
+    const expense = await prisma.$transaction(async (tx) => {
+        const exp = await tx.projectExpense.create({
+            data: { code, ...data },
+        });
+
+        // Tạo allocations nếu có
+        if (allocations && allocations.length > 0) {
+            await tx.expenseAllocation.createMany({
+                data: allocations.map(a => ({
+                    expenseId: exp.id,
+                    projectId: a.projectId,
+                    amount: a.amount || 0,
+                    ratio: a.ratio || 0,
+                    notes: a.notes || '',
+                })),
+            });
+        }
+
+        return tx.projectExpense.findUnique({
+            where: { id: exp.id },
+            include: {
+                expenseCategory: { select: { id: true, name: true, code: true } },
+                allocations: { include: { project: { select: { id: true, name: true, code: true } } } },
+            },
+        });
     });
+
     return NextResponse.json(expense, { status: 201 });
 });
 

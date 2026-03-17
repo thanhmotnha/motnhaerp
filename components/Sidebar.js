@@ -60,6 +60,7 @@ const menuItems = [
         section: 'Tài chính', items: [
             { href: '/finance', icon: Wallet, label: 'Tài chính', roles: ['giam_doc', 'pho_gd', 'ke_toan'] },
             { href: '/expenses', icon: DollarSign, label: 'Chi phí DA', roles: ['giam_doc', 'pho_gd', 'ke_toan', 'quan_ly_du_an'] },
+            { href: '/expenses/categories', icon: Receipt, label: 'Hạng mục CP', roles: ['giam_doc', 'pho_gd', 'ke_toan'] },
             { href: '/budget', icon: PiggyBank, label: 'Ngân sách', roles: ['giam_doc', 'pho_gd', 'ke_toan', 'quan_ly_du_an'] },
             { href: '/accounting', icon: Calculator, label: 'Kế toán', roles: ['giam_doc', 'pho_gd', 'ke_toan'] },
         ]
