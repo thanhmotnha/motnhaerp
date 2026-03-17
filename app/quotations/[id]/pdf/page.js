@@ -381,7 +381,7 @@ export default function QuotationPDFPage() {
                     z-index: 1;
                     overflow: hidden;
                     max-height: 80px;
-                    margin-top: 30px;
+                    margin-top: 15px;
                 }
                 .mn-header-img.img-failed {
                     display: none !important;
