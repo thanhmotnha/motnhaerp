@@ -380,17 +380,17 @@ export default function QuotationPDFPage() {
                     position: relative;
                     z-index: 1;
                     overflow: hidden;
-                    max-height: 120px;
+                    max-height: 80px;
                 }
                 .mn-header-img.img-failed {
                     display: none !important;
                 }
                 .mn-header-img img {
                     width: 100%;
-                    height: 120px;
+                    height: 80px;
                     display: block;
                     object-fit: cover;
-                    object-position: center bottom;
+                    object-position: center center;
                 }
                 .mn-doc-bar {
                     display: flex;

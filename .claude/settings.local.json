@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(grep -E \"^-.*\\\\.\\(md|rules\\)$\")",
+      "Bash(python -c \":*)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)",
+      "Bash(python -u -c \":*)"
+    ]
+  }
+}
