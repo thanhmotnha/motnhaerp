@@ -380,7 +380,6 @@ export default function QuotationPDFPage() {
                     position: relative;
                     z-index: 1;
                     overflow: hidden;
-                    max-height: 80px;
                     margin-top: 15px;
                 }
                 .mn-header-img.img-failed {
@@ -388,10 +387,8 @@ export default function QuotationPDFPage() {
                 }
                 .mn-header-img img {
                     width: 100%;
-                    height: 80px;
+                    height: auto;
                     display: block;
-                    object-fit: cover;
-                    object-position: center center;
                 }
                 .mn-doc-bar {
                     display: flex;
