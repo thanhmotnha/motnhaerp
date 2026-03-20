@@ -25,7 +25,7 @@ export const GET = withAuth(async (request, { params }) => {
     return NextResponse.json(quotation);
 });
 
-export const PUT = withAuth(async (request, { params }) => {
+export const PUT = withAuth(async (request, { params }, session) => {
     const { id } = await params;
 
     // GĐ1: Lock check
@@ -37,6 +37,19 @@ export const PUT = withAuth(async (request, { params }) => {
 
     const body = await request.json();
     const { categories, ...validated } = quotationUpdateSchema.parse(body);
+
+    // Permission check: chỉ giam_doc / pho_gd mới được duyệt/từ chối
+    const APPROVE_ROLES = ['giam_doc', 'pho_gd'];
+    if (validated.approvalStatus && ['approved', 'rejected'].includes(validated.approvalStatus)) {
+        if (!APPROVE_ROLES.includes(session.user.role)) {
+            return NextResponse.json({ error: 'Bạn không có quyền duyệt/từ chối báo giá' }, { status: 403 });
+        }
+        // Auto-fill approvedBy from session instead of trusting client
+        if (validated.approvalStatus === 'approved') {
+            validated.approvedBy = session.user.name || 'Giám đốc';
+            validated.approvedAt = new Date();
+        }
+    }
 
     // Sanitize: only take valid Quotation fields, avoid Prisma error
     const ALLOWED = ['customerId', 'projectId', 'type', 'notes', 'status', 'validUntil',

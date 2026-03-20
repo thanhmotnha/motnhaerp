@@ -6,6 +6,29 @@ import path from 'path';
 import os from 'os';
 import crypto from 'crypto';
 
+const MAX_FILE_SIZE = 20 * 1024 * 1024; // 20MB
+
+// Detect LibreOffice command based on platform
+function getLibreOfficeCommands() {
+    const platform = os.platform();
+    if (platform === 'win32') {
+        return [
+            '"C:\\Program Files\\LibreOffice\\program\\soffice.exe"',
+            '"C:\\Program Files (x86)\\LibreOffice\\program\\soffice.exe"',
+            'soffice',
+        ];
+    }
+    if (platform === 'darwin') {
+        return [
+            '/Applications/LibreOffice.app/Contents/MacOS/soffice',
+            'libreoffice',
+            'soffice',
+        ];
+    }
+    // Linux
+    return ['libreoffice', 'soffice'];
+}
+
 export const POST = withAuth(async (request) => {
     const tmpDir = os.tmpdir();
     const uid = crypto.randomBytes(8).toString('hex');
@@ -25,30 +48,35 @@ export const POST = withAuth(async (request) => {
             return NextResponse.json({ error: 'Chỉ hỗ trợ file .docx / .doc' }, { status: 400 });
         }
 
-        // 1. Ghi file tạm
+        // Validate file size
         const arrayBuffer = await file.arrayBuffer();
+        if (arrayBuffer.byteLength > MAX_FILE_SIZE) {
+            return NextResponse.json({ error: `File quá lớn (tối đa ${MAX_FILE_SIZE / 1024 / 1024}MB)` }, { status: 400 });
+        }
+
+        // 1. Ghi file tạm
         await writeFile(inputPath, Buffer.from(arrayBuffer));
 
-        // 2. Gọi LibreOffice headless convert → HTML
-        try {
-            execSync(
-                `libreoffice --headless --norestore --convert-to html --outdir "${tmpDir}" "${inputPath}"`,
-                { timeout: 30000, stdio: 'pipe' }
-            );
-        } catch (loErr) {
-            console.error('LibreOffice error:', loErr.stderr?.toString());
-            // Fallback: thử soffice (alias khác)
+        // 2. Gọi LibreOffice headless convert → HTML (platform-aware)
+        const commands = getLibreOfficeCommands();
+        let converted = false;
+        for (const cmd of commands) {
             try {
                 execSync(
-                    `soffice --headless --norestore --convert-to html --outdir "${tmpDir}" "${inputPath}"`,
+                    `${cmd} --headless --norestore --convert-to html --outdir "${tmpDir}" "${inputPath}"`,
                     { timeout: 30000, stdio: 'pipe' }
                 );
-            } catch {
-                return NextResponse.json(
-                    { error: 'LibreOffice chưa cài trên server. Liên hệ admin.' },
-                    { status: 500 }
-                );
+                converted = true;
+                break;
+            } catch (err) {
+                console.warn(`LibreOffice command failed: ${cmd}`, err.stderr?.toString()?.slice(0, 200));
             }
+        }
+        if (!converted) {
+            return NextResponse.json(
+                { error: 'LibreOffice chưa cài trên server. Liên hệ admin.' },
+                { status: 500 }
+            );
         }
 
         // 3. Đọc file HTML output
@@ -106,17 +134,24 @@ export const POST = withAuth(async (request) => {
             // No images, that's fine
         }
 
-        // 7. Clean inline styles trên headings (LibreOffice thêm margin:0 etc gây sít chữ)
+        // 7. Clean inline styles trên headings (only strip margin: 0 that causes compact text)
         html = html.replace(/<(h[1-6])([^>]*?)style="([^"]*)"([^>]*?)>/gi, (match, tag, pre, style, post) => {
-            // Strip margin, line-height, padding khỏi heading inline styles
+            // Only strip zero margins/padding that cause cramped headings
             const cleaned = style
-                .replace(/margin[^;]*;?/gi, '')
-                .replace(/line-height[^;]*;?/gi, '')
-                .replace(/padding[^;]*;?/gi, '')
+                .replace(/margin(-top|-bottom|-left|-right)?\s*:\s*0(px|pt|em|rem)?\s*;?/gi, '')
+                .replace(/padding(-top|-bottom|-left|-right)?\s*:\s*0(px|pt|em|rem)?\s*;?/gi, '')
                 .trim();
             if (!cleaned) return `<${tag}${pre}${post}>`;
             return `<${tag}${pre}style="${cleaned}"${post}>`;
         });
+
+        // 7b. Clean LibreOffice class names that TipTap doesn't understand
+        html = html.replace(/class="[^"]*"/gi, '');
+
+        // 7c. Replace <span> with inline styles that TipTap handles natively
+        // Keep font-family, font-size, color, font-weight, text-decoration
+        // Remove orphaned empty spans
+        html = html.replace(/<span[^>]*style=""[^>]*>\s*<\/span>/gi, '');
 
         // 8. Cleanup empty lines thừa
         html = html.replace(/\n{3,}/g, '\n\n').trim();

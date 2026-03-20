@@ -5,7 +5,10 @@ import { productUpdateSchema } from '@/lib/validations/product';
 
 export const GET = withAuth(async (request, { params }) => {
     const { id } = await params;
-    const product = await prisma.product.findUnique({ where: { id } });
+    const product = await prisma.product.findUnique({
+        where: { id },
+        include: { categoryRef: { select: { id: true, name: true } } },
+    });
     if (!product) return NextResponse.json({ error: 'Not found' }, { status: 404 });
     return NextResponse.json(product);
 });

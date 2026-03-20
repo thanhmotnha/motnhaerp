@@ -54,6 +54,14 @@ export const POST = withAuth(async (request) => {
 
     const contractValue = Number(validated.contractValue) || 0;
 
+    // Validate total payment percentage = 100% (if provided)
+    if (paymentPhases?.length > 0) {
+        const totalPct = paymentPhases.reduce((sum, p) => sum + (Number(p.pct) || 0), 0);
+        if (totalPct > 0 && Math.abs(totalPct - 100) > 0.01) {
+            return NextResponse.json({ error: `Tổng % đợt thanh toán phải = 100% (hiện tại: ${totalPct}%)` }, { status: 400 });
+        }
+    }
+
     // Retry up to 3 times on code collision (P2002)
     let result;
     let lastError;

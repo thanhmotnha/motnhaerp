@@ -18,6 +18,17 @@ export const POST = withAuth(async (request, { params }) => {
     const toEmail = email || contract.customer?.email;
     if (!toEmail) return NextResponse.json({ error: 'Không có email khách hàng. Vui lòng nhập email.' }, { status: 400 });
 
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(toEmail)) {
+        return NextResponse.json({ error: 'Email không hợp lệ' }, { status: 400 });
+    }
+
+    // Rate limit: không gửi lại trong vòng 60s
+    if (contract.sentAt && (Date.now() - new Date(contract.sentAt).getTime()) < 60000) {
+        return NextResponse.json({ error: 'Vui lòng đợi 1 phút trước khi gửi lại' }, { status: 429 });
+    }
+
     // Build public URL
     const origin = request.headers.get('origin') || request.headers.get('x-forwarded-host') || 'https://erp.motnha.vn';
     const publicUrl = `${origin.startsWith('http') ? origin : 'https://' + origin}/public/hopdong/${id}`;

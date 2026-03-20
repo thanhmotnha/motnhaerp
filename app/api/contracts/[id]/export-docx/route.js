@@ -71,7 +71,7 @@ export const GET = withAuth(async (request, { params }) => {
         },
     });
 
-    const filename = `HD-${contract.contractNumber || contract.id}.docx`;
+    const filename = `HD-${contract.code || contract.id}.docx`;
 
     return new NextResponse(docxBuffer, {
         headers: {

@@ -40,6 +40,7 @@ export default function CreateQuotationPage() {
     useAutoSaveDraft({
         key: 'quotation_draft_create',
         data: { form, mainCategories },
+        serverSync: true,
         onRestore: (draft) => {
             if (draft.form) setForm(draft.form);
             if (draft.mainCategories) setMainCategories(draft.mainCategories);

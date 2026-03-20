@@ -94,8 +94,13 @@ export const POST = withAuth(async (request) => {
     const data = productCreateSchema.parse(body);
     const code = await generateCode('product', 'SP');
 
-    // Auto-link categoryId from category string if not provided
-    if (!data.categoryId && data.category) {
+    // Sync category text ↔ categoryId
+    if (data.categoryId) {
+        // categoryId provided → sync category text from ProductCategory name
+        const cat = await prisma.productCategory.findUnique({ where: { id: data.categoryId }, select: { name: true } });
+        if (cat) data.category = cat.name;
+    } else if (data.category) {
+        // Only category text provided → auto-link categoryId
         const cat = await prisma.productCategory.findFirst({ where: { name: data.category } });
         if (cat) data.categoryId = cat.id;
     }

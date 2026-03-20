@@ -2,21 +2,35 @@ import { withAuth } from '@/lib/apiHandler';
 import prisma from '@/lib/prisma';
 import { NextResponse } from 'next/server';
 
+// UUID v4 pattern
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 // POST /api/public/quotations/[id]/accept
-// Khách hàng chấp nhận báo giá — không cần auth
+// Khách hàng chấp nhận báo giá — không cần auth nhưng validate shareToken
 export const POST = withAuth(async (request, { params }) => {
     const { id } = await params;
     const body = await request.json();
-    const { customerName, notes } = body;
+    const { customerName, notes, shareToken } = body;
+
+    // Must provide valid shareToken to accept
+    if (!shareToken || !UUID_RE.test(shareToken)) {
+        return NextResponse.json({ error: 'Thiếu hoặc sai mã xác thực' }, { status: 403 });
+    }
 
     const quotation = await prisma.quotation.findUnique({
         where: { id },
-        select: { id: true, status: true, code: true },
+        select: { id: true, status: true, code: true, shareToken: true },
     });
 
     if (!quotation) {
         return NextResponse.json({ error: 'Báo giá không tồn tại' }, { status: 404 });
     }
+
+    // Validate shareToken matches
+    if (quotation.shareToken !== shareToken) {
+        return NextResponse.json({ error: 'Mã xác thực không đúng' }, { status: 403 });
+    }
+
     if (['Nháp', 'Hủy'].includes(quotation.status)) {
         return NextResponse.json({ error: 'Báo giá không hợp lệ để chấp nhận' }, { status: 400 });
     }

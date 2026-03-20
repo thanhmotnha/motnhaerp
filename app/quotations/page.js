@@ -7,6 +7,7 @@ import { exportToCsv } from '@/lib/exportCsv';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import Pagination from '@/components/ui/Pagination';
 import { QUOTATION_STATUSES, STATUS_BADGE, fmtCurrency } from '@/lib/quotation-constants';
+import { useRole } from '@/contexts/RoleContext';
 
 export default function QuotationsPage() {
     const [quotations, setQuotations] = useState([]);
@@ -18,6 +19,7 @@ export default function QuotationsPage() {
     const [deleteTarget, setDeleteTarget] = useState(null);
     const router = useRouter();
     const toast = useToast();
+    const { permissions } = useRole();
 
     const fetchData = useCallback(async () => {
         setLoading(true);
@@ -41,10 +43,8 @@ export default function QuotationsPage() {
 
     const handleApproval = async (q, approvalStatus, e) => {
         e.stopPropagation();
-        const approvedBy = approvalStatus === 'approved' ? 'Giám đốc' : '';
-        const approvedAt = approvalStatus === 'approved' ? new Date().toISOString() : null;
         try {
-            await apiFetch(`/api/quotations/${q.id}`, { method: 'PUT', body: { approvalStatus, approvedBy, approvedAt } });
+            await apiFetch(`/api/quotations/${q.id}`, { method: 'PUT', body: { approvalStatus } });
             toast.success(approvalStatus === 'approved' ? 'Đã duyệt' : approvalStatus === 'pending' ? 'Đã gửi duyệt' : 'Đã từ chối duyệt');
             fetchData();
         } catch (err) { toast.error(err.message); }
@@ -152,7 +152,7 @@ export default function QuotationsPage() {
                                                     Gửi duyệt
                                                 </button>
                                             )}
-                                            {q.approvalStatus === 'pending' && (
+                                            {q.approvalStatus === 'pending' && permissions.canApprove && (
                                                 <>
                                                     <button className="btn btn-primary btn-sm" style={{ background: 'var(--status-success)' }} title="Duyệt BG"
                                                         onClick={(e) => handleApproval(q, 'approved', e)}>✓ Duyệt</button>

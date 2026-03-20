@@ -45,20 +45,22 @@ export const PUT = withAuth(async (request, { params }) => {
             orderBy: { createdAt: 'asc' },
         });
 
-        // Build lookup by phase name for preserving paid data
+        // Build lookup by ID first, fallback to phase name for preserving paid data
+        const existingById = {};
         const existingByPhase = {};
         for (const p of existing) {
+            existingById[p.id] = p;
             if (!existingByPhase[p.phase]) existingByPhase[p.phase] = p;
         }
 
         // Delete all existing
         await tx.contractPayment.deleteMany({ where: { contractId: id } });
 
-        // Re-create with preserved paid data
+        // Re-create with preserved paid data (match by ID first, then fallback to phase name)
         if (phases?.length > 0) {
             await tx.contractPayment.createMany({
                 data: phases.map(p => {
-                    const prev = existingByPhase[p.phase];
+                    const prev = (p.id && existingById[p.id]) || existingByPhase[p.phase];
                     return {
                         contractId: id,
                         phase: p.phase || '',

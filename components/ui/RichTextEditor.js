@@ -1,5 +1,5 @@
 'use client';
-import { useCallback, useEffect, useRef, useState, useMemo } from 'react';
+import { useEffect, useRef, useState, useMemo } from 'react';
 import { useEditor, EditorContent } from '@tiptap/react';
 import { StarterKit } from '@tiptap/starter-kit';
 import { Underline } from '@tiptap/extension-underline';
@@ -137,8 +137,12 @@ function FontFamilySelect({ editor }) {
         { label: 'Courier New', value: 'Courier New' },
     ];
 
+    // Detect current font from editor state
+    const currentFont = editor?.getAttributes('textStyle')?.fontFamily || 'Times New Roman';
+
     return (
         <select
+            value={currentFont}
             onChange={(e) => {
                 if (e.target.value === '') {
                     editor.chain().focus().unsetFontFamily().run();
@@ -151,7 +155,6 @@ function FontFamilySelect({ editor }) {
                 fontSize: 12, background: '#fff', cursor: 'pointer', maxWidth: 140, height: 28,
             }}
             title="Font chữ"
-            defaultValue="Times New Roman"
         >
             {fonts.map(f => <option key={f.value} value={f.value} style={{ fontFamily: f.value }}>{f.label}</option>)}
         </select>
@@ -177,6 +180,8 @@ const CustomTextStyle = TextStyle.extend({
 
 // ─── Toolbar Component ───────────────────────────────
 function Toolbar({ editor, variables }) {
+    const imgInputRef = useRef(null);
+
     if (!editor) return null;
 
     const addLink = () => {
@@ -184,9 +189,32 @@ function Toolbar({ editor, variables }) {
         if (url) editor.chain().focus().setLink({ href: url }).run();
     };
 
+    const handleImageUpload = async (e) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        e.target.value = ''; // reset input
+
+        // Upload to /api/upload
+        const formData = new FormData();
+        formData.append('file', file);
+        try {
+            const res = await fetch('/api/upload', { method: 'POST', body: formData });
+            if (!res.ok) throw new Error('Upload failed');
+            const data = await res.json();
+            const url = data.url || data.fileUrl;
+            if (url) editor.chain().focus().setImage({ src: url }).run();
+        } catch {
+            // Fallback: convert to base64 inline
+            const reader = new FileReader();
+            reader.onload = () => {
+                if (reader.result) editor.chain().focus().setImage({ src: reader.result }).run();
+            };
+            reader.readAsDataURL(file);
+        }
+    };
+
     const addImage = () => {
-        const url = prompt('Nhập URL hình ảnh:');
-        if (url) editor.chain().focus().setImage({ src: url }).run();
+        imgInputRef.current?.click();
     };
 
     const insertTable = () => {
@@ -264,6 +292,9 @@ function Toolbar({ editor, variables }) {
 
             {/* Variables */}
             <VariableDropdown variables={variables} onInsert={(key) => editor.chain().focus().insertContent(`{{${key}}}`).run()} />
+
+            {/* Hidden file input for image upload */}
+            <input ref={imgInputRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={handleImageUpload} />
         </div>
     );
 }

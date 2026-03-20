@@ -39,8 +39,8 @@ export const POST = withAuth(async (request) => {
                     salePrice: p.salePrice || p.importPrice || 0,
                     stock: 0,
                     minStock: 0,
-                    status: 'Đang kinh doanh',
-                    supplyType: 'Có sẵn',
+                    status: 'Đang bán',
+                    supplyType: p.supplyType || 'Mua ngoài',
                 },
                 select: { id: true, name: true }
             });

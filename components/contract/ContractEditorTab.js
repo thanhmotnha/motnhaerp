@@ -18,6 +18,18 @@ export default function ContractEditorTab({ contract, quotation, customer, proje
     const [downloading, setDownloading] = useState(false);
     const [previewMode, setPreviewMode] = useState(false);
     const [editorKey, setEditorKey] = useState(0);
+    const [dirty, setDirty] = useState(false);
+
+    // Warn before leaving with unsaved changes
+    useEffect(() => {
+        const handler = (e) => {
+            if (!dirty) return;
+            e.preventDefault();
+            e.returnValue = '';
+        };
+        window.addEventListener('beforeunload', handler);
+        return () => window.removeEventListener('beforeunload', handler);
+    }, [dirty]);
 
     // Load templates
     useEffect(() => {
@@ -53,14 +65,17 @@ export default function ContractEditorTab({ contract, quotation, customer, proje
 
     const toggleItem = (itemId) => {
         setSelectedItems(prev => prev.includes(itemId) ? prev.filter(id => id !== itemId) : [...prev, itemId]);
+        setDirty(true);
     };
     const toggleCategory = (catItems) => {
         const catIds = catItems.map(i => i.id);
         const allCatSelected = catIds.every(id => selectedItems.includes(id));
         setSelectedItems(prev => allCatSelected ? prev.filter(id => !catIds.includes(id)) : [...new Set([...prev, ...catIds])]);
+        setDirty(true);
     };
     const toggleAll = () => {
         setSelectedItems(allSelected ? [] : quotationItems.map(i => i.id));
+        setDirty(true);
     };
 
     // Apply template
@@ -75,6 +90,7 @@ export default function ContractEditorTab({ contract, quotation, customer, proje
         });
         setContractBody(filled);
         setEditorKey(k => k + 1);
+        setDirty(true);
     }, [selectedTemplate, templates, contract, customer, project, quotation, payments, selectedItems]);
 
     // Live preview
@@ -100,6 +116,7 @@ export default function ContractEditorTab({ contract, quotation, customer, proje
                 }),
             });
             if (res.ok) {
+                setDirty(false);
                 onSave?.(await res.json());
             } else {
                 const err = await res.json().catch(() => ({}));
@@ -122,7 +139,7 @@ export default function ContractEditorTab({ contract, quotation, customer, proje
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
-            a.download = `HD-${contract.contractNumber || contract.id}.docx`;
+            a.download = `HD-${contract.code || contract.id}.docx`;
             a.click();
             URL.revokeObjectURL(url);
         } catch (e) { alert('Lỗi: ' + e.message); }
@@ -265,7 +282,7 @@ export default function ContractEditorTab({ contract, quotation, customer, proje
                 ) : (
                     <RichTextEditor
                         value={contractBody}
-                        onChange={setContractBody}
+                        onChange={(v) => { setContractBody(v); setDirty(true); }}
                         placeholder="Soạn nội dung hợp đồng tại đây... Hoặc chọn biểu mẫu ở cột trái → Áp mẫu"
                         variables={CONTRACT_VARIABLES}
                         style={{ minHeight: 600 }}
