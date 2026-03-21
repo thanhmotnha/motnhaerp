@@ -154,7 +154,14 @@ export default function PublicQuotationPage() {
                     body { background: white !important; }
                     * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
                     .pub-page { box-shadow: none !important; max-width: 100% !important; }
-                    @page { size: A4 landscape; margin: 0; }
+                    @page { size: A4 landscape; margin: 6mm 8mm; }
+                    .pub-table tr { page-break-inside: avoid; break-inside: avoid; }
+                    .pub-cat-main { page-break-inside: avoid; break-inside: avoid; page-break-after: avoid; break-after: avoid; }
+                    .pub-sub-total { page-break-inside: avoid; break-inside: avoid; }
+                    .pub-footer { page-break-inside: avoid; break-inside: avoid; }
+                    .pub-sum-wrap { page-break-inside: avoid; break-inside: avoid; }
+                    .pub-info-row { page-break-inside: avoid; break-inside: avoid; }
+                    thead { display: table-header-group; }
                 }
             `}</style>
 

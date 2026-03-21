@@ -138,6 +138,8 @@ export default function PublicQuotationPage() {
                     .mn-table tr { page-break-inside: avoid; }
                     .mn-footer-section { page-break-inside: avoid; }
                     .mn-summary-wrap { page-break-inside: avoid; }
+                    .mn-sub-total { page-break-inside: avoid; }
+                    thead { display: table-header-group; }
                 }
                 .pdf-page { max-width: 1100px; margin: 20px auto 40px; background: #fff; box-shadow: 0 4px 40px rgba(0,0,0,0.12); border-radius: 4px; position: relative; overflow: hidden; }
                 .watermark { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%) rotate(-30deg); font-size: 120px; font-weight: 900; color: ${BRAND.blue}; opacity: 0.025; pointer-events: none; white-space: nowrap; letter-spacing: 20px; z-index: 0; }

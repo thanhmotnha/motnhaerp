@@ -173,12 +173,12 @@ export default function QuotationPDFPage() {
         noPrintEls.forEach(e => e.style.display = 'none');
 
         const opt = {
-            margin: 0,
+            margin: [4, 6, 4, 6],
             filename: `${data?.code || 'baogia'}.pdf`,
             image: { type: 'jpeg', quality: 0.98 },
             html2canvas: { scale: 2, useCORS: true, logging: false },
             jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' },
-            pagebreak: { mode: ['avoid-all', 'css', 'legacy'] },
+            pagebreak: { mode: ['css', 'legacy'], before: '.mn-page-break' },
         };
 
         try {
@@ -326,6 +326,42 @@ export default function QuotationPDFPage() {
                     page-break-before: always;
                     break-before: page;
                 }
+                /* Repeat mini header on new pages */
+                .mn-page-header {
+                    display: flex;
+                    align-items: center;
+                    justify-content: space-between;
+                    padding: 8px 38px 6px;
+                    border-bottom: 2px solid ${BRAND.gold};
+                    margin-bottom: 12px;
+                }
+                .mn-page-header-logo {
+                    display: flex;
+                    align-items: center;
+                    gap: 10px;
+                }
+                .mn-page-header-logo img {
+                    height: 32px;
+                    width: auto;
+                }
+                .mn-page-header-title {
+                    font-size: 10px;
+                    font-weight: 700;
+                    color: ${BRAND.blue};
+                    letter-spacing: 0.5px;
+                }
+                .mn-page-header-meta {
+                    font-size: 9px;
+                    color: ${BRAND.textMid};
+                    text-align: right;
+                    font-style: italic;
+                }
+                .mn-page-header-brand {
+                    font-size: 11px;
+                    font-weight: 800;
+                    color: ${BRAND.blue};
+                    letter-spacing: 1px;
+                }
 
                 @media print {
                     .no-print { display: none !important; }
@@ -343,8 +379,21 @@ export default function QuotationPDFPage() {
                     }
                     @page {
                         size: A4 landscape;
-                        margin: 0;
+                        margin: 6mm 8mm;
                     }
+                    /* First page keeps full header, hide mini headers */
+                    .mn-page-header { display: flex !important; }
+                    /* Avoid breaking inside table rows and category blocks */
+                    .mn-table tr { page-break-inside: avoid; break-inside: avoid; }
+                    .mn-cat-main { page-break-inside: avoid; break-inside: avoid; }
+                    .mn-sub-total { page-break-inside: avoid; break-inside: avoid; }
+                    .mn-footer-section { page-break-inside: avoid; break-inside: avoid; }
+                    .mn-summary-wrap { page-break-inside: avoid; break-inside: avoid; }
+                    .mn-info-row { page-break-inside: avoid; break-inside: avoid; }
+                    /* Keep category header with its table */
+                    .mn-cat-main { page-break-after: avoid; break-after: avoid; }
+                    /* Repeat table header on each page */
+                    thead { display: table-header-group; }
                 }
 
                 .pdf-page {
@@ -890,11 +939,25 @@ export default function QuotationPDFPage() {
                             grouped[g].push(cat);
                         });
 
+                        const MiniHeader = () => (
+                            <div className="mn-page-header">
+                                <div className="mn-page-header-logo">
+                                    <img src="https://pub-1e1be66737b446708af785e6cc8fe673.r2.dev/assets/motnha-header.jpg" alt="Một Nhà" style={{ height: 32 }} onError={e => { e.target.style.display = 'none'; }} />
+                                    <div className="mn-page-header-title">{docTitle}</div>
+                                </div>
+                                <div className="mn-page-header-meta">
+                                    <span style={{ fontWeight: 700, color: BRAND.blue }}>{q.code}</span> — {q.customer?.name}<br />
+                                    {dateStr}
+                                </div>
+                            </div>
+                        );
+
                         return groupOrder.map((groupName, gi) => {
                             const subs = grouped[groupName];
                             const groupTotal = subs.reduce((s, c) => s + (c.subtotal || 0), 0);
                             return (
                                 <div key={gi} className={gi > 0 ? 'mn-page-break' : ''}>
+                                    {gi > 0 && <MiniHeader />}
                                     {subs.map((cat, ci) => {
                                         const items = cat.items || [];
                                         const hasAnyImage = items.some(i => i.image);
@@ -1007,6 +1070,7 @@ export default function QuotationPDFPage() {
                     {q.notes && <div className="mn-notes">📝 <strong>Ghi chú:</strong> {q.notes}</div>}
 
                     {/* ====== SUMMARY ====== */}
+                    <div style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}>
                     <div className="mn-summary-wrap">
                         <div className="mn-sum-words">
                             <span className="mn-sum-words-label">Tổng giá trị bằng chữ</span>
@@ -1055,6 +1119,7 @@ export default function QuotationPDFPage() {
                             </div>
                         </div>
                     </div>
+                    </div>{/* end pageBreakInside avoid wrapper */}
                 </div>
 
                 {/* ====== BRAND FOOTER STRIP ====== */}
