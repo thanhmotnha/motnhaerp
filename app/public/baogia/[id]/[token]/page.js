@@ -92,8 +92,8 @@ export default function PublicQuotationPage() {
                 body { background: #e8ecf1 !important; font-family: 'Montserrat', sans-serif; color: ${BRAND.textDark}; }
                 .pub-page { max-width: 1100px; margin: 0 auto; background: #fff; box-shadow: 0 4px 40px rgba(0,0,0,0.12); position: relative; overflow: hidden; }
                 .watermark { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%) rotate(-30deg); font-size: 120px; font-weight: 900; color: ${BRAND.blue}; opacity: 0.025; pointer-events: none; white-space: nowrap; letter-spacing: 20px; z-index: 0; }
-                .pub-header-img { width: 100%; display: block; max-height: 120px; overflow: hidden; position: relative; z-index: 1; }
-                .pub-header-img img { width: 100%; height: 120px; display: block; object-fit: cover; object-position: center bottom; }
+                .pub-header-img { width: 100%; display: block; max-height: 130px; overflow: hidden; position: relative; z-index: 1; }
+                .pub-header-img img { width: 100%; height: auto; max-height: 130px; display: block; object-fit: cover; object-position: center; }
                 .pub-doc-bar { display: flex; justify-content: flex-end; align-items: center; gap: 20px; padding: 6px 38px; font-size: 10px; font-style: italic; color: ${BRAND.textMid}; position: relative; z-index: 1; }
                 .pub-doc-bar .code { font-weight: 700; color: ${BRAND.blue}; }
                 .pub-content { padding: 0 38px 28px; position: relative; z-index: 1; }

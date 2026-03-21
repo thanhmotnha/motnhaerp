@@ -1,6 +1,9 @@
 'use client';
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
+import dynamic from 'next/dynamic';
+
+const SignaturePad = dynamic(() => import('@/components/ui/SignaturePad'), { ssr: false });
 
 /* Brand colors */
 const BRAND = { blue: '#234093', gold: '#DBB35E', grey: '#C6C6C6', textDark: '#1e293b', textMid: '#475569', textLight: '#94a3b8' };
@@ -44,14 +47,20 @@ export default function PublicQuotationPage() {
     const [acceptForm, setAcceptForm] = useState({ customerName: '', notes: '' });
     const [accepting, setAccepting] = useState(false);
     const [accepted, setAccepted] = useState(false);
+    const [signatureData, setSignatureData] = useState(null);
 
     const handleAccept = async () => {
         if (!acceptForm.customerName.trim()) return alert('Vui lòng nhập tên xác nhận');
+        if (!signatureData) return alert('Vui lòng vẽ chữ ký xác nhận');
         setAccepting(true);
         const res = await fetch(`/api/public/quotations/${id}/accept`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(acceptForm),
+            body: JSON.stringify({
+                ...acceptForm,
+                signatureData,
+                shareToken: data?.shareToken,
+            }),
         });
         setAccepting(false);
         if (res.ok) { setAccepted(true); setAcceptModal(false); }
@@ -114,8 +123,8 @@ export default function PublicQuotationPage() {
                 body { background: #e8ecf1 !important; font-family: 'Montserrat', sans-serif; color: ${BRAND.textDark}; }
                 .pub-page { max-width: 1100px; margin: 0 auto; background: #fff; box-shadow: 0 4px 40px rgba(0,0,0,0.12); position: relative; overflow: hidden; }
                 .watermark { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%) rotate(-30deg); font-size: 120px; font-weight: 900; color: ${BRAND.blue}; opacity: 0.025; pointer-events: none; white-space: nowrap; letter-spacing: 20px; z-index: 0; }
-                .pub-header-img { width: 100%; display: block; max-height: 120px; overflow: hidden; position: relative; z-index: 1; }
-                .pub-header-img img { width: 100%; height: 120px; display: block; object-fit: cover; object-position: center bottom; }
+                .pub-header-img { width: 100%; display: block; max-height: 130px; overflow: hidden; position: relative; z-index: 1; }
+                .pub-header-img img { width: 100%; height: auto; max-height: 130px; display: block; object-fit: cover; object-position: center; }
                 .pub-doc-bar { display: flex; justify-content: flex-end; align-items: center; gap: 20px; padding: 6px 38px; font-size: 10px; font-style: italic; color: ${BRAND.textMid}; position: relative; z-index: 1; }
                 .pub-doc-bar .code { font-weight: 700; color: ${BRAND.blue}; }
                 .pub-content { padding: 0 38px 28px; position: relative; z-index: 1; }
@@ -402,8 +411,16 @@ export default function PublicQuotationPage() {
                             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
                                 <div className="pub-sign-area">
                                     <div className="pub-sign-title">Đại diện<br />Khách hàng</div>
-                                    <div className="pub-sign-space"></div>
-                                    <div className="pub-sign-line">(Ký, ghi rõ họ tên)</div>
+                                    <div className="pub-sign-space">
+                                        {(q.signatureData || signatureData) ? (
+                                            <div style={{ textAlign: 'center' }}>
+                                                <img src={q.signatureData || signatureData} alt="Chữ ký" style={{ maxWidth: 180, height: 'auto', marginBottom: 4 }} />
+                                                <div style={{ fontSize: 11, fontWeight: 700, color: BRAND.textDark }}>{q.signedByName || acceptForm.customerName}</div>
+                                                {q.signedAt && <div style={{ fontSize: 8, color: BRAND.textLight, marginTop: 2 }}>{new Date(q.signedAt).toLocaleString('vi-VN')}</div>}
+                                            </div>
+                                        ) : null}
+                                    </div>
+                                    <div className="pub-sign-line">{(q.signatureData || signatureData) ? `${q.signedByName || acceptForm.customerName}` : '(Ký, ghi rõ họ tên)'}</div>
                                 </div>
                                 <div className="pub-sign-area">
                                     <div className="pub-sign-title">Đại diện<br />Một Nhà Design &amp; Build</div>
@@ -419,8 +436,8 @@ export default function PublicQuotationPage() {
 
                 {/* Accept Modal */}
                 {acceptModal && (
-                    <div className="no-print" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                        <div style={{ background: '#fff', borderRadius: 12, padding: 32, maxWidth: 420, width: '90%', fontFamily: 'Montserrat, sans-serif' }}>
+                    <div className="no-print" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16, overflowY: 'auto' }}>
+                        <div style={{ background: '#fff', borderRadius: 12, padding: 32, maxWidth: 520, width: '100%', fontFamily: 'Montserrat, sans-serif' }}>
                             <div style={{ fontSize: 18, fontWeight: 800, color: BRAND.blue, marginBottom: 8 }}>✅ Xác nhận chấp nhận báo giá</div>
                             <div style={{ fontSize: 13, color: BRAND.textMid, marginBottom: 20 }}>Báo giá <strong>{q.code}</strong> — {fmt(q.grandTotal)}</div>
                             <div style={{ marginBottom: 14 }}>
@@ -428,20 +445,38 @@ export default function PublicQuotationPage() {
                                 <input value={acceptForm.customerName} onChange={e => setAcceptForm(f => ({ ...f, customerName: e.target.value }))}
                                     placeholder="Nhập tên của bạn" style={{ width: '100%', padding: '10px 12px', border: `1.5px solid ${BRAND.grey}`, borderRadius: 6, fontSize: 13, fontFamily: 'Montserrat' }} />
                             </div>
+                            <div style={{ marginBottom: 14 }}>
+                                <label style={{ fontSize: 12, fontWeight: 700, color: BRAND.blue, display: 'block', marginBottom: 4 }}>✒️ Chữ ký điện tử *</label>
+                                <SignaturePad
+                                    width={460}
+                                    height={180}
+                                    onSave={(data) => setSignatureData(data)}
+                                />
+                                {signatureData && (
+                                    <div style={{ marginTop: 6, fontSize: 12, color: '#16a34a', fontWeight: 600 }}>✅ Đã ký — chữ ký hợp lệ</div>
+                                )}
+                            </div>
                             <div style={{ marginBottom: 20 }}>
                                 <label style={{ fontSize: 12, fontWeight: 700, color: BRAND.blue, display: 'block', marginBottom: 4 }}>Ghi chú</label>
                                 <textarea value={acceptForm.notes} onChange={e => setAcceptForm(f => ({ ...f, notes: e.target.value }))}
-                                    rows={3} placeholder="Ghi chú thêm (nếu có)..." style={{ width: '100%', padding: '10px 12px', border: `1.5px solid ${BRAND.grey}`, borderRadius: 6, fontSize: 13, fontFamily: 'Montserrat', resize: 'vertical' }} />
+                                    rows={2} placeholder="Ghi chú thêm (nếu có)..." style={{ width: '100%', padding: '10px 12px', border: `1.5px solid ${BRAND.grey}`, borderRadius: 6, fontSize: 13, fontFamily: 'Montserrat', resize: 'vertical' }} />
                             </div>
                             <div style={{ display: 'flex', gap: 10 }}>
-                                <button onClick={handleAccept} disabled={accepting}
-                                    style={{ flex: 1, padding: '12px 0', background: '#16a34a', color: '#fff', border: 'none', borderRadius: 6, fontSize: 14, fontWeight: 800, cursor: 'pointer' }}>
-                                    {accepting ? 'Đang gửi...' : '✅ Xác nhận'}
+                                <button onClick={handleAccept} disabled={accepting || !signatureData}
+                                    style={{
+                                        flex: 1, padding: '12px 0', border: 'none', borderRadius: 6, fontSize: 14, fontWeight: 800, cursor: (accepting || !signatureData) ? 'not-allowed' : 'pointer',
+                                        background: (accepting || !signatureData) ? '#e2e8f0' : '#16a34a', color: (accepting || !signatureData) ? '#94a3b8' : '#fff',
+                                    }}>
+                                    {accepting ? 'Đang gửi...' : '✅ Xác nhận & Ký'}
                                 </button>
-                                <button onClick={() => setAcceptModal(false)}
+                                <button onClick={() => { setAcceptModal(false); setSignatureData(null); }}
                                     style={{ padding: '12px 20px', background: BRAND.grey, color: BRAND.textDark, border: 'none', borderRadius: 6, fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
                                     Hủy
                                 </button>
+                            </div>
+                            <div style={{ marginTop: 12, fontSize: 9, color: BRAND.textLight, textAlign: 'center', fontStyle: 'italic' }}>
+                                Bằng việc ký xác nhận, bạn đồng ý với nội dung và điều khoản của báo giá này.
+                                Chữ ký điện tử có giá trị pháp lý tương đương chữ ký tay.
                             </div>
                         </div>
                     </div>

@@ -227,6 +227,11 @@ model Quotation {
   categories        QuotationCategory[]
   contracts         Contract[]
   furnitureOrders   FurnitureOrder[]
+  // Signature & Acceptance
+  signatureData     String          @default("") @db.Text
+  signatureIp       String          @default("")
+  signedByName      String          @default("")
+  signedAt          DateTime?
   // Share & Tracking
   shareToken        String?         @unique @default(uuid())
   viewCount         Int             @default(0)
