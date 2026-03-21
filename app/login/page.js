@@ -20,6 +20,7 @@ function LoginForm() {
     const [login, setLogin] = useState('');
     const [password, setPassword] = useState('');
     const [showPassword, setShowPassword] = useState(false);
+    const [rememberMe, setRememberMe] = useState(false);
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
 
@@ -31,6 +32,7 @@ function LoginForm() {
         const result = await signIn('credentials', {
             login,
             password,
+            rememberMe: rememberMe.toString(),
             redirect: false,
         });
 
@@ -104,7 +106,7 @@ function LoginForm() {
                         />
                     </div>
 
-                    <div style={{ marginBottom: 24 }}>
+                    <div style={{ marginBottom: 16 }}>
                         <label style={{ display: 'block', fontSize: 14, fontWeight: 500, color: '#374151', marginBottom: 6 }}>
                             Mật khẩu
                         </label>
@@ -132,6 +134,21 @@ function LoginForm() {
                                 {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                             </button>
                         </div>
+                    </div>
+
+                    <div style={{ marginBottom: 24 }}>
+                        <label style={{
+                            display: 'flex', alignItems: 'center', gap: 8,
+                            cursor: 'pointer', fontSize: 14, color: '#374151',
+                        }}>
+                            <input
+                                type="checkbox"
+                                checked={rememberMe}
+                                onChange={e => setRememberMe(e.target.checked)}
+                                style={{ width: 16, height: 16, cursor: 'pointer', accentColor: '#1C3A6B' }}
+                            />
+                            Ghi nhớ đăng nhập (15 ngày)
+                        </label>
                     </div>
 
                     <button

@@ -101,7 +101,7 @@ export default function Header({ onMenuToggle, onSearchOpen }) {
                     className="header-btn"
                     title="Đăng xuất"
                     aria-label="Đăng xuất"
-                    onClick={() => signOut({ callbackUrl: '/login' })}
+                    onClick={() => signOut({ callbackUrl: `${window.location.origin}/login` })}
                 >
                     <LogOut size={18} />
                 </button>
