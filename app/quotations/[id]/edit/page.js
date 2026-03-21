@@ -22,11 +22,6 @@ export default function EditQuotationPage() {
     const imgUploadTarget = useRef(null);
     const [treeSidebarOpen, setTreeSidebarOpen] = useState(false);
     const [qMeta, setQMeta] = useState({ status: 'Nháp', revision: 1, code: '', parentId: null, children: [] });
-    const [shareModal, setShareModal] = useState(false);
-    const [exportDropdown, setExportDropdown] = useState(false);
-    const [shareToken, setShareToken] = useState('');
-    const [trackingData, setTrackingData] = useState({ viewCount: 0, lastViewedAt: null });
-    const [copied, setCopied] = useState(false);
 
     const {
         form, setForm, mainCategories, setMainCategories,
@@ -57,8 +52,6 @@ export default function EditQuotationPage() {
                 parentId: q.parentId || null, children: q.children || [],
                 lockedAt: q.lockedAt, createdAt: q.createdAt,
             });
-            if (q.shareToken) setShareToken(q.shareToken);
-            setTrackingData({ viewCount: q.viewCount || 0, lastViewedAt: q.lastViewedAt });
             if (q.categories && q.categories.length > 0) {
                 // Group categories by `group` field → build mainCategories
                 const grouped = {};
@@ -256,27 +249,10 @@ export default function EditQuotationPage() {
                     </div>
                     <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
                         <button className="btn btn-ghost" onClick={() => router.push('/quotations')}>← Quay lại</button>
-                        {/* Gửi Báo Giá — primary */}
-                        <button className="btn btn-primary" onClick={() => setShareModal(true)} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                            📨 Gửi Báo Giá
+                        {/* Xem Báo Giá — nút to, mở trang PDF có đầy đủ chức năng */}
+                        <button className="btn btn-primary" onClick={() => window.open(`/quotations/${params.id}/pdf`, '_blank')} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '10px 24px', fontSize: 15, fontWeight: 700 }}>
+                            📄 Xem Báo Giá
                         </button>
-                        {/* Xuất File — dropdown */}
-                        <div style={{ position: 'relative' }}>
-                            <button className="btn btn-secondary" onClick={() => setExportDropdown(!exportDropdown)} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                                📁 Xuất File ▾
-                            </button>
-                            {exportDropdown && (
-                                <>
-                                    <div style={{ position: 'fixed', inset: 0, zIndex: 98 }} onClick={() => setExportDropdown(false)} />
-                                    <div style={{ position: 'absolute', top: '100%', right: 0, marginTop: 4, background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 8, boxShadow: '0 8px 24px rgba(0,0,0,0.15)', zIndex: 99, minWidth: 180, padding: 4 }}>
-                                        <button className="btn btn-ghost btn-sm" style={{ width: '100%', justifyContent: 'flex-start', fontSize: 13 }} onClick={() => { window.open(`/quotations/${params.id}/pdf`, '_blank'); setExportDropdown(false); }}>📄 Tải bản PDF</button>
-                                        <button className="btn btn-ghost btn-sm" style={{ width: '100%', justifyContent: 'flex-start', fontSize: 13 }} onClick={() => { setExportDropdown(false); /* TODO: export image */ toast.info('Tính năng xuất ảnh đang phát triển'); }}>🖼️ Tải bản Hình ảnh</button>
-                                    </div>
-                                </>
-                            )}
-                        </div>
-                        {/* In ấn */}
-                        <button className="btn btn-ghost" onClick={() => { const w = window.open(`/quotations/${params.id}/pdf`, '_blank'); w && w.addEventListener('load', () => w.print()); }} title="In báo giá">🖨️</button>
                         {/* Lưu mẫu */}
                         <button className="btn btn-ghost" onClick={async () => {
                             try {
@@ -418,62 +394,6 @@ export default function EditQuotationPage() {
 
             <input ref={imgInputRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={handleImgChange} />
 
-            {/* Share Modal */}
-            {shareModal && (
-                <>
-                    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 200 }} onClick={() => setShareModal(false)} />
-                    <div style={{ position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', background: 'var(--bg-card)', borderRadius: 12, padding: 24, zIndex: 201, width: 480, maxWidth: '90vw', boxShadow: '0 20px 60px rgba(0,0,0,0.3)' }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-                            <h3 style={{ margin: 0, fontSize: 16 }}>📨 Gửi Báo Giá</h3>
-                            <button className="btn btn-ghost btn-sm" onClick={() => setShareModal(false)}>✕</button>
-                        </div>
-
-                        {/* Copy Link */}
-                        <div style={{ marginBottom: 16 }}>
-                            <label className="form-label">🔗 Link chia sẻ</label>
-                            <div style={{ display: 'flex', gap: 8 }}>
-                                <input className="form-input" readOnly value={shareToken ? `${typeof window !== 'undefined' ? window.location.origin : ''}/public/baogia/${shareToken}` : 'Đang tạo...'} style={{ flex: 1, fontSize: 12 }} />
-                                <button className="btn btn-primary btn-sm" onClick={() => {
-                                    const url = `${window.location.origin}/public/baogia/${shareToken}`;
-                                    navigator.clipboard.writeText(url);
-                                    setCopied(true);
-                                    setTimeout(() => setCopied(false), 2000);
-                                    toast.success('Đã copy link!');
-                                }}>{copied ? '✅ Đã copy!' : '📋 Copy'}</button>
-                            </div>
-                        </div>
-
-                        {/* Zalo */}
-                        <div style={{ marginBottom: 16 }}>
-                            <label className="form-label">💬 Gửi qua Zalo</label>
-                            <button className="btn btn-secondary" style={{ width: '100%', background: '#0068FF', color: '#fff', border: 'none' }} onClick={() => {
-                                const customer = customers.find(c => c.id === form.customerId);
-                                const project = filteredProjects.find(p => p.id === form.projectId);
-                                const total = hook.mainCategories.reduce((s, mc) => s + (mc.subtotal || 0), 0);
-                                const fmtTotal = new Intl.NumberFormat('vi-VN').format(Math.round(total));
-                                const url = `${window.location.origin}/public/baogia/${shareToken}`;
-                                const msg = `[Một Nhà] Gửi Anh/Chị ${customer?.name || ''} báo giá ${project?.name || form.type || ''}. Tổng giá trị: ${fmtTotal} VNĐ. Anh/Chị xem chi tiết tại đây: ${url}`;
-                                const zaloUrl = `https://zalo.me/share?url=${encodeURIComponent(url)}&title=${encodeURIComponent(msg)}`;
-                                window.open(zaloUrl, '_blank', 'width=600,height=500');
-                            }}>💬 Mở Zalo gửi ngay</button>
-                        </div>
-
-                        {/* Tracking info */}
-                        <div style={{ padding: 12, background: 'var(--bg-hover)', borderRadius: 8, fontSize: 12, color: 'var(--text-secondary)' }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
-                                <span>👀 Lượt xem:</span>
-                                <strong style={{ color: 'var(--text-primary)' }}>{trackingData.viewCount}</strong>
-                            </div>
-                            {trackingData.lastViewedAt && (
-                                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                                    <span>🕐 Xem gần nhất:</span>
-                                    <strong style={{ color: 'var(--text-primary)' }}>{new Date(trackingData.lastViewedAt).toLocaleString('vi-VN')}</strong>
-                                </div>
-                            )}
-                        </div>
-                    </div>
-                </>
-            )}
 
         </div>
     );
