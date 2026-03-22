@@ -116,7 +116,180 @@ function InlineVariants({ productId, basePrice, onPriceChange, onDescChange }) {
     );
 }
 
+// Expandable furniture detail panel for each item
+function FurnitureDetailPanel({ item, mi, si, ii, updateItem }) {
+    const uploadImage = async (file, field) => {
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('folder', 'quotation-details');
+        try {
+            const res = await fetch('/api/upload', { method: 'POST', body: formData });
+            const data = await res.json();
+            if (data.url) updateItem(mi, si, ii, field, data.url);
+        } catch { }
+    };
+
+    const uploadMultiImages = async (files, field) => {
+        const current = item[field] || [];
+        for (const file of files) {
+            const formData = new FormData();
+            formData.append('file', file);
+            formData.append('folder', 'quotation-details');
+            try {
+                const res = await fetch('/api/upload', { method: 'POST', body: formData });
+                const data = await res.json();
+                if (data.url) current.push(data.url);
+            } catch { }
+        }
+        updateItem(mi, si, ii, field, [...current]);
+    };
+
+    const removeImage = (field, idx) => {
+        const arr = [...(item[field] || [])];
+        arr.splice(idx, 1);
+        updateItem(mi, si, ii, field, arr);
+    };
+
+    const uploadAttachment = async (files) => {
+        const current = item.attachments || [];
+        for (const file of files) {
+            const formData = new FormData();
+            formData.append('file', file);
+            formData.append('folder', 'quotation-details');
+            try {
+                const res = await fetch('/api/upload', { method: 'POST', body: formData });
+                const data = await res.json();
+                if (data.url) current.push({ name: file.name, url: data.url, type: file.type });
+            } catch { }
+        }
+        updateItem(mi, si, ii, 'attachments', [...current]);
+    };
+
+    const removeAttachment = (idx) => {
+        const arr = [...(item.attachments || [])];
+        arr.splice(idx, 1);
+        updateItem(mi, si, ii, 'attachments', arr);
+    };
+
+    const inputStyle = { width: '100%', padding: '6px 10px', border: '1px solid var(--border-color)', borderRadius: 6, fontSize: 12, fontFamily: 'inherit', background: 'var(--bg-input, #fff)' };
+    const labelStyle = { fontSize: 11, fontWeight: 700, color: 'var(--accent-primary)', marginBottom: 4, display: 'block' };
+    const sectionStyle = { padding: '10px 12px', background: 'var(--bg-secondary, #f8fafc)', borderRadius: 8, display: 'flex', flexDirection: 'column', gap: 6 };
+
+    return (
+        <tr>
+            <td colSpan={99} style={{ padding: '8px 12px 12px', background: 'rgba(35,64,147,0.02)', borderBottom: '2px solid var(--accent-primary, #234093)' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                    {/* Công năng */}
+                    <div style={sectionStyle}>
+                        <label style={labelStyle}>📋 Công năng</label>
+                        <textarea value={item.functionality || ''} onChange={e => updateItem(mi, si, ii, 'functionality', e.target.value)}
+                            rows={3} placeholder="Mô tả công năng: ngăn kéo, kệ, treo, hộc..." style={{ ...inputStyle, resize: 'vertical' }} />
+                        <label style={{ ...labelStyle, marginTop: 4 }}>🖼️ Bản vẽ / Hình ảnh công năng</label>
+                        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                            {(item.functionalImages || []).map((url, idx) => (
+                                <div key={idx} style={{ position: 'relative', width: 64, height: 64 }}>
+                                    <img src={url} alt="" style={{ width: 64, height: 64, objectFit: 'cover', borderRadius: 4, border: '1px solid var(--border-color)' }} />
+                                    <button onClick={() => removeImage('functionalImages', idx)}
+                                        style={{ position: 'absolute', top: -4, right: -4, width: 16, height: 16, borderRadius: '50%', border: 'none', background: '#ef4444', color: '#fff', fontSize: 9, cursor: 'pointer', lineHeight: 1 }}>×</button>
+                                </div>
+                            ))}
+                            <label style={{ width: 64, height: 64, border: '2px dashed var(--border-color)', borderRadius: 4, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: 20, opacity: 0.4 }}>
+                                +
+                                <input type="file" accept="image/*" multiple hidden onChange={e => uploadMultiImages(e.target.files, 'functionalImages')} />
+                            </label>
+                        </div>
+                        {/* File đính kèm */}
+                        <label style={{ ...labelStyle, marginTop: 4 }}>📎 File đính kèm</label>
+                        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
+                            {(item.attachments || []).map((f, idx) => (
+                                <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '3px 8px', background: '#fff', border: '1px solid var(--border-color)', borderRadius: 4, fontSize: 11 }}>
+                                    <a href={f.url} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--accent-primary)', fontWeight: 600 }}>📄 {f.name}</a>
+                                    <button onClick={() => removeAttachment(idx)} style={{ border: 'none', background: 'none', color: '#ef4444', cursor: 'pointer', fontSize: 12 }}>×</button>
+                                </div>
+                            ))}
+                            <label style={{ padding: '3px 10px', border: '1px dashed var(--border-color)', borderRadius: 4, cursor: 'pointer', fontSize: 11, opacity: 0.6 }}>
+                                + Tải file
+                                <input type="file" multiple hidden onChange={e => uploadAttachment(e.target.files)} />
+                            </label>
+                        </div>
+                    </div>
+
+                    {/* Màu sắc + Phụ kiện */}
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                        <div style={sectionStyle}>
+                            <label style={labelStyle}>🎨 Mã màu thùng</label>
+                            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                                <input value={item.bodyColorCode || ''} onChange={e => updateItem(mi, si, ii, 'bodyColorCode', e.target.value)}
+                                    placeholder="Mã: AC-3210" style={{ ...inputStyle, width: 100 }} />
+                                <input value={item.bodyColorName || ''} onChange={e => updateItem(mi, si, ii, 'bodyColorName', e.target.value)}
+                                    placeholder="Tên: Walnut" style={{ ...inputStyle, flex: 1 }} />
+                                {item.bodyColorImage ? (
+                                    <div style={{ position: 'relative', width: 36, height: 36 }}>
+                                        <img src={item.bodyColorImage} alt="" style={{ width: 36, height: 36, objectFit: 'cover', borderRadius: 4, border: '1px solid var(--border-color)' }} />
+                                        <button onClick={() => updateItem(mi, si, ii, 'bodyColorImage', '')}
+                                            style={{ position: 'absolute', top: -4, right: -4, width: 14, height: 14, borderRadius: '50%', border: 'none', background: '#ef4444', color: '#fff', fontSize: 8, cursor: 'pointer' }}>×</button>
+                                    </div>
+                                ) : (
+                                    <label style={{ width: 36, height: 36, border: '2px dashed var(--border-color)', borderRadius: 4, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: 14, opacity: 0.4 }}>
+                                        🖼
+                                        <input type="file" accept="image/*" hidden onChange={e => e.target.files[0] && uploadImage(e.target.files[0], 'bodyColorImage')} />
+                                    </label>
+                                )}
+                            </div>
+                        </div>
+                        <div style={sectionStyle}>
+                            <label style={labelStyle}>🎨 Mã màu cánh</label>
+                            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                                <input value={item.doorColorCode || ''} onChange={e => updateItem(mi, si, ii, 'doorColorCode', e.target.value)}
+                                    placeholder="Mã: AC-5501" style={{ ...inputStyle, width: 100 }} />
+                                <input value={item.doorColorName || ''} onChange={e => updateItem(mi, si, ii, 'doorColorName', e.target.value)}
+                                    placeholder="Tên: Trắng bóng" style={{ ...inputStyle, flex: 1 }} />
+                                {item.doorColorImage ? (
+                                    <div style={{ position: 'relative', width: 36, height: 36 }}>
+                                        <img src={item.doorColorImage} alt="" style={{ width: 36, height: 36, objectFit: 'cover', borderRadius: 4, border: '1px solid var(--border-color)' }} />
+                                        <button onClick={() => updateItem(mi, si, ii, 'doorColorImage', '')}
+                                            style={{ position: 'absolute', top: -4, right: -4, width: 14, height: 14, borderRadius: '50%', border: 'none', background: '#ef4444', color: '#fff', fontSize: 8, cursor: 'pointer' }}>×</button>
+                                    </div>
+                                ) : (
+                                    <label style={{ width: 36, height: 36, border: '2px dashed var(--border-color)', borderRadius: 4, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: 14, opacity: 0.4 }}>
+                                        🖼
+                                        <input type="file" accept="image/*" hidden onChange={e => e.target.files[0] && uploadImage(e.target.files[0], 'doorColorImage')} />
+                                    </label>
+                                )}
+                            </div>
+                        </div>
+                        <div style={sectionStyle}>
+                            <label style={labelStyle}>🔩 Phụ kiện</label>
+                            <textarea value={item.hardware || ''} onChange={e => updateItem(mi, si, ii, 'hardware', e.target.value)}
+                                rows={2} placeholder="Bản lề Blum, ray Tandembox, tay nắm nhôm 128mm..." style={{ ...inputStyle, resize: 'vertical' }} />
+                        </div>
+                        <div style={sectionStyle}>
+                            <label style={labelStyle}>🏠 Ảnh phối cảnh 3D</label>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                {item.renderImage ? (
+                                    <div style={{ position: 'relative' }}>
+                                        <img src={item.renderImage} alt="" style={{ height: 56, borderRadius: 4, border: '1px solid var(--border-color)' }} />
+                                        <button onClick={() => updateItem(mi, si, ii, 'renderImage', '')}
+                                            style={{ position: 'absolute', top: -4, right: -4, width: 16, height: 16, borderRadius: '50%', border: 'none', background: '#ef4444', color: '#fff', fontSize: 9, cursor: 'pointer' }}>×</button>
+                                    </div>
+                                ) : (
+                                    <label style={{ padding: '8px 16px', border: '2px dashed var(--border-color)', borderRadius: 6, cursor: 'pointer', fontSize: 11, opacity: 0.5 }}>
+                                        + Upload ảnh 3D
+                                        <input type="file" accept="image/*" hidden onChange={e => e.target.files[0] && uploadImage(e.target.files[0], 'renderImage')} />
+                                    </label>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </td>
+        </tr>
+    );
+}
+
 function SubcategorySection({ sub, mi, si, hook, onImageClick, onSubcategoryImageClick }) {
+    const [expandedDetails, setExpandedDetails] = useState({});
+    const toggleDetail = (ii) => setExpandedDetails(prev => ({ ...prev, [ii]: !prev[ii] }));
     const { updateSubcategoryName, removeSubcategory, updateItem, removeItem, addItem, addFromLibrary, addFromProduct, allSearchItems, mainCategories, addSubItem, removeSubItem, updateSubItem, products } = hook;
     const unitOpts = hook.unitOptions || UNIT_OPTIONS;
 
@@ -294,6 +467,15 @@ function SubcategorySection({ sub, mi, si, hook, onImageClick, onSubcategoryImag
                                             <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
                                                 <button className="btn btn-ghost" onClick={() => removeItem(mi, si, ii)} style={{ padding: '2px 4px', fontSize: 11 }}>✕</button>
                                                 <button className="btn btn-ghost" onClick={() => addSubItem(mi, si, ii)} style={{ padding: '1px 3px', fontSize: 9, opacity: 0.5 }} title="Thêm phụ kiện">+PK</button>
+                                                {(() => {
+                                                    const hasFurnitureData = item.functionality || item.bodyColorCode || item.doorColorCode || item.hardware || (item.functionalImages?.length > 0);
+                                                    return (
+                                                        <button className={`btn btn-ghost ${expandedDetails[ii] ? 'btn-active' : ''}`}
+                                                            onClick={() => toggleDetail(ii)}
+                                                            style={{ padding: '1px 3px', fontSize: 9, opacity: (expandedDetails[ii] || hasFurnitureData) ? 1 : 0.5, color: hasFurnitureData ? '#16a34a' : expandedDetails[ii] ? 'var(--accent-primary)' : undefined, fontWeight: hasFurnitureData ? 800 : 400 }}
+                                                            title="Chi tiết nội thất: công năng, màu, phụ kiện">{hasFurnitureData ? '✓NT' : 'NT'}</button>
+                                                    );
+                                                })()}
                                             </div>
                                         </td>
                                     </tr>
@@ -331,6 +513,10 @@ function SubcategorySection({ sub, mi, si, hook, onImageClick, onSubcategoryImag
                                             <td><button className="btn btn-ghost" onClick={() => removeSubItem(mi, si, ii, sii)} style={{ padding: '2px 4px', fontSize: 10 }}>✕</button></td>
                                         </tr>
                                     ))}
+                                    {/* Furniture detail panel */}
+                                    {expandedDetails[ii] && (
+                                        <FurnitureDetailPanel item={item} mi={mi} si={si} ii={ii} updateItem={updateItem} />
+                                    )}
                                 </React.Fragment>
                             );
                         })}

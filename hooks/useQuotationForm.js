@@ -629,6 +629,18 @@ export default function useQuotationForm() {
                         height: Number(item.height) || 0,
                         image: item.image || '',
                         productId: item.productId || null,
+                        // Chi tiết nội thất
+                        functionality: item.functionality || '',
+                        functionalImages: item.functionalImages || [],
+                        attachments: item.attachments || [],
+                        bodyColorCode: item.bodyColorCode || '',
+                        bodyColorName: item.bodyColorName || '',
+                        bodyColorImage: item.bodyColorImage || '',
+                        doorColorCode: item.doorColorCode || '',
+                        doorColorName: item.doorColorName || '',
+                        doorColorImage: item.doorColorImage || '',
+                        hardware: item.hardware || '',
+                        renderImage: item.renderImage || '',
                     })),
                 });
             });

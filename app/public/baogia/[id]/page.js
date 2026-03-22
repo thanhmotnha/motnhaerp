@@ -330,6 +330,73 @@ export default function PublicQuotationPage() {
                                                                             <td className="r">{fmt(si.amount)}</td>
                                                                         </tr>
                                                                     ))}
+                                                                    {/* Chi tiết nội thất */}
+                                                                    {(item.functionality || item.bodyColorCode || item.doorColorCode || item.hardware || (item.functionalImages?.length > 0) || item.renderImage) && (
+                                                                        <tr>
+                                                                            <td colSpan={99} style={{ padding: '8px 12px', background: `${BRAND.blue}04`, borderBottom: `2px solid ${BRAND.gold}40` }}>
+                                                                                <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
+                                                                                    {/* Render image */}
+                                                                                    {item.renderImage && (
+                                                                                        <img src={item.renderImage} alt="" style={{ width: 100, height: 75, objectFit: 'cover', borderRadius: 4, border: `1px solid ${BRAND.grey}` }} />
+                                                                                    )}
+                                                                                    <div style={{ flex: 1, minWidth: 200 }}>
+                                                                                        {item.functionality && (
+                                                                                            <div style={{ marginBottom: 6 }}>
+                                                                                                <span style={{ fontSize: 8, fontWeight: 700, color: BRAND.blue, textTransform: 'uppercase', letterSpacing: 1 }}>Công năng</span>
+                                                                                                <div style={{ fontSize: 10, color: BRAND.textMid, whiteSpace: 'pre-line', marginTop: 2 }}>{item.functionality}</div>
+                                                                                            </div>
+                                                                                        )}
+                                                                                        {item.hardware && (
+                                                                                            <div style={{ marginBottom: 6 }}>
+                                                                                                <span style={{ fontSize: 8, fontWeight: 700, color: BRAND.blue, textTransform: 'uppercase', letterSpacing: 1 }}>Phụ kiện</span>
+                                                                                                <div style={{ fontSize: 10, color: BRAND.textMid, marginTop: 2 }}>{item.hardware}</div>
+                                                                                            </div>
+                                                                                        )}
+                                                                                    </div>
+                                                                                    {/* Color swatches */}
+                                                                                    {(item.bodyColorCode || item.doorColorCode) && (
+                                                                                        <div style={{ display: 'flex', gap: 10, flexShrink: 0 }}>
+                                                                                            {item.bodyColorCode && (
+                                                                                                <div style={{ textAlign: 'center' }}>
+                                                                                                    {item.bodyColorImage && <img src={item.bodyColorImage} alt="" style={{ width: 48, height: 48, objectFit: 'cover', borderRadius: 4, border: `1px solid ${BRAND.grey}` }} />}
+                                                                                                    <div style={{ fontSize: 8, fontWeight: 700, color: BRAND.blue, marginTop: 2 }}>Thùng</div>
+                                                                                                    <div style={{ fontSize: 9, color: BRAND.textMid }}>{item.bodyColorCode}</div>
+                                                                                                    {item.bodyColorName && <div style={{ fontSize: 8, color: BRAND.textLight }}>{item.bodyColorName}</div>}
+                                                                                                </div>
+                                                                                            )}
+                                                                                            {item.doorColorCode && (
+                                                                                                <div style={{ textAlign: 'center' }}>
+                                                                                                    {item.doorColorImage && <img src={item.doorColorImage} alt="" style={{ width: 48, height: 48, objectFit: 'cover', borderRadius: 4, border: `1px solid ${BRAND.grey}` }} />}
+                                                                                                    <div style={{ fontSize: 8, fontWeight: 700, color: BRAND.blue, marginTop: 2 }}>Cánh</div>
+                                                                                                    <div style={{ fontSize: 9, color: BRAND.textMid }}>{item.doorColorCode}</div>
+                                                                                                    {item.doorColorName && <div style={{ fontSize: 8, color: BRAND.textLight }}>{item.doorColorName}</div>}
+                                                                                                </div>
+                                                                                            )}
+                                                                                        </div>
+                                                                                    )}
+                                                                                </div>
+                                                                                {/* Functional images */}
+                                                                                {item.functionalImages?.length > 0 && (
+                                                                                    <div style={{ display: 'flex', gap: 6, marginTop: 8, flexWrap: 'wrap' }}>
+                                                                                        {item.functionalImages.map((url, idx) => (
+                                                                                            <img key={idx} src={url} alt="" style={{ width: 72, height: 54, objectFit: 'cover', borderRadius: 4, border: `1px solid ${BRAND.grey}` }} />
+                                                                                        ))}
+                                                                                    </div>
+                                                                                )}
+                                                                                {/* Attachments */}
+                                                                                {item.attachments?.length > 0 && (
+                                                                                    <div style={{ display: 'flex', gap: 8, marginTop: 6, flexWrap: 'wrap' }}>
+                                                                                        {item.attachments.map((f, idx) => (
+                                                                                            <a key={idx} href={f.url} target="_blank" rel="noopener noreferrer"
+                                                                                                style={{ fontSize: 9, color: BRAND.blue, fontWeight: 600, textDecoration: 'none', padding: '2px 8px', background: `${BRAND.blue}08`, borderRadius: 4, border: `1px solid ${BRAND.blue}20` }}>
+                                                                                                📄 {f.name}
+                                                                                            </a>
+                                                                                        ))}
+                                                                                    </div>
+                                                                                )}
+                                                                            </td>
+                                                                        </tr>
+                                                                    )}
                                                                 </React.Fragment>
                                                             ))}
                                                             <tr className="pub-sub-total">

@@ -277,6 +277,18 @@ model QuotationItem {
   width        Float               @default(0)
   height       Float               @default(0)
   image        String              @default("")
+  // Chi tiết nội thất — công năng, màu, phụ kiện
+  functionality     String         @default("") @db.Text
+  functionalImages  Json?          @default("[]")
+  attachments       Json?          @default("[]")
+  bodyColorCode     String         @default("")
+  bodyColorName     String         @default("")
+  bodyColorImage    String         @default("")
+  doorColorCode     String         @default("")
+  doorColorName     String         @default("")
+  doorColorImage    String         @default("")
+  hardware          String         @default("") @db.Text
+  renderImage       String         @default("")
   productId    String?
   product      Product?            @relation(fields: [productId], references: [id])
   parentItemId String?

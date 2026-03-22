@@ -1040,6 +1040,59 @@ export default function QuotationPDFPage() {
                                                                                     <td className="r">{fmt(si.amount)}</td>
                                                                                 </tr>
                                                                             ))}
+                                                                            {/* Chi tiết nội thất */}
+                                                                            {(item.functionality || item.bodyColorCode || item.doorColorCode || item.hardware || (item.functionalImages?.length > 0) || item.renderImage) && (
+                                                                                <tr>
+                                                                                    <td colSpan={99} style={{ padding: '8px 12px', background: '#f8fafc', borderBottom: '2px solid #DBB35E40' }}>
+                                                                                        <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
+                                                                                            {item.renderImage && (
+                                                                                                <img src={item.renderImage} alt="" style={{ width: 100, height: 75, objectFit: 'cover', borderRadius: 4, border: '1px solid #C6C6C6' }} />
+                                                                                            )}
+                                                                                            <div style={{ flex: 1, minWidth: 200 }}>
+                                                                                                {item.functionality && (
+                                                                                                    <div style={{ marginBottom: 6 }}>
+                                                                                                        <span style={{ fontSize: 8, fontWeight: 700, color: '#234093', textTransform: 'uppercase', letterSpacing: 1 }}>Công năng</span>
+                                                                                                        <div style={{ fontSize: 10, color: '#475569', whiteSpace: 'pre-line', marginTop: 2 }}>{item.functionality}</div>
+                                                                                                    </div>
+                                                                                                )}
+                                                                                                {item.hardware && (
+                                                                                                    <div style={{ marginBottom: 6 }}>
+                                                                                                        <span style={{ fontSize: 8, fontWeight: 700, color: '#234093', textTransform: 'uppercase', letterSpacing: 1 }}>Phụ kiện</span>
+                                                                                                        <div style={{ fontSize: 10, color: '#475569', marginTop: 2 }}>{item.hardware}</div>
+                                                                                                    </div>
+                                                                                                )}
+                                                                                            </div>
+                                                                                            {(item.bodyColorCode || item.doorColorCode) && (
+                                                                                                <div style={{ display: 'flex', gap: 10, flexShrink: 0 }}>
+                                                                                                    {item.bodyColorCode && (
+                                                                                                        <div style={{ textAlign: 'center' }}>
+                                                                                                            {item.bodyColorImage && <img src={item.bodyColorImage} alt="" style={{ width: 48, height: 48, objectFit: 'cover', borderRadius: 4, border: '1px solid #C6C6C6' }} />}
+                                                                                                            <div style={{ fontSize: 8, fontWeight: 700, color: '#234093', marginTop: 2 }}>Thùng</div>
+                                                                                                            <div style={{ fontSize: 9, color: '#475569' }}>{item.bodyColorCode}</div>
+                                                                                                            {item.bodyColorName && <div style={{ fontSize: 8, color: '#94a3b8' }}>{item.bodyColorName}</div>}
+                                                                                                        </div>
+                                                                                                    )}
+                                                                                                    {item.doorColorCode && (
+                                                                                                        <div style={{ textAlign: 'center' }}>
+                                                                                                            {item.doorColorImage && <img src={item.doorColorImage} alt="" style={{ width: 48, height: 48, objectFit: 'cover', borderRadius: 4, border: '1px solid #C6C6C6' }} />}
+                                                                                                            <div style={{ fontSize: 8, fontWeight: 700, color: '#234093', marginTop: 2 }}>Cánh</div>
+                                                                                                            <div style={{ fontSize: 9, color: '#475569' }}>{item.doorColorCode}</div>
+                                                                                                            {item.doorColorName && <div style={{ fontSize: 8, color: '#94a3b8' }}>{item.doorColorName}</div>}
+                                                                                                        </div>
+                                                                                                    )}
+                                                                                                </div>
+                                                                                            )}
+                                                                                        </div>
+                                                                                        {item.functionalImages?.length > 0 && (
+                                                                                            <div style={{ display: 'flex', gap: 6, marginTop: 8, flexWrap: 'wrap' }}>
+                                                                                                {item.functionalImages.map((url, idx) => (
+                                                                                                    <img key={idx} src={url} alt="" style={{ width: 72, height: 54, objectFit: 'cover', borderRadius: 4, border: '1px solid #C6C6C6' }} />
+                                                                                                ))}
+                                                                                            </div>
+                                                                                        )}
+                                                                                    </td>
+                                                                                </tr>
+                                                                            )}
                                                                         </React.Fragment>
                                                                     );
                                                                 })}
