@@ -1,11 +1,11 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { apiFetch } from '@/lib/fetchClient';
 import { useToast } from '@/components/ui/Toast';
 import ColorMaterialPicker from '@/components/quotation/ColorMaterialPicker';
-import { ArrowLeft, Check, ChevronDown, ChevronUp, Upload, X, Palette, Wrench, Image as ImageIcon, FileText, Send } from 'lucide-react';
+import { ArrowLeft, Check, ChevronDown, ChevronUp, Upload, X, Palette, Wrench, Image as ImageIcon, FileText, FolderOpen, Search } from 'lucide-react';
 
 const FLOW_STEPS = [
     { key: 'quotation', label: 'Báo giá' },
@@ -29,6 +29,91 @@ function FlowProgress({ currentStep }) {
                     {i < FLOW_STEPS.length - 1 && <div className="fs-flow-line" />}
                 </div>
             ))}
+        </div>
+    );
+}
+
+// ============================================================
+// Modal chọn tài liệu từ dự án
+// ============================================================
+function ProjectDocPicker({ open, onClose, documents, onSelect, title }) {
+    const [search, setSearch] = useState('');
+    const [filter, setFilter] = useState('all'); // all | image | pdf | other
+
+    const filtered = useMemo(() => {
+        if (!documents) return [];
+        let docs = documents;
+        if (filter === 'image') docs = docs.filter(d => d.mimeType?.startsWith('image/'));
+        else if (filter === 'pdf') docs = docs.filter(d => d.mimeType === 'application/pdf');
+        else if (filter === 'other') docs = docs.filter(d => !d.mimeType?.startsWith('image/') && d.mimeType !== 'application/pdf');
+        if (search.trim()) {
+            const q = search.toLowerCase();
+            docs = docs.filter(d => d.name?.toLowerCase().includes(q) || d.fileName?.toLowerCase().includes(q) || d.category?.toLowerCase().includes(q));
+        }
+        return docs;
+    }, [documents, search, filter]);
+
+    if (!open) return null;
+
+    const isImage = (d) => d.mimeType?.startsWith('image/');
+    const getThumb = (d) => d.thumbnailUrl || (isImage(d) ? d.fileUrl : null);
+
+    return (
+        <div className="modal-overlay" onClick={onClose}>
+            <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 800, width: '95vw', maxHeight: '85vh', display: 'flex', flexDirection: 'column' }}>
+                <div className="modal-header">
+                    <h3 className="modal-title"><FolderOpen size={18} /> {title || 'Chọn tài liệu dự án'}</h3>
+                    <button className="modal-close" onClick={onClose}><X size={18} /></button>
+                </div>
+
+                {/* Search + Filter */}
+                <div style={{ padding: '8px 16px', display: 'flex', gap: 8, alignItems: 'center', borderBottom: '1px solid var(--border-color)' }}>
+                    <div style={{ position: 'relative', flex: 1 }}>
+                        <Search size={14} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', opacity: 0.4 }} />
+                        <input className="form-input" value={search} onChange={e => setSearch(e.target.value)}
+                            placeholder="Tìm tài liệu..." style={{ paddingLeft: 30, fontSize: 13 }} />
+                    </div>
+                    {['all', 'image', 'pdf', 'other'].map(f => (
+                        <button key={f} className={`btn btn-sm ${filter === f ? 'btn-primary' : 'btn-ghost'}`}
+                            onClick={() => setFilter(f)} style={{ fontSize: 11 }}>
+                            {f === 'all' ? 'Tất cả' : f === 'image' ? 'Ảnh' : f === 'pdf' ? 'PDF' : 'Khác'}
+                        </button>
+                    ))}
+                </div>
+
+                {/* Document grid */}
+                <div style={{ flex: 1, overflow: 'auto', padding: 16 }}>
+                    {filtered.length === 0 ? (
+                        <div style={{ textAlign: 'center', padding: 40, color: 'var(--text-secondary)' }}>
+                            {documents?.length === 0 ? 'Dự án chưa có tài liệu nào' : 'Không tìm thấy'}
+                        </div>
+                    ) : (
+                        <div className="fs-doc-grid">
+                            {filtered.map(doc => {
+                                const thumb = getThumb(doc);
+                                return (
+                                    <div key={doc.id} className="fs-doc-item" onClick={() => { onSelect(doc); onClose(); }}>
+                                        <div className="fs-doc-thumb">
+                                            {thumb ? (
+                                                <img src={thumb} alt="" />
+                                            ) : (
+                                                <div className="fs-doc-icon">
+                                                    {doc.mimeType === 'application/pdf' ? '📄' : '📁'}
+                                                </div>
+                                            )}
+                                        </div>
+                                        <div className="fs-doc-name">{doc.name || doc.fileName}</div>
+                                        <div className="fs-doc-meta">
+                                            {doc.category && <span>{doc.category}</span>}
+                                            {doc.folder?.name && <span>{doc.folder.name}</span>}
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    )}
+                </div>
+            </div>
         </div>
     );
 }
@@ -57,25 +142,10 @@ function ColorSection({ label, icon, colorCode, colorName, colorImage, onPick, o
     );
 }
 
-function FurnitureCard({ item, onChange, onPickColor }) {
+function FurnitureCard({ item, onChange, onPickColor, onPickDoc }) {
     const [expanded, setExpanded] = useState(true);
 
     const set = (field, value) => onChange(item.id, field, value);
-
-    const uploadImages = async (files, field) => {
-        const current = item[field] || [];
-        for (const file of files) {
-            const formData = new FormData();
-            formData.append('file', file);
-            formData.append('folder', 'quotation-details');
-            try {
-                const res = await fetch('/api/upload', { method: 'POST', body: formData });
-                const data = await res.json();
-                if (data.url) current.push(data.url);
-            } catch { }
-        }
-        set(field, [...current]);
-    };
 
     const removeImage = (field, idx) => {
         const arr = [...(item[field] || [])];
@@ -83,22 +153,7 @@ function FurnitureCard({ item, onChange, onPickColor }) {
         set(field, arr);
     };
 
-    const uploadAttachment = async (files) => {
-        const current = item.attachments || [];
-        for (const file of files) {
-            const formData = new FormData();
-            formData.append('file', file);
-            formData.append('folder', 'quotation-details');
-            try {
-                const res = await fetch('/api/upload', { method: 'POST', body: formData });
-                const data = await res.json();
-                if (data.url) current.push({ name: file.name, url: data.url, type: file.type });
-            } catch { }
-        }
-        set('attachments', [...current]);
-    };
-
-    const hasSpecs = item.bodyColorCode || item.doorColorCode || item.functionality || item.hardware;
+    const hasSpecs = item.bodyColorCode || item.doorColorCode || (item.functionalImages?.length > 0) || item.renderImage || item.hardware;
 
     return (
         <div className={`card fs-card ${hasSpecs ? 'fs-card-filled' : ''}`}>
@@ -142,16 +197,9 @@ function FurnitureCard({ item, onChange, onPickColor }) {
                             />
                         </div>
 
-                        {/* Right: Functionality + Hardware */}
+                        {/* Right: Functionality (pick from project docs) + Hardware */}
                         <div className="fs-card-section">
-                            <h4 className="fs-section-title"><FileText size={16} /> Công năng</h4>
-                            <textarea
-                                className="form-input"
-                                value={item.functionality || ''}
-                                onChange={e => set('functionality', e.target.value)}
-                                rows={3}
-                                placeholder="Mô tả công năng: ngăn kéo, kệ, treo đồ, hộc tài liệu..."
-                            />
+                            <h4 className="fs-section-title"><ImageIcon size={16} /> Ảnh công năng / 3D</h4>
                             <div className="fs-images-row">
                                 {(item.functionalImages || []).map((url, idx) => (
                                     <div key={idx} className="fs-img-thumb">
@@ -159,64 +207,39 @@ function FurnitureCard({ item, onChange, onPickColor }) {
                                         <button className="fs-img-remove" onClick={() => removeImage('functionalImages', idx)}>×</button>
                                     </div>
                                 ))}
-                                <label className="fs-img-add">
-                                    <Upload size={16} />
-                                    <span>Ảnh</span>
-                                    <input type="file" accept="image/*" multiple hidden onChange={e => uploadImages(e.target.files, 'functionalImages')} />
-                                </label>
+                                {item.renderImage && (
+                                    <div className="fs-img-thumb fs-img-render">
+                                        <img src={item.renderImage} alt="" />
+                                        <button className="fs-img-remove" onClick={() => set('renderImage', '')}>×</button>
+                                    </div>
+                                )}
+                            </div>
+                            <div style={{ display: 'flex', gap: 6, marginTop: 4 }}>
+                                <button className="btn btn-secondary btn-sm" style={{ flex: 1, justifyContent: 'center', gap: 6 }}
+                                    onClick={() => onPickDoc(item.id)}>
+                                    <FolderOpen size={14} /> Chọn từ dự án
+                                </button>
                             </div>
 
-                            <h4 className="fs-section-title" style={{ marginTop: 12 }}><Wrench size={16} /> Phụ kiện</h4>
+                            <h4 className="fs-section-title" style={{ marginTop: 12 }}><FileText size={16} /> Ghi chú công năng</h4>
+                            <textarea
+                                className="form-input"
+                                value={item.functionality || ''}
+                                onChange={e => set('functionality', e.target.value)}
+                                rows={2}
+                                placeholder="Ghi chú thêm: ngăn kéo, kệ, treo đồ..."
+                                style={{ fontSize: 12 }}
+                            />
+
+                            <h4 className="fs-section-title" style={{ marginTop: 8 }}><Wrench size={16} /> Phụ kiện</h4>
                             <textarea
                                 className="form-input"
                                 value={item.hardware || ''}
                                 onChange={e => set('hardware', e.target.value)}
                                 rows={2}
                                 placeholder="Bản lề Blum, ray Tandembox, tay nắm nhôm 128mm..."
+                                style={{ fontSize: 12 }}
                             />
-                        </div>
-                    </div>
-
-                    {/* 3D Render + Attachments */}
-                    <div className="fs-card-footer-row">
-                        <div className="fs-render-section">
-                            <h4 className="fs-section-title"><ImageIcon size={16} /> Ảnh 3D</h4>
-                            <div className="fs-images-row">
-                                {item.renderImage ? (
-                                    <div className="fs-img-thumb fs-img-render">
-                                        <img src={item.renderImage} alt="" />
-                                        <button className="fs-img-remove" onClick={() => set('renderImage', '')}>×</button>
-                                    </div>
-                                ) : (
-                                    <label className="fs-img-add">
-                                        <Upload size={16} />
-                                        <span>Upload 3D</span>
-                                        <input type="file" accept="image/*" hidden onChange={e => {
-                                            if (!e.target.files[0]) return;
-                                            const formData = new FormData();
-                                            formData.append('file', e.target.files[0]);
-                                            formData.append('folder', 'quotation-details');
-                                            fetch('/api/upload', { method: 'POST', body: formData })
-                                                .then(r => r.json()).then(d => d.url && set('renderImage', d.url)).catch(() => { });
-                                        }} />
-                                    </label>
-                                )}
-                            </div>
-                        </div>
-                        <div className="fs-attach-section">
-                            <h4 className="fs-section-title">📎 File đính kèm</h4>
-                            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
-                                {(item.attachments || []).map((f, idx) => (
-                                    <div key={idx} className="fs-attach-item">
-                                        <a href={f.url} target="_blank" rel="noopener noreferrer">{f.name}</a>
-                                        <button onClick={() => { const arr = [...(item.attachments || [])]; arr.splice(idx, 1); set('attachments', arr); }}>×</button>
-                                    </div>
-                                ))}
-                                <label className="fs-img-add" style={{ padding: '4px 10px' }}>
-                                    <Upload size={14} /> <span>Tải file</span>
-                                    <input type="file" multiple hidden onChange={e => uploadAttachment(e.target.files)} />
-                                </label>
-                            </div>
                         </div>
                     </div>
                 </div>
@@ -231,16 +254,17 @@ export default function FurnitureSpecPage() {
     const toast = useToast();
 
     const [quotation, setQuotation] = useState(null);
-    const [items, setItems] = useState({}); // { itemId: { ...furnitureFields } }
+    const [items, setItems] = useState({});
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [pickerOpen, setPickerOpen] = useState(null); // { itemId, type: 'body'|'door' }
+    const [docPickerOpen, setDocPickerOpen] = useState(null); // itemId | null
+    const [projectDocs, setProjectDocs] = useState([]);
 
     useEffect(() => {
         apiFetch(`/api/quotations/${id}/furniture`)
             .then(data => {
                 setQuotation(data);
-                // Flatten all items into a map
                 const map = {};
                 (data.categories || []).forEach(cat => {
                     (cat.items || []).forEach(item => {
@@ -248,6 +272,13 @@ export default function FurnitureSpecPage() {
                     });
                 });
                 setItems(map);
+
+                // Load project documents if quotation has a project
+                if (data.projectId) {
+                    apiFetch(`/api/projects/${data.projectId}`)
+                        .then(proj => setProjectDocs(proj.documents || []))
+                        .catch(() => {});
+                }
             })
             .catch(e => toast.error(e.message))
             .finally(() => setLoading(false));
@@ -268,6 +299,25 @@ export default function FurnitureSpecPage() {
         updateItemField(itemId, `${prefix}Name`, product.name || '');
         updateItemField(itemId, `${prefix}Image`, product.image || '');
         setPickerOpen(null);
+    };
+
+    const handleDocSelect = (doc) => {
+        if (!docPickerOpen) return;
+        const itemId = docPickerOpen;
+        const isImage = doc.mimeType?.startsWith('image/');
+        const url = doc.fileUrl;
+
+        if (isImage) {
+            // Add to functionalImages or set as renderImage
+            const item = items[itemId];
+            const current = item?.functionalImages || [];
+            updateItemField(itemId, 'functionalImages', [...current, url]);
+        } else {
+            // Non-image: add to attachments
+            const item = items[itemId];
+            const current = item?.attachments || [];
+            updateItemField(itemId, 'attachments', [...current, { name: doc.name || doc.fileName, url, type: doc.mimeType }]);
+        }
     };
 
     const handleSave = async () => {
@@ -298,7 +348,7 @@ export default function FurnitureSpecPage() {
         setSaving(false);
     };
 
-    // Group items by category group + category name
+    // Group items by category
     const grouped = {};
     Object.values(items).forEach(item => {
         const group = item._categoryGroup || 'Chung';
@@ -310,7 +360,7 @@ export default function FurnitureSpecPage() {
 
     const totalItems = Object.keys(items).length;
     const filledItems = Object.values(items).filter(i =>
-        i.bodyColorCode || i.doorColorCode || i.functionality || i.hardware
+        i.bodyColorCode || i.doorColorCode || (i.functionalImages?.length > 0) || i.renderImage || i.hardware
     ).length;
 
     if (loading) return <div className="page-loading">Đang tải...</div>;
@@ -341,13 +391,18 @@ export default function FurnitureSpecPage() {
                 </div>
             </div>
 
-            {/* Flow Progress */}
             <FlowProgress currentStep="furniture" />
 
-            {/* Progress bar */}
             <div className="fs-progress-bar">
                 <div className="fs-progress-fill" style={{ width: `${totalItems > 0 ? (filledItems / totalItems) * 100 : 0}%` }} />
             </div>
+
+            {/* No project warning */}
+            {!quotation.projectId && (
+                <div className="card" style={{ padding: '12px 16px', background: '#fef3c7', borderColor: '#f59e0b', marginBottom: 16, fontSize: 13 }}>
+                    Báo giá chưa gắn dự án — không thể chọn tài liệu từ dự án. Hãy gắn dự án trong trang sửa báo giá.
+                </div>
+            )}
 
             {/* Items grouped by category */}
             <div className="fs-content">
@@ -364,6 +419,7 @@ export default function FurnitureSpecPage() {
                                 item={item}
                                 onChange={updateItemField}
                                 onPickColor={(itemId, type) => setPickerOpen({ itemId, type })}
+                                onPickDoc={(itemId) => setDocPickerOpen(itemId)}
                             />
                         ))}
                     </div>
@@ -395,6 +451,15 @@ export default function FurnitureSpecPage() {
                 onClose={() => setPickerOpen(null)}
                 onSelect={handleColorSelect}
                 title={pickerOpen?.type === 'body' ? 'Chọn màu thùng' : 'Chọn màu cánh'}
+            />
+
+            {/* Project Document Picker Modal */}
+            <ProjectDocPicker
+                open={!!docPickerOpen}
+                onClose={() => setDocPickerOpen(null)}
+                documents={projectDocs}
+                onSelect={handleDocSelect}
+                title="Chọn ảnh công năng / 3D từ dự án"
             />
         </div>
     );
