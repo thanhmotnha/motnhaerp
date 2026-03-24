@@ -72,6 +72,8 @@ export const PUT = withAuth(async (request, { params }) => {
                         proofUrl: prev?.proofUrl || '',
                         paidDate: prev?.paidDate || null,
                         dueDate: p.dueDate ? new Date(p.dueDate) : prev?.dueDate || null,
+                        retentionRate: Number(p.retentionRate) || 0,
+                        retentionAmount: Number(p.retentionAmount) || 0,
                     };
                 }),
             });

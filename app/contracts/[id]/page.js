@@ -113,6 +113,7 @@ export default function ContractDetailPage() {
             phase: p.phase, amount: p.amount || 0, paidAmount: p.paidAmount || 0,
             pct: cv > 0 ? Math.round((p.amount || 0) / cv * 100) : 0,
             status: p.status || 'Chưa thu', notes: p.notes || '', category: p.category || '',
+            retentionRate: p.retentionRate || 0, retentionAmount: p.retentionAmount || 0,
         })));
         setEditingPayments(true);
     };
@@ -121,10 +122,15 @@ export default function ContractDetailPage() {
         const templates = dbPaymentTemplates || PAYMENT_TEMPLATES;
         const tmpl = templates[form.type] || PAYMENT_TEMPLATES[form.type] || [];
         const cv = parseFloat(form.contractValue) || 0;
-        setPaymentPhases(tmpl.map(t => ({
-            phase: t.phase, pct: t.pct, category: t.category || '',
-            amount: Math.round(cv * t.pct / 100), paidAmount: 0, status: 'Chưa thu', notes: '',
-        })));
+        setPaymentPhases(tmpl.map(t => {
+            const amount = Math.round(cv * t.pct / 100);
+            const retRate = t.retentionRate || 0;
+            return {
+                phase: t.phase, pct: t.pct, category: t.category || '',
+                amount, paidAmount: 0, status: 'Chưa thu', notes: '',
+                retentionRate: retRate, retentionAmount: retRate > 0 ? Math.round(cv * retRate / 100) : 0,
+            };
+        }));
     };
 
     const updatePhase = (idx, field, value) => {
@@ -134,11 +140,13 @@ export default function ContractDetailPage() {
             const updated = { ...p, [field]: value };
             if (field === 'pct') updated.amount = Math.round(cv * (Number(value) || 0) / 100);
             if (field === 'amount') updated.pct = cv ? Math.round((Number(value) || 0) / cv * 100) : 0;
+            if (field === 'retentionRate') updated.retentionAmount = Math.round(cv * (Number(value) || 0) / 100);
+            if (field === 'retentionAmount') updated.retentionRate = cv ? Math.round((Number(value) || 0) / cv * 100) : 0;
             return updated;
         }));
     };
 
-    const addPhase = () => setPaymentPhases(prev => [...prev, { phase: '', pct: 0, amount: 0, paidAmount: 0, status: 'Chưa thu', notes: '', category: '' }]);
+    const addPhase = () => setPaymentPhases(prev => [...prev, { phase: '', pct: 0, amount: 0, paidAmount: 0, status: 'Chưa thu', notes: '', category: '', retentionRate: 0, retentionAmount: 0 }]);
     const removePhase = (idx) => setPaymentPhases(prev => prev.filter((_, i) => i !== idx));
 
     const savePayments = async () => {
@@ -410,23 +418,39 @@ export default function ContractDetailPage() {
                                             <thead><tr>
                                                 <th style={{ width: 35 }}>#</th><th>Giai đoạn</th>
                                                 <th style={{ width: 80, textAlign: 'center' }}>%</th>
-                                                <th style={{ width: 160, textAlign: 'right' }}>Số tiền</th>
+                                                <th style={{ width: 140, textAlign: 'right' }}>Số tiền</th>
+                                                <th style={{ width: 65, textAlign: 'center' }}>GT %</th>
+                                                <th style={{ width: 120, textAlign: 'right' }}>Giảm trừ</th>
+                                                <th style={{ width: 120, textAlign: 'right' }}>Thực nhận</th>
                                                 <th style={{ width: 40 }}></th>
                                             </tr></thead>
                                             <tbody>
-                                                {paymentPhases.map((p, idx) => (
-                                                    <tr key={idx}>
-                                                        <td style={{ textAlign: 'center', fontWeight: 600, color: 'var(--text-muted)' }}>{idx + 1}</td>
-                                                        <td><input className="form-input form-input-compact" value={p.phase} onChange={e => updatePhase(idx, 'phase', e.target.value)} style={{ width: '100%' }} /></td>
-                                                        <td><div style={{ display: 'flex', alignItems: 'center', gap: 2 }}><input className="form-input form-input-compact" type="number" value={p.pct || ''} onChange={e => updatePhase(idx, 'pct', parseFloat(e.target.value) || 0)} style={{ width: 55, textAlign: 'center' }} /><span style={{ fontSize: 11 }}>%</span></div></td>
-                                                        <td><input className="form-input form-input-compact" type="number" value={p.amount || ''} onChange={e => updatePhase(idx, 'amount', parseFloat(e.target.value) || 0)} style={{ width: '100%', textAlign: 'right' }} /></td>
-                                                        <td><button className="btn btn-ghost" onClick={() => removePhase(idx)} style={{ padding: '2px 6px', fontSize: 11, color: 'var(--status-danger)' }}>✕</button></td>
-                                                    </tr>
-                                                ))}
+                                                {paymentPhases.map((p, idx) => {
+                                                    const netAmount = (p.amount || 0) - (p.retentionAmount || 0);
+                                                    return (
+                                                        <tr key={idx}>
+                                                            <td style={{ textAlign: 'center', fontWeight: 600, color: 'var(--text-muted)' }}>{idx + 1}</td>
+                                                            <td><input className="form-input form-input-compact" value={p.phase} onChange={e => updatePhase(idx, 'phase', e.target.value)} style={{ width: '100%' }} /></td>
+                                                            <td><div style={{ display: 'flex', alignItems: 'center', gap: 2 }}><input className="form-input form-input-compact" type="number" value={p.pct || ''} onChange={e => updatePhase(idx, 'pct', parseFloat(e.target.value) || 0)} style={{ width: 55, textAlign: 'center' }} /><span style={{ fontSize: 11 }}>%</span></div></td>
+                                                            <td><input className="form-input form-input-compact" type="number" value={p.amount || ''} onChange={e => updatePhase(idx, 'amount', parseFloat(e.target.value) || 0)} style={{ width: '100%', textAlign: 'right' }} /></td>
+                                                            <td><div style={{ display: 'flex', alignItems: 'center', gap: 2 }}><input className="form-input form-input-compact" type="number" value={p.retentionRate || ''} onChange={e => updatePhase(idx, 'retentionRate', parseFloat(e.target.value) || 0)} style={{ width: 45, textAlign: 'center' }} /><span style={{ fontSize: 11 }}>%</span></div></td>
+                                                            <td style={{ textAlign: 'right', color: p.retentionAmount > 0 ? 'var(--status-danger)' : 'var(--text-muted)', fontSize: 12 }}>{p.retentionAmount > 0 ? `-${fmt(p.retentionAmount)}` : '—'}</td>
+                                                            <td style={{ textAlign: 'right', fontWeight: 600, color: 'var(--primary)', fontSize: 12 }}>{fmt(netAmount)}</td>
+                                                            <td><button className="btn btn-ghost" onClick={() => removePhase(idx)} style={{ padding: '2px 6px', fontSize: 11, color: 'var(--status-danger)' }}>✕</button></td>
+                                                        </tr>
+                                                    );
+                                                })}
                                                 <tr style={{ background: 'var(--bg-hover)', fontWeight: 700 }}>
                                                     <td></td><td>Tổng cộng</td>
                                                     <td style={{ textAlign: 'center', color: totalPhasePct === 100 ? 'var(--status-success)' : 'var(--status-danger)' }}>{totalPhasePct}%</td>
                                                     <td style={{ textAlign: 'right', color: 'var(--primary)' }}>{fmt(totalPhaseAmount)}</td>
+                                                    <td></td>
+                                                    <td style={{ textAlign: 'right', color: 'var(--status-danger)', fontSize: 12 }}>
+                                                        {(() => { const totalRet = paymentPhases.reduce((s, p) => s + (p.retentionAmount || 0), 0); return totalRet > 0 ? `-${fmt(totalRet)}` : '—'; })()}
+                                                    </td>
+                                                    <td style={{ textAlign: 'right', color: 'var(--primary)', fontSize: 12 }}>
+                                                        {fmt(paymentPhases.reduce((s, p) => s + ((p.amount || 0) - (p.retentionAmount || 0)), 0))}
+                                                    </td>
                                                     <td></td>
                                                 </tr>
                                             </tbody>
@@ -438,6 +462,7 @@ export default function ContractDetailPage() {
                                             <table className="data-table" style={{ margin: 0 }}>
                                                 <thead><tr>
                                                     <th>Đợt thanh toán</th><th>%</th><th>Giá trị</th>
+                                                    <th>Giảm trừ</th><th>Thực nhận</th>
                                                     <th>Đã thu</th><th>Còn lại</th><th>Tiến độ</th>
                                                     <th>Ngày thu</th><th>Trạng thái</th>
                                                 </tr></thead>
@@ -445,18 +470,24 @@ export default function ContractDetailPage() {
                                                     {data.payments.map(p => {
                                                         const cv = parseFloat(form.contractValue) || 0;
                                                         const phasePct = cv > 0 ? Math.round((p.amount || 0) / cv * 100) : 0;
-                                                        const paidPct = p.amount > 0 ? Math.round((p.paidAmount || 0) / p.amount * 100) : 0;
-                                                        const remaining = (p.amount || 0) - (p.paidAmount || 0);
+                                                        const retAmt = p.retentionAmount || 0;
+                                                        const netAmount = (p.amount || 0) - retAmt;
+                                                        const paidPct = netAmount > 0 ? Math.round((p.paidAmount || 0) / netAmount * 100) : 0;
+                                                        const remaining = netAmount - (p.paidAmount || 0);
                                                         return (
                                                             <tr key={p.id}>
                                                                 <td style={{ fontWeight: 600 }}>{p.phase}</td>
                                                                 <td style={{ textAlign: 'center' }}>{phasePct}%</td>
                                                                 <td className="amount">{fmt(p.amount)}</td>
+                                                                <td style={{ textAlign: 'right', color: retAmt > 0 ? 'var(--status-danger)' : 'var(--text-muted)', fontSize: 12 }}>
+                                                                    {retAmt > 0 ? <span>-{fmt(retAmt)} <span style={{ fontSize: 10, opacity: 0.7 }}>({p.retentionRate || 0}%)</span></span> : '—'}
+                                                                </td>
+                                                                <td style={{ textAlign: 'right', fontWeight: 600, color: 'var(--primary)' }}>{fmt(netAmount)}</td>
                                                                 <td style={{ color: 'var(--status-success)', fontWeight: 600 }}>{fmt(p.paidAmount)}</td>
                                                                 <td style={{ color: remaining > 0 ? 'var(--status-danger)' : 'var(--text-muted)', fontWeight: 600 }}>{fmt(remaining)}</td>
                                                                 <td>
                                                                     <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                                                                        <div className="progress-bar" style={{ flex: 1, minWidth: 50 }}><div className="progress-fill" style={{ width: `${paidPct}%` }}></div></div>
+                                                                        <div className="progress-bar" style={{ flex: 1, minWidth: 50 }}><div className="progress-fill" style={{ width: `${Math.min(paidPct, 100)}%` }}></div></div>
                                                                         <span style={{ fontSize: 11 }}>{paidPct}%</span>
                                                                     </div>
                                                                 </td>
