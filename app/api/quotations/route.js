@@ -56,6 +56,9 @@ export const POST = withAuth(async (request) => {
             managementFee: Number(validated.managementFee) || 0,
             designFee: Number(validated.designFee) || 0,
             otherFee: Number(validated.otherFee) || 0,
+            adjustment: Number(validated.adjustment) || 0,
+            adjustmentType: validated.adjustmentType || 'amount',
+            adjustmentAmount: Number(validated.adjustmentAmount) || 0,
             directCost: Number(validated.directCost) || 0,
             total: Number(validated.total) || 0,
             grandTotal: Number(validated.grandTotal) || 0,
@@ -141,7 +144,7 @@ export const POST = withAuth(async (request) => {
                 }
             }
 
-            return await tx.quotation.findUnique({
+            return await tx.quotation.findFirst({
                 where: { id: quotation.id },
                 include: {
                     categories: { include: { items: true }, orderBy: { order: 'asc' } },

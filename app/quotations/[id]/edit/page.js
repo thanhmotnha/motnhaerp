@@ -253,6 +253,9 @@ export default function EditQuotationPage() {
                         <button className="btn btn-primary" onClick={() => window.open(`/quotations/${params.id}/pdf`, '_blank')} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '10px 24px', fontSize: 15, fontWeight: 700 }}>
                             📄 Xem Báo Giá
                         </button>
+                        <button className="btn btn-secondary" onClick={() => router.push(`/quotations/${params.id}/furniture`)} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                            🎨 Chốt nội thất
+                        </button>
                         {/* Lưu mẫu */}
                         <button className="btn btn-ghost" onClick={async () => {
                             try {

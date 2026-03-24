@@ -70,7 +70,7 @@ export const POST = withAuth(async (request) => {
             });
         }
 
-        return tx.projectExpense.findUnique({
+        return tx.projectExpense.findFirst({
             where: { id: exp.id },
             include: {
                 expenseCategory: { select: { id: true, name: true, code: true } },

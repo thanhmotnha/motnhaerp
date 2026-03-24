@@ -159,7 +159,7 @@ export const POST = withAuth(async (request) => {
                     }
                 }
 
-                return await tx.contract.findUnique({
+                return await tx.contract.findFirst({
                     where: { id: contract.id },
                     include: { payments: true },
                 });

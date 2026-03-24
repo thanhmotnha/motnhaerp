@@ -164,6 +164,8 @@ export default function QuotationsPage() {
                                                 onClick={(e) => { e.stopPropagation(); window.open(`/quotations/${q.id}/pdf`, '_blank'); }}>
                                                 📄
                                             </button>
+                                            <button className="btn btn-ghost" title="Chốt nội thất"
+                                                onClick={(e) => { e.stopPropagation(); router.push(`/quotations/${q.id}/furniture`); }}>🎨</button>
                                             <button className="btn btn-ghost" onClick={(e) => { e.stopPropagation(); router.push(`/quotations/${q.id}/edit`); }}>✏️</button>
                                             <button className="btn btn-ghost" onClick={(e) => { e.stopPropagation(); setDeleteTarget(q.id); }}>🗑️</button>
                                         </td>
