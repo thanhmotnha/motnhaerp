@@ -27,51 +27,42 @@ const menuItems = [
             { href: '/customers', icon: Users, label: 'Khách hàng', roles: ['giam_doc', 'pho_gd', 'ke_toan'] },
             { href: '/quotations', icon: ClipboardList, label: 'Báo giá', roles: ['giam_doc', 'pho_gd', 'ke_toan'], quick: '/quotations/create' },
             { href: '/contracts', icon: FileText, label: 'Hợp đồng', roles: ['giam_doc', 'pho_gd', 'ke_toan'], quick: '/contracts/create' },
+            { href: '/warranty', icon: ShieldCheck, label: 'Bảo hành', roles: ['giam_doc', 'pho_gd', 'quan_ly_du_an'] },
         ]
     },
     {
         section: 'Dự án', items: [
             { href: '/projects', icon: Building2, label: 'Dự án' },
             { href: '/work-orders', icon: ClipboardCheck, label: 'Lệnh công việc' },
-            { href: '/daily-logs', icon: BookOpen, label: 'Nhật ký CT' },
+            { href: '/daily-logs', icon: BookOpen, label: 'Nhật ký' },
             { href: '/acceptance', icon: CheckCircle, label: 'Nghiệm thu' },
-            { href: '/contractors', icon: HardHat, label: 'Nhà thầu phụ' },
-            { href: '/warranty', icon: ShieldCheck, label: 'Bảo hành', roles: ['giam_doc', 'pho_gd', 'quan_ly_du_an'] },
         ]
     },
     {
-        section: 'Vật tư & Kho', items: [
-            { href: '/products', icon: Package, label: 'Sản phẩm & VT' },
+        section: 'Vật tư & Sản xuất', items: [
+            { href: '/products', icon: Package, label: 'Sản phẩm' },
             { href: '/material-plans', icon: ClipboardList, label: 'KH Vật tư' },
             { href: '/purchasing', icon: ShoppingCart, label: 'Mua sắm', roles: ['giam_doc', 'pho_gd', 'ke_toan'] },
-            { href: '/inventory', icon: Warehouse, label: 'Kho & Tồn kho' },
+            { href: '/inventory', icon: Warehouse, label: 'Kho', roles: ['giam_doc', 'pho_gd', 'ke_toan', 'quan_ly_du_an'] },
             { href: '/warehouse-transfers', icon: ArrowRightLeft, label: 'Chuyển kho' },
-            { href: '/partners', icon: Truck, label: 'Đối tác NCC/TP', roles: ['giam_doc', 'pho_gd', 'ke_toan'] },
-        ]
-    },
-    {
-        section: 'Sản xuất', items: [
-            { href: '/furniture-orders', icon: ClipboardList, label: 'Đơn nội thất' },
+            { href: '/furniture-orders', icon: Wrench, label: 'Đơn nội thất' },
             { href: '/production-batches', icon: Activity, label: 'Lô sản xuất' },
-            { href: '/workshops', icon: Factory, label: 'Xưởng SX', roles: ['giam_doc', 'pho_gd', 'quan_ly_du_an'] },
         ]
     },
     {
         section: 'Tài chính', items: [
-            { href: '/finance', icon: Wallet, label: 'Tài chính', roles: ['giam_doc', 'pho_gd', 'ke_toan'] },
+            { href: '/finance', icon: Wallet, label: 'Tổng quan', roles: ['giam_doc', 'pho_gd', 'ke_toan'] },
             { href: '/expenses', icon: DollarSign, label: 'Chi phí DA', roles: ['giam_doc', 'pho_gd', 'ke_toan', 'quan_ly_du_an'] },
-            { href: '/expenses/categories', icon: Receipt, label: 'Hạng mục CP', roles: ['giam_doc', 'pho_gd', 'ke_toan'] },
             { href: '/budget', icon: PiggyBank, label: 'Ngân sách', roles: ['giam_doc', 'pho_gd', 'ke_toan', 'quan_ly_du_an'] },
             { href: '/accounting', icon: Calculator, label: 'Kế toán', roles: ['giam_doc', 'pho_gd', 'ke_toan'] },
         ]
     },
     {
-        section: 'Nhân sự', items: [
+        section: 'Quản lý', items: [
+            { href: '/partners', icon: Truck, label: 'Đối tác & NCC', roles: ['giam_doc', 'pho_gd', 'ke_toan'] },
+            { href: '/contractors', icon: HardHat, label: 'Nhà thầu phụ' },
             { href: '/hr', icon: UserCog, label: 'Nhân sự', roles: ['giam_doc', 'pho_gd', 'ke_toan'] },
-        ]
-    },
-    {
-        section: 'Hệ thống', items: [
+            { href: '/workshops', icon: Factory, label: 'Xưởng SX', roles: ['giam_doc', 'pho_gd', 'quan_ly_du_an'] },
             { href: '/admin/settings', icon: Settings, label: 'Cài đặt', roles: ['giam_doc'] },
         ]
     },
