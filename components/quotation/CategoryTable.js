@@ -2,6 +2,7 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { fmt, UNIT_OPTIONS } from '@/lib/quotation-constants';
 import { apiFetch } from '@/lib/fetchClient';
+import ColorMaterialPicker from '@/components/quotation/ColorMaterialPicker';
 
 // Inline product search for sub-item name field
 function SubItemSearch({ value, onChange, onSelect, products }) {
@@ -118,6 +119,22 @@ function InlineVariants({ productId, basePrice, onPriceChange, onDescChange }) {
 
 // Expandable furniture detail panel for each item
 function FurnitureDetailPanel({ item, mi, si, ii, updateItem }) {
+    const [pickerOpen, setPickerOpen] = useState(null); // null | 'body' | 'door'
+
+    const handleColorSelect = (product, type) => {
+        const prefix = type === 'body' ? 'bodyColor' : 'doorColor';
+        updateItem(mi, si, ii, `${prefix}Code`, product.code || product.surfaceCode || '');
+        updateItem(mi, si, ii, `${prefix}Name`, product.name || '');
+        updateItem(mi, si, ii, `${prefix}Image`, product.image || '');
+    };
+
+    const clearColor = (type) => {
+        const prefix = type === 'body' ? 'bodyColor' : 'doorColor';
+        updateItem(mi, si, ii, `${prefix}Code`, '');
+        updateItem(mi, si, ii, `${prefix}Name`, '');
+        updateItem(mi, si, ii, `${prefix}Image`, '');
+    };
+
     const uploadImage = async (file, field) => {
         const formData = new FormData();
         formData.append('file', file);
@@ -218,46 +235,48 @@ function FurnitureDetailPanel({ item, mi, si, ii, updateItem }) {
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                         <div style={sectionStyle}>
                             <label style={labelStyle}>🎨 Mã màu thùng</label>
-                            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                                <input value={item.bodyColorCode || ''} onChange={e => updateItem(mi, si, ii, 'bodyColorCode', e.target.value)}
-                                    placeholder="Mã: AC-3210" style={{ ...inputStyle, width: 100 }} />
-                                <input value={item.bodyColorName || ''} onChange={e => updateItem(mi, si, ii, 'bodyColorName', e.target.value)}
-                                    placeholder="Tên: Walnut" style={{ ...inputStyle, flex: 1 }} />
-                                {item.bodyColorImage ? (
-                                    <div style={{ position: 'relative', width: 36, height: 36 }}>
-                                        <img src={item.bodyColorImage} alt="" style={{ width: 36, height: 36, objectFit: 'cover', borderRadius: 4, border: '1px solid var(--border-color)' }} />
-                                        <button onClick={() => updateItem(mi, si, ii, 'bodyColorImage', '')}
-                                            style={{ position: 'absolute', top: -4, right: -4, width: 14, height: 14, borderRadius: '50%', border: 'none', background: '#ef4444', color: '#fff', fontSize: 8, cursor: 'pointer' }}>×</button>
+                            {item.bodyColorCode || item.bodyColorName ? (
+                                <div className="cmp-selected">
+                                    {item.bodyColorImage && <img src={item.bodyColorImage} alt="" className="cmp-selected-img" />}
+                                    <div className="cmp-selected-info">
+                                        <div className="cmp-selected-code">{item.bodyColorCode || '—'}</div>
+                                        <div className="cmp-selected-name">{item.bodyColorName || '—'}</div>
                                     </div>
-                                ) : (
-                                    <label style={{ width: 36, height: 36, border: '2px dashed var(--border-color)', borderRadius: 4, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: 14, opacity: 0.4 }}>
-                                        🖼
-                                        <input type="file" accept="image/*" hidden onChange={e => e.target.files[0] && uploadImage(e.target.files[0], 'bodyColorImage')} />
-                                    </label>
-                                )}
-                            </div>
+                                    <button className="cmp-pick-btn" style={{ padding: '3px 8px', fontSize: 11 }} onClick={() => setPickerOpen('body')}>Đổi</button>
+                                    <button className="cmp-selected-clear" onClick={() => clearColor('body')}>×</button>
+                                </div>
+                            ) : (
+                                <button className="cmp-pick-btn" onClick={() => setPickerOpen('body')}>
+                                    🎨 Chọn màu thùng từ sản phẩm
+                                </button>
+                            )}
                         </div>
                         <div style={sectionStyle}>
                             <label style={labelStyle}>🎨 Mã màu cánh</label>
-                            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                                <input value={item.doorColorCode || ''} onChange={e => updateItem(mi, si, ii, 'doorColorCode', e.target.value)}
-                                    placeholder="Mã: AC-5501" style={{ ...inputStyle, width: 100 }} />
-                                <input value={item.doorColorName || ''} onChange={e => updateItem(mi, si, ii, 'doorColorName', e.target.value)}
-                                    placeholder="Tên: Trắng bóng" style={{ ...inputStyle, flex: 1 }} />
-                                {item.doorColorImage ? (
-                                    <div style={{ position: 'relative', width: 36, height: 36 }}>
-                                        <img src={item.doorColorImage} alt="" style={{ width: 36, height: 36, objectFit: 'cover', borderRadius: 4, border: '1px solid var(--border-color)' }} />
-                                        <button onClick={() => updateItem(mi, si, ii, 'doorColorImage', '')}
-                                            style={{ position: 'absolute', top: -4, right: -4, width: 14, height: 14, borderRadius: '50%', border: 'none', background: '#ef4444', color: '#fff', fontSize: 8, cursor: 'pointer' }}>×</button>
+                            {item.doorColorCode || item.doorColorName ? (
+                                <div className="cmp-selected">
+                                    {item.doorColorImage && <img src={item.doorColorImage} alt="" className="cmp-selected-img" />}
+                                    <div className="cmp-selected-info">
+                                        <div className="cmp-selected-code">{item.doorColorCode || '—'}</div>
+                                        <div className="cmp-selected-name">{item.doorColorName || '—'}</div>
                                     </div>
-                                ) : (
-                                    <label style={{ width: 36, height: 36, border: '2px dashed var(--border-color)', borderRadius: 4, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: 14, opacity: 0.4 }}>
-                                        🖼
-                                        <input type="file" accept="image/*" hidden onChange={e => e.target.files[0] && uploadImage(e.target.files[0], 'doorColorImage')} />
-                                    </label>
-                                )}
-                            </div>
+                                    <button className="cmp-pick-btn" style={{ padding: '3px 8px', fontSize: 11 }} onClick={() => setPickerOpen('door')}>Đổi</button>
+                                    <button className="cmp-selected-clear" onClick={() => clearColor('door')}>×</button>
+                                </div>
+                            ) : (
+                                <button className="cmp-pick-btn" onClick={() => setPickerOpen('door')}>
+                                    🎨 Chọn màu cánh từ sản phẩm
+                                </button>
+                            )}
                         </div>
+
+                        {/* Color Material Picker Modal */}
+                        <ColorMaterialPicker
+                            open={!!pickerOpen}
+                            onClose={() => setPickerOpen(null)}
+                            onSelect={(product) => handleColorSelect(product, pickerOpen)}
+                            title={pickerOpen === 'body' ? 'Chọn màu thùng' : 'Chọn màu cánh'}
+                        />
                         <div style={sectionStyle}>
                             <label style={labelStyle}>🔩 Phụ kiện</label>
                             <textarea value={item.hardware || ''} onChange={e => updateItem(mi, si, ii, 'hardware', e.target.value)}
