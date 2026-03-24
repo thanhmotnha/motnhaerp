@@ -42,6 +42,7 @@ export default function ProductDetailPage() {
 
     // Biến thể (Attributes)
     const [attributes, setAttributes] = useState([]);
+    const [loadingAttr, setLoadingAttr] = useState(true);
     const [attrForm, setAttrForm] = useState({ name: '', inputType: 'select', required: true });
     const [showAttrForm, setShowAttrForm] = useState(false);
     const [optionForms, setOptionForms] = useState({});
@@ -51,12 +52,6 @@ export default function ProductDetailPage() {
 
     // Categories from DB
     const [allCats, setAllCats] = useState([]);
-    useEffect(() => {
-        apiFetch('/api/product-categories').then(data => {
-            const flat = flatCats(data || []);
-            setAllCats(flat);
-        }).catch(() => {});
-    }, []);
 
     function flatCats(cats, depth = 0) {
         const r = [];
@@ -66,6 +61,28 @@ export default function ProductDetailPage() {
         }
         return r;
     }
+
+    // Preload all data in parallel on mount
+    useEffect(() => {
+        let cancelled = false;
+        Promise.all([
+            apiFetch(`/api/products/${id}`).catch(() => null),
+            apiFetch('/api/product-categories').catch(() => []),
+            apiFetch(`/api/products/${id}/attributes`).catch(() => []),
+            apiFetch('/api/variant-templates').catch(() => []),
+        ]).then(([p, cats, attrs, templates]) => {
+            if (cancelled) return;
+            if (!p) { router.push('/products'); return; }
+            setProduct(p);
+            setForm({ ...p });
+            setDirty(false);
+            setAllCats(flatCats(cats || []));
+            setAttributes(attrs || []);
+            setVariantTemplates(templates || []);
+            setLoadingAttr(false);
+        });
+        return () => { cancelled = true; };
+    }, [id]);
 
     const fetchProduct = async () => {
         try {
@@ -89,14 +106,15 @@ export default function ProductDetailPage() {
     };
 
     const fetchAttributes = async () => {
+        setLoadingAttr(true);
         try { setAttributes(await apiFetch(`/api/products/${id}/attributes`)); } catch { setAttributes([]); }
+        setLoadingAttr(false);
     };
 
-    useEffect(() => { fetchProduct(); }, [id]);
     useEffect(() => {
         if (tab === 'bom') { fetchBom(); apiFetch('/api/products?limit=1000').then(d => setAllProducts(d.data || [])).catch(() => {}); }
         if (tab === 'inventory') fetchTx();
-        if (tab === 'attributes') { fetchAttributes(); apiFetch('/api/variant-templates').then(setVariantTemplates).catch(() => {}); }
+        // attributes + templates already preloaded on mount, no lazy fetch needed
     }, [tab]);
 
     const set = (field, value) => { setForm(f => ({ ...f, [field]: value })); setDirty(true); };
@@ -482,7 +500,7 @@ export default function ProductDetailPage() {
             )}
 
             {/* ===== TAB: BIẾN THỂ ===== */}
-            {tab === 'attributes' && (
+            {tab === 'attributes' && (loadingAttr ? <div style={{ padding: 40, textAlign: 'center', opacity: 0.4 }}>Đang tải biến thể...</div> :
                 <div style={{ maxWidth: 800 }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, flexWrap: 'wrap', gap: 8 }}>
                         <div>

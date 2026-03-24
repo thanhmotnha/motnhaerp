@@ -65,6 +65,11 @@ export default function ProductsPage() {
     const [selectedIds, setSelectedIds] = useState(new Set());
     const [showAddModal, setShowAddModal] = useState(false);
     const [addForm, setAddForm] = useState({ name: '', category: 'Nội thất thành phẩm', unit: 'cái', salePrice: 0, importPrice: 0, brand: '', description: '', supplyType: 'Mua ngoài', stock: 0, minStock: 0, supplier: '', coreBoard: '', surfaceCode: '', image: '' });
+    // Edit modal state
+    const [editModal, setEditModal] = useState(null); // product object being edited
+    const [editForm, setEditForm] = useState(null);
+    const [editSaving, setEditSaving] = useState(false);
+    const editImgRef = useRef(null);
     const [categories, setCategories] = useState([]);
     const [activeCatId, setActiveCatId] = useState(null);
     const [activeCatName, setActiveCatName] = useState(null);
@@ -199,7 +204,33 @@ export default function ProductsPage() {
     const allCats = [...new Set([...PRODUCT_CATS, ...leafCats.map(c => c.name)])].sort();
     const filteredP = products.filter(p => (!filterStockStatus || stockStatus(p) === filterStockStatus));
 
-    const editProduct = (p) => router.push(`/products/${p.id}`);
+    const editProduct = (p) => {
+        setEditModal(p);
+        setEditForm({ ...p });
+    };
+    const closeEditModal = () => { setEditModal(null); setEditForm(null); };
+    const saveEditProduct = async () => {
+        if (!editForm || !editModal) return;
+        setEditSaving(true);
+        try {
+            const { id: _id, code, createdAt, updatedAt, deletedAt, categoryRef, inventoryTx, quotationItems, materialPlans, purchaseItems, bomComponents, bomUsedIn, ...data } = editForm;
+            const res = await fetch(`/api/products/${editModal.id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
+            if (!res.ok) { const err = await res.json(); alert(err.error || 'Lỗi cập nhật'); setEditSaving(false); return; }
+            closeEditModal();
+            fetchProducts(); fetchCategories();
+        } catch (e) { alert(e.message); }
+        setEditSaving(false);
+    };
+    const editImgUpload = async (file) => {
+        const fd = new FormData(); fd.append('file', file); fd.append('type', 'products');
+        try {
+            const res = await fetch('/api/upload', { method: 'POST', body: fd });
+            const { url } = await res.json();
+            if (url) setEditForm(f => ({ ...f, image: url }));
+        } catch {}
+    };
+    const setEdit = (field, value) => setEditForm(f => ({ ...f, [field]: value }));
+    const goToDetail = (pid) => router.push(`/products/${pid}`);
     const startQuickEditP = (p) => {
         setQuickEditP(prev => {
             const m = new Map(prev);
@@ -586,39 +617,26 @@ export default function ProductsPage() {
                                             const ss = stockStatus(p);
                                             const sc = SUPPLY_COLOR[normalizeSupply(p.supplyType)] || { bg: '#f5f5f5', color: '#666' };
                                             const sd = STOCK_DOT[ss] || STOCK_DOT.ok;
-                                            const margin = p.salePrice > 0 && p.importPrice > 0 ? Math.round((p.salePrice - p.importPrice) / p.salePrice * 100) : null;
                                             return (
-                                                <div key={p.id} className="plc-card">
-                                                    {/* Image */}
-                                                    <div className="plc-img" onClick={e => { e.stopPropagation(); imgUpTarget.current = p.id; imgUpRef.current?.click(); }}>
+                                                <div key={p.id} className="plc-card" onClick={() => editProduct(p)}>
+                                                    <div className="plc-img">
                                                         {p.image
                                                             ? <img src={p.image} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                                                             : <span style={{ fontSize: 40, opacity: 0.08 }}>📷</span>}
                                                         <span className="plc-supply" style={{ background: sc.bg, color: sc.color }}>{SUPPLY_ICON[normalizeSupply(p.supplyType)]} {normalizeSupply(p.supplyType)}</span>
                                                         {!isService(p) && <span className="plc-stock-badge" style={{ background: sd.color }}>{p.stock} {p.unit}</span>}
-                                                        <div className="plc-img-overlay">📤 Đổi ảnh</div>
                                                     </div>
-                                                    {/* Body */}
                                                     <div className="plc-body">
-                                                        <div className="plc-name" style={{ cursor: 'pointer', color: '#234093' }} onClick={() => editProduct(p)}>{p.name}</div>
+                                                        <div className="plc-name">{p.name}</div>
                                                         <div className="plc-meta">
                                                             <span className="plc-code">{p.code}</span>
-                                                            <button onClick={e => { e.stopPropagation(); copyCode(p.code); }} style={{ border: 'none', background: 'none', cursor: 'pointer', fontSize: 11, opacity: 0.35, padding: 0 }} title="Copy mã">📋</button>
                                                             {p.brand && <span className="plc-brand">{p.brand}</span>}
                                                         </div>
                                                         {p.description && <div className="plc-desc">{p.description}</div>}
                                                         <div className="plc-prices">
                                                             <div className="plc-sale">{fmt(p.salePrice)}<span className="plc-unit">đ/{p.unit}</span></div>
-                                                            {p.importPrice > 0 && <div className="plc-import">Nhập: {fmt(p.importPrice)}đ</div>}
                                                         </div>
-                                                        {(p.supplier || margin !== null) && (
-                                                            <div className="plc-footer">
-                                                                {p.supplier && <span className="plc-supplier">🏢 {p.supplier}</span>}
-                                                                {margin !== null && <span className="plc-margin" style={{ color: margin > 20 ? '#16a34a' : margin > 0 ? '#ca8a04' : '#ef4444' }}>LN {margin}%</span>}
-                                                            </div>
-                                                        )}
                                                     </div>
-                                                    {/* Footer actions */}
                                                     <div className="plc-actions">
                                                         <button className="btn btn-ghost btn-sm" onClick={e => { e.stopPropagation(); editProduct(p); }} style={{ fontSize: 11 }}>Sửa</button>
                                                         <button className="btn btn-ghost btn-sm" onClick={e => { e.stopPropagation(); duplicateP(p); }} style={{ fontSize: 11 }}>📋</button>
@@ -663,18 +681,13 @@ export default function ProductsPage() {
                                                             const ss = stockStatus(p);
                                                             const sd = STOCK_DOT[ss] || STOCK_DOT.ok;
                                                             const sc = SUPPLY_COLOR[normalizeSupply(p.supplyType)] || { bg: '#f5f5f5', color: '#666' };
-                                                            const margin = p.salePrice > 0 && p.importPrice > 0 ? Math.round((p.salePrice - p.importPrice) / p.salePrice * 100) : null;
                                                             return (
                                                                 <div key={p.id} onClick={() => editProduct(p)} className="plc-card">
-                                                                    {/* Image */}
                                                                     <div className="plc-img">
                                                                         {p.image ? <img src={p.image} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="" /> : <span style={{ fontSize: 36, opacity: 0.06 }}>📷</span>}
-                                                                        {/* Supply badge overlay */}
                                                                         <span className="plc-supply" style={{ background: sc.bg, color: sc.color }}>{SUPPLY_ICON[normalizeSupply(p.supplyType)]} {normalizeSupply(p.supplyType)}</span>
-                                                                        {/* Stock badge overlay */}
                                                                         {!isService(p) && <span className="plc-stock-badge" style={{ background: sd.color }}>{p.stock} {p.unit}</span>}
                                                                     </div>
-                                                                    {/* Card body */}
                                                                     <div className="plc-body">
                                                                         <div className="plc-name">{p.name}</div>
                                                                         <div className="plc-meta">
@@ -684,15 +697,12 @@ export default function ProductsPage() {
                                                                         {p.description && <div className="plc-desc">{p.description}</div>}
                                                                         <div className="plc-prices">
                                                                             <div className="plc-sale">{fmt(p.salePrice)}<span className="plc-unit">đ/{p.unit}</span></div>
-                                                                            {p.importPrice > 0 && <div className="plc-import">Nhập: {fmt(p.importPrice)}đ</div>}
                                                                         </div>
-                                                                        {(p.supplier || p.origin || margin !== null) && (
-                                                                            <div className="plc-footer">
-                                                                                {p.supplier && <span className="plc-supplier">🏢 {p.supplier}</span>}
-                                                                                {p.origin && <span className="plc-origin">📍 {p.origin}</span>}
-                                                                                {margin !== null && <span className="plc-margin" style={{ color: margin > 20 ? '#16a34a' : margin > 0 ? '#ca8a04' : '#ef4444' }}>LN {margin}%</span>}
-                                                                            </div>
-                                                                        )}
+                                                                    </div>
+                                                                    <div className="plc-actions">
+                                                                        <button className="btn btn-ghost btn-sm" onClick={e => { e.stopPropagation(); editProduct(p); }} style={{ fontSize: 11 }}>Sửa</button>
+                                                                        <button className="btn btn-ghost btn-sm" onClick={e => { e.stopPropagation(); duplicateP(p); }} style={{ fontSize: 11 }}>📋</button>
+                                                                        <button className="btn btn-ghost btn-sm" onClick={e => { e.stopPropagation(); deleteP(p.id); }} style={{ fontSize: 11, color: '#ef4444' }}>Xóa</button>
                                                                     </div>
                                                                 </div>);
                                                         })}
@@ -1013,6 +1023,156 @@ export default function ProductsPage() {
                     </div>
                 );
             })()}
+
+            {/* ===== EDIT PRODUCT MODAL ===== */}
+            {editModal && editForm && (
+                <div className="modal-overlay" onClick={closeEditModal}>
+                    <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 720, maxHeight: '90vh', display: 'flex', flexDirection: 'column' }}>
+                        <div className="modal-header" style={{ flexShrink: 0 }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                                <h3 style={{ margin: 0 }}>Sửa sản phẩm</h3>
+                                <span style={{ fontFamily: 'monospace', fontSize: 11, opacity: 0.5 }}>{editModal.code}</span>
+                            </div>
+                            <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                                <button className="btn btn-ghost btn-sm" onClick={() => goToDetail(editModal.id)} title="Xem chi tiết đầy đủ" style={{ fontSize: 11 }}>Chi tiết</button>
+                                <button className="modal-close" onClick={closeEditModal}>×</button>
+                            </div>
+                        </div>
+                        <div className="modal-body" style={{ overflowY: 'auto', flex: 1 }}>
+                            {/* Image + Name row */}
+                            <div style={{ display: 'flex', gap: 16, marginBottom: 16 }}>
+                                <div style={{ width: 100, height: 100, borderRadius: 10, overflow: 'hidden', border: '1px solid var(--border-color)', flexShrink: 0, position: 'relative', cursor: 'pointer', background: '#f8f6f2' }}
+                                    onClick={() => editImgRef.current?.click()}>
+                                    {editForm.image
+                                        ? <img src={editForm.image} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                        : <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 32, opacity: 0.15 }}>📷</div>}
+                                    <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, background: 'rgba(0,0,0,0.5)', color: '#fff', fontSize: 10, textAlign: 'center', padding: '3px 0' }}>Đổi ảnh</div>
+                                    <input ref={editImgRef} type="file" accept="image/*" hidden onChange={e => e.target.files?.[0] && editImgUpload(e.target.files[0])} />
+                                </div>
+                                <div style={{ flex: 1 }}>
+                                    <div className="form-group" style={{ marginBottom: 8 }}>
+                                        <label className="form-label">Tên sản phẩm *</label>
+                                        <input className="form-input" value={editForm.name || ''} onChange={e => setEdit('name', e.target.value)} style={{ fontWeight: 600 }} autoFocus />
+                                    </div>
+                                    <div className="form-row" style={{ gap: 8 }}>
+                                        <div className="form-group" style={{ flex: 2 }}>
+                                            <label className="form-label">Danh mục</label>
+                                            <select className="form-select" value={editForm.categoryId || ''} onChange={e => {
+                                                const cat = flatCats.find(c => c.id === e.target.value);
+                                                if (cat) { setEdit('categoryId', cat.id); setEdit('category', cat.name); }
+                                            }}>
+                                                <option value="">-- Chọn --</option>
+                                                {flatCats.map(c => <option key={c.id} value={c.id}>{'\u00A0\u00A0'.repeat(c.depth || 0)}{c.name}</option>)}
+                                            </select>
+                                        </div>
+                                        <div className="form-group" style={{ width: 80 }}>
+                                            <label className="form-label">ĐVT</label>
+                                            <input className="form-input" value={editForm.unit || ''} onChange={e => setEdit('unit', e.target.value)} />
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Nguồn cung */}
+                            <div className="form-group" style={{ marginBottom: 12 }}>
+                                <label className="form-label">Nguồn cung</label>
+                                <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+                                    {SUPPLY_TYPES.map(t => {
+                                        const sc = SUPPLY_COLOR[t] || {};
+                                        const active = normalizeSupply(editForm.supplyType) === t;
+                                        return <button key={t} type="button" style={{ fontSize: 11, padding: '4px 10px', borderRadius: 6, border: active ? 'none' : '1px solid var(--border-color)', background: active ? sc.bg : 'transparent', color: active ? sc.color : 'var(--text-secondary)', fontWeight: active ? 600 : 400, cursor: 'pointer' }}
+                                            onClick={() => setEdit('supplyType', t)}>{SUPPLY_ICON[t]} {t}</button>;
+                                    })}
+                                </div>
+                            </div>
+
+                            {/* Prices */}
+                            <div className="form-row" style={{ gap: 8, marginBottom: 12 }}>
+                                <div className="form-group">
+                                    <label className="form-label">Giá nhập</label>
+                                    <input className="form-input" type="number" value={editForm.importPrice || 0} onChange={e => setEdit('importPrice', Number(e.target.value))} />
+                                </div>
+                                <div className="form-group">
+                                    <label className="form-label">Giá bán</label>
+                                    <input className="form-input" type="number" value={editForm.salePrice || 0} onChange={e => setEdit('salePrice', Number(e.target.value))} />
+                                </div>
+                                {normalizeSupply(editForm.supplyType) !== 'Dịch vụ' && <>
+                                    <div className="form-group">
+                                        <label className="form-label">Tồn kho</label>
+                                        <input className="form-input" type="number" value={editForm.stock ?? 0} onChange={e => setEdit('stock', Number(e.target.value))} />
+                                    </div>
+                                    <div className="form-group">
+                                        <label className="form-label">Tồn tối thiểu</label>
+                                        <input className="form-input" type="number" value={editForm.minStock ?? 0} onChange={e => setEdit('minStock', Number(e.target.value))} />
+                                    </div>
+                                </>}
+                            </div>
+
+                            {/* Details */}
+                            <div className="form-row" style={{ gap: 8, marginBottom: 12 }}>
+                                <div className="form-group" style={{ flex: 2 }}>
+                                    <label className="form-label">Thương hiệu</label>
+                                    <select className="form-select" value={editForm.brand || ''} onChange={e => setEdit('brand', e.target.value)}>
+                                        {BRANDS.map(b => <option key={b.n} value={b.n}>{b.n || '-- Không --'}</option>)}
+                                    </select>
+                                </div>
+                                <div className="form-group" style={{ flex: 2 }}>
+                                    <label className="form-label">Nhà cung cấp</label>
+                                    <input className="form-input" value={editForm.supplier || ''} onChange={e => setEdit('supplier', e.target.value)} />
+                                </div>
+                            </div>
+
+                            <div className="form-row" style={{ gap: 8, marginBottom: 12 }}>
+                                <div className="form-group">
+                                    <label className="form-label">Kích thước</label>
+                                    <input className="form-input" value={editForm.dimensions || ''} onChange={e => setEdit('dimensions', e.target.value)} placeholder="DxRxC mm" />
+                                </div>
+                                <div className="form-group">
+                                    <label className="form-label">Màu sắc</label>
+                                    <input className="form-input" value={editForm.color || ''} onChange={e => setEdit('color', e.target.value)} />
+                                </div>
+                                <div className="form-group">
+                                    <label className="form-label">Chất liệu</label>
+                                    <input className="form-input" value={editForm.material || ''} onChange={e => setEdit('material', e.target.value)} />
+                                </div>
+                                <div className="form-group">
+                                    <label className="form-label">Xuất xứ</label>
+                                    <input className="form-input" value={editForm.origin || ''} onChange={e => setEdit('origin', e.target.value)} />
+                                </div>
+                            </div>
+
+                            {/* Manufacturing - only for SX nội bộ / VT sản xuất */}
+                            {(normalizeSupply(editForm.supplyType) === 'Sản xuất nội bộ' || normalizeSupply(editForm.supplyType) === 'Vật tư sản xuất') && (
+                                <div className="form-row" style={{ gap: 8, marginBottom: 12 }}>
+                                    <div className="form-group">
+                                        <label className="form-label">Chất liệu cốt</label>
+                                        <select className="form-select" value={editForm.coreBoard || ''} onChange={e => setEdit('coreBoard', e.target.value)}>
+                                            <option value="">-- Chọn --</option>
+                                            {CORE_BOARD_TYPES.map(c => <option key={c}>{c}</option>)}
+                                        </select>
+                                    </div>
+                                    <div className="form-group">
+                                        <label className="form-label">Mã bề mặt</label>
+                                        <input className="form-input" value={editForm.surfaceCode || ''} onChange={e => setEdit('surfaceCode', e.target.value)} placeholder="388EV, U5002..." />
+                                    </div>
+                                </div>
+                            )}
+
+                            <div className="form-group">
+                                <label className="form-label">Mô tả</label>
+                                <textarea className="form-input" rows={2} value={editForm.description || ''} onChange={e => setEdit('description', e.target.value)} style={{ resize: 'vertical' }} />
+                            </div>
+                        </div>
+                        <div className="modal-footer" style={{ flexShrink: 0 }}>
+                            <button className="btn btn-ghost" onClick={closeEditModal}>Hủy</button>
+                            <button className="btn btn-ghost" onClick={() => goToDetail(editModal.id)} style={{ fontSize: 12 }}>Xem chi tiết (BOM, biến thể...)</button>
+                            <button className="btn btn-primary" onClick={saveEditProduct} disabled={editSaving}>
+                                {editSaving ? 'Đang lưu...' : 'Lưu thay đổi'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {/* Hidden image upload input (product images) */}
             <input ref={imgUpRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={handleImgUpload} />
