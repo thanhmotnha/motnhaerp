@@ -581,39 +581,48 @@ export default function ProductsPage() {
 
                                 {/* ========= GRID/CARD VIEW ========= */}
                                 {viewMode === 'grid' && (
-                                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(195px, 1fr))', gap: 12, padding: 12 }}>
+                                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 14, padding: 12 }}>
                                         {filteredP.map(p => {
                                             const ss = stockStatus(p);
                                             const sc = SUPPLY_COLOR[normalizeSupply(p.supplyType)] || { bg: '#f5f5f5', color: '#666' };
                                             const sd = STOCK_DOT[ss] || STOCK_DOT.ok;
+                                            const margin = p.salePrice > 0 && p.importPrice > 0 ? Math.round((p.salePrice - p.importPrice) / p.salePrice * 100) : null;
                                             return (
-                                                <div key={p.id} className="product-card" style={{ border: '1px solid var(--border-color)', borderRadius: 10, overflow: 'hidden', background: 'var(--bg-card)', transition: 'box-shadow .15s, transform .15s', cursor: 'default' }}>
+                                                <div key={p.id} className="plc-card">
                                                     {/* Image */}
-                                                    <div onClick={() => { imgUpTarget.current = p.id; imgUpRef.current?.click(); }} style={{ width: '100%', aspectRatio: '4/3', background: '#f5f3ef', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', overflow: 'hidden', position: 'relative' }}>
+                                                    <div className="plc-img" onClick={e => { e.stopPropagation(); imgUpTarget.current = p.id; imgUpRef.current?.click(); }}>
                                                         {p.image
                                                             ? <img src={p.image} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                                                             : <span style={{ fontSize: 40, opacity: 0.08 }}>📷</span>}
-                                                        <div className="card-img-overlay" style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,.35)', display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: 0, transition: 'opacity .15s', color: '#fff', fontSize: 16 }}>📤 Đổi ảnh</div>
+                                                        <span className="plc-supply" style={{ background: sc.bg, color: sc.color }}>{SUPPLY_ICON[normalizeSupply(p.supplyType)]} {normalizeSupply(p.supplyType)}</span>
+                                                        {!isService(p) && <span className="plc-stock-badge" style={{ background: sd.color }}>{p.stock} {p.unit}</span>}
+                                                        <div className="plc-img-overlay">📤 Đổi ảnh</div>
                                                     </div>
                                                     {/* Body */}
-                                                    <div style={{ padding: '10px 12px' }}>
-                                                        <div style={{ fontWeight: 700, fontSize: 13, color: '#234093', cursor: 'pointer', lineHeight: 1.3, marginBottom: 4, minHeight: 34 }} onClick={() => editProduct(p)}>{p.name}</div>
-                                                        <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: 6 }}>
-                                                            <span style={{ fontFamily: 'monospace', fontSize: 10.5, opacity: 0.45 }}>{p.code}</span>
-                                                            <button onClick={() => copyCode(p.code)} style={{ border: 'none', background: 'none', cursor: 'pointer', fontSize: 11, opacity: 0.35, padding: 0 }} title="Copy mã">📋</button>
+                                                    <div className="plc-body">
+                                                        <div className="plc-name" style={{ cursor: 'pointer', color: '#234093' }} onClick={() => editProduct(p)}>{p.name}</div>
+                                                        <div className="plc-meta">
+                                                            <span className="plc-code">{p.code}</span>
+                                                            <button onClick={e => { e.stopPropagation(); copyCode(p.code); }} style={{ border: 'none', background: 'none', cursor: 'pointer', fontSize: 11, opacity: 0.35, padding: 0 }} title="Copy mã">📋</button>
+                                                            {p.brand && <span className="plc-brand">{p.brand}</span>}
                                                         </div>
-                                                        <div style={{ marginBottom: 6 }}><span style={{ fontSize: 10, padding: '2px 8px', borderRadius: 10, background: sc.bg, color: sc.color, fontWeight: 600 }}>{normalizeSupply(p.supplyType)}</span></div>
-                                                        <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 4 }}>{fmtCur(p.salePrice)} <span style={{ fontSize: 10, fontWeight: 400, opacity: 0.5 }}>/ {p.unit}</span></div>
-                                                        <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11 }}>
-                                                            <span style={{ width: 8, height: 8, borderRadius: '50%', background: sd.color, display: 'inline-block' }} />
-                                                            <span style={{ color: sd.color, fontWeight: 600 }}>{sd.label}</span>
-                                                            {!isService(p) && <span style={{ opacity: 0.45 }}>({p.stock})</span>}
+                                                        {p.description && <div className="plc-desc">{p.description}</div>}
+                                                        <div className="plc-prices">
+                                                            <div className="plc-sale">{fmt(p.salePrice)}<span className="plc-unit">đ/{p.unit}</span></div>
+                                                            {p.importPrice > 0 && <div className="plc-import">Nhập: {fmt(p.importPrice)}đ</div>}
                                                         </div>
+                                                        {(p.supplier || margin !== null) && (
+                                                            <div className="plc-footer">
+                                                                {p.supplier && <span className="plc-supplier">🏢 {p.supplier}</span>}
+                                                                {margin !== null && <span className="plc-margin" style={{ color: margin > 20 ? '#16a34a' : margin > 0 ? '#ca8a04' : '#ef4444' }}>LN {margin}%</span>}
+                                                            </div>
+                                                        )}
                                                     </div>
                                                     {/* Footer actions */}
-                                                    <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 2, padding: '6px 10px', borderTop: '1px solid var(--border-color)' }}>
-                                                        <button className="btn btn-ghost btn-sm" onClick={() => editProduct(p)} style={{ fontSize: 11 }}>Sửa</button>
-                                                        <button className="btn btn-ghost btn-sm" onClick={() => deleteP(p.id)} style={{ fontSize: 11, color: '#ef4444' }}>Xóa</button>
+                                                    <div className="plc-actions">
+                                                        <button className="btn btn-ghost btn-sm" onClick={e => { e.stopPropagation(); editProduct(p); }} style={{ fontSize: 11 }}>Sửa</button>
+                                                        <button className="btn btn-ghost btn-sm" onClick={e => { e.stopPropagation(); duplicateP(p); }} style={{ fontSize: 11 }}>📋</button>
+                                                        <button className="btn btn-ghost btn-sm" onClick={e => { e.stopPropagation(); deleteP(p.id); }} style={{ fontSize: 11, color: '#ef4444' }}>Xóa</button>
                                                     </div>
                                                 </div>
                                             );
@@ -649,32 +658,41 @@ export default function ProductsPage() {
                                                         <span style={{ fontSize: 12, color: 'var(--text-muted, #9ca3af)', fontWeight: 400 }}>({prods.length})</span>
                                                     </div>
                                                     {/* Product card grid */}
-                                                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 12 }}>
+                                                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 14 }}>
                                                         {prods.map(p => {
-                                                            const sd = p.stock === 0 ? '#ef4444' : p.stock <= (p.minStock || 5) ? '#eab308' : '#22c55e';
+                                                            const ss = stockStatus(p);
+                                                            const sd = STOCK_DOT[ss] || STOCK_DOT.ok;
+                                                            const sc = SUPPLY_COLOR[normalizeSupply(p.supplyType)] || { bg: '#f5f5f5', color: '#666' };
+                                                            const margin = p.salePrice > 0 && p.importPrice > 0 ? Math.round((p.salePrice - p.importPrice) / p.salePrice * 100) : null;
                                                             return (
-                                                                <div key={p.id} onClick={() => editProduct(p)} style={{
-                                                                    borderRadius: 12, overflow: 'hidden',
-                                                                    background: 'var(--bg-card, #fff)',
-                                                                    border: '1px solid var(--border-color, #e5e7eb)',
-                                                                    cursor: 'pointer', transition: 'box-shadow .2s, transform .2s',
-                                                                    position: 'relative',
-                                                                }}
-                                                                    onMouseEnter={e => { e.currentTarget.style.boxShadow = '0 8px 24px rgba(0,0,0,0.1)'; e.currentTarget.style.transform = 'translateY(-3px)'; }}
-                                                                    onMouseLeave={e => { e.currentTarget.style.boxShadow = 'none'; e.currentTarget.style.transform = 'none'; }}>
+                                                                <div key={p.id} onClick={() => editProduct(p)} className="plc-card">
                                                                     {/* Image */}
-                                                                    <div style={{ width: '100%', aspectRatio: '4/3', background: '#f8f6f2', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
+                                                                    <div className="plc-img">
                                                                         {p.image ? <img src={p.image} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="" /> : <span style={{ fontSize: 36, opacity: 0.06 }}>📷</span>}
+                                                                        {/* Supply badge overlay */}
+                                                                        <span className="plc-supply" style={{ background: sc.bg, color: sc.color }}>{SUPPLY_ICON[normalizeSupply(p.supplyType)]} {normalizeSupply(p.supplyType)}</span>
+                                                                        {/* Stock badge overlay */}
+                                                                        {!isService(p) && <span className="plc-stock-badge" style={{ background: sd.color }}>{p.stock} {p.unit}</span>}
                                                                     </div>
-                                                                    {/* Stock dot — top right corner */}
-                                                                    <div style={{ position: 'absolute', top: 8, right: 8, width: 10, height: 10, borderRadius: '50%', background: sd, border: '2px solid #fff', boxShadow: '0 1px 3px rgba(0,0,0,0.2)' }} title={`Tồn: ${p.stock}`} />
                                                                     {/* Card body */}
-                                                                    <div style={{ padding: '10px 12px 12px' }}>
-                                                                        <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary, #1a1a1a)', lineHeight: 1.35, minHeight: 35, overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>{p.name}</div>
-                                                                        <div style={{ fontSize: 11, color: 'var(--text-muted, #9ca3af)', marginTop: 3 }}>{p.unit}{p.brand ? ` · ${p.brand}` : ''}</div>
-                                                                        <div style={{ fontSize: 16, fontWeight: 700, color: '#e65100', marginTop: 6 }}>
-                                                                            {fmt(p.salePrice)}<span style={{ fontSize: 11, fontWeight: 500 }}>đ</span>
+                                                                    <div className="plc-body">
+                                                                        <div className="plc-name">{p.name}</div>
+                                                                        <div className="plc-meta">
+                                                                            <span className="plc-code">{p.code}</span>
+                                                                            {p.brand && <span className="plc-brand">{p.brand}</span>}
                                                                         </div>
+                                                                        {p.description && <div className="plc-desc">{p.description}</div>}
+                                                                        <div className="plc-prices">
+                                                                            <div className="plc-sale">{fmt(p.salePrice)}<span className="plc-unit">đ/{p.unit}</span></div>
+                                                                            {p.importPrice > 0 && <div className="plc-import">Nhập: {fmt(p.importPrice)}đ</div>}
+                                                                        </div>
+                                                                        {(p.supplier || p.origin || margin !== null) && (
+                                                                            <div className="plc-footer">
+                                                                                {p.supplier && <span className="plc-supplier">🏢 {p.supplier}</span>}
+                                                                                {p.origin && <span className="plc-origin">📍 {p.origin}</span>}
+                                                                                {margin !== null && <span className="plc-margin" style={{ color: margin > 20 ? '#16a34a' : margin > 0 ? '#ca8a04' : '#ef4444' }}>LN {margin}%</span>}
+                                                                            </div>
+                                                                        )}
                                                                     </div>
                                                                 </div>);
                                                         })}
