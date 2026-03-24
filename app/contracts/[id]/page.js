@@ -128,7 +128,7 @@ export default function ContractDetailPage() {
             return {
                 phase: t.phase, pct: t.pct, category: t.category || '',
                 amount, paidAmount: 0, status: 'Chưa thu', notes: '',
-                retentionRate: retRate, retentionAmount: retRate > 0 ? Math.round(cv * retRate / 100) : 0,
+                retentionRate: retRate, retentionAmount: retRate > 0 ? Math.round(amount * retRate / 100) : 0,
             };
         }));
     };
@@ -140,8 +140,10 @@ export default function ContractDetailPage() {
             const updated = { ...p, [field]: value };
             if (field === 'pct') updated.amount = Math.round(cv * (Number(value) || 0) / 100);
             if (field === 'amount') updated.pct = cv ? Math.round((Number(value) || 0) / cv * 100) : 0;
-            if (field === 'retentionRate') updated.retentionAmount = Math.round(cv * (Number(value) || 0) / 100);
-            if (field === 'retentionAmount') updated.retentionRate = cv ? Math.round((Number(value) || 0) / cv * 100) : 0;
+            // Giảm trừ: nhập trực tiếp số tiền, tự tính ngược rate
+            if (field === 'retentionAmount') {
+                updated.retentionRate = updated.amount > 0 ? Math.round((Number(value) || 0) / updated.amount * 10000) / 100 : 0;
+            }
             return updated;
         }));
     };
@@ -419,9 +421,8 @@ export default function ContractDetailPage() {
                                                 <th style={{ width: 35 }}>#</th><th>Giai đoạn</th>
                                                 <th style={{ width: 80, textAlign: 'center' }}>%</th>
                                                 <th style={{ width: 140, textAlign: 'right' }}>Số tiền</th>
-                                                <th style={{ width: 65, textAlign: 'center' }}>GT %</th>
-                                                <th style={{ width: 120, textAlign: 'right' }}>Giảm trừ</th>
-                                                <th style={{ width: 120, textAlign: 'right' }}>Thực nhận</th>
+                                                <th style={{ width: 140, textAlign: 'right' }}>Giảm trừ</th>
+                                                <th style={{ width: 140, textAlign: 'right' }}>Thực nhận</th>
                                                 <th style={{ width: 40 }}></th>
                                             </tr></thead>
                                             <tbody>
@@ -433,9 +434,8 @@ export default function ContractDetailPage() {
                                                             <td><input className="form-input form-input-compact" value={p.phase} onChange={e => updatePhase(idx, 'phase', e.target.value)} style={{ width: '100%' }} /></td>
                                                             <td><div style={{ display: 'flex', alignItems: 'center', gap: 2 }}><input className="form-input form-input-compact" type="number" value={p.pct || ''} onChange={e => updatePhase(idx, 'pct', parseFloat(e.target.value) || 0)} style={{ width: 55, textAlign: 'center' }} /><span style={{ fontSize: 11 }}>%</span></div></td>
                                                             <td><input className="form-input form-input-compact" type="number" value={p.amount || ''} onChange={e => updatePhase(idx, 'amount', parseFloat(e.target.value) || 0)} style={{ width: '100%', textAlign: 'right' }} /></td>
-                                                            <td><div style={{ display: 'flex', alignItems: 'center', gap: 2 }}><input className="form-input form-input-compact" type="number" value={p.retentionRate || ''} onChange={e => updatePhase(idx, 'retentionRate', parseFloat(e.target.value) || 0)} style={{ width: 45, textAlign: 'center' }} /><span style={{ fontSize: 11 }}>%</span></div></td>
-                                                            <td style={{ textAlign: 'right', color: p.retentionAmount > 0 ? 'var(--status-danger)' : 'var(--text-muted)', fontSize: 12 }}>{p.retentionAmount > 0 ? `-${fmt(p.retentionAmount)}` : '—'}</td>
-                                                            <td style={{ textAlign: 'right', fontWeight: 600, color: 'var(--primary)', fontSize: 12 }}>{fmt(netAmount)}</td>
+                                                            <td><input className="form-input form-input-compact" type="number" value={p.retentionAmount || ''} onChange={e => updatePhase(idx, 'retentionAmount', parseFloat(e.target.value) || 0)} style={{ width: '100%', textAlign: 'right' }} placeholder="0" /></td>
+                                                            <td style={{ textAlign: 'right', fontWeight: 600, color: 'var(--primary)', fontSize: 13 }}>{fmt(netAmount)}</td>
                                                             <td><button className="btn btn-ghost" onClick={() => removePhase(idx)} style={{ padding: '2px 6px', fontSize: 11, color: 'var(--status-danger)' }}>✕</button></td>
                                                         </tr>
                                                     );
@@ -444,11 +444,10 @@ export default function ContractDetailPage() {
                                                     <td></td><td>Tổng cộng</td>
                                                     <td style={{ textAlign: 'center', color: totalPhasePct === 100 ? 'var(--status-success)' : 'var(--status-danger)' }}>{totalPhasePct}%</td>
                                                     <td style={{ textAlign: 'right', color: 'var(--primary)' }}>{fmt(totalPhaseAmount)}</td>
-                                                    <td></td>
-                                                    <td style={{ textAlign: 'right', color: 'var(--status-danger)', fontSize: 12 }}>
+                                                    <td style={{ textAlign: 'right', color: 'var(--status-danger)' }}>
                                                         {(() => { const totalRet = paymentPhases.reduce((s, p) => s + (p.retentionAmount || 0), 0); return totalRet > 0 ? `-${fmt(totalRet)}` : '—'; })()}
                                                     </td>
-                                                    <td style={{ textAlign: 'right', color: 'var(--primary)', fontSize: 12 }}>
+                                                    <td style={{ textAlign: 'right', color: 'var(--primary)' }}>
                                                         {fmt(paymentPhases.reduce((s, p) => s + ((p.amount || 0) - (p.retentionAmount || 0)), 0))}
                                                     </td>
                                                     <td></td>
@@ -479,8 +478,8 @@ export default function ContractDetailPage() {
                                                                 <td style={{ fontWeight: 600 }}>{p.phase}</td>
                                                                 <td style={{ textAlign: 'center' }}>{phasePct}%</td>
                                                                 <td className="amount">{fmt(p.amount)}</td>
-                                                                <td style={{ textAlign: 'right', color: retAmt > 0 ? 'var(--status-danger)' : 'var(--text-muted)', fontSize: 12 }}>
-                                                                    {retAmt > 0 ? <span>-{fmt(retAmt)} <span style={{ fontSize: 10, opacity: 0.7 }}>({p.retentionRate || 0}%)</span></span> : '—'}
+                                                                <td style={{ textAlign: 'right', color: retAmt > 0 ? 'var(--status-danger)' : 'var(--text-muted)', fontWeight: retAmt > 0 ? 600 : 400 }}>
+                                                                    {retAmt > 0 ? `-${fmt(retAmt)}` : '—'}
                                                                 </td>
                                                                 <td style={{ textAlign: 'right', fontWeight: 600, color: 'var(--primary)' }}>{fmt(netAmount)}</td>
                                                                 <td style={{ color: 'var(--status-success)', fontWeight: 600 }}>{fmt(p.paidAmount)}</td>
