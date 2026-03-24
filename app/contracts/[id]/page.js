@@ -122,15 +122,11 @@ export default function ContractDetailPage() {
         const templates = dbPaymentTemplates || PAYMENT_TEMPLATES;
         const tmpl = templates[form.type] || PAYMENT_TEMPLATES[form.type] || [];
         const cv = parseFloat(form.contractValue) || 0;
-        setPaymentPhases(tmpl.map(t => {
-            const amount = Math.round(cv * t.pct / 100);
-            const retRate = t.retentionRate || 0;
-            return {
-                phase: t.phase, pct: t.pct, category: t.category || '',
-                amount, paidAmount: 0, status: 'Chưa thu', notes: '',
-                retentionRate: retRate, retentionAmount: retRate > 0 ? Math.round(amount * retRate / 100) : 0,
-            };
-        }));
+        setPaymentPhases(tmpl.map(t => ({
+            phase: t.phase, pct: t.pct, category: t.category || '',
+            amount: Math.round(cv * t.pct / 100), paidAmount: 0, status: 'Chưa thu', notes: '',
+            retentionRate: 0, retentionAmount: 0,
+        })));
     };
 
     const updatePhase = (idx, field, value) => {
