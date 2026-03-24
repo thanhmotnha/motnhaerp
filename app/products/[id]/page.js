@@ -295,8 +295,60 @@ export default function ProductDetailPage() {
                                 <input className="form-input" value={form.dimensions || ''} onChange={e => setForm(f => ({ ...f, dimensions: e.target.value }))} placeholder="VD: 1200x600x750mm" />
                             </div>
                             <div className="form-group">
+                                <label className="form-label">Trọng lượng (kg)</label>
+                                <input className="form-input" type="number" value={form.weight || 0} onChange={e => setForm(f => ({ ...f, weight: Number(e.target.value) }))} />
+                            </div>
+                            <div className="form-group">
                                 <label className="form-label">Thương hiệu</label>
                                 <input className="form-input" value={form.brand || ''} onChange={e => setForm(f => ({ ...f, brand: e.target.value }))} />
+                            </div>
+                        </div>
+                        <div className="form-row">
+                            <div className="form-group">
+                                <label className="form-label">Màu sắc</label>
+                                <input className="form-input" value={form.color || ''} onChange={e => setForm(f => ({ ...f, color: e.target.value }))} />
+                            </div>
+                            <div className="form-group">
+                                <label className="form-label">Chất liệu</label>
+                                <input className="form-input" value={form.material || ''} onChange={e => setForm(f => ({ ...f, material: e.target.value }))} />
+                            </div>
+                            <div className="form-group">
+                                <label className="form-label">Xuất xứ</label>
+                                <input className="form-input" value={form.origin || ''} onChange={e => setForm(f => ({ ...f, origin: e.target.value }))} />
+                            </div>
+                            <div className="form-group">
+                                <label className="form-label">Bảo hành</label>
+                                <input className="form-input" value={form.warranty || ''} onChange={e => setForm(f => ({ ...f, warranty: e.target.value }))} placeholder="VD: 12 tháng" />
+                            </div>
+                        </div>
+                        <div className="form-group">
+                            <label className="form-label">Ảnh sản phẩm</label>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                                {form.image ? (
+                                    <div style={{ position: 'relative' }}>
+                                        <img src={form.image} alt="" style={{ width: 80, height: 80, objectFit: 'cover', borderRadius: 8, border: '1px solid var(--border-color)' }} />
+                                        <button onClick={() => setForm(f => ({ ...f, image: '' }))}
+                                            style={{ position: 'absolute', top: -6, right: -6, width: 20, height: 20, borderRadius: '50%', border: 'none', background: '#ef4444', color: '#fff', fontSize: 12, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>×</button>
+                                    </div>
+                                ) : (
+                                    <div style={{ width: 80, height: 80, borderRadius: 8, border: '2px dashed var(--border-color)', display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: 0.3, fontSize: 28 }}>📷</div>
+                                )}
+                                <label className="btn btn-ghost btn-sm" style={{ cursor: 'pointer' }}>
+                                    📤 Tải ảnh
+                                    <input type="file" accept="image/*" hidden onChange={async (e) => {
+                                        const file = e.target.files?.[0];
+                                        if (!file) return;
+                                        const fd = new FormData();
+                                        fd.append('file', file);
+                                        fd.append('type', 'products');
+                                        try {
+                                            const res = await fetch('/api/upload', { method: 'POST', body: fd });
+                                            const data = await res.json();
+                                            if (data.url) setForm(f => ({ ...f, image: data.url }));
+                                        } catch { }
+                                        e.target.value = '';
+                                    }} />
+                                </label>
                             </div>
                         </div>
                         <div className="form-group">
