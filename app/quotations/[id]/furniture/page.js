@@ -273,10 +273,10 @@ export default function FurnitureSpecPage() {
                 });
                 setItems(map);
 
-                // Load project documents if quotation has a project
+                // Load project documents (lightweight API)
                 if (data.projectId) {
-                    apiFetch(`/api/projects/${data.projectId}`)
-                        .then(proj => setProjectDocs(proj.documents || []))
+                    apiFetch(`/api/projects/${data.projectId}/documents`)
+                        .then(docs => setProjectDocs(docs || []))
                         .catch(() => {});
                 }
             })
