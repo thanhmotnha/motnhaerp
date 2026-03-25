@@ -1702,8 +1702,11 @@ model CustomerInteraction {
 // ── Đánh giá nhân sự ─────────────────────────────────────────
 model EmployeeReview {
   id         String   @id @default(cuid())
-  period     String   // "2026-Q1", "2026-H1"
-  score      Float    @default(0) // 1-5
+  type       String   @default("Quý") // Quý, 6 tháng, Năm, Thử việc, Khác
+  period     String   // "Q1/2025", "2026-H1"
+  score      Float    @default(0) // 1-5 (rating)
+  content    String   @default("") @db.Text // nội dung đánh giá
+  goals      String   @default("") @db.Text // mục tiêu kỳ tiếp theo
   criteria   Json     @default("[]") // [{name, score, weight}]
   strengths  String   @default("") @db.Text
   weaknesses String   @default("") @db.Text

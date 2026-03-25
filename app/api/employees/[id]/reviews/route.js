@@ -1,6 +1,8 @@
 import { withAuth } from '@/lib/apiHandler';
 import prisma from '@/lib/prisma';
 import { NextResponse } from 'next/server';
+import { logActivity } from '@/lib/activityLogger';
+import { employeeReviewCreateSchema } from '@/lib/validations/employeeReview';
 
 // GET — list reviews for an employee
 export const GET = withAuth(async (request, { params }) => {
@@ -19,26 +21,32 @@ export const GET = withAuth(async (request, { params }) => {
 });
 
 // POST — create new review
-export const POST = withAuth(async (request, { params }) => {
+export const POST = withAuth(async (request, { params }, session) => {
     const { id } = await params;
     const body = await request.json();
-    const { period, score, criteria, strengths, weaknesses, reviewer, status } = body;
 
-    if (!period) {
-        return NextResponse.json({ error: 'period là bắt buộc' }, { status: 400 });
+    // Map frontend "rating" → DB "score"
+    if (body.rating != null && body.score == null) {
+        body.score = body.rating;
     }
+    delete body.rating;
+
+    const data = employeeReviewCreateSchema.parse(body);
 
     const review = await prisma.employeeReview.create({
         data: {
-            period,
-            score: score || 0,
-            criteria: criteria || [],
-            strengths: strengths || '',
-            weaknesses: weaknesses || '',
-            reviewer: reviewer || '',
-            status: status || 'Nháp',
+            ...data,
             employeeId: id,
         },
+    });
+
+    await logActivity({
+        action: 'create',
+        entityType: 'EmployeeReview',
+        entityId: review.id,
+        entityLabel: `${data.period} — ${data.type}`,
+        actor: session?.user?.name || 'Unknown',
+        actorId: session?.user?.id || '',
     });
 
     return NextResponse.json(review, { status: 201 });

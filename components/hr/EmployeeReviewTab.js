@@ -1,7 +1,8 @@
 'use client';
 import { useState, useEffect } from 'react';
+import { apiFetch } from '@/lib/fetchClient';
+import { useToast } from '@/components/ui/Toast';
 
-const fmt = (n) => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(n || 0);
 const fmtDate = (d) => d ? new Date(d).toLocaleDateString('vi-VN') : '—';
 const TYPES = ['Quý', '6 tháng', 'Năm', 'Thử việc', 'Khác'];
 const RATINGS = [
@@ -19,26 +20,42 @@ export default function EmployeeReviewTab() {
     const [loading, setLoading] = useState(false);
     const [showForm, setShowForm] = useState(false);
     const [form, setForm] = useState({ type: 'Quý', period: '', rating: 3, content: '', reviewer: '', goals: '' });
+    const { showToast } = useToast();
 
     useEffect(() => {
-        fetch('/api/employees').then(r => r.json()).then(d => setEmployees(d.employees || d));
+        apiFetch('/api/employees').then(d => setEmployees(d.employees || d)).catch(() => {});
     }, []);
 
-    const loadReviews = (empId) => {
+    const loadReviews = async (empId) => {
         if (!empId) return;
         setLoading(true);
-        fetch(`/api/employees/${empId}/reviews`).then(r => r.json()).then(d => { setReviews(d); setLoading(false); });
+        try {
+            const d = await apiFetch(`/api/employees/${empId}/reviews`);
+            setReviews(d);
+        } catch {
+            showToast('Lỗi tải đánh giá', 'error');
+        } finally {
+            setLoading(false);
+        }
     };
     useEffect(() => { if (selectedEmp) loadReviews(selectedEmp); }, [selectedEmp]);
 
     const handleSubmit = async () => {
-        if (!selectedEmp || !form.content.trim()) return alert('Chọn nhân viên và nhập nội dung');
-        await fetch(`/api/employees/${selectedEmp}/reviews`, {
-            method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(form),
-        });
-        setShowForm(false);
-        setForm({ type: 'Quý', period: '', rating: 3, content: '', reviewer: '', goals: '' });
-        loadReviews(selectedEmp);
+        if (!selectedEmp) return showToast('Chọn nhân viên', 'error');
+        if (!form.content.trim()) return showToast('Nhập nội dung đánh giá', 'error');
+        if (!form.period.trim()) return showToast('Nhập kỳ đánh giá', 'error');
+        try {
+            await apiFetch(`/api/employees/${selectedEmp}/reviews`, {
+                method: 'POST',
+                body: { ...form, score: form.rating },
+            });
+            showToast('Đã lưu đánh giá', 'success');
+            setShowForm(false);
+            setForm({ type: 'Quý', period: '', rating: 3, content: '', reviewer: '', goals: '' });
+            loadReviews(selectedEmp);
+        } catch (e) {
+            showToast(e.message || 'Lỗi lưu đánh giá', 'error');
+        }
     };
 
     const ratingInfo = (r) => RATINGS.find(x => x.value === r) || RATINGS[2];
@@ -69,7 +86,7 @@ export default function EmployeeReviewTab() {
                             </select>
                         </div>
                         <div className="form-group">
-                            <label className="form-label">Kỳ đánh giá</label>
+                            <label className="form-label">Kỳ đánh giá *</label>
                             <input className="form-input" value={form.period} onChange={e => setForm({ ...form, period: e.target.value })} placeholder="VD: Q1/2025" />
                         </div>
                         <div className="form-group">
@@ -114,7 +131,7 @@ export default function EmployeeReviewTab() {
             ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                     {reviews.map(r => {
-                        const ri = ratingInfo(r.rating);
+                        const ri = ratingInfo(r.score);
                         return (
                             <div key={r.id} style={{ background: 'var(--bg-secondary)', borderRadius: 10, padding: 16, border: '1px solid var(--border-light)', borderLeft: `4px solid ${ri.color}` }}>
                                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
@@ -123,7 +140,7 @@ export default function EmployeeReviewTab() {
                                         <span className="badge muted">{r.type}</span>
                                         {r.period && <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>{r.period}</span>}
                                     </div>
-                                    <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>{fmtDate(r.date)}</span>
+                                    <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>{fmtDate(r.createdAt)}</span>
                                 </div>
                                 <p style={{ margin: '0 0 6px', fontSize: 14, lineHeight: 1.5 }}>{r.content}</p>
                                 {r.goals && <p style={{ margin: 0, fontSize: 12, color: 'var(--text-muted)' }}>🎯 Mục tiêu: {r.goals}</p>}

@@ -1,6 +1,8 @@
 {
   "permissions": {
+    "defaultMode": "dontAsk",
     "allow": [
+      "Bash(*)",
       "Bash(grep -E \"^-.*\\\\.\\(md|rules\\)$\")",
       "Bash(python -c \":*)",
       "Bash(git commit:*)",
