@@ -811,6 +811,35 @@ export default function ReportsPage() {
                                         </div>
                                     ))}
                                 </div>
+                                {/* Bar chart: Revenue vs Cost by project */}
+                                {profitData.data.length > 0 && (() => {
+                                    const maxVal = Math.max(...profitData.data.map(r => Math.max(r.revenue, r.totalCost)));
+                                    const chartData = profitData.data.slice(0, 15); // Top 15 projects
+                                    return (
+                                        <div style={{ background: 'var(--bg-secondary)', borderRadius: 10, padding: 20, marginBottom: 20 }}>
+                                            <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 12, color: 'var(--text-primary)' }}>📊 So sánh Doanh thu vs Chi phí (Top 15)</div>
+                                            <div style={{ display: 'flex', gap: 8, marginBottom: 12, fontSize: 11 }}>
+                                                <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}><span style={{ width: 10, height: 10, borderRadius: 2, background: 'var(--status-success)', display: 'inline-block' }}></span> Doanh thu</span>
+                                                <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}><span style={{ width: 10, height: 10, borderRadius: 2, background: 'var(--status-danger)', opacity: 0.7, display: 'inline-block' }}></span> Chi phí</span>
+                                            </div>
+                                            {chartData.map(r => {
+                                                const barColor = r.margin < 0 ? 'var(--status-danger)' : r.margin < 20 ? 'var(--status-warning)' : 'var(--status-success)';
+                                                return (
+                                                    <div key={r.id} style={{ marginBottom: 8 }}>
+                                                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 3 }}>
+                                                            <div style={{ width: 120, fontSize: 10, color: 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flexShrink: 0 }} title={r.name}>{r.code}</div>
+                                                            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 2 }}>
+                                                                <div style={{ height: 10, borderRadius: 4, background: barColor, width: `${maxVal > 0 ? (r.revenue / maxVal) * 100 : 0}%`, minWidth: r.revenue > 0 ? 2 : 0, transition: 'width .5s ease', opacity: 0.85 }}></div>
+                                                                <div style={{ height: 10, borderRadius: 4, background: 'var(--status-danger)', width: `${maxVal > 0 ? (r.totalCost / maxVal) * 100 : 0}%`, minWidth: r.totalCost > 0 ? 2 : 0, transition: 'width .5s ease', opacity: 0.4 }}></div>
+                                                            </div>
+                                                            <div style={{ width: 50, fontSize: 10, fontWeight: 700, textAlign: 'right', color: barColor, flexShrink: 0 }}>{r.margin}%</div>
+                                                        </div>
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    );
+                                })()}
                                 <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 8 }}>
                                     <button className="btn btn-ghost btn-sm" onClick={() => exportCSV('lai-lo-du-an.csv',
                                         ['Mã DA', 'Tên', 'Khách hàng', 'Trạng thái', 'Doanh thu', 'Chi phí', 'PO', 'Thầu phụ', 'Tổng chi', 'Lãi/lỗ', 'Margin %'],

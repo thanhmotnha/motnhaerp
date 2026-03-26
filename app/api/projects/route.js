@@ -13,6 +13,7 @@ export const GET = withAuth(async (request) => {
     const type = searchParams.get('type');
     const status = searchParams.get('status');
     const search = searchParams.get('search');
+    const includeMilestones = searchParams.get('milestones') === '1';
 
     const where = { deletedAt: null };
     if (type) where.type = type;
@@ -25,6 +26,7 @@ export const GET = withAuth(async (request) => {
             include: {
                 customer: { select: { name: true } },
                 contracts: { where: { deletedAt: null, status: { not: 'Nháp' } }, select: { contractValue: true, variationAmount: true, payments: { select: { paidAmount: true } } } },
+                ...(includeMilestones ? { milestones: { where: { deletedAt: null }, select: { name: true, dueDate: true, status: true } } } : {}),
             },
             orderBy: { createdAt: 'desc' },
             skip,
