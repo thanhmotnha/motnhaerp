@@ -128,6 +128,11 @@ model Project {
   acceptanceReports AcceptanceReport[]
   accountEntries  AccountEntry[]
   expenseAllocations ExpenseAllocation[]
+  risks           RiskEntry[]
+  resources       ResourceAllocation[]
+  photos          ProgressPhoto[]
+  portalTokens    ClientPortalToken[]
+  projectRisks    ProjectRisk[]
   deletedAt       DateTime?
   createdAt       DateTime    @default(now())
   updatedAt       DateTime    @updatedAt
@@ -1822,4 +1827,105 @@ model AccountEntry {
   @@index([category])
   @@index([projectId])
   @@index([date])
+}
+
+// ── Risk Register ──────────────────────────────────────────────
+model RiskEntry {
+  id          String    @id @default(cuid())
+  projectId   String
+  project     Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  title       String
+  description String    @default("") @db.Text
+  category    String    @default("Kỹ thuật") // Kỹ thuật | Tài chính | Nhân sự | Pháp lý | Thời tiết | Khách hàng | Khác
+  probability String    @default("Trung bình") // Thấp | Trung bình | Cao
+  impact      String    @default("Trung bình") // Thấp | Trung bình | Cao | Nghiêm trọng
+  riskScore   Int       @default(0)
+  status      String    @default("Mở") // Mở | Đang xử lý | Đã giảm thiểu | Đã đóng
+  mitigation  String    @default("") @db.Text
+  owner       String    @default("")
+  dueDate     DateTime?
+  createdBy   String    @default("")
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  @@index([projectId])
+  @@index([status])
+}
+
+// ── Resource Allocation ────────────────────────────────────────
+model ResourceAllocation {
+  id            String   @id @default(cuid())
+  projectId     String
+  project       Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  resourceType  String   @default("Nhân công") // Nhân công | Máy móc | Thiết bị
+  resourceName  String
+  resourceId    String   @default("")
+  role          String   @default("")
+  startDate     DateTime
+  endDate       DateTime
+  hoursPerDay   Float    @default(8)
+  allocation    Float    @default(100)
+  notes         String   @default("") @db.Text
+  createdBy     String   @default("")
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  @@index([projectId])
+  @@index([resourceType])
+}
+
+// ── Progress Photo ─────────────────────────────────────────────
+model ProgressPhoto {
+  id          String   @id @default(cuid())
+  projectId   String
+  project     Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  title       String   @default("")
+  description String   @default("") @db.Text
+  phase       String   @default("")
+  photoUrl    String
+  takenAt     DateTime @default(now())
+  location    String   @default("")
+  uploadedBy  String   @default("")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  @@index([projectId])
+  @@index([takenAt])
+}
+
+// ── Client Portal Token ────────────────────────────────────────
+model ClientPortalToken {
+  id          String    @id @default(cuid())
+  token       String    @unique @default(cuid())
+  projectId   String
+  project     Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  description String    @default("")
+  expiresAt   DateTime?
+  isActive    Boolean   @default(true)
+  viewCount   Int       @default(0)
+  lastViewAt  DateTime?
+  createdBy   String    @default("")
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  @@index([token])
+  @@index([projectId])
+}
+
+// ── Project Risk Register ──────────────────────────────────────
+model ProjectRisk {
+  id            String    @id @default(cuid())
+  projectId     String
+  project       Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  title         String
+  description   String    @default("")
+  category      String    @default("")
+  likelihood    String    @default("Trung bình")
+  impact        String    @default("Trung bình")
+  riskScore     Int       @default(0)
+  status        String    @default("Đang theo dõi")
+  mitigation    String    @default("")
+  owner         String    @default("")
+  dueDate       DateTime?
+  createdBy     String    @default("")
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  @@index([projectId])
+  @@index([status])
 }

@@ -20,6 +20,7 @@ const menuItems = [
             { href: '/', icon: LayoutDashboard, label: 'Dashboard' },
             { href: '/pipeline', icon: TrendingUp, label: 'Pipeline' },
             { href: '/reports', icon: BarChart3, label: 'Báo cáo', roles: ['giam_doc', 'pho_gd', 'ke_toan'] },
+            { href: '/reports/pl-by-project', icon: TrendingUp, label: 'P&L Dự án', roles: ['giam_doc', 'pho_gd', 'ke_toan'] },
         ]
     },
     {
