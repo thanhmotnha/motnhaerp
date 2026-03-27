@@ -49,7 +49,7 @@ export default function ContractTab({ project: p, projectId, onRefresh }) {
 
     const contracts = p.contracts || [];
     const totalContract = contracts.reduce((s, c) => s + (Number(c.contractValue) || 0), 0);
-    const totalPaid = contracts.reduce((s, c) => s + (c.paymentPhases || []).filter(ph => ph.status === 'Đã thanh toán').reduce((a, ph) => a + (Number(ph.amount) || 0), 0), 0);
+    const totalPaid = contracts.reduce((s, c) => s + (c.payments || []).filter(ph => ph.status === 'Đã thanh toán').reduce((a, ph) => a + (Number(ph.amount) || 0), 0), 0);
 
     return (
         <div>
@@ -66,7 +66,7 @@ export default function ContractTab({ project: p, projectId, onRefresh }) {
                 <div className="card" style={{ padding: 40, textAlign: 'center', color: 'var(--text-muted)' }}>Chưa có hợp đồng</div>
             ) : (
                 contracts.map(c => {
-                    const paid = (c.paymentPhases || []).filter(ph => ph.status === 'Đã thanh toán').reduce((s, ph) => s + (Number(ph.amount) || 0), 0);
+                    const paid = (c.payments || []).filter(ph => ph.status === 'Đã thanh toán').reduce((s, ph) => s + (Number(ph.amount) || 0), 0);
                     const pct = c.contractValue > 0 ? Math.round((paid / c.contractValue) * 100) : 0;
                     return (
                         <div key={c.id} className="card" style={{ marginBottom: 16 }}>
@@ -86,7 +86,7 @@ export default function ContractTab({ project: p, projectId, onRefresh }) {
                                 <a href={`/contracts/${c.id}`} className="btn btn-ghost btn-sm" style={{ fontSize: 12 }}>Xem chi tiết →</a>
                             </div>
 
-                            {(c.paymentPhases || []).length > 0 && (
+                            {(c.payments || []).length > 0 && (
                                 <div className="table-container">
                                     <table className="data-table">
                                         <thead>
@@ -98,10 +98,12 @@ export default function ContractTab({ project: p, projectId, onRefresh }) {
                                             </tr>
                                         </thead>
                                         <tbody>
-                                            {c.paymentPhases.map((ph, i) => (
+                                            {c.payments.map((ph, i) => {
+                                                const phasePct = c.contractValue > 0 ? Math.round((ph.amount / c.contractValue) * 100) : 0;
+                                                return (
                                                 <tr key={i}>
                                                     <td>{ph.phase}</td>
-                                                    <td>{ph.pct}%</td>
+                                                    <td>{phasePct}%</td>
                                                     <td style={{ fontWeight: 600 }}>{fmtVND(ph.amount)}</td>
                                                     <td>
                                                         <span className={`badge ${ph.status === 'Đã thanh toán' ? 'success' : ph.status === 'Đến hạn' ? 'warning' : 'muted'}`}>
@@ -109,7 +111,8 @@ export default function ContractTab({ project: p, projectId, onRefresh }) {
                                                         </span>
                                                     </td>
                                                 </tr>
-                                            ))}
+                                                );
+                                            })}
                                         </tbody>
                                     </table>
                                 </div>
