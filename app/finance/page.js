@@ -390,62 +390,6 @@ function FinanceContent() {
                         </div>
                     );
                 })()}
-
-                    return (
-                        <div className="card-body">
-                            <div style={{ overflowX: 'auto' }}>
-                                <table className="data-table" style={{ margin: 0 }}>
-                                    <thead>
-                                        <tr>
-                                            <th>Tháng</th>
-                                            <th style={{ color: 'var(--status-success)' }}>Thu (HĐ)</th>
-                                            <th style={{ color: 'var(--status-danger)' }}>Chi (DA)</th>
-                                            <th style={{ color: 'var(--status-warning)' }}>Chi (NT)</th>
-                                            <th>Giao dịch khác</th>
-                                            <th style={{ fontWeight: 700 }}>Ròng tháng</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {months.length === 0 ? (
-                                            <tr><td colSpan={6} style={{ textAlign: 'center', padding: 30, color: 'var(--text-muted)' }}>Chưa có dữ liệu dòng tiền theo tháng</td></tr>
-                                        ) : months.map(m => {
-                                            const net = (m.received || 0) - (m.expense || 0) - (m.contractor || 0) + (m.txIn || 0) - (m.txOut || 0);
-                                            return (
-                                                <tr key={m.month}>
-                                                    <td style={{ fontWeight: 600, whiteSpace: 'nowrap' }}>{m.month}</td>
-                                                    <td style={{ color: 'var(--status-success)', fontWeight: 600 }}>{fmt(m.received)}</td>
-                                                    <td style={{ color: 'var(--status-danger)' }}>{fmt(m.expense)}</td>
-                                                    <td style={{ color: 'var(--status-warning)' }}>{fmt(m.contractor)}</td>
-                                                    <td style={{ fontSize: 12, color: 'var(--text-muted)' }}>
-                                                        {m.txIn > 0 && <span style={{ color: 'var(--status-success)' }}>+{fmt(m.txIn)} </span>}
-                                                        {m.txOut > 0 && <span style={{ color: 'var(--status-danger)' }}>-{fmt(m.txOut)}</span>}
-                                                    </td>
-                                                    <td style={{ fontWeight: 700, color: net >= 0 ? 'var(--status-success)' : 'var(--status-danger)' }}>
-                                                        {net >= 0 ? '+' : ''}{fmt(net)}
-                                                    </td>
-                                                </tr>
-                                            );
-                                        })}
-                                    </tbody>
-                                    {months.length > 0 && (
-                                        <tfoot>
-                                            <tr style={{ background: 'var(--bg-hover)', fontWeight: 700 }}>
-                                                <td>Tổng cộng</td>
-                                                <td style={{ color: 'var(--status-success)' }}>{fmt(months.reduce((s, m) => s + (m.received || 0), 0))}</td>
-                                                <td style={{ color: 'var(--status-danger)' }}>{fmt(months.reduce((s, m) => s + (m.expense || 0), 0))}</td>
-                                                <td style={{ color: 'var(--status-warning)' }}>{fmt(months.reduce((s, m) => s + (m.contractor || 0), 0))}</td>
-                                                <td></td>
-                                                <td style={{ color: months.reduce((s, m) => s + (m.received||0) - (m.expense||0) - (m.contractor||0) + (m.txIn||0) - (m.txOut||0), 0) >= 0 ? 'var(--status-success)' : 'var(--status-danger)' }}>
-                                                    {fmt(months.reduce((s, m) => s + (m.received||0) - (m.expense||0) - (m.contractor||0) + (m.txIn||0) - (m.txOut||0), 0))}
-                                                </td>
-                                            </tr>
-                                        </tfoot>
-                                    )}
-                                </table>
-                            </div>
-                        </div>
-                    );
-                })()}
             </div>
 
             {/* Modal: Thêm giao dịch thủ công */}
