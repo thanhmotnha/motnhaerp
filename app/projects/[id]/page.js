@@ -41,7 +41,8 @@ export default function ProjectDetailPage() {
         setLoading(true);
         fetch(`/api/projects/${id}`)
             .then(r => r.json())
-            .then(d => { setProject(d); setLoading(false); });
+            .then(d => { setProject(d); setLoading(false); })
+            .catch(() => setLoading(false));
     };
 
     useEffect(fetchData, [id]);
