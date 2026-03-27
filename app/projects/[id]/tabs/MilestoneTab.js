@@ -1,6 +1,7 @@
 'use client';
 import { useState } from 'react';
 import { fmtDate, milestoneStatus } from '@/lib/projectUtils';
+import { apiFetch } from '@/lib/fetchClient';
 
 export default function MilestoneTab({ project: p, projectId, onRefresh }) {
     const [showForm, setShowForm] = useState(false);
@@ -12,10 +13,9 @@ export default function MilestoneTab({ project: p, projectId, onRefresh }) {
     const overall = milestones.length > 0 ? Math.round(milestones.reduce((s, m) => s + (Number(m.progress) || 0), 0) / milestones.length) : 0;
 
     const updateProgress = async (msId, progress) => {
-        await fetch(`/api/milestones/${msId}`, {
+        await apiFetch(`/api/milestones/${msId}`, {
             method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ progress: Number(progress), status: milestoneStatus(progress) }),
+            body: { progress: Number(progress), status: milestoneStatus(progress) },
         });
         onRefresh();
     };
@@ -23,10 +23,9 @@ export default function MilestoneTab({ project: p, projectId, onRefresh }) {
     const addMilestone = async () => {
         if (!form.name.trim()) return alert('Nhập tên mốc tiến độ!');
         setSaving(true);
-        await fetch('/api/milestones', {
+        await apiFetch('/api/milestones', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ ...form, projectId, progress: 0, status: 'Chưa bắt đầu' }),
+            body: { ...form, projectId, progress: 0, status: 'Chưa bắt đầu' },
         });
         setSaving(false);
         setForm({ name: '', plannedDate: '', description: '' });

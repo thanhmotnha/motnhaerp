@@ -1,6 +1,7 @@
 'use client';
 import { useState } from 'react';
 import { fmtDate } from '@/lib/projectUtils';
+import { apiFetch } from '@/lib/fetchClient';
 
 const LOG_TYPES = ['Điện thoại', 'Gặp mặt', 'Email', 'Zalo', 'Ghi chú'];
 
@@ -12,10 +13,9 @@ export default function OverviewTab({ project: p, projectId, onRefresh }) {
     const addLog = async () => {
         if (!form.content.trim()) return alert('Nhập nội dung nhật ký!');
         setSaving(true);
-        await fetch('/api/tracking-logs', {
+        await apiFetch('/api/tracking-logs', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ ...form, projectId }),
+            body: { ...form, projectId },
         });
         setSaving(false);
         setForm({ type: 'Điện thoại', content: '', createdBy: '' });

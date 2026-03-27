@@ -1,6 +1,7 @@
 'use client';
 import { useState, useEffect } from 'react';
 import { fmtDate } from '@/lib/projectUtils';
+import { apiFetch } from '@/lib/fetchClient';
 
 const WARRANTY_STATUSES = ['Mới', 'Đang xử lý', 'Hoàn thành'];
 const PRIORITY_OPTS = ['Thấp', 'Trung bình', 'Cao', 'Khẩn cấp'];
@@ -25,10 +26,9 @@ export default function WarrantyTab({ projectId }) {
     const addTicket = async () => {
         if (!form.title.trim()) return alert('Nhập tiêu đề yêu cầu bảo hành!');
         setSaving(true);
-        await fetch('/api/warranty', {
+        await apiFetch('/api/warranty', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ ...form, projectId }),
+            body: { ...form, projectId },
         });
         setSaving(false);
         setForm({ title: '', description: '', reportedBy: '', assignee: '', priority: 'Trung bình' });
@@ -37,17 +37,16 @@ export default function WarrantyTab({ projectId }) {
     };
 
     const updateStatus = async (id, status) => {
-        await fetch(`/api/warranty/${id}`, {
+        await apiFetch(`/api/warranty/${id}`, {
             method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ status }),
+            body: { status },
         });
         load();
     };
 
     const deleteTicket = async (id) => {
         if (!confirm('Xóa ticket này?')) return;
-        await fetch(`/api/warranty/${id}`, { method: 'DELETE' });
+        await apiFetch(`/api/warranty/${id}`, { method: 'DELETE' });
         load();
     };
 

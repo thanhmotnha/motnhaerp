@@ -1,6 +1,7 @@
 'use client';
 import { useState } from 'react';
 import { fmtVND } from '@/lib/projectUtils';
+import { apiFetch } from '@/lib/fetchClient';
 
 export default function MaterialTab({ project: p, projectId, onRefresh }) {
     const [selectedPlans, setSelectedPlans] = useState([]);
@@ -17,14 +18,17 @@ export default function MaterialTab({ project: p, projectId, onRefresh }) {
 
     const importFromQuotation = async () => {
         if (!confirm('Tạo dự toán vật tư từ báo giá mới nhất?')) return;
-        const res = await fetch(`/api/projects/${projectId}/material-plans/import-quotation`, { method: 'POST' });
-        if (!res.ok) { const err = await res.json(); return alert(err.error || 'Không thể import'); }
-        onRefresh();
+        try {
+            await apiFetch(`/api/projects/${projectId}/material-plans/import-quotation`, { method: 'POST' });
+            onRefresh();
+        } catch (err) {
+            alert(err.message || 'Không thể import');
+        }
     };
 
     const deletePlan = async (id) => {
         if (!confirm('Xóa hạng mục này?')) return;
-        await fetch(`/api/material-plans/${id}`, { method: 'DELETE' });
+        await apiFetch(`/api/material-plans/${id}`, { method: 'DELETE' });
         onRefresh();
     };
 
@@ -54,13 +58,16 @@ export default function MaterialTab({ project: p, projectId, onRefresh }) {
         if (!poForm.supplier.trim()) return alert('Nhập tên nhà cung cấp!');
         if (poItems.length === 0) return alert('Không có vật tư để đặt!');
         setSavingPO(true);
-        const res = await fetch('/api/purchase-orders', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ ...poForm, projectId, items: poItems, materialPlanIds: poItems.map(i => i._mpId) }),
-        });
+        try {
+            await apiFetch('/api/purchase-orders', {
+                method: 'POST',
+                body: { ...poForm, projectId, items: poItems, materialPlanIds: poItems.map(i => i._mpId) },
+            });
+        } catch (err) {
+            setSavingPO(false);
+            return alert(err.message || 'Lỗi tạo PO');
+        }
         setSavingPO(false);
-        if (!res.ok) { const err = await res.json(); return alert(err.error || 'Lỗi tạo PO'); }
         setShowPOModal(false);
         setSelectedPlans([]);
         onRefresh();
