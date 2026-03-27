@@ -21,6 +21,7 @@ export default function InventoryPage() {
     const [form, setForm] = useState(EMPTY_FORM);
     const [projects, setProjects] = useState([]);
     const [saving, setSaving] = useState(false);
+    const [reorderAlerts, setReorderAlerts] = useState([]);
 
     const fetchTx = async () => {
         setLoading(true);
@@ -50,6 +51,7 @@ export default function InventoryPage() {
         fetch('/api/inventory/stock').then(r => r.json()).then(d => setStockData(d));
         fetch('/api/inventory?limit=1').then(r => r.json()).then(d => setTxData(t => ({ ...t, warehouses: d.warehouses || [] })));
         fetch('/api/projects?limit=500').then(r => r.json()).then(d => setProjects(d.data || []));
+        fetch('/api/inventory/reorder-alerts').then(r => r.json()).then(d => setReorderAlerts(Array.isArray(d) ? d : []));
     }, []);
 
     const openModal = () => {
@@ -89,6 +91,25 @@ export default function InventoryPage() {
     const totalStockValue = stockData.products.reduce((s, p) => s + (p.stock || 0) * (p.importPrice || 0), 0);
     return (
         <div>
+            {/* Reorder Alert Banner */}
+            {reorderAlerts.length > 0 && (
+                <div style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid var(--status-danger)', borderRadius: 8, padding: '12px 16px', marginBottom: 16, display: 'flex', alignItems: 'flex-start', gap: 12 }}>
+                    <span style={{ fontSize: 20 }}>⚠️</span>
+                    <div style={{ flex: 1 }}>
+                        <div style={{ fontWeight: 700, color: 'var(--status-danger)', marginBottom: 4 }}>
+                            {reorderAlerts.length} vật tư dưới ngưỡng tồn kho tối thiểu
+                        </div>
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px 12px' }}>
+                            {reorderAlerts.slice(0, 8).map(p => (
+                                <span key={p.id} style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+                                    <strong>{p.name}</strong>: {p.stock} {p.unit} / min {p.reorderPoint}
+                                </span>
+                            ))}
+                            {reorderAlerts.length > 8 && <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>+{reorderAlerts.length - 8} khác</span>}
+                        </div>
+                    </div>
+                </div>
+            )}
             {/* KPI */}
             <div className="stats-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', marginBottom: 24 }}>
                 <div className="stat-card">

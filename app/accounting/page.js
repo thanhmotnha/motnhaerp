@@ -22,20 +22,35 @@ export default function AccountingPage() {
     const [projects, setProjects] = useState([]);
     const [filterType, setFilterType] = useState('');
     const [filterCategory, setFilterCategory] = useState('');
+    const [monthlyData, setMonthlyData] = useState([]); // New state for monthly report
+    const [activeTab, setActiveTab] = useState('ledger'); // 'ledger' or 'monthlyReport'
 
     const load = useCallback(async () => {
         setLoading(true);
         try {
-            const p = new URLSearchParams({ limit: '200' });
+            const p = new URLSearchParams({ limit: '500' });
             if (filterType) p.set('type', filterType);
             if (filterCategory) p.set('category', filterCategory);
             const [rEntries, rSummary] = await Promise.all([
                 fetch(`/api/accounting?${p}`).then(r => r.json()),
                 fetch('/api/accounting/summary').then(r => r.json()),
             ]);
-            setEntries(rEntries.data || []);
+            const allEntries = rEntries.data || [];
+            setEntries(allEntries);
             setSummary(rSummary);
-        } catch {}
+            // Tính báo cáo tháng từ entries (không cần API riêng)
+            const monthMap = {};
+            allEntries.forEach(e => {
+                const d = new Date(e.date);
+                const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+                if (!monthMap[key]) monthMap[key] = { month: key, totalThu: 0, totalChi: 0 };
+                if (e.type === 'Thu') monthMap[key].totalThu += e.amount;
+                else monthMap[key].totalChi += e.amount;
+            });
+            setMonthlyData(Object.values(monthMap).sort((a, b) => a.month.localeCompare(b.month)));
+        } catch (error) {
+            console.error("Failed to load accounting data:", error);
+        }
         setLoading(false);
     }, [filterType, filterCategory]);
 
@@ -64,7 +79,9 @@ export default function AccountingPage() {
             setShowForm(false);
             setForm(EMPTY_FORM);
             load();
-        } catch {}
+        } catch (error) {
+            console.error("Failed to submit entry:", error);
+        }
         setSaving(false);
     };
 
@@ -101,18 +118,28 @@ export default function AccountingPage() {
             {/* Toolbar */}
             <div className="card" style={{ marginBottom: 20, padding: '12px 20px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-                    <select className="form-select" value={filterType} onChange={e => setFilterType(e.target.value)} style={{ maxWidth: 140 }}>
-                        <option value="">Tất cả loại</option>
-                        <option value="Thu">💰 Thu</option>
-                        <option value="Chi">💸 Chi</option>
-                    </select>
-                    <select className="form-select" value={filterCategory} onChange={e => setFilterCategory(e.target.value)} style={{ maxWidth: 180 }}>
-                        <option value="">Tất cả danh mục</option>
-                        {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
-                    </select>
+                    {activeTab === 'ledger' && (
+                        <>
+                            <select className="form-select" value={filterType} onChange={e => setFilterType(e.target.value)} style={{ maxWidth: 140 }}>
+                                <option value="">Tất cả loại</option>
+                                <option value="Thu">💰 Thu</option>
+                                <option value="Chi">💸 Chi</option>
+                            </select>
+                            <select className="form-select" value={filterCategory} onChange={e => setFilterCategory(e.target.value)} style={{ maxWidth: 180 }}>
+                                <option value="">Tất cả danh mục</option>
+                                {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+                            </select>
+                        </>
+                    )}
                     <div style={{ flex: 1 }} />
+                    <div className="tab-buttons">
+                        <button className={`btn ${activeTab === 'ledger' ? 'btn-primary' : 'btn-ghost'}`} onClick={() => setActiveTab('ledger')}>Sổ thu chi</button>
+                        <button className={`btn ${activeTab === 'monthlyReport' ? 'btn-primary' : 'btn-ghost'}`} onClick={() => setActiveTab('monthlyReport')}>Báo cáo tháng</button>
+                    </div>
                     <button className="btn btn-ghost" onClick={load}>↻ Làm mới</button>
-                    <button className="btn btn-primary" onClick={() => setShowForm(true)}>+ Thêm bút toán</button>
+                    {activeTab === 'ledger' && (
+                        <button className="btn btn-primary" onClick={() => setShowForm(true)}>+ Thêm bút toán</button>
+                    )}
                 </div>
             </div>
 
@@ -169,44 +196,106 @@ export default function AccountingPage() {
                 </div>
             )}
 
-            {/* Table */}
+            {/* Content based on active tab */}
             {loading ? <div style={{ padding: 60, textAlign: 'center', color: 'var(--text-muted)' }}>Đang tải...</div> : (
-                <div className="card">
-                    <div className="table-container"><table className="data-table">
-                        <thead><tr>
-                            <th>Mã</th><th>Ngày</th><th>Loại</th>
-                            <th>Danh mục</th><th>Số tiền</th><th>Mô tả</th>
-                            <th>Dự án</th><th>Tham chiếu</th><th></th>
-                        </tr></thead>
-                        <tbody>{entries.map(e => (
-                            <tr key={e.id}>
-                                <td className="accent">{e.code}</td>
-                                <td style={{ fontSize: 12 }}>{fmtDate(e.date)}</td>
-                                <td>
-                                    <span style={{ fontSize: 12, fontWeight: 600, padding: '2px 10px', borderRadius: 12,
-                                        background: e.type === 'Thu' ? '#dcfce7' : '#fee2e2',
-                                        color: e.type === 'Thu' ? '#22c55e' : '#ef4444',
-                                    }}>
-                                        {e.type === 'Thu' ? '💰' : '💸'} {e.type}
-                                    </span>
-                                </td>
-                                <td style={{ fontSize: 12 }}>{e.category || '—'}</td>
-                                <td style={{ textAlign: 'right', fontWeight: 600, color: e.type === 'Thu' ? '#22c55e' : '#ef4444' }}>
-                                    {e.type === 'Thu' ? '+' : '-'}{fmt(e.amount)}
-                                </td>
-                                <td style={{ fontSize: 12, maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                                    {e.description || '—'}
-                                </td>
-                                <td style={{ fontSize: 12 }}>{e.project?.name || '—'}</td>
-                                <td style={{ fontSize: 12 }}>{e.reference || '—'}</td>
-                                <td>
-                                    <button className="btn btn-ghost" style={{ fontSize: 11, padding: '2px 6px', color: '#ef4444' }} onClick={() => deleteEntry(e.id)}>🗑</button>
-                                </td>
-                            </tr>
-                        ))}</tbody>
-                    </table></div>
-                    {entries.length === 0 && <div style={{ color: 'var(--text-muted)', padding: 40, textAlign: 'center' }}>Chưa có bút toán nào</div>}
-                </div>
+                activeTab === 'ledger' ? (
+                    <div className="card">
+                        <div className="table-container"><table className="data-table">
+                            <thead><tr>
+                                <th>Mã</th><th>Ngày</th><th>Loại</th>
+                                <th>Danh mục</th><th>Số tiền</th><th>Mô tả</th>
+                                <th>Dự án</th><th>Tham chiếu</th><th></th>
+                            </tr></thead>
+                            <tbody>{entries.map(e => (
+                                <tr key={e.id}>
+                                    <td className="accent">{e.code}</td>
+                                    <td style={{ fontSize: 12 }}>{fmtDate(e.date)}</td>
+                                    <td>
+                                        <span style={{ fontSize: 12, fontWeight: 600, padding: '2px 10px', borderRadius: 12,
+                                            background: e.type === 'Thu' ? '#dcfce7' : '#fee2e2',
+                                            color: e.type === 'Thu' ? '#22c55e' : '#ef4444',
+                                        }}>
+                                            {e.type === 'Thu' ? '💰' : '💸'} {e.type}
+                                        </span>
+                                    </td>
+                                    <td style={{ fontSize: 12 }}>{e.category || '—'}</td>
+                                    <td style={{ textAlign: 'right', fontWeight: 600, color: e.type === 'Thu' ? '#22c55e' : '#ef4444' }}>
+                                        {e.type === 'Thu' ? '+' : '-'}{fmt(e.amount)}
+                                    </td>
+                                    <td style={{ fontSize: 12, maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                        {e.description || '—'}
+                                    </td>
+                                    <td style={{ fontSize: 12 }}>{e.project?.name || '—'}</td>
+                                    <td style={{ fontSize: 12 }}>{e.reference || '—'}</td>
+                                    <td>
+                                        <button className="btn btn-ghost" style={{ fontSize: 11, padding: '2px 6px', color: '#ef4444' }} onClick={() => deleteEntry(e.id)}>🗑</button>
+                                    </td>
+                                </tr>
+                            ))}</tbody>
+                        </table></div>
+                        {entries.length === 0 && <div style={{ color: 'var(--text-muted)', padding: 40, textAlign: 'center' }}>Chưa có bút toán nào</div>}
+                    </div>
+                ) : (
+                    <div className="card">
+                        <h3 style={{ marginBottom: 20 }}>Báo cáo thu chi theo tháng</h3>
+                        {monthlyData.length === 0 ? (
+                            <div style={{ color: 'var(--text-muted)', padding: 40, textAlign: 'center' }}>Chưa có dữ liệu báo cáo tháng</div>
+                        ) : (
+                            <>
+                                {/* Monthly Chart */}
+                                <div style={{ display: 'flex', alignItems: 'flex-end', height: 200, gap: 8, marginBottom: 20, borderBottom: '1px solid var(--border-color)', paddingBottom: 10 }}>
+                                    {monthlyData.map(month => {
+                                        const maxVal = Math.max(...monthlyData.map(m => Math.max(m.totalThu, m.totalChi)));
+                                        const thuHeight = (month.totalThu / maxVal) * 100;
+                                        const chiHeight = (month.totalChi / maxVal) * 100;
+                                        const profitVal = month.totalThu - month.totalChi;
+                                        const profitHeight = (Math.abs(profitVal) / maxVal) * 100;
+
+                                        return (
+                                            <div key={month.month} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', position: 'relative', height: '100%' }}>
+                                                <div style={{ position: 'absolute', bottom: 0, width: '80%', display: 'flex', alignItems: 'flex-end', height: '100%' }}>
+                                                    <div style={{ width: '30%', height: `${thuHeight}%`, backgroundColor: '#22c55e', borderRadius: '4px 4px 0 0' }} title={`Thu: ${fmt(month.totalThu)}`}></div>
+                                                    <div style={{ width: '30%', height: `${chiHeight}%`, backgroundColor: '#ef4444', borderRadius: '4px 4px 0 0', marginLeft: '5%' }} title={`Chi: ${fmt(month.totalChi)}`}></div>
+                                                    <div style={{ width: '30%', height: `${profitHeight}%`, backgroundColor: profitVal >= 0 ? '#0ea5e9' : '#f97316', borderRadius: '4px 4px 0 0', marginLeft: '5%' }} title={`Lợi nhuận: ${fmt(profitVal)}`}></div>
+                                                </div>
+                                                <div style={{ fontSize: 10, marginTop: 'auto', position: 'absolute', bottom: -20 }}>{month.month}</div>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                                <div style={{ display: 'flex', justifyContent: 'center', gap: 20, fontSize: 12, marginBottom: 20 }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}><span style={{ width: 10, height: 10, backgroundColor: '#22c55e', borderRadius: '50%' }}></span>Thu</div>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}><span style={{ width: 10, height: 10, backgroundColor: '#ef4444', borderRadius: '50%' }}></span>Chi</div>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}><span style={{ width: 10, height: 10, backgroundColor: '#0ea5e9', borderRadius: '50%' }}></span>Lợi nhuận</div>
+                                </div>
+
+                                {/* Monthly Breakdown Table */}
+                                <div className="table-container">
+                                    <table className="data-table">
+                                        <thead>
+                                            <tr>
+                                                <th>Tháng</th>
+                                                <th style={{ textAlign: 'right' }}>Tổng Thu</th>
+                                                <th style={{ textAlign: 'right' }}>Tổng Chi</th>
+                                                <th style={{ textAlign: 'right' }}>Lợi nhuận</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {monthlyData.map(month => (
+                                                <tr key={month.month}>
+                                                    <td>{month.month}</td>
+                                                    <td style={{ textAlign: 'right', color: '#22c55e', fontWeight: 600 }}>{fmt(month.totalThu)}</td>
+                                                    <td style={{ textAlign: 'right', color: '#ef4444', fontWeight: 600 }}>{fmt(month.totalChi)}</td>
+                                                    <td style={{ textAlign: 'right', color: (month.totalThu - month.totalChi) >= 0 ? '#0ea5e9' : '#f97316', fontWeight: 600 }}>{fmt(month.totalThu - month.totalChi)}</td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </>
+                        )}
+                    </div>
+                )
             )}
         </div>
     );

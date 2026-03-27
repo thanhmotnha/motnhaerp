@@ -51,6 +51,7 @@ function FinanceContent() {
         setActiveTab(key);
         if (key === 'dong_tien') { fetchCashflow(); fetchAging(); }
         if (key === 'cong_no') { fetchRetentions(); }
+        if (key === 'bao_cao') { fetchCashflow(); }
     };
 
     const handleSubmitTx = async () => {
@@ -66,6 +67,7 @@ function FinanceContent() {
         { key: 'chi_phi', label: '💸 Chi phí' },
         { key: 'dong_tien', label: '💧 Dòng tiền' },
         { key: 'cong_no', label: '📋 Công nợ' },
+        { key: 'bao_cao', label: '📅 Báo cáo tháng' },
     ];
 
     // Filter receivable payments for Công nợ tab
@@ -172,6 +174,46 @@ function FinanceContent() {
                                         </div>
                                     ))}
                                 </div>
+                                {cashflow.months.length > 0 && (() => {
+                                    const months = cashflow.months.slice(-12);
+                                    const maxVal = Math.max(...months.map(m => Math.max(m.inflow, m.outflow)), 1);
+                                    const W = 760, H = 160, pad = { l: 8, r: 8, t: 12, b: 28 };
+                                    const bw = (W - pad.l - pad.r) / months.length;
+                                    const barW = Math.max(8, bw * 0.35);
+                                    const yScale = v => pad.t + (H - pad.t - pad.b) * (1 - v / maxVal);
+                                    const fmtShort = v => v >= 1e9 ? `${(v/1e9).toFixed(1)}tỷ` : v >= 1e6 ? `${(v/1e6).toFixed(0)}tr` : v > 0 ? `${(v/1e3).toFixed(0)}k` : '';
+                                    return (
+                                        <div style={{ background: 'var(--bg-secondary)', borderRadius: 8, padding: '12px 4px 4px', marginBottom: 16, overflowX: 'auto' }}>
+                                            <svg viewBox={`0 0 ${W} ${H}`} style={{ width: '100%', height: H, display: 'block' }}>
+                                                {/* gridlines */}
+                                                {[0.25,0.5,0.75,1].map(f => (
+                                                    <line key={f} x1={pad.l} x2={W-pad.r} y1={yScale(maxVal*f)} y2={yScale(maxVal*f)} stroke="var(--border)" strokeWidth="0.5" strokeDasharray="4,4"/>
+                                                ))}
+                                                {months.map((m, i) => {
+                                                    const cx = pad.l + bw * i + bw / 2;
+                                                    const iy = yScale(m.inflow), oy = yScale(m.outflow);
+                                                    const baseY = H - pad.b;
+                                                    return (
+                                                        <g key={m.key}>
+                                                            {/* Inflow bar */}
+                                                            <rect x={cx - barW - 1} y={iy} width={barW} height={Math.max(2, baseY - iy)} fill="var(--status-success)" opacity="0.85" rx="2"/>
+                                                            {/* Outflow bar */}
+                                                            <rect x={cx + 1} y={oy} width={barW} height={Math.max(2, baseY - oy)} fill="var(--status-danger)" opacity="0.75" rx="2"/>
+                                                            {/* Label tháng */}
+                                                            <text x={cx} y={H - 8} textAnchor="middle" fontSize="9" fill="var(--text-muted)">{m.label.replace('T','').split('/').join('/')}</text>
+                                                            {/* inflow label on top */}
+                                                            {m.inflow > 0 && <text x={cx - barW/2 - 1} y={iy - 3} textAnchor="middle" fontSize="7" fill="var(--status-success)">{fmtShort(m.inflow)}</text>}
+                                                        </g>
+                                                    );
+                                                })}
+                                            </svg>
+                                            <div style={{ display: 'flex', gap: 16, justifyContent: 'center', marginTop: 4, fontSize: 11, color: 'var(--text-muted)' }}>
+                                                <span><span style={{ color: 'var(--status-success)', fontWeight: 700 }}>▋</span> Thu vào</span>
+                                                <span><span style={{ color: 'var(--status-danger)', fontWeight: 700 }}>▋</span> Chi ra</span>
+                                            </div>
+                                        </div>
+                                    );
+                                })()}
                                 <table className="data-table" style={{ margin: 0 }}>
                                     <thead><tr><th>Tháng</th><th style={{ textAlign: 'right' }}>Thu vào</th><th style={{ textAlign: 'right' }}>Chi ra</th><th style={{ textAlign: 'right' }}>Ròng</th><th style={{ textAlign: 'right' }}>Luỹ kế</th></tr></thead>
                                     <tbody>{cashflow.months.map(m => (
@@ -293,6 +335,117 @@ function FinanceContent() {
                         )}
                     </div>
                 )}
+
+                {/* === TAB: Báo cáo tháng === */}
+                {activeTab === 'bao_cao' && (() => {
+                    const months = cashflow?.months || [];
+                    const totalInflow = months.reduce((s, m) => s + (m.inflow || 0), 0);
+                    const totalOutflow = months.reduce((s, m) => s + (m.outflow || 0), 0);
+                    const totalNet = months.reduce((s, m) => s + (m.net || 0), 0);
+                    return (
+                        <div className="card-body">
+                            <div style={{ overflowX: 'auto' }}>
+                                <table className="data-table" style={{ margin: 0 }}>
+                                    <thead>
+                                        <tr>
+                                            <th>Tháng</th>
+                                            <th style={{ color: 'var(--status-success)' }}>Tổng thu</th>
+                                            <th style={{ color: 'var(--status-danger)' }}>Tổng chi</th>
+                                            <th style={{ fontWeight: 700 }}>Ròng tháng</th>
+                                            <th>Số dư tích luỹ</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {months.length === 0 ? (
+                                            <tr><td colSpan={5} style={{ textAlign: 'center', padding: 30, color: 'var(--text-muted)' }}>Chưa có dữ liệu dòng tiền theo tháng</td></tr>
+                                        ) : months.map(m => (
+                                            <tr key={m.key}>
+                                                <td style={{ fontWeight: 600, whiteSpace: 'nowrap' }}>{m.label}</td>
+                                                <td style={{ color: 'var(--status-success)', fontWeight: 600 }}>{fmt(m.inflow)}</td>
+                                                <td style={{ color: 'var(--status-danger)' }}>{fmt(m.outflow)}</td>
+                                                <td style={{ fontWeight: 700, color: m.net >= 0 ? 'var(--status-success)' : 'var(--status-danger)' }}>
+                                                    {m.net >= 0 ? '+' : ''}{fmt(m.net)}
+                                                </td>
+                                                <td style={{ color: m.runningBalance >= 0 ? 'var(--text-primary)' : 'var(--status-danger)', fontSize: 13 }}>
+                                                    {fmt(m.runningBalance)}
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                    {months.length > 0 && (
+                                        <tfoot>
+                                            <tr style={{ background: 'var(--bg-hover)', fontWeight: 700 }}>
+                                                <td>Tổng cộng</td>
+                                                <td style={{ color: 'var(--status-success)' }}>{fmt(totalInflow)}</td>
+                                                <td style={{ color: 'var(--status-danger)' }}>{fmt(totalOutflow)}</td>
+                                                <td style={{ color: totalNet >= 0 ? 'var(--status-success)' : 'var(--status-danger)' }}>
+                                                    {totalNet >= 0 ? '+' : ''}{fmt(totalNet)}
+                                                </td>
+                                                <td></td>
+                                            </tr>
+                                        </tfoot>
+                                    )}
+                                </table>
+                            </div>
+                        </div>
+                    );
+                })()}
+
+                    return (
+                        <div className="card-body">
+                            <div style={{ overflowX: 'auto' }}>
+                                <table className="data-table" style={{ margin: 0 }}>
+                                    <thead>
+                                        <tr>
+                                            <th>Tháng</th>
+                                            <th style={{ color: 'var(--status-success)' }}>Thu (HĐ)</th>
+                                            <th style={{ color: 'var(--status-danger)' }}>Chi (DA)</th>
+                                            <th style={{ color: 'var(--status-warning)' }}>Chi (NT)</th>
+                                            <th>Giao dịch khác</th>
+                                            <th style={{ fontWeight: 700 }}>Ròng tháng</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {months.length === 0 ? (
+                                            <tr><td colSpan={6} style={{ textAlign: 'center', padding: 30, color: 'var(--text-muted)' }}>Chưa có dữ liệu dòng tiền theo tháng</td></tr>
+                                        ) : months.map(m => {
+                                            const net = (m.received || 0) - (m.expense || 0) - (m.contractor || 0) + (m.txIn || 0) - (m.txOut || 0);
+                                            return (
+                                                <tr key={m.month}>
+                                                    <td style={{ fontWeight: 600, whiteSpace: 'nowrap' }}>{m.month}</td>
+                                                    <td style={{ color: 'var(--status-success)', fontWeight: 600 }}>{fmt(m.received)}</td>
+                                                    <td style={{ color: 'var(--status-danger)' }}>{fmt(m.expense)}</td>
+                                                    <td style={{ color: 'var(--status-warning)' }}>{fmt(m.contractor)}</td>
+                                                    <td style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+                                                        {m.txIn > 0 && <span style={{ color: 'var(--status-success)' }}>+{fmt(m.txIn)} </span>}
+                                                        {m.txOut > 0 && <span style={{ color: 'var(--status-danger)' }}>-{fmt(m.txOut)}</span>}
+                                                    </td>
+                                                    <td style={{ fontWeight: 700, color: net >= 0 ? 'var(--status-success)' : 'var(--status-danger)' }}>
+                                                        {net >= 0 ? '+' : ''}{fmt(net)}
+                                                    </td>
+                                                </tr>
+                                            );
+                                        })}
+                                    </tbody>
+                                    {months.length > 0 && (
+                                        <tfoot>
+                                            <tr style={{ background: 'var(--bg-hover)', fontWeight: 700 }}>
+                                                <td>Tổng cộng</td>
+                                                <td style={{ color: 'var(--status-success)' }}>{fmt(months.reduce((s, m) => s + (m.received || 0), 0))}</td>
+                                                <td style={{ color: 'var(--status-danger)' }}>{fmt(months.reduce((s, m) => s + (m.expense || 0), 0))}</td>
+                                                <td style={{ color: 'var(--status-warning)' }}>{fmt(months.reduce((s, m) => s + (m.contractor || 0), 0))}</td>
+                                                <td></td>
+                                                <td style={{ color: months.reduce((s, m) => s + (m.received||0) - (m.expense||0) - (m.contractor||0) + (m.txIn||0) - (m.txOut||0), 0) >= 0 ? 'var(--status-success)' : 'var(--status-danger)' }}>
+                                                    {fmt(months.reduce((s, m) => s + (m.received||0) - (m.expense||0) - (m.contractor||0) + (m.txIn||0) - (m.txOut||0), 0))}
+                                                </td>
+                                            </tr>
+                                        </tfoot>
+                                    )}
+                                </table>
+                            </div>
+                        </div>
+                    );
+                })()}
             </div>
 
             {/* Modal: Thêm giao dịch thủ công */}

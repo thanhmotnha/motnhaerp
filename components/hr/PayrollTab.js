@@ -9,6 +9,27 @@ const fmtShort = (n) => {
     return new Intl.NumberFormat('vi-VN').format(n);
 };
 
+async function exportExcel(filename, headers, rows) {
+    try {
+        const XLSX = await import('https://cdn.sheetjs.com/xlsx-0.20.3/package/xlsx.mjs').catch(() => null);
+        if (!XLSX) { alert('Không tải được thư viện Excel. Thử lại hoặc dùng CSV.'); return; }
+        const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
+        // Format number columns
+        const numCols = [3, 4, 5, 6, 7, 8, 9, 10];
+        rows.forEach((r, ri) => numCols.forEach(ci => {
+            const cellRef = XLSX.utils.encode_cell({ r: ri + 1, c: ci });
+            if (ws[cellRef]) ws[cellRef].t = 'n';
+        }));
+        ws['!cols'] = headers.map((h, i) => ({ wch: Math.max(h.length + 2, i < 3 ? 20 : 14) }));
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, 'Bảng lương');
+        XLSX.writeFile(wb, filename);
+    } catch (e) {
+        console.error('Export Excel error', e);
+        alert('Lỗi xuất Excel. Dùng CSV thay thế.');
+    }
+}
+
 function exportCSV(filename, headers, rows) {
     const bom = '\uFEFF';
     const csv = bom + [headers.join(','), ...rows.map(r => r.map(c => `"${String(c ?? '').replace(/"/g, '""')}"`).join(','))].join('\n');
@@ -45,12 +66,17 @@ export default function PayrollTab() {
         setGenerating(false);
     };
 
+    const PAYROLL_HEADERS = ['Mã NV', 'Họ tên', 'Chức vụ', 'Lương cơ bản', 'Ngày công', 'Tăng ca', 'BHXH NV', 'BHYT NV', 'Thu nhập chịu thuế', 'Thuế TNCN', 'Thực lĩnh'];
+    const PAYROLL_ROWS = () => (data?.data || []).map(r => [r.employee?.code, r.employee?.name, r.employee?.position, r.baseSalary, r.actualDays, r.overtimeHours, r.bhxhEmployee, r.bhytEmployee, r.taxableIncome, r.personalTax, r.netSalary]);
+
     const handleExport = () => {
         if (!data?.data?.length) return;
-        exportCSV(`bang-luong-${month}-${year}.csv`,
-            ['Mã NV', 'Họ tên', 'Chức vụ', 'Lương cơ bản', 'Ngày công', 'Tăng ca', 'BHXH NV', 'BHYT NV', 'Thu nhập chịu thuế', 'Thuế TNCN', 'Thực lĩnh'],
-            data.data.map(r => [r.employee?.code, r.employee?.name, r.employee?.position, r.baseSalary, r.actualDays, r.overtimeHours, r.bhxhEmployee, r.bhytEmployee, r.taxableIncome, r.personalTax, r.netSalary])
-        );
+        exportCSV(`bang-luong-${month}-${year}.csv`, PAYROLL_HEADERS, PAYROLL_ROWS());
+    };
+
+    const handleExportExcel = () => {
+        if (!data?.data?.length) return;
+        exportExcel(`bang-luong-${month}-${year}.xlsx`, PAYROLL_HEADERS, PAYROLL_ROWS());
     };
 
     return (
@@ -64,6 +90,7 @@ export default function PayrollTab() {
                 </select>
                 <button className="btn btn-primary" onClick={generate} disabled={generating}>{generating ? 'Đang tính...' : '⚡ Tính lương'}</button>
                 {data?.data?.length > 0 && <button className="btn btn-ghost" onClick={handleExport}>📥 Xuất CSV</button>}
+                {data?.data?.length > 0 && <button className="btn btn-ghost" style={{ color: 'var(--status-success)' }} onClick={handleExportExcel}>📊 Xuất Excel</button>}
                 <div style={{ marginLeft: 'auto', fontSize: 12, color: 'var(--text-muted)' }}>BHXH, BHYT, BHTN, thuế TNCN tự động</div>
             </div>
 

@@ -35,20 +35,13 @@ const menuItems = [
         section: 'Dự án', items: [
             { href: '/projects', icon: Building2, label: 'Dự án' },
             { href: '/gantt', icon: CalendarDays, label: 'Gantt Chart' },
-            { href: '/work-orders', icon: ClipboardCheck, label: 'Lệnh công việc' },
-            { href: '/daily-logs', icon: BookOpen, label: 'Nhật ký' },
-            { href: '/acceptance', icon: CheckCircle, label: 'Nghiệm thu' },
         ]
     },
     {
-        section: 'Vật tư & Sản xuất', items: [
+        section: 'Vật tư', items: [
             { href: '/products', icon: Package, label: 'Sản phẩm' },
-            { href: '/material-plans', icon: ClipboardList, label: 'KH Vật tư' },
             { href: '/purchasing', icon: ShoppingCart, label: 'Mua sắm', roles: ['giam_doc', 'pho_gd', 'ke_toan'] },
             { href: '/inventory', icon: Warehouse, label: 'Kho', roles: ['giam_doc', 'pho_gd', 'ke_toan', 'quan_ly_du_an'] },
-            { href: '/warehouse-transfers', icon: ArrowRightLeft, label: 'Chuyển kho' },
-            { href: '/furniture-orders', icon: Wrench, label: 'Đơn nội thất' },
-            { href: '/production-batches', icon: Activity, label: 'Lô sản xuất' },
         ]
     },
     {
@@ -63,10 +56,8 @@ const menuItems = [
     },
     {
         section: 'Quản lý', items: [
-            { href: '/partners', icon: Truck, label: 'Đối tác & NCC', roles: ['giam_doc', 'pho_gd', 'ke_toan'] },
             { href: '/contractors', icon: HardHat, label: 'Nhà thầu phụ' },
             { href: '/hr', icon: UserCog, label: 'Nhân sự', roles: ['giam_doc', 'pho_gd', 'ke_toan'] },
-            { href: '/workshops', icon: Factory, label: 'Xưởng SX', roles: ['giam_doc', 'pho_gd', 'quan_ly_du_an'] },
             { href: '/admin/settings', icon: Settings, label: 'Cài đặt', roles: ['giam_doc'] },
         ]
     },

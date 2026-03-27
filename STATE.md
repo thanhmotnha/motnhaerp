@@ -1,6 +1,6 @@
 # STATE.md — Một Nhà ERP
 
-> Cập nhật: 2026-07-23T15:30
+> Cập nhật: 2026-07-23T16:00
 
 ## Project Overview
 - **Stack**: Next.js 16.1.6 + React 19.2 + Prisma 6.19 + PostgreSQL + Docker
@@ -30,8 +30,8 @@
 
 ## Commit
 - Branch: `main`
-- Last commit: `066ed75` — fix(hr): cải thiện
-- Previous: `a50bff8` — feat: thêm tính năng
+- Last commit: `b8115ae` — fix(gantt): safe array parse + normalize milestone timezone
+- Previous: `dd71e57` — (push trước)
 
 ---
 
@@ -131,100 +131,3 @@
 | Tài liệu dự án | `ProjectDocument`, `DocumentFolder` | ✅ |
 | PDF merge | API `/pdf-merge` | ✅ |
 
----
-
-## 🚀 Backlog — Features Chưa Implement
-
-### A. CRM Nâng Cao
-- [ ] Phễu bán hàng trực quan — Kanban drag-drop pipeline
-- [ ] Email/SMS tự động — Reminder, chúc mừng, nhắc thanh toán
-- [ ] Chấm điểm Lead — Scoring dựa trên nguồn, ngân sách, timeline
-- [ ] Referral tracking — Theo dõi khách giới thiệu, commission
-
-### B. Quản lý Dự án Nâng Cao
-- [ ] Gantt Chart — Timeline dự án kéo thả
-- [ ] Resource Allocation — Phân bổ thợ/máy theo dự án
-- [ ] Risk Register — Đánh giá rủi ro dự án
-- [ ] Photo Progress — Timeline ảnh tiến độ before/after
-- [ ] Client Portal — Trang riêng cho khách xem tiến độ
-
-### C. Sản xuất & Xưởng Nâng Cao
-- [ ] MRP — Tính NVL cần dựa trên BOM + tồn kho → tự tạo PR/PO
-- [ ] Quality Control Checklist — QC từng lô sản xuất
-- [ ] Machine/Equipment Management — Quản lý máy móc, lịch bảo trì
-- [ ] Cutting Optimization — Tối ưu cắt gỗ/vật liệu
-- [ ] Production Dashboard — Real-time tracking, OEE metrics
-
-### D. Kho & Logistics Nâng Cao
-- [ ] Barcode/QR scanning — Quét mã nhập/xuất kho
-- [ ] Min/Max tồn kho — Cảnh báo hết hàng, auto reorder point
-- [ ] Lot/Serial tracking — Theo dõi lô hàng, serial number
-- [ ] Delivery Management — Quản lý giao hàng, route planning
-- [ ] Return Management — Quản lý hàng trả lại
-
-### E. Tài chính Nâng Cao
-- [ ] Cash Flow Forecast — Dự báo dòng tiền theo dự án/tháng
-- [ ] Profit/Loss per Project — Lãi/lỗ chi tiết từng dự án
-- [ ] Invoice Generation — Xuất hóa đơn VAT, đa mẫu
-- [ ] Payment Schedule — Lịch thu/chi theo đợt thanh toán HĐ
-- [ ] Bank Reconciliation — Đối soát ngân hàng
-- [ ] Multi-currency — Hỗ trợ ngoại tệ
-- [ ] Tax Report — Báo cáo thuế GTGT, TNCN
-
-### F. HR Nâng Cao
-- [ ] Bảng chấm công visual — Calendar view, kéo thả, bulk edit
-- [ ] GPS check-in/out — Chấm công qua app (geolocation)
-- [ ] OKR / KPI — Mục tiêu cá nhân theo quý
-- [ ] Training Management — Quản lý đào tạo, chứng chỉ
-- [ ] Employee Self-Service Portal
-
-### G. Bảo hành & CSKH Nâng Cao
-- [ ] Warranty Timeline — Dòng thời gian bảo hành
-- [ ] Customer Satisfaction Survey — Khảo sát hài lòng
-- [ ] Maintenance Schedule — Lịch bảo trì định kỳ
-- [ ] Warranty Analytics — Phân tích lỗi phổ biến
-
-### H. Tích hợp & AI
-- [ ] Zalo OA Integration
-- [ ] AI Cost Estimator — Ước tính chi phí từ bản vẽ/mô tả
-- [ ] AI Material Suggest — Gợi ý NVL thay thế
-- [ ] Document OCR — Scan hợp đồng, phiếu giao hàng → data
-- [ ] Chatbot CSKH
-
-### I. Mobile & UX
-- [ ] PWA / Mobile App — Responsive + offline
-- [ ] Dark Mode
-- [ ] Multi-language
-- [ ] Drag & Drop everywhere
-- [ ] Bulk actions
-
-### J. Báo cáo & BI
-- [ ] Custom Report Builder
-- [ ] Executive Dashboard — Tổng quan cho giám đốc
-- [ ] Project Comparison
-- [ ] Employee Productivity
-- [ ] Export PDF/Excel
-
-### K. Quản trị & Bảo mật
-- [ ] RBAC — Phân quyền theo vai trò
-- [ ] Audit Trail chi tiết
-- [ ] Data Backup & Restore
-- [ ] 2FA
-- [ ] API Rate Limiting
-
----
-
-## 🎯 Quick Wins Ưu Tiên
-
-| # | Feature | Impact | Effort |
-|---|---------|--------|--------|
-| 1 | Gantt Chart | 🔥🔥🔥 | Medium |
-| 2 | Cash Flow Forecast | 🔥🔥🔥 | Medium |
-| 3 | RBAC | 🔥🔥🔥 | Medium |
-| 4 | Barcode/QR Kho | 🔥🔥 | Low |
-| 5 | MRP | 🔥🔥🔥 | High |
-| 6 | Client Portal | 🔥🔥 | Medium |
-| 7 | Invoice Generation | 🔥🔥 | Low |
-| 8 | P/L per Project | 🔥🔥🔥 | Low |
-| 9 | Calendar Attendance | 🔥🔥 | Low |
-| 10 | Dark Mode | 🔥 | Low |
