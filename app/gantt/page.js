@@ -154,7 +154,7 @@ export default function GanttPage() {
         try {
             const res = await fetch('/api/projects?limit=300&milestones=1');
             const data = await res.json();
-            setProjects(data.data ?? data);
+            setProjects(Array.isArray(data.data) ? data.data : []);
         } catch {
             setProjects([]);
         } finally {
@@ -233,7 +233,8 @@ export default function GanttPage() {
                 </clipPath>
                 {/* milestones */}
                 {(p.milestones ?? []).filter(m => m.dueDate).map((m, mi) => {
-                    const mx = daysBetween(minDate, new Date(m.dueDate)) * colW;
+                    const _md = new Date(m.dueDate); _md.setHours(0,0,0,0);
+                    const mx = daysBetween(minDate, _md) * colW;
                     return (
                         <g key={mi}>
                             <polygon
