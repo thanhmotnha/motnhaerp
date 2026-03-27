@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { withAuth } from '@/lib/apiHandler';
-import { prisma } from '@/lib/prisma';
+import prisma from '@/lib/prisma';
 
 export const GET = withAuth(async (request, context) => {
     const { id } = await context.params;
