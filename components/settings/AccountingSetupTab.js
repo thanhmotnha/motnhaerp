@@ -3,6 +3,14 @@ import { useState, useEffect, useRef } from 'react';
 import { apiFetch } from '@/lib/fetchClient';
 import { fmtVND } from '@/lib/financeUtils';
 
+const Indicator = ({ stateVal }) => {
+    if (!stateVal) return null;
+    if (stateVal === 'saving') return <span style={{ color: 'var(--text-muted)', fontSize: 12 }}>⏳</span>;
+    if (stateVal === 'saved')  return <span style={{ color: 'var(--status-success)', fontSize: 14 }}>✓</span>;
+    if (stateVal === 'error')  return <span style={{ color: 'var(--status-danger)', fontSize: 14 }}>✗</span>;
+    return null;
+};
+
 export default function AccountingSetupTab() {
     const [activeTab, setActiveTab] = useState('ncc');
     const [suppliers, setSuppliers] = useState([]);
@@ -82,7 +90,7 @@ export default function AccountingSetupTab() {
                 });
             }
             setSaving(prev => ({ ...prev, [key]: 'saved' }));
-            setTimeout(() => setSaving(prev => {
+            timers.current[`${key}_clear`] = setTimeout(() => setSaving(prev => {
                 const next = { ...prev };
                 delete next[key];
                 return next;
@@ -90,14 +98,6 @@ export default function AccountingSetupTab() {
         } catch {
             setSaving(prev => ({ ...prev, [key]: 'error' }));
         }
-    };
-
-    const Indicator = ({ stateVal }) => {
-        if (!stateVal) return null;
-        if (stateVal === 'saving') return <span style={{ color: 'var(--text-muted)', fontSize: 12 }}>⏳</span>;
-        if (stateVal === 'saved')  return <span style={{ color: 'var(--success)', fontSize: 14 }}>✓</span>;
-        if (stateVal === 'error')  return <span style={{ color: 'var(--danger)', fontSize: 14 }}>✗</span>;
-        return null;
     };
 
     const SUB_TABS = [
@@ -114,7 +114,7 @@ export default function AccountingSetupTab() {
                 Nhập số dư đầu kỳ trước khi có giao dịch. Thay đổi được lưu tự động.
             </p>
 
-            <div style={{ display: 'flex', gap: 4, marginBottom: 20, borderBottom: '1px solid var(--border)' }}>
+            <div style={{ display: 'flex', gap: 4, marginBottom: 20, borderBottom: '1px solid var(--border-color)' }}>
                 {SUB_TABS.map(t => (
                     <button key={t.key} onClick={() => setActiveTab(t.key)}
                         style={{
