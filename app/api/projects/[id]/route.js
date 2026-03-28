@@ -5,8 +5,8 @@ import { projectUpdateSchema } from '@/lib/validations/project';
 
 export const GET = withAuth(async (request, { params }) => {
     const { id } = await params;
-    const project = await prisma.project.findUnique({
-        where: { id },
+    const project = await prisma.project.findFirst({
+        where: { OR: [{ id }, { code: id }], deletedAt: null },
         include: {
             customer: true,
             quotations: { include: { items: true } },
@@ -89,34 +89,40 @@ export const PUT = withAuth(async (request, { params }) => {
     const body = await request.json();
     const data = projectUpdateSchema.parse(body);
 
-    const project = await prisma.project.update({ where: { id }, data });
+    const target = await prisma.project.findFirst({ where: { OR: [{ id }, { code: id }] }, select: { id: true } });
+    const projectId = target?.id || id;
+
+    const project = await prisma.project.update({ where: { id: projectId }, data });
     return NextResponse.json(project);
 }, { entityType: 'Project' });
 
 export const DELETE = withAuth(async (request, { params }) => {
     const { id } = await params;
 
+    const target = await prisma.project.findFirst({ where: { OR: [{ id }, { code: id }] }, select: { id: true } });
+    const projectId = target?.id || id;
+
     await prisma.$transaction(async (tx) => {
-        await tx.contractPayment.deleteMany({ where: { contract: { projectId: id } } });
-        await tx.contract.deleteMany({ where: { projectId: id } });
-        await tx.workOrder.deleteMany({ where: { projectId: id } });
-        await tx.materialPlan.deleteMany({ where: { projectId: id } });
-        await tx.purchaseOrderItem.deleteMany({ where: { purchaseOrder: { projectId: id } } });
-        await tx.purchaseOrder.deleteMany({ where: { projectId: id } });
-        await tx.projectExpense.deleteMany({ where: { projectId: id } });
-        await tx.trackingLog.deleteMany({ where: { projectId: id } });
-        await tx.projectDocument.deleteMany({ where: { projectId: id } });
-        await tx.documentFolder.deleteMany({ where: { parentId: { not: null }, projectId: id } });
-        await tx.documentFolder.deleteMany({ where: { projectId: id } });
-        await tx.projectMilestone.deleteMany({ where: { projectId: id } });
-        await tx.projectBudget.deleteMany({ where: { projectId: id } });
-        await tx.contractorPayment.deleteMany({ where: { projectId: id } });
-        await tx.projectEmployee.deleteMany({ where: { projectId: id } });
-        await tx.inventoryTransaction.deleteMany({ where: { projectId: id } });
-        await tx.transaction.deleteMany({ where: { projectId: id } });
-        await tx.quotationItem.deleteMany({ where: { quotation: { projectId: id } } });
-        await tx.quotation.deleteMany({ where: { projectId: id } });
-        await tx.project.delete({ where: { id } });
+        await tx.contractPayment.deleteMany({ where: { contract: { projectId: projectId } } });
+        await tx.contract.deleteMany({ where: { projectId: projectId } });
+        await tx.workOrder.deleteMany({ where: { projectId: projectId } });
+        await tx.materialPlan.deleteMany({ where: { projectId: projectId } });
+        await tx.purchaseOrderItem.deleteMany({ where: { purchaseOrder: { projectId: projectId } } });
+        await tx.purchaseOrder.deleteMany({ where: { projectId: projectId } });
+        await tx.projectExpense.deleteMany({ where: { projectId: projectId } });
+        await tx.trackingLog.deleteMany({ where: { projectId: projectId } });
+        await tx.projectDocument.deleteMany({ where: { projectId: projectId } });
+        await tx.documentFolder.deleteMany({ where: { parentId: { not: null }, projectId: projectId } });
+        await tx.documentFolder.deleteMany({ where: { projectId: projectId } });
+        await tx.projectMilestone.deleteMany({ where: { projectId: projectId } });
+        await tx.projectBudget.deleteMany({ where: { projectId: projectId } });
+        await tx.contractorPayment.deleteMany({ where: { projectId: projectId } });
+        await tx.projectEmployee.deleteMany({ where: { projectId: projectId } });
+        await tx.inventoryTransaction.deleteMany({ where: { projectId: projectId } });
+        await tx.transaction.deleteMany({ where: { projectId: projectId } });
+        await tx.quotationItem.deleteMany({ where: { quotation: { projectId: projectId } } });
+        await tx.quotation.deleteMany({ where: { projectId: projectId } });
+        await tx.project.delete({ where: { id: projectId } });
     });
 
     return NextResponse.json({ success: true });
