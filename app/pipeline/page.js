@@ -262,7 +262,7 @@ export default function PipelinePage() {
                         </thead>
                         <tbody>
                             {filteredProjects.map(p => (
-                                <tr key={p.id} onClick={() => router.push(`/projects/${p.id}`)} style={{ cursor: 'pointer' }}>
+                                <tr key={p.id} onClick={() => router.push(`/projects/${p.code}`)} style={{ cursor: 'pointer' }}>
                                     <td className="accent">{p.code}</td>
                                     <td className="primary">
                                         {p.name}

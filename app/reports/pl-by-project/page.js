@@ -177,7 +177,7 @@ export default function PLByProjectPage() {
                                             <MarginBadge margin={r.margin} />
                                         </td>
                                         <td style={{ ...td, textAlign: 'center' }}>
-                                            <Link href={`/projects/${r.id}`} title="Xem dự án" style={{ color: '#6b7280', display: 'inline-flex' }}>
+                                            <Link href={`/projects/${r.code}`} title="Xem dự án" style={{ color: '#6b7280', display: 'inline-flex' }}>
                                                 <ExternalLink size={14} />
                                             </Link>
                                         </td>

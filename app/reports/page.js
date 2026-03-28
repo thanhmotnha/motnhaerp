@@ -516,7 +516,7 @@ export default function ReportsPage() {
                                                             </span>
                                                         )}
                                                     </td>
-                                                    <td><button className="btn btn-ghost btn-sm" onClick={() => router.push(`/projects/${r.id}`)}>Xem →</button></td>
+                                                    <td><button className="btn btn-ghost btn-sm" onClick={() => router.push(`/projects/${r.code}`)}>Xem →</button></td>
                                                 </tr>
                                             ))}
                                         </tbody>
@@ -674,7 +674,7 @@ export default function ReportsPage() {
                                                     <td style={{ textAlign: 'right', fontSize: 12 }}>{p.poCost > 0 ? fmt(p.poCost) : '—'}</td>
                                                     <td style={{ textAlign: 'right', fontSize: 12, fontWeight: 600, color: totalCost > 0 ? 'var(--status-danger)' : 'var(--text-muted)' }}>{totalCost > 0 ? fmt(totalCost) : '—'}</td>
                                                 </>}
-                                                <td><button className="btn btn-ghost btn-sm" onClick={() => router.push(`/projects/${p.id}`)}>Xem →</button></td>
+                                                <td><button className="btn btn-ghost btn-sm" onClick={() => router.push(`/projects/${p.code}`)}>Xem →</button></td>
                                             </tr>
                                         );
                                     })}
@@ -782,7 +782,7 @@ export default function ReportsPage() {
                                                     <td style={{ textAlign: 'right', fontSize: 12, color: 'var(--text-muted)' }}>
                                                         {p.costPerSqm > 0 ? `${new Intl.NumberFormat('vi-VN').format(p.costPerSqm)}` : '—'}
                                                     </td>
-                                                    <td><button className="btn btn-ghost btn-sm" onClick={() => router.push(`/projects/${p.id}`)}>→</button></td>
+                                                    <td><button className="btn btn-ghost btn-sm" onClick={() => router.push(`/projects/${p.code}`)}>→</button></td>
                                                 </tr>
                                             ))}
                                         </tbody>

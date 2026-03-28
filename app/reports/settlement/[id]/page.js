@@ -41,7 +41,7 @@ export default function SettlementPage() {
                     <p>{p.customer} · Tiến độ: {p.progress}% · Trạng thái: {p.status}</p>
                 </div>
                 <div className="page-header-right">
-                    <button className="btn btn-ghost" onClick={() => router.push(`/projects/${p.id}`)}>← Về dự án</button>
+                    <button className="btn btn-ghost" onClick={() => router.push(`/projects/${p.code}`)}>← Về dự án</button>
                     <button className="btn btn-ghost" onClick={() => window.print()}>🖨️ In</button>
                 </div>
             </div>

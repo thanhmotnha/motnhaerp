@@ -350,7 +350,7 @@ export default function ContractorDetailPage() {
                                         <td className="accent">{p.code}</td>
                                         <td className="primary">{p.name}</td>
                                         <td><span className="badge info">{p.status}</span></td>
-                                        <td><button className="btn btn-ghost btn-sm" onClick={() => router.push(`/projects/${p.id}`)}>Xem →</button></td>
+                                        <td><button className="btn btn-ghost btn-sm" onClick={() => router.push(`/projects/${p.code}`)}>Xem →</button></td>
                                     </tr>
                                 ))}</tbody>
                             </table>

@@ -213,7 +213,7 @@ export default function GanttPage() {
                 onMouseMove={e  => setTooltip(t => t ? { ...t, x: e.clientX, y: e.clientY } : null)}
                 onMouseLeave={() => setTooltip(null)}
                 style={{ cursor: 'pointer' }}
-                onClick={() => window.open(`/projects/${p.id}`, '_blank')}
+                onClick={() => window.open(`/projects/${p.code}`, '_blank')}
             >
                 {/* background bar */}
                 <rect x={x} y={y} width={w} height={barH} rx={6}
@@ -350,7 +350,7 @@ export default function GanttPage() {
                                         borderBottom: '1px solid rgba(35,64,147,0.3)',
                                         cursor: 'pointer',
                                     }}
-                                        onClick={() => window.open(`/projects/${p.id}`, '_blank')}
+                                        onClick={() => window.open(`/projects/${p.code}`, '_blank')}
                                     >
                                         <div style={{ fontWeight: 600, fontSize: 12, color: '#e2efff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name}</div>
                                         <div style={{ display: 'flex', gap: 4, alignItems: 'center', marginTop: 2 }}>

@@ -531,7 +531,7 @@ export default function ContractDetailPage() {
                                     <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, fontSize: 13 }}>
                                         <span style={{ color: 'var(--text-muted)' }}>Dự án</span>
                                         {data.project ? (
-                                            <a href={`/projects/${data.project.id}`} style={{ fontWeight: 600, color: 'var(--accent-primary)' }}>
+                                            <a href={`/projects/${data.project.code}`} style={{ fontWeight: 600, color: 'var(--accent-primary)' }}>
                                                 {data.project.name} ↗
                                             </a>
                                         ) : (
