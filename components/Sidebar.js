@@ -10,7 +10,7 @@ import {
     BarChart3, ChevronRight, ChevronDown, X, Factory,
     Activity, ClipboardCheck, Banknote, Settings, ShieldCheck,
     Shield, Plus, ArrowRightLeft,
-    CheckCircle, BookOpen, HardHat, PiggyBank, CalendarDays
+    CheckCircle, BookOpen, HardHat, PiggyBank, CalendarDays, Landmark
 } from 'lucide-react';
 import { useRole } from '@/contexts/RoleContext';
 
@@ -50,6 +50,7 @@ const menuItems = [
             { href: '/accounting', icon: BookOpen, label: 'Sổ cái', roles: ['giam_doc', 'pho_gd', 'ke_toan'] },
             { href: '/cashflow-forecast', icon: Banknote, label: 'Dự báo dòng tiền', roles: ['giam_doc', 'pho_gd', 'ke_toan'] },
             { href: '/budget', icon: PiggyBank, label: 'Ngân sách', roles: ['giam_doc', 'pho_gd', 'ke_toan', 'quan_ly_du_an'] },
+            { href: '/cong-no', icon: Landmark, label: 'Công nợ', roles: ['giam_doc', 'pho_gd', 'ke_toan'] },
         ]
     },
     {

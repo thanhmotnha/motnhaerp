@@ -24,6 +24,8 @@ const pageTitles = {
     '/partners': 'Đối tác',
     '/acceptance': 'Biên bản Nghiệm thu',
     '/hr/payroll': 'Bảng lương',
+    '/cong-no': 'Công nợ',
+    '/cong-no/bao-cao': 'Báo cáo công nợ',
 };
 
 export default function Header({ onMenuToggle, onSearchOpen }) {
