@@ -9,16 +9,19 @@ export default function CongNoBaoCaoPage() {
     const [month, setMonth] = useState(defaultMonth);
     const [data, setData] = useState(null);
     const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(false);
     const [activeTab, setActiveTab] = useState('ncc'); // 'ncc' | 'contractor'
 
     useEffect(() => {
         const load = async () => {
             setLoading(true);
+            setError(false);
             try {
                 const res = await apiFetch(`/api/debt/report?month=${month}`);
                 setData(res);
             } catch (err) {
                 console.error('Failed to load debt report:', err);
+                setError(true);
             }
             setLoading(false);
         };
@@ -102,6 +105,10 @@ export default function CongNoBaoCaoPage() {
                     {loading ? (
                         <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-muted)' }}>
                             Đang tải...
+                        </div>
+                    ) : error ? (
+                        <div style={{ padding: 40, textAlign: 'center', color: 'var(--status-danger)' }}>
+                            Không thể tải báo cáo. Vui lòng thử lại.
                         </div>
                     ) : (
                         <div className="table-container">

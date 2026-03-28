@@ -41,7 +41,8 @@ export const GET = withAuth(async (request, context, session) => {
         },
     });
 
-    const results = contractors.map((contractor) => {
+    const results = await Promise.all(
+        contractors.map(async (contractor) => {
         // phatSinh = sum of (contractAmount - retentionAmount) per phase
         const phatSinh = contractor.payments.reduce(
             (acc, p) => acc + (p.contractAmount - p.retentionAmount),
@@ -54,8 +55,12 @@ export const GET = withAuth(async (request, context, session) => {
             0
         );
 
-        // daTra = sum of all payment log amounts
-        const daTra = contractor.paymentLogs.reduce((acc, log) => acc + log.amount, 0);
+        // daTra = aggregate of ALL payment logs (not just last 20)
+        const daTraResult = await prisma.contractorPaymentLog.aggregate({
+            _sum: { amount: true },
+            where: { contractorId: contractor.id },
+        });
+        const daTra = daTraResult._sum.amount ?? 0;
 
         const soDu = contractor.openingBalance + phatSinh - daTra - giuLai;
 
@@ -90,7 +95,7 @@ export const GET = withAuth(async (request, context, session) => {
             byProject: Array.from(projectMap.values()),
             payments: contractor.paymentLogs,
         };
-    });
+    }));
 
     // Only contractors with activity
     const filtered = results.filter(
