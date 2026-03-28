@@ -68,13 +68,13 @@ export default function ProjectDetailPage() {
     }
 
     const TAB_COMPONENTS = {
-        overview: <OverviewTab project={p} projectId={id} onRefresh={fetchData} />,
-        contracts: <ContractTab project={p} projectId={id} onRefresh={fetchData} />,
-        milestones: <MilestoneTab project={p} projectId={id} onRefresh={fetchData} />,
-        materials: <MaterialTab project={p} projectId={id} onRefresh={fetchData} />,
-        contractors: <ContractorTab project={p} projectId={id} onRefresh={fetchData} />,
-        documents: <DocumentTab project={p} projectId={id} onRefresh={fetchData} />,
-        warranty: <WarrantyTab project={p} projectId={id} onRefresh={fetchData} />,
+        overview: <OverviewTab project={p} projectId={p.id} onRefresh={fetchData} />,
+        contracts: <ContractTab project={p} projectId={p.id} onRefresh={fetchData} />,
+        milestones: <MilestoneTab project={p} projectId={p.id} onRefresh={fetchData} />,
+        materials: <MaterialTab project={p} projectId={p.id} onRefresh={fetchData} />,
+        contractors: <ContractorTab project={p} projectId={p.id} onRefresh={fetchData} />,
+        documents: <DocumentTab project={p} projectId={p.id} onRefresh={fetchData} />,
+        warranty: <WarrantyTab project={p} projectId={p.id} onRefresh={fetchData} />,
     };
 
     return (
