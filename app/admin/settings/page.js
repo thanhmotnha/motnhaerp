@@ -14,6 +14,7 @@ import ActivityLogTab from '@/components/settings/ActivityLogTab';
 import PdfCoverTab from '@/components/settings/PdfCoverTab';
 import QuotationTermsTab from '@/components/settings/QuotationTermsTab';
 import ContractTemplateTab from '@/components/settings/ContractTemplateTab';
+import AccountingSetupTab from '@/components/settings/AccountingSetupTab';
 
 // ========= Company Settings Keys =========
 const SETTING_KEYS = [
@@ -44,6 +45,7 @@ const MAIN_TABS = [
     { key: 'users', label: '👥 Tài khoản' },
     { key: 'contract_templates', label: '📝 Mẫu HĐ' },
     { key: 'activity', label: '📝 Nhật ký' },
+    { key: 'accounting', label: '📒 Kế toán' },
 ];
 
 const SUB_TABS = [
@@ -76,7 +78,8 @@ export default function SettingsPage() {
     const [quotationTerms, setQuotationTerms] = useState({});
 
     useEffect(() => {
-        if (role && role !== 'giam_doc') { router.replace('/'); return; }
+        if (role && role !== 'giam_doc' && role !== 'ke_toan') { router.replace('/'); return; }
+        if (role === 'ke_toan') setTab('accounting');
         loadAll();
     }, [role]);
 
@@ -176,7 +179,7 @@ export default function SettingsPage() {
         });
     };
 
-    if (role && role !== 'giam_doc') return null;
+    if (role && role !== 'giam_doc' && role !== 'ke_toan') return null;
     if (loading) return <div style={{ padding: 60, textAlign: 'center', color: 'var(--text-muted)' }}>Đang tải...</div>;
 
     return (
@@ -191,7 +194,7 @@ export default function SettingsPage() {
 
                 {/* Main Tab bar */}
                 <div style={{ display: 'flex', borderBottom: '1px solid var(--border)', background: 'var(--bg-secondary)' }}>
-                    {MAIN_TABS.map(t => (
+                    {MAIN_TABS.filter(t => role === 'ke_toan' ? t.key === 'accounting' : true).map(t => (
                         <button key={t.key} onClick={() => setTab(t.key)}
                             style={{
                                 padding: '12px 24px', fontWeight: 600, fontSize: 14, cursor: 'pointer',
@@ -340,6 +343,7 @@ export default function SettingsPage() {
                             <ActivityLogTab />
                         </div>
                     )}
+                    {tab === 'accounting' && <AccountingSetupTab />}
                 </div>
             </div>
         </div>
