@@ -1,8 +1,9 @@
 import { withAuth } from '@/lib/apiHandler';
 import prisma from '@/lib/prisma';
 import { NextResponse } from 'next/server';
+import { logActivity } from '@/lib/activityLogger';
 
-export const PATCH = withAuth(async (request, { params }) => {
+export const PATCH = withAuth(async (request, { params }, session) => {
     const { id } = await params;
     const body = await request.json();
     const arOpeningPaid = Number(body.arOpeningPaid);
@@ -24,6 +25,8 @@ export const PATCH = withAuth(async (request, { params }) => {
         data: { arOpeningPaid },
         select: { id: true, code: true, arOpeningPaid: true },
     });
+
+    await logActivity(session.user.id, 'UPDATE', 'Contract', updated.id, `Cập nhật số dư AR đầu kỳ: ${updated.code}`);
 
     return NextResponse.json(updated);
 });
