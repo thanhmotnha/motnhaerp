@@ -1,7 +1,7 @@
 'use client';
 import { useState, useEffect } from 'react';
 import { apiFetch } from '@/lib/fetchClient';
-import { fmt as fmtVND, fmtDate } from '@/lib/format';
+import { fmtVND, fmtDate } from '@/lib/financeUtils';
 
 export default function AccountingPage() {
     const [filters, setFilters] = useState({ month: '', type: '', projectId: '' });
