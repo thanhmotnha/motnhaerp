@@ -15,6 +15,24 @@ export default function DebtTab({ summary, retentions, supplierDebt }) {
     const [expandedNcc, setExpandedNcc] = useState(null);
     const [expandedContractor, setExpandedContractor] = useState(null);
 
+    // Feature A — Sổ cái modal per NCC
+    const [ledgerModal, setLedgerModal] = useState(null); // { supplier } or null
+    const [ledgerData, setLedgerData] = useState(null);
+    const [ledgerLoading, setLedgerLoading] = useState(false);
+
+    // Feature B — Search + filter NCC
+    const [nccSearch, setNccSearch] = useState('');
+    const [nccFilter, setNccFilter] = useState('debt'); // 'all' | 'debt'
+
+    // Feature C — Monthly report
+    const [reportMonth, setReportMonth] = useState(() => {
+        const d = new Date();
+        return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+    });
+    const [reportData, setReportData] = useState(null);
+    const [reportLoading, setReportLoading] = useState(false);
+    const [reportTab, setReportTab] = useState('ncc'); // 'ncc' | 'contractor'
+
     const fetchDebt = async () => {
         setLoadingDebt(true);
         try {
@@ -30,6 +48,17 @@ export default function DebtTab({ summary, retentions, supplierDebt }) {
 
     useEffect(() => { fetchDebt(); }, []);
 
+    // Feature C — fetch report
+    const fetchReport = async (month) => {
+        setReportLoading(true);
+        try {
+            const data = await apiFetch(`/api/debt/report?month=${month}`);
+            setReportData(data);
+        } catch (e) { console.error(e); }
+        setReportLoading(false);
+    };
+    useEffect(() => { fetchReport(reportMonth); }, [reportMonth]);
+
     const openPayModal = (type, entity) => {
         setPayForm({ amount: '', date: new Date().toISOString().split('T')[0], notes: '', projectId: '' });
         setPayModal({ type, entity });
@@ -38,6 +67,18 @@ export default function DebtTab({ summary, retentions, supplierDebt }) {
     const openEditBalanceModal = (type, entity) => {
         setBalanceForm(String(entity.openingBalance || ''));
         setEditBalanceModal({ type, entity });
+    };
+
+    // Feature A — open ledger
+    const openLedger = async (supplier) => {
+        setLedgerModal(supplier);
+        setLedgerLoading(true);
+        setLedgerData(null);
+        try {
+            const data = await apiFetch(`/api/debt/ncc/${supplier.id}/ledger`);
+            setLedgerData(data);
+        } catch (e) { console.error(e); }
+        setLedgerLoading(false);
     };
 
     const handlePaySubmit = async () => {
@@ -69,6 +110,13 @@ export default function DebtTab({ summary, retentions, supplierDebt }) {
 
     const suppliers = nccData.suppliers || [];
     const contractors = contractorData.contractors || [];
+
+    // Feature B — filtered NCC list
+    const filteredNcc = (nccData.suppliers || []).filter(s => {
+        if (nccFilter === 'debt' && s.soDu <= 0) return false;
+        if (nccSearch && !s.name.toLowerCase().includes(nccSearch.toLowerCase()) && !s.code.toLowerCase().includes(nccSearch.toLowerCase())) return false;
+        return true;
+    });
 
     return (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
@@ -107,9 +155,25 @@ export default function DebtTab({ summary, retentions, supplierDebt }) {
                     <h3 style={{ fontSize: 15, fontWeight: 700, margin: 0 }}>🏪 Công nợ Nhà cung cấp</h3>
                     <span style={{ fontWeight: 700, color: 'var(--status-warning)' }}>{fmtVND(nccData.totalSoDu)}</span>
                 </div>
+
+                {/* Feature B — Search & filter bar */}
+                <div style={{ display: 'flex', gap: 10, marginBottom: 12, alignItems: 'center' }}>
+                    <input
+                        className="form-input"
+                        placeholder="Tìm nhà cung cấp..."
+                        value={nccSearch}
+                        onChange={e => setNccSearch(e.target.value)}
+                        style={{ maxWidth: 240 }}
+                    />
+                    <select className="form-input" value={nccFilter} onChange={e => setNccFilter(e.target.value)} style={{ maxWidth: 160 }}>
+                        <option value="debt">Còn nợ</option>
+                        <option value="all">Tất cả</option>
+                    </select>
+                </div>
+
                 {loadingDebt ? (
                     <div style={{ padding: 20, textAlign: 'center', color: 'var(--text-muted)' }}>Đang tải...</div>
-                ) : suppliers.length === 0 ? (
+                ) : filteredNcc.length === 0 ? (
                     <div style={{ padding: 20, textAlign: 'center', color: 'var(--text-muted)' }}>Chưa có công nợ NCC</div>
                 ) : (
                     <table className="data-table" style={{ margin: 0 }}>
@@ -124,16 +188,17 @@ export default function DebtTab({ summary, retentions, supplierDebt }) {
                             </tr>
                         </thead>
                         <tbody>
-                            {suppliers.map(s => (
+                            {filteredNcc.map(s => (
                                 <>
                                     <tr key={s.id}>
                                         <td>
-                                            <span
-                                                style={{ fontWeight: 600, cursor: 'pointer', color: 'var(--text-primary)', textDecoration: 'underline dotted' }}
-                                                onClick={() => setExpandedNcc(expandedNcc === s.id ? null : s.id)}
+                                            {/* Feature A — clicking name opens ledger */}
+                                            <button
+                                                style={{ background: 'none', border: 'none', padding: 0, fontWeight: 600, cursor: 'pointer', color: 'var(--text-primary)', textDecoration: 'underline dotted', fontSize: 'inherit' }}
+                                                onClick={() => openLedger(s)}
                                             >
                                                 {s.name}
-                                            </span>
+                                            </button>
                                         </td>
                                         <td style={{ textAlign: 'right' }}>
                                             <span style={{ marginRight: 4 }}>{fmtVND(s.openingBalance)}</span>
@@ -359,7 +424,152 @@ export default function DebtTab({ summary, retentions, supplierDebt }) {
                 </div>
             </div>
 
-            {/* Section 5: Giữ lại bảo hành */}
+            {/* Section 5: Báo cáo công nợ theo kỳ (Feature C) */}
+            <div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                    <h3 style={{ fontSize: 15, fontWeight: 700, margin: 0 }}>📊 Báo cáo công nợ theo kỳ</h3>
+                    <input
+                        type="month"
+                        className="form-input"
+                        value={reportMonth}
+                        onChange={e => setReportMonth(e.target.value)}
+                        style={{ maxWidth: 180 }}
+                    />
+                </div>
+
+                <div className="tabs" style={{ marginBottom: 16 }}>
+                    <button
+                        className={`tab${reportTab === 'ncc' ? ' active' : ''}`}
+                        onClick={() => setReportTab('ncc')}
+                    >
+                        Nhà cung cấp
+                    </button>
+                    <button
+                        className={`tab${reportTab === 'contractor' ? ' active' : ''}`}
+                        onClick={() => setReportTab('contractor')}
+                    >
+                        Nhà thầu phụ
+                    </button>
+                </div>
+
+                {reportLoading ? (
+                    <div style={{ padding: 20, textAlign: 'center', color: 'var(--text-muted)' }}>Đang tải báo cáo...</div>
+                ) : !reportData ? (
+                    <div style={{ padding: 20, textAlign: 'center', color: 'var(--text-muted)' }}>Không có dữ liệu trong kỳ này</div>
+                ) : (
+                    <>
+                        {reportTab === 'ncc' && (
+                            <>
+                                {(!reportData.suppliers || reportData.suppliers.length === 0) ? (
+                                    <div style={{ padding: 20, textAlign: 'center', color: 'var(--text-muted)' }}>Không có dữ liệu trong kỳ này</div>
+                                ) : (
+                                    <table className="data-table" style={{ margin: 0 }}>
+                                        <thead>
+                                            <tr>
+                                                <th>NCC</th>
+                                                <th style={{ textAlign: 'right' }}>Đầu kỳ</th>
+                                                <th style={{ textAlign: 'right' }}>Phát sinh</th>
+                                                <th style={{ textAlign: 'right' }}>Đã trả</th>
+                                                <th style={{ textAlign: 'right' }}>Cuối kỳ</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {reportData.suppliers.map(s => (
+                                                <tr key={s.id || s.name}>
+                                                    <td style={{ fontWeight: 600 }}>{s.name}</td>
+                                                    <td style={{ textAlign: 'right' }}>{fmtVND(s.dauKy)}</td>
+                                                    <td style={{ textAlign: 'right' }}>{fmtVND(s.phatSinh)}</td>
+                                                    <td style={{ textAlign: 'right', color: 'var(--status-success)' }}>{fmtVND(s.daTra)}</td>
+                                                    <td style={{ textAlign: 'right', fontWeight: 700, color: s.cuoiKy > 0 ? 'var(--status-danger)' : 'var(--status-success)' }}>
+                                                        {fmtVND(s.cuoiKy)}
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                        <tfoot>
+                                            <tr style={{ background: 'var(--bg-secondary)', fontWeight: 700 }}>
+                                                <td>Tổng cộng</td>
+                                                <td style={{ textAlign: 'right' }}>{fmtVND(reportData.suppliers.reduce((acc, s) => acc + (s.dauKy || 0), 0))}</td>
+                                                <td style={{ textAlign: 'right' }}>{fmtVND(reportData.suppliers.reduce((acc, s) => acc + (s.phatSinh || 0), 0))}</td>
+                                                <td style={{ textAlign: 'right', color: 'var(--status-success)' }}>{fmtVND(reportData.suppliers.reduce((acc, s) => acc + (s.daTra || 0), 0))}</td>
+                                                <td style={{ textAlign: 'right', color: 'var(--status-warning)' }}>{fmtVND(reportData.suppliers.reduce((acc, s) => acc + (s.cuoiKy || 0), 0))}</td>
+                                            </tr>
+                                        </tfoot>
+                                    </table>
+                                )}
+                            </>
+                        )}
+
+                        {reportTab === 'contractor' && (
+                            <>
+                                {(!reportData.contractors || reportData.contractors.length === 0) ? (
+                                    <div style={{ padding: 20, textAlign: 'center', color: 'var(--text-muted)' }}>Không có dữ liệu trong kỳ này</div>
+                                ) : (
+                                    <table className="data-table" style={{ margin: 0 }}>
+                                        <thead>
+                                            <tr>
+                                                <th>Nhà thầu</th>
+                                                <th style={{ textAlign: 'right' }}>Đầu kỳ</th>
+                                                <th style={{ textAlign: 'right' }}>Phát sinh</th>
+                                                <th style={{ textAlign: 'right' }}>Đã trả</th>
+                                                <th style={{ textAlign: 'right' }}>Cuối kỳ</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {reportData.contractors.map(c => (
+                                                <tr key={c.id || c.name}>
+                                                    <td style={{ fontWeight: 600 }}>{c.name}</td>
+                                                    <td style={{ textAlign: 'right' }}>{fmtVND(c.dauKy)}</td>
+                                                    <td style={{ textAlign: 'right' }}>{fmtVND(c.phatSinh)}</td>
+                                                    <td style={{ textAlign: 'right', color: 'var(--status-success)' }}>{fmtVND(c.daTra)}</td>
+                                                    <td style={{ textAlign: 'right', fontWeight: 700, color: c.cuoiKy > 0 ? 'var(--status-danger)' : 'var(--status-success)' }}>
+                                                        {fmtVND(c.cuoiKy)}
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                        <tfoot>
+                                            <tr style={{ background: 'var(--bg-secondary)', fontWeight: 700 }}>
+                                                <td>Tổng cộng</td>
+                                                <td style={{ textAlign: 'right' }}>{fmtVND(reportData.contractors.reduce((acc, c) => acc + (c.dauKy || 0), 0))}</td>
+                                                <td style={{ textAlign: 'right' }}>{fmtVND(reportData.contractors.reduce((acc, c) => acc + (c.phatSinh || 0), 0))}</td>
+                                                <td style={{ textAlign: 'right', color: 'var(--status-success)' }}>{fmtVND(reportData.contractors.reduce((acc, c) => acc + (c.daTra || 0), 0))}</td>
+                                                <td style={{ textAlign: 'right', color: 'var(--status-warning)' }}>{fmtVND(reportData.contractors.reduce((acc, c) => acc + (c.cuoiKy || 0), 0))}</td>
+                                            </tr>
+                                        </tfoot>
+                                    </table>
+                                )}
+                            </>
+                        )}
+
+                        {/* Summary cards */}
+                        {reportData.totals && (
+                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 12, marginTop: 16 }}>
+                                <div className="stat-card">
+                                    <div>
+                                        <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>Tổng nợ NCC cuối kỳ</div>
+                                        <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--status-danger)' }}>{fmtVND(reportData.totals.nccCuoiKy)}</div>
+                                    </div>
+                                </div>
+                                <div className="stat-card">
+                                    <div>
+                                        <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>Tổng nợ Thầu phụ cuối kỳ</div>
+                                        <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--status-danger)' }}>{fmtVND(reportData.totals.contractorCuoiKy)}</div>
+                                    </div>
+                                </div>
+                                <div className="stat-card">
+                                    <div>
+                                        <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>Tổng phải trả</div>
+                                        <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--status-warning)' }}>{fmtVND(reportData.totals.tongPhaiTra)}</div>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+                    </>
+                )}
+            </div>
+
+            {/* Section 6: Giữ lại bảo hành */}
             <div>
                 <h3 style={{ fontSize: 15, fontWeight: 700, marginBottom: 12 }}>🔒 Giữ lại bảo hành (nhà thầu)</h3>
                 {(retentions || []).length === 0 ? (
@@ -490,6 +700,96 @@ export default function DebtTab({ summary, retentions, supplierDebt }) {
                             <button className="btn btn-primary" onClick={handleBalanceSubmit} disabled={saving}>
                                 {saving ? 'Đang lưu...' : 'Lưu'}
                             </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Feature A — Ledger Modal */}
+            {ledgerModal && (
+                <div className="modal-overlay" onClick={() => setLedgerModal(null)}>
+                    <div className="modal" style={{ maxWidth: 800 }} onClick={e => e.stopPropagation()}>
+                        <div className="modal-header">
+                            <span style={{ fontWeight: 700 }}>Sổ cái công nợ — {ledgerModal.name}</span>
+                            <button className="modal-close" onClick={() => setLedgerModal(null)}>✕</button>
+                        </div>
+                        <div className="modal-body">
+                            {ledgerLoading ? (
+                                <div style={{ padding: 32, textAlign: 'center', color: 'var(--text-muted)' }}>Đang tải...</div>
+                            ) : !ledgerData ? (
+                                <div style={{ padding: 32, textAlign: 'center', color: 'var(--text-muted)' }}>Không thể tải dữ liệu</div>
+                            ) : (
+                                <>
+                                    {/* Summary bar */}
+                                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, marginBottom: 20 }}>
+                                        <div style={{ background: 'var(--bg-secondary)', borderRadius: 8, padding: '10px 14px', textAlign: 'center' }}>
+                                            <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 4 }}>Đầu kỳ</div>
+                                            <div style={{ fontWeight: 700, fontSize: 15 }}>{fmtVND(ledgerData.dauKy)}</div>
+                                        </div>
+                                        <div style={{ background: 'var(--bg-secondary)', borderRadius: 8, padding: '10px 14px', textAlign: 'center' }}>
+                                            <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 4 }}>Phát sinh</div>
+                                            <div style={{ fontWeight: 700, fontSize: 15 }}>{fmtVND(ledgerData.phatSinh)}</div>
+                                        </div>
+                                        <div style={{ background: 'var(--bg-secondary)', borderRadius: 8, padding: '10px 14px', textAlign: 'center' }}>
+                                            <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 4 }}>Đã trả</div>
+                                            <div style={{ fontWeight: 700, fontSize: 15, color: 'var(--text-success)' }}>{fmtVND(ledgerData.daTra)}</div>
+                                        </div>
+                                        <div style={{ background: 'var(--bg-secondary)', borderRadius: 8, padding: '10px 14px', textAlign: 'center' }}>
+                                            <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 4 }}>Số dư cuối</div>
+                                            <div style={{ fontWeight: 700, fontSize: 15, color: (ledgerData.soDu || 0) > 0 ? 'var(--text-danger)' : 'var(--text-success)' }}>
+                                                {fmtVND(ledgerData.soDu)}
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* Ledger table */}
+                                    {(!ledgerData.entries || ledgerData.entries.length === 0) ? (
+                                        <div style={{ padding: 20, textAlign: 'center', color: 'var(--text-muted)' }}>Chưa có giao dịch</div>
+                                    ) : (
+                                        <table className="data-table" style={{ margin: 0 }}>
+                                            <thead>
+                                                <tr>
+                                                    <th>Ngày</th>
+                                                    <th>Loại</th>
+                                                    <th>Chứng từ</th>
+                                                    <th>Dự án</th>
+                                                    <th style={{ textAlign: 'right' }}>Phát sinh</th>
+                                                    <th style={{ textAlign: 'right' }}>Thanh toán</th>
+                                                    <th style={{ textAlign: 'right' }}>Số dư</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {ledgerData.entries.map((entry, i) => (
+                                                    <tr key={entry.id || i}>
+                                                        <td>{fmtDate(entry.date)}</td>
+                                                        <td>
+                                                            {entry.type === 'debt' ? (
+                                                                <span className="badge" style={{ background: 'var(--status-warning)', color: '#fff', fontSize: 11, padding: '2px 7px', borderRadius: 4 }}>Nhận hàng</span>
+                                                            ) : (
+                                                                <span className="badge" style={{ background: 'var(--status-success)', color: '#fff', fontSize: 11, padding: '2px 7px', borderRadius: 4 }}>Thanh toán</span>
+                                                            )}
+                                                        </td>
+                                                        <td style={{ color: 'var(--text-muted)', fontSize: 13 }}>{entry.code || '—'}</td>
+                                                        <td style={{ color: 'var(--text-muted)', fontSize: 13 }}>{entry.projectName || '—'}</td>
+                                                        <td style={{ textAlign: 'right', color: 'var(--text-danger)', fontWeight: entry.debit ? 600 : 400 }}>
+                                                            {entry.debit ? fmtVND(entry.debit) : '—'}
+                                                        </td>
+                                                        <td style={{ textAlign: 'right', color: 'var(--text-success)', fontWeight: entry.credit ? 600 : 400 }}>
+                                                            {entry.credit ? fmtVND(entry.credit) : '—'}
+                                                        </td>
+                                                        <td style={{ textAlign: 'right', fontWeight: 700, color: (entry.balance || 0) > 0 ? 'var(--text-danger)' : 'var(--text-success)' }}>
+                                                            {fmtVND(entry.balance)}
+                                                        </td>
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
+                                    )}
+                                </>
+                            )}
+                        </div>
+                        <div className="modal-footer">
+                            <button className="btn btn-primary" onClick={() => setLedgerModal(null)}>Đóng</button>
                         </div>
                     </div>
                 </div>
