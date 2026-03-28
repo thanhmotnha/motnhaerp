@@ -163,7 +163,7 @@ function PurchasingContent() {
                             const rate = pct(o.paidAmount, o.totalAmount);
                             const canReceive = !['Hoàn thành', 'Hủy'].includes(o.status);
                             return (
-                                <tr key={o.id} onClick={() => o.projectId && router.push(`/projects/${o.projectId}`)} style={{ cursor: o.projectId ? 'pointer' : 'default' }}>
+                                <tr key={o.id} onClick={() => o.projectId && router.push(`/projects/${o.project?.code || o.projectId}`)} style={{ cursor: o.projectId ? 'pointer' : 'default' }}>
                                     <td className="accent">{o.code}</td>
                                     <td className="primary">{o.supplier}</td>
                                     <td>{o.project ? <span className="badge badge-info">{o.project.code}</span> : <span style={{ opacity: 0.3, fontSize: 12 }}>—</span>}</td>

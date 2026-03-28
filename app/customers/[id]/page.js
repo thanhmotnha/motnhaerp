@@ -225,7 +225,7 @@ export default function CustomerDetailPage() {
                     <div className="card">
                         <div className="card-header"><span className="card-title">🏗️ Dự án gần đây</span></div>
                         {(c.projects || []).slice(0, 5).map(p => (
-                            <div key={p.id} onClick={() => router.push(`/projects/${p.id}`)} style={{ display: 'flex', justifyContent: 'space-between', padding: '12px 0', borderBottom: '1px solid var(--border-light)', cursor: 'pointer' }}>
+                            <div key={p.id} onClick={() => router.push(`/projects/${p.code}`)} style={{ display: 'flex', justifyContent: 'space-between', padding: '12px 0', borderBottom: '1px solid var(--border-light)', cursor: 'pointer' }}>
                                 <div>
                                     <span style={{ fontWeight: 600, fontSize: 13 }}>{p.name}</span>
                                     <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{p.code} • {p.area}m² • {p.floors} tầng</div>
@@ -262,7 +262,7 @@ export default function CustomerDetailPage() {
                     <div className="table-container"><table className="data-table">
                         <thead><tr><th>Mã</th><th>Tên</th><th>Giá trị HĐ</th><th>Đã thu</th><th>Tiến độ</th><th>Trạng thái</th><th>HĐ</th><th>CV</th></tr></thead>
                         <tbody>{(c.projects || []).map(p => (
-                            <tr key={p.id} onClick={() => router.push(`/projects/${p.id}`)} style={{ cursor: 'pointer' }}>
+                            <tr key={p.id} onClick={() => router.push(`/projects/${p.code}`)} style={{ cursor: 'pointer' }}>
                                 <td className="accent">{p.code}</td>
                                 <td className="primary">{p.name}<div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{p.address} • {p.area}m²</div></td>
                                 <td className="amount">{fmt(p.contractValue)}</td>
@@ -293,7 +293,7 @@ export default function CustomerDetailPage() {
                             <tbody>{(c.contracts || []).map(ct => {
                                 const rate = pct(ct.paidAmount, ct.contractValue);
                                 return (
-                                    <tr key={ct.id} onClick={() => ct.project && router.push(`/projects/${ct.projectId}`)} style={{ cursor: 'pointer' }}>
+                                    <tr key={ct.id} onClick={() => ct.project && router.push(`/projects/${ct.project.code || ct.projectId}`)} style={{ cursor: 'pointer' }}>
                                         <td className="accent">{ct.code}</td>
                                         <td className="primary">{ct.name}</td>
                                         <td><span className="badge info">{ct.project?.code}</span> {ct.project?.name}</td>

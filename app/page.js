@@ -52,7 +52,7 @@ function TodayTasksWidget({ tasks }) {
                             <div style={{ fontSize: 11, fontWeight: 700, color: '#DC2626', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Phiếu CV quá hạn ({overdueWOs.length})</div>
                             <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                                 {overdueWOs.map(wo => (
-                                    <a key={wo.id} href={`/projects/${wo.projectId}`} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '7px 12px', background: 'rgba(220,38,38,0.04)', borderRadius: 6, textDecoration: 'none', color: 'inherit', border: '1px solid rgba(220,38,38,0.12)' }}>
+                                    <a key={wo.id} href={`/projects/${wo.project?.code || wo.projectId}`} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '7px 12px', background: 'rgba(220,38,38,0.04)', borderRadius: 6, textDecoration: 'none', color: 'inherit', border: '1px solid rgba(220,38,38,0.12)' }}>
                                         <div>
                                             <span style={{ fontWeight: 600, fontSize: 13 }}>{wo.title}</span>
                                             <span style={{ fontSize: 11, color: 'var(--text-muted)', marginLeft: 8 }}>{wo.project?.code} · {wo.assignee || 'Chưa giao'}</span>
@@ -84,7 +84,7 @@ function TodayTasksWidget({ tasks }) {
                             <div style={{ fontSize: 11, fontWeight: 700, color: '#2D5CA3', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Cam kết sắp đến hạn ({urgentCommitments.length})</div>
                             <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                                 {urgentCommitments.map(c => (
-                                    <a key={c.id} href={`/projects/${c.projectId}`} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '7px 12px', background: 'rgba(45,92,163,0.04)', borderRadius: 6, textDecoration: 'none', color: 'inherit', border: '1px solid rgba(45,92,163,0.12)' }}>
+                                    <a key={c.id} href={`/projects/${c.project?.code || c.projectId}`} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '7px 12px', background: 'rgba(45,92,163,0.04)', borderRadius: 6, textDecoration: 'none', color: 'inherit', border: '1px solid rgba(45,92,163,0.12)' }}>
                                         <div>
                                             <span style={{ fontWeight: 600, fontSize: 13 }}>{c.title}</span>
                                             <span style={{ fontSize: 11, color: 'var(--text-muted)', marginLeft: 8 }}>{c.project?.code} · {c.assignee || '—'}</span>
@@ -490,7 +490,7 @@ export default function Dashboard() {
                         </thead>
                         <tbody>
                             {data.recentProjects.map(p => (
-                                <tr key={p.id} onClick={() => window.location.href = `/projects/${p.id}`} style={{ cursor: 'pointer' }}>
+                                <tr key={p.id} onClick={() => window.location.href = `/projects/${p.code}`} style={{ cursor: 'pointer' }}>
                                     <td style={{ fontWeight: 600, color: '#234093' }}>{p.code}</td>
                                     <td style={{ fontWeight: 500 }}>{p.name}</td>
                                     <td>{p.customer?.name}</td>
