@@ -582,6 +582,7 @@ model Contract {
   type            String   @default("Thi công")
   contractValue   Float    @default(0)
   paidAmount      Float    @default(0)
+  arOpeningPaid   Float    @default(0)
   variationAmount Float    @default(0)
   status          String   @default("Nháp")
   signDate        DateTime?
