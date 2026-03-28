@@ -13,12 +13,12 @@ const ReceivablesTab = dynamic(() => import('@/components/finance/ReceivablesTab
 const ExpensesTab = dynamic(() => import('@/components/finance/ExpensesTab'), { ssr: false });
 
 const TABS = [
-    { key: 'overview', label: '📊 Tổng quan' },
-    { key: 'thu_tien', label: '💵 Thu tiền' },
-    { key: 'chi_phi', label: '💸 Chi phí' },
-    { key: 'dong_tien', label: '💧 Dòng tiền' },
-    { key: 'cong_no', label: '📋 Công nợ' },
-    { key: 'bao_cao', label: '📅 Báo cáo tháng' },
+    { key: 'overview', label: 'Tổng quan' },
+    { key: 'thu_tien', label: 'Thu tiền' },
+    { key: 'chi_phi', label: 'Chi phí' },
+    { key: 'dong_tien', label: 'Dòng tiền' },
+    { key: 'cong_no', label: 'Công nợ' },
+    { key: 'bao_cao', label: 'Báo cáo tháng' },
 ];
 
 const QUICK_ENTRY_TYPES = ['Thu tiền', 'Chi phí', 'Giao dịch khác'];
@@ -141,9 +141,9 @@ function FinanceContent() {
             {/* Tab Bar */}
             <div className="card">
                 <div className="card-header">
-                    <div className="tab-bar">
+                    <div className="tabs">
                         {TABS.map(t => (
-                            <button key={t.key} className={`tab-item ${activeTab === t.key ? 'active' : ''}`}
+                            <button key={t.key} className={`tab ${activeTab === t.key ? 'active' : ''}`}
                                 onClick={() => handleTabChange(t.key)}>{t.label}</button>
                         ))}
                     </div>
