@@ -133,6 +133,7 @@ model Project {
   photos          ProgressPhoto[]
   portalTokens    ClientPortalToken[]
   projectRisks    ProjectRisk[]
+  contractorPaymentLogs ContractorPaymentLog[]
   deletedAt       DateTime?
   createdAt       DateTime    @default(now())
   updatedAt       DateTime    @updatedAt
@@ -429,12 +430,28 @@ model Contractor {
   creditLimit   Float    @default(0)
   category      String   @default("")
   advanceAmount Float    @default(0)
+  openingBalance Float   @default(0)
   payments      ContractorPayment[]
+  paymentLogs   ContractorPaymentLog[]
   tasks         SubContractorTask[]
   documents     ProjectDocument[]
   deletedAt     DateTime?
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
+}
+
+model ContractorPaymentLog {
+  id           String      @id @default(cuid())
+  code         String      @unique
+  contractorId String
+  projectId    String?
+  amount       Float
+  date         DateTime    @default(now())
+  notes        String      @default("")
+  createdById  String?
+  createdAt    DateTime    @default(now())
+  contractor   Contractor  @relation(fields: [contractorId], references: [id])
+  project      Project?    @relation(fields: [projectId], references: [id])
 }
 
 model ContractorPayment {
@@ -493,11 +510,25 @@ model Supplier {
   notes          String   @default("") @db.Text
   isBlacklisted  Boolean  @default(false)
   creditLimit    Float    @default(0)
+  openingBalance Float    @default(0)
   deletedAt      DateTime?
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
   purchaseOrders PurchaseOrder[]
   documents      ProjectDocument[]
+  supplierPayments SupplierPayment[]
+}
+
+model SupplierPayment {
+  id          String   @id @default(cuid())
+  code        String   @unique
+  supplierId  String
+  amount      Float
+  date        DateTime @default(now())
+  notes       String   @default("")
+  createdById String?
+  createdAt   DateTime @default(now())
+  supplier    Supplier @relation(fields: [supplierId], references: [id])
 }
 
 model ProjectMilestone {
