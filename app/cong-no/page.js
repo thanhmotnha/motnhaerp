@@ -14,6 +14,7 @@ export default function CongNoPage() {
     const [selectedId, setSelectedId] = useState(null);
     const [selectedType, setSelectedType] = useState(null); // 'ncc' | 'contractor'
     const [ledger, setLedger] = useState(null);
+    const [ledgerError, setLedgerError] = useState(false);
     const [loadingLedger, setLoadingLedger] = useState(false);
 
     const [showPaymentModal, setShowPaymentModal] = useState(false);
@@ -45,6 +46,7 @@ export default function CongNoPage() {
     const loadLedger = useCallback(async (id, type) => {
         setLoadingLedger(true);
         setLedger(null);
+        setLedgerError(false);
         try {
             const endpoint = type === 'ncc'
                 ? `/api/debt/ncc/${id}/ledger`
@@ -53,6 +55,7 @@ export default function CongNoPage() {
             setLedger(res);
         } catch (err) {
             console.error('Failed to load ledger:', err);
+            setLedgerError(true);
         }
         setLoadingLedger(false);
     }, []);
@@ -109,6 +112,7 @@ export default function CongNoPage() {
             await Promise.all([loadLedger(selectedId, selectedType), loadLists()]);
         } catch (err) {
             console.error('Failed to save payment:', err);
+            alert('Lưu thất bại. Vui lòng thử lại.');
         }
         setSaving(false);
     };
@@ -125,6 +129,7 @@ export default function CongNoPage() {
             await Promise.all([loadLedger(selectedId, selectedType), loadLists()]);
         } catch (err) {
             console.error('Failed to save opening balance:', err);
+            alert('Lưu thất bại. Vui lòng thử lại.');
         }
         setSaving(false);
     };
@@ -141,13 +146,13 @@ export default function CongNoPage() {
                 <div className="tabs" style={{ padding: '8px 12px 0', borderBottom: '1px solid var(--border)', flexShrink: 0 }}>
                     <button
                         className={`tab ${activeTab === 'ncc' ? 'active' : ''}`}
-                        onClick={() => { setActiveTab('ncc'); setSearch(''); setSelectedId(null); setSelectedType(null); setLedger(null); }}
+                        onClick={() => { setActiveTab('ncc'); setSearch(''); setSelectedId(null); setSelectedType(null); setLedger(null); setLedgerError(false); }}
                     >
                         Nhà cung cấp
                     </button>
                     <button
                         className={`tab ${activeTab === 'contractor' ? 'active' : ''}`}
-                        onClick={() => { setActiveTab('contractor'); setSearch(''); setSelectedId(null); setSelectedType(null); setLedger(null); }}
+                        onClick={() => { setActiveTab('contractor'); setSearch(''); setSelectedId(null); setSelectedType(null); setLedger(null); setLedgerError(false); }}
                     >
                         Nhà thầu phụ
                     </button>
@@ -223,6 +228,10 @@ export default function CongNoPage() {
                 ) : loadingLedger ? (
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: 'var(--text-muted)', fontSize: 14 }}>
                         Đang tải sổ cái...
+                    </div>
+                ) : ledgerError ? (
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: 'var(--status-danger)', fontSize: 14 }}>
+                        Không thể tải sổ cái. Vui lòng thử lại.
                     </div>
                 ) : ledger ? (
                     <div style={{ padding: 24 }}>
