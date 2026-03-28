@@ -22,6 +22,7 @@ export default function ExpensesTab() {
     const [showModal, setShowModal] = useState(false);
     const [editing, setEditing] = useState(null);
     const [form, setForm] = useState(emptyForm);
+    const [allocations, setAllocations] = useState([]);
     const [proofModal, setProofModal] = useState(null);
     const [proofFile, setProofFile] = useState(null);
     const [proofPreview, setProofPreview] = useState(null);
@@ -58,11 +59,16 @@ export default function ExpensesTab() {
     });
 
     // CRUD
-    const openCreate = () => { setEditing(null); setForm(emptyForm); setShowModal(true); };
+    const addAllocation = () => setAllocations(prev => [...prev, { projectId: '', amount: '' }]);
+    const removeAllocation = (i) => setAllocations(prev => prev.filter((_, j) => j !== i));
+    const updateAllocation = (i, field, value) => setAllocations(prev => { const next = [...prev]; next[i] = { ...next[i], [field]: value }; return next; });
+
+    const openCreate = () => { setEditing(null); setForm(emptyForm); setAllocations([]); setShowModal(true); };
     const openEdit = (e) => {
         if (e.status !== 'Chờ duyệt' && e.status !== 'Từ chối') return;
         setEditing(e);
         setForm({ expenseType: e.expenseType || 'Dự án', description: e.description, amount: e.amount, category: e.category, submittedBy: e.submittedBy, date: e.date?.split('T')[0] || '', notes: e.notes, projectId: e.projectId || '', recipientType: e.recipientType || '', recipientId: e.recipientId || '' });
+        setAllocations((e.allocations || []).map(a => ({ projectId: a.projectId, amount: a.amount })));
         setShowModal(true);
     };
     const handleSubmit = async () => {
@@ -71,10 +77,11 @@ export default function ExpensesTab() {
         if (!form.amount || form.amount <= 0) return alert('Nhập số tiền!');
         const recipientName = form.recipientType === 'NCC' ? suppliers.find(s => s.id === form.recipientId)?.name : form.recipientType === 'Thầu phụ' ? contractors.find(c => c.id === form.recipientId)?.name : '';
         form.recipientName = recipientName || '';
+        const validAllocs = allocations.filter(a => a.projectId && Number(a.amount) > 0).map(a => ({ projectId: a.projectId, amount: Number(a.amount), ratio: 0 }));
         if (editing) {
             await fetch('/api/project-expenses', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: editing.id, ...form, amount: Number(form.amount) }) });
         } else {
-            await fetch('/api/project-expenses', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(form) });
+            await fetch('/api/project-expenses', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...form, amount: Number(form.amount), allocations: validAllocs }) });
         }
         setShowModal(false); fetchData();
     };
@@ -292,6 +299,26 @@ export default function ExpensesTab() {
                                 <div className="form-group"><label className="form-label">Ngày</label><input className="form-input" type="date" value={form.date} onChange={e => setForm({ ...form, date: e.target.value })} /></div>
                             </div>
                             <div className="form-group"><label className="form-label">Ghi chú</label><textarea className="form-input" rows={2} value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })} /></div>
+
+                            {form.expenseType === 'Công ty' && (
+                                <div style={{ borderTop: '1px solid var(--border)', paddingTop: 12, marginTop: 4 }}>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                                        <label className="form-label" style={{ margin: 0 }}>Phân bổ vào dự án</label>
+                                        <button type="button" className="btn" style={{ fontSize: 12, padding: '4px 10px' }} onClick={addAllocation}>+ Thêm DA</button>
+                                    </div>
+                                    {allocations.length === 0 && <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 4 }}>Không phân bổ — chi phí công ty chung</div>}
+                                    {allocations.map((a, i) => (
+                                        <div key={i} style={{ display: 'grid', gridTemplateColumns: '2fr 1fr auto', gap: 8, marginBottom: 6, alignItems: 'end' }}>
+                                            <select className="form-select" value={a.projectId} onChange={e => updateAllocation(i, 'projectId', e.target.value)}>
+                                                <option value="">— Chọn dự án —</option>
+                                                {projects.map(p => <option key={p.id} value={p.id}>{p.code} — {p.name}</option>)}
+                                            </select>
+                                            <input className="form-input" type="number" placeholder="Số tiền" value={a.amount} onChange={e => updateAllocation(i, 'amount', e.target.value)} />
+                                            <button type="button" className="btn" style={{ padding: '6px 8px', color: '#ef4444' }} onClick={() => removeAllocation(i)}>✕</button>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
                         </div>
                         <div className="modal-footer">
                             <button className="btn btn-ghost" onClick={() => setShowModal(false)}>Hủy</button>
