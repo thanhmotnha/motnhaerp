@@ -15,6 +15,8 @@ const timeAgo = (d) => {
     return `${days}d trước`;
 };
 
+const zaloLink = (phone) => `https://zalo.me/${phone.replace(/\s+/g, '')}`;
+
 const PIPELINE = [
     { key: 'Lead', label: 'Lead', color: '#94a3b8', bg: '#f1f5f9' },
     { key: 'Prospect', label: 'Prospect', color: '#f59e0b', bg: '#fef3c7' },
@@ -154,6 +156,22 @@ export default function CustomersPage() {
                                             <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>
                                                 {c.phone && <div>📱 {c.phone}</div>}
                                             </div>
+                                            <div style={{ display: 'flex', gap: 6, marginTop: 4 }}>
+                                                {c.phone && (
+                                                    <a href={zaloLink(c.phone)} target="_blank" rel="noopener noreferrer"
+                                                        onClick={e => e.stopPropagation()}
+                                                        style={{ fontSize: 11, color: '#0068FF', textDecoration: 'none', fontWeight: 500 }}>
+                                                        💬 Zalo
+                                                    </a>
+                                                )}
+                                                {c.facebookUrl && (
+                                                    <a href={c.facebookUrl} target="_blank" rel="noopener noreferrer"
+                                                        onClick={e => e.stopPropagation()}
+                                                        style={{ fontSize: 11, color: '#1877F2', textDecoration: 'none', fontWeight: 500 }}>
+                                                        FB
+                                                    </a>
+                                                )}
+                                            </div>
                                             {(c.estimatedValue > 0 || c.projects?.length > 0) && <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 4, paddingTop: 4, borderTop: '1px solid var(--border-light)', fontSize: 10 }}>
                                                 {c.estimatedValue > 0 ? <span style={{ fontWeight: 700, color: 'var(--status-success)' }}>{fmt(c.estimatedValue)}</span> : <span />}
                                                 {c.projects?.length > 0 && <span style={{ background: 'var(--bg-primary)', padding: '0 4px', borderRadius: 4 }}>🏗️{c.projects.length}</span>}
@@ -177,7 +195,25 @@ export default function CustomersPage() {
                                 <tr key={c.id} onClick={() => router.push(`/customers/${c.id}`)} style={{ cursor: 'pointer' }}>
                                     <td className="accent">{c.code}</td>
                                     <td className="primary">{c.name}{c.representative ? <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>ĐD: {c.representative}</div> : null}</td>
-                                    <td>{c.phone}</td>
+                                    <td>
+                                        <div>{c.phone}</div>
+                                        <div style={{ display: 'flex', gap: 6, marginTop: 2 }}>
+                                            {c.phone && (
+                                                <a href={zaloLink(c.phone)} target="_blank" rel="noopener noreferrer"
+                                                    onClick={e => e.stopPropagation()}
+                                                    style={{ fontSize: 11, color: '#0068FF', textDecoration: 'none' }}>
+                                                    💬 Zalo
+                                                </a>
+                                            )}
+                                            {c.facebookUrl && (
+                                                <a href={c.facebookUrl} target="_blank" rel="noopener noreferrer"
+                                                    onClick={e => e.stopPropagation()}
+                                                    style={{ fontSize: 11, color: '#1877F2', textDecoration: 'none' }}>
+                                                    FB
+                                                </a>
+                                            )}
+                                        </div>
+                                    </td>
                                     <td><span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 12, fontWeight: 600, padding: '2px 10px', borderRadius: 12, background: stage.bg, color: stage.color }}><span style={{ width: 7, height: 7, borderRadius: '50%', background: stage.color }} />{stage.label}</span></td>
                                     <td style={{ fontSize: 12 }}>{c.source || '-'}</td>
                                     <td style={{ fontWeight: 600 }}>{c.estimatedValue > 0 ? fmt(c.estimatedValue) : '-'}</td>
