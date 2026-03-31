@@ -43,6 +43,8 @@ model Customer {
   birthday        DateTime?
   source          String      @default("")
   notes           String      @default("") @db.Text
+  facebookUrl     String      @default("")
+  facebookLeadId  String      @default("")
   totalRevenue    Float       @default(0)
   gender          String      @default("Nam")
   projectAddress  String      @default("") @db.Text
