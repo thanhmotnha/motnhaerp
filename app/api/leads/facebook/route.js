@@ -4,6 +4,13 @@ import crypto from 'crypto';
 import { getSetting } from '@/lib/settingsHelper';
 import { processLead } from '@/lib/leadIntake';
 
+function timingSafeEqual(a, b) {
+    const bufA = Buffer.from(String(a ?? ''));
+    const bufB = Buffer.from(String(b ?? ''));
+    if (bufA.length !== bufB.length) return false;
+    return crypto.timingSafeEqual(bufA, bufB);
+}
+
 // GET — Facebook webhook verification challenge
 export const GET = withAuth(async (request) => {
     const { searchParams } = new URL(request.url);
@@ -32,7 +39,7 @@ export const POST = withAuth(async (request) => {
             .createHmac('sha256', appSecret)
             .update(rawBody)
             .digest('hex');
-        if (sig !== expected) {
+        if (!timingSafeEqual(sig, expected)) {
             return NextResponse.json({ error: 'Invalid signature' }, { status: 403 });
         }
     }
@@ -45,7 +52,11 @@ export const POST = withAuth(async (request) => {
         for (const change of entry.changes ?? []) {
             if (change.field !== 'leadgen') continue;
             const leadgenId = change.value?.leadgen_id;
-            if (!leadgenId || !pageToken) continue;
+            if (!leadgenId) continue;
+            if (!pageToken) {
+                console.error('[FB Leads] facebookPageToken not configured — lead dropped:', leadgenId);
+                continue;
+            }
 
             // Fetch lead data from Graph API
             try {
