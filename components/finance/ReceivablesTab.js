@@ -112,7 +112,7 @@ export default function ReceivablesTab() {
                     reason: correctionForm.reason.trim(),
                 }),
             });
-            if (res.status === 409) { showToast('Đã có yêu cầu đính chính đang chờ duyệt cho đợt này', 'error'); setSubmittingCorrection(false); return; }
+            if (res.status === 409) { showToast('Đợt này đã có yêu cầu đính chính đang chờ duyệt', 'error'); setSubmittingCorrection(false); return; }
             if (!res.ok) throw new Error('Lỗi gửi yêu cầu');
             showToast('Đã gửi yêu cầu đính chính', 'success');
             setCorrectionModal(null);
@@ -132,7 +132,7 @@ export default function ReceivablesTab() {
                 body: JSON.stringify({ action, rejectionNote: note }),
             });
             if (!res.ok) throw new Error('Lỗi xử lý yêu cầu');
-            showToast(action === 'approved' ? 'Đã duyệt đính chính' : 'Đã từ chối yêu cầu', action === 'approved' ? 'success' : 'error');
+            showToast(action === 'approved' ? 'Đã duyệt yêu cầu đính chính' : 'Đã từ chối yêu cầu đính chính', action === 'approved' ? 'success' : 'error');
             setRejectingId(null);
             setRejectNote('');
             fetchCorrections();
@@ -425,7 +425,7 @@ ${[1, 2].map(copy => `
                                                 <strong>Lý do:</strong> {c.reason}
                                             </div>
                                             <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>
-                                                {new Date(c.createdAt).toLocaleString('vi-VN')}
+                                                {new Date(c.createdAt).toLocaleString('vi-VN')} · Người yêu cầu: {c.requestedBy}
                                             </div>
                                         </div>
                                         <div style={{ display: 'flex', gap: 6, flexShrink: 0, flexDirection: 'column', alignItems: 'flex-end' }}>
@@ -494,7 +494,7 @@ ${[1, 2].map(copy => `
                                                 <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
                                                     {p.status !== 'Đã thu' && <button className="btn btn-primary btn-sm" style={{ fontSize: 11 }} onClick={() => startCollect(p)}>💵 Thu tiền</button>}
                                                     {(p.paidAmount || 0) > 0 && <button className="btn btn-ghost btn-sm" style={{ fontSize: 11 }} onClick={() => printReceipt(p)}>🧾 Phiếu thu</button>}
-                                                    {(p.paidAmount || 0) > 0 && !pendingByPaymentId.has(p.id) && (
+                                                    {(p.paidAmount || 0) > 0 && !pendingByPaymentId.has(p.id) && role !== 'ky_thuat' && (
                                                         <button className="btn btn-secondary btn-sm" style={{ fontSize: 11 }} onClick={() => openCorrectionModal(p)}>✏️ Đính chính</button>
                                                     )}
                                                     {pendingByPaymentId.has(p.id) && (
@@ -603,7 +603,7 @@ ${[1, 2].map(copy => `
                         </div>
                         <div className="modal-footer">
                             <button className="btn btn-ghost" onClick={() => setCorrectionModal(null)} disabled={submittingCorrection}>Hủy</button>
-                            <button className="btn btn-primary" onClick={submitCorrection} disabled={submittingCorrection || Number(correctionForm.newAmount) === correctionModal.payment.paidAmount}>
+                            <button className="btn btn-primary" onClick={submitCorrection} disabled={submittingCorrection || Number(correctionForm.newAmount) === correctionModal.payment.paidAmount || correctionForm.reason.trim().length < 5}>
                                 {submittingCorrection ? '⏳ Đang gửi...' : '📤 Gửi yêu cầu'}
                             </button>
                         </div>
