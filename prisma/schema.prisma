@@ -637,8 +637,27 @@ model ContractPayment {
   retentionReleasedAt DateTime?
   contractId          String
   contract            Contract @relation(fields: [contractId], references: [id], onDelete: Cascade)
+  corrections         PaymentCorrection[]
   createdAt           DateTime @default(now())
   @@index([contractId])
+}
+
+model PaymentCorrection {
+  id                  String   @id @default(cuid())
+  contractPaymentId   String
+  contractPayment     ContractPayment @relation(fields: [contractPaymentId], references: [id], onDelete: Cascade)
+  contractId          String
+  oldAmount           Float
+  newAmount           Float
+  reason              String   @db.Text
+  status              String   @default("pending")
+  rejectionNote       String   @default("")
+  requestedBy         String
+  reviewedBy          String?
+  createdAt           DateTime @default(now())
+  reviewedAt          DateTime?
+  @@index([contractPaymentId])
+  @@index([status])
 }
 
 model WorkOrder {
