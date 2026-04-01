@@ -102,9 +102,7 @@ export default function PLByProjectPage() {
                         color={sum.totalProfit >= 0 ? '#22c55e' : '#ef4444'}
                         sub={sum.totalContractValue > 0 ? `Margin: ${Math.round((sum.totalProfit / sum.totalContractValue) * 100)}%` : ''}
                     />
-                    {alertCount > 0 && (
-                        <SummaryCard icon={<AlertTriangle size={20} />} label="Cảnh báo margin thấp" value={`${alertCount} dự án`} color="#ef4444" />
-                    )}
+                    <SummaryCard icon={<AlertTriangle size={20} />} label="Cảnh báo margin thấp" value={`${alertCount} dự án`} color={alertCount > 0 ? '#ef4444' : '#9ca3af'} />
                 </div>
             )}
 
