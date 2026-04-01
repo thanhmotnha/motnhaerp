@@ -47,9 +47,10 @@ export default function ReceivablesTab() {
 
     const fetchCorrections = async () => {
         try {
-            const data = await fetch('/api/payment-corrections').then(r => r.ok ? r.json() : []);
-            setCorrections(data);
-        } catch { }
+            const res = await fetch('/api/payment-corrections');
+            if (!res.ok) { console.error('fetchCorrections failed', res.status); return; }
+            setCorrections(await res.json());
+        } catch (e) { console.error('fetchCorrections error', e); }
     };
 
     useEffect(() => { fetchAll(); fetchCorrections(); }, []);
@@ -139,6 +140,8 @@ export default function ReceivablesTab() {
             fetchAll();
         } catch (e) {
             showToast(e.message || 'Lỗi', 'error');
+            setRejectingId(null);
+            setRejectNote('');
         }
         setReviewingId(null);
     };
