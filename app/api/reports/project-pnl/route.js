@@ -2,30 +2,36 @@ import { withAuth } from '@/lib/apiHandler';
 import prisma from '@/lib/prisma';
 import { NextResponse } from 'next/server';
 
-export const GET = withAuth(async (req) => {
-    const { searchParams } = new URL(req.url);
-    const year = parseInt(searchParams.get('year') || new Date().getFullYear());
+const GROUP_MAP = {
+    'Thiết kế kiến trúc': 'Thiết kế',
+    'Thiết kế nội thất': 'Thiết kế',
+    'Thi công nội thất': 'Nội thất',
+    'Thi công thô': 'Thi công',
+    'Thi công hoàn thiện': 'Thi công',
+};
 
+export const GET = withAuth(async () => {
     const projects = await prisma.project.findMany({
         where: { deletedAt: null },
         select: {
-            id: true, code: true, name: true, status: true, startDate: true, endDate: true,
+            id: true, code: true, name: true, status: true,
             customer: { select: { name: true } },
             contracts: {
                 where: { deletedAt: null, status: { not: 'Nháp' } },
                 select: {
-                    contractValue: true, paidAmount: true,
-                    payments: { select: { amount: true, paidAmount: true, status: true } },
+                    type: true,
+                    contractValue: true,
+                    paidAmount: true,
                 },
             },
             contractorPays: {
-                select: { contractAmount: true, paidAmount: true, netAmount: true },
+                select: { paidAmount: true },
             },
             purchaseOrders: {
-                select: { totalAmount: true, paidAmount: true },
+                select: { paidAmount: true },
             },
             expenses: {
-                where: { deletedAt: null },
+                where: { deletedAt: null, status: { not: 'Từ chối' } },
                 select: { amount: true },
             },
         },
@@ -45,12 +51,20 @@ export const GET = withAuth(async (req) => {
         const grossProfit = paidByCustomer - totalCost;
         const margin = contractValue > 0 ? Math.round((grossProfit / contractValue) * 100) : 0;
 
+        // Nhóm theo HĐ có contractValue lớn nhất
+        const dominantContract = p.contracts.reduce(
+            (max, c) => (c.contractValue || 0) > (max?.contractValue || 0) ? c : max,
+            null
+        );
+        const groupType = GROUP_MAP[dominantContract?.type] || 'Thi công';
+
         return {
             id: p.id,
             code: p.code,
             name: p.name,
             status: p.status,
             customerName: p.customer?.name || '',
+            groupType,
             contractValue,
             paidByCustomer,
             remainReceivable,
@@ -67,6 +81,7 @@ export const GET = withAuth(async (req) => {
     const summary = {
         totalContractValue: rows.reduce((s, r) => s + r.contractValue, 0),
         totalPaid: rows.reduce((s, r) => s + r.paidByCustomer, 0),
+        totalRemain: rows.reduce((s, r) => s + r.remainReceivable, 0),
         totalCost: rows.reduce((s, r) => s + r.totalCost, 0),
         totalProfit: rows.reduce((s, r) => s + r.grossProfit, 0),
         alertCount: rows.filter(r => r.alert).length,
