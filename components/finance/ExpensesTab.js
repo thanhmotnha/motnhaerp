@@ -22,6 +22,7 @@ export default function ExpensesTab() {
     const [showModal, setShowModal] = useState(false);
     const [editing, setEditing] = useState(null);
     const [form, setForm] = useState(emptyForm);
+    const [isHistorical, setIsHistorical] = useState(false);
     const [allocations, setAllocations] = useState([]);
     const [proofModal, setProofModal] = useState(null);
     const [proofFile, setProofFile] = useState(null);
@@ -63,7 +64,7 @@ export default function ExpensesTab() {
     const removeAllocation = (i) => setAllocations(prev => prev.filter((_, j) => j !== i));
     const updateAllocation = (i, field, value) => setAllocations(prev => { const next = [...prev]; next[i] = { ...next[i], [field]: value }; return next; });
 
-    const openCreate = () => { setEditing(null); setForm(emptyForm); setAllocations([]); setShowModal(true); };
+    const openCreate = () => { setEditing(null); setForm(emptyForm); setAllocations([]); setIsHistorical(false); setShowModal(true); };
     const openEdit = (e) => {
         if (e.status !== 'Chờ duyệt' && e.status !== 'Từ chối') return;
         setEditing(e);
@@ -81,7 +82,9 @@ export default function ExpensesTab() {
         if (editing) {
             await fetch('/api/project-expenses', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: editing.id, ...form, amount: Number(form.amount) }) });
         } else {
-            await fetch('/api/project-expenses', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...form, amount: Number(form.amount), allocations: validAllocs }) });
+            const payload = { ...form, amount: Number(form.amount), allocations: validAllocs };
+            if (isHistorical) { payload.status = 'Đã chi'; payload.paidAmount = Number(form.amount); }
+            await fetch('/api/project-expenses', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
         }
         setShowModal(false); fetchData();
     };
@@ -320,9 +323,18 @@ export default function ExpensesTab() {
                                 </div>
                             )}
                         </div>
+                        {!editing && (
+                            <div style={{ padding: '10px 20px', borderTop: '1px solid var(--border)', background: isHistorical ? 'var(--bg-secondary)' : 'transparent' }}>
+                                <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 13 }}>
+                                    <input type="checkbox" checked={isHistorical} onChange={e => setIsHistorical(e.target.checked)} style={{ width: 15, height: 15, cursor: 'pointer' }} />
+                                    <span style={{ fontWeight: 600 }}>📋 Nhập chứng từ lịch sử</span>
+                                    <span style={{ color: 'var(--text-muted)', fontSize: 12 }}>(đã chi, không cần duyệt)</span>
+                                </label>
+                            </div>
+                        )}
                         <div className="modal-footer">
                             <button className="btn btn-ghost" onClick={() => setShowModal(false)}>Hủy</button>
-                            <button className="btn btn-primary" onClick={handleSubmit}>{editing ? 'Cập nhật' : 'Tạo lệnh chi'}</button>
+                            <button className="btn btn-primary" onClick={handleSubmit}>{editing ? 'Cập nhật' : isHistorical ? '📋 Lưu chứng từ lịch sử' : 'Tạo lệnh chi'}</button>
                         </div>
                     </div>
                 </div>
