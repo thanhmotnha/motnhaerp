@@ -1,5 +1,7 @@
 'use client';
 import { useState, useEffect, useRef } from 'react';
+import { useRole } from '@/contexts/RoleContext';
+import { useToast } from '@/components/ui/Toast';
 
 const fmt = (n) => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(n || 0);
 const fmtDate = (d) => d ? new Date(d).toLocaleDateString('vi-VN') : '—';
@@ -21,6 +23,16 @@ export default function ReceivablesTab() {
     const [uploading, setUploading] = useState(false);
     const [ocrLoading, setOcrLoading] = useState(false);
     const proofRef = useRef();
+    const { role } = useRole();
+    const { showToast } = useToast();
+    const canReview = role === 'giam_doc' || role === 'pho_gd';
+    const [corrections, setCorrections] = useState([]);
+    const [correctionModal, setCorrectionModal] = useState(null); // { payment }
+    const [correctionForm, setCorrectionForm] = useState({ newAmount: '', reason: '' });
+    const [submittingCorrection, setSubmittingCorrection] = useState(false);
+    const [rejectingId, setRejectingId] = useState(null);
+    const [rejectNote, setRejectNote] = useState('');
+    const [reviewingId, setReviewingId] = useState(null);
 
     const fetchAll = async () => {
         setLoading(true);
@@ -32,7 +44,15 @@ export default function ReceivablesTab() {
         setReceivables(rRes);
         setLoading(false);
     };
-    useEffect(() => { fetchAll(); }, []);
+
+    const fetchCorrections = async () => {
+        try {
+            const data = await fetch('/api/payment-corrections').then(r => r.ok ? r.json() : []);
+            setCorrections(data);
+        } catch { }
+    };
+
+    useEffect(() => { fetchAll(); fetchCorrections(); }, []);
 
     // Stats
     const totalValue = contracts.reduce((s, c) => s + (c.contractValue || 0), 0);
@@ -63,6 +83,65 @@ export default function ReceivablesTab() {
         if (search && !p.contract?.code?.toLowerCase().includes(search.toLowerCase()) && !p.contract?.customer?.name?.toLowerCase().includes(search.toLowerCase()) && !p.phase?.toLowerCase().includes(search.toLowerCase())) return false;
         return true;
     });
+
+    // === Đính chính ===
+    const pendingCorrections = corrections.filter(c => c.status === 'pending');
+    const pendingByPaymentId = new Set(pendingCorrections.map(c => c.contractPaymentId));
+
+    const openCorrectionModal = (payment) => {
+        setCorrectionForm({ newAmount: payment.paidAmount || 0, reason: '' });
+        setCorrectionModal({ payment });
+    };
+
+    const submitCorrection = async () => {
+        const { payment } = correctionModal;
+        const newAmount = Number(correctionForm.newAmount);
+        if (!newAmount || newAmount <= 0) return showToast('Số tiền phải lớn hơn 0', 'error');
+        if (newAmount === payment.paidAmount) return showToast('Số tiền mới phải khác số tiền cũ', 'error');
+        if (!correctionForm.reason.trim() || correctionForm.reason.trim().length < 5) return showToast('Lý do tối thiểu 5 ký tự', 'error');
+
+        setSubmittingCorrection(true);
+        try {
+            const res = await fetch('/api/payment-corrections', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    contractPaymentId: payment.id,
+                    contractId: payment.contractId,
+                    newAmount,
+                    reason: correctionForm.reason.trim(),
+                }),
+            });
+            if (res.status === 409) { showToast('Đã có yêu cầu đính chính đang chờ duyệt cho đợt này', 'error'); setSubmittingCorrection(false); return; }
+            if (!res.ok) throw new Error('Lỗi gửi yêu cầu');
+            showToast('Đã gửi yêu cầu đính chính', 'success');
+            setCorrectionModal(null);
+            fetchCorrections();
+        } catch (e) {
+            showToast(e.message || 'Lỗi', 'error');
+        }
+        setSubmittingCorrection(false);
+    };
+
+    const reviewCorrection = async (correctionId, action, note = '') => {
+        setReviewingId(correctionId);
+        try {
+            const res = await fetch(`/api/payment-corrections/${correctionId}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ action, rejectionNote: note }),
+            });
+            if (!res.ok) throw new Error('Lỗi xử lý yêu cầu');
+            showToast(action === 'approved' ? 'Đã duyệt đính chính' : 'Đã từ chối yêu cầu', action === 'approved' ? 'success' : 'error');
+            setRejectingId(null);
+            setRejectNote('');
+            fetchCorrections();
+            fetchAll();
+        } catch (e) {
+            showToast(e.message || 'Lỗi', 'error');
+        }
+        setReviewingId(null);
+    };
 
     // === Thu tiền ===
     const startCollect = (payment) => {
@@ -206,7 +285,7 @@ ${[1, 2].map(copy => `
 
     const TABS = [
         { key: 'overview', label: '📊 Tổng quan HĐ' },
-        { key: 'phases', label: '💵 Đợt thanh toán' },
+        { key: 'phases', label: '💵 Đợt thanh toán', badge: canReview ? pendingCorrections.length : 0 },
     ];
 
     return (
@@ -232,8 +311,13 @@ ${[1, 2].map(copy => `
             <div style={{ display: 'flex', borderBottom: '1px solid var(--border)', marginBottom: 16 }}>
                 {TABS.map(t => (
                     <button key={t.key} onClick={() => setTab(t.key)}
-                        style={{ padding: '10px 18px', fontWeight: 600, fontSize: 13, cursor: 'pointer', border: 'none', background: 'transparent', color: tab === t.key ? 'var(--text-accent)' : 'var(--text-muted)', borderBottom: tab === t.key ? '2px solid var(--accent-primary)' : '2px solid transparent' }}>
+                        style={{ padding: '10px 18px', fontWeight: 600, fontSize: 13, cursor: 'pointer', border: 'none', background: 'transparent', color: tab === t.key ? 'var(--text-accent)' : 'var(--text-muted)', borderBottom: tab === t.key ? '2px solid var(--accent-primary)' : '2px solid transparent', display: 'flex', alignItems: 'center', gap: 6 }}>
                         {t.label}
+                        {t.badge > 0 && (
+                            <span style={{ background: 'var(--status-danger)', color: '#fff', borderRadius: 10, fontSize: 10, fontWeight: 700, padding: '1px 6px', lineHeight: '16px' }}>
+                                {t.badge}
+                            </span>
+                        )}
                     </button>
                 ))}
             </div>
@@ -319,6 +403,71 @@ ${[1, 2].map(copy => `
                             </button>
                         ))}
                     </div>
+                    {/* Panel duyệt đính chính — chỉ GĐ/Phó GĐ */}
+                    {canReview && pendingCorrections.length > 0 && (
+                        <div style={{ marginBottom: 16, border: '1px solid var(--status-warning)', borderRadius: 8, overflow: 'hidden' }}>
+                            <div style={{ background: 'var(--status-warning)', color: '#fff', padding: '8px 14px', fontWeight: 700, fontSize: 13 }}>
+                                📋 Yêu cầu đính chính chờ duyệt ({pendingCorrections.length})
+                            </div>
+                            {pendingCorrections.map(c => (
+                                <div key={c.id} style={{ padding: '12px 14px', borderBottom: '1px solid var(--border)', background: 'var(--bg-card)' }}>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
+                                        <div style={{ flex: 1 }}>
+                                            <div style={{ fontWeight: 600, fontSize: 13 }}>
+                                                {c.contractPayment?.contract?.code} — {c.contractPayment?.phase}
+                                            </div>
+                                            <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>
+                                                Số cũ: <span style={{ color: 'var(--status-danger)', fontWeight: 600 }}>{fmt(c.oldAmount)}</span>
+                                                {' → '}
+                                                Số mới: <span style={{ color: 'var(--status-success)', fontWeight: 600 }}>{fmt(c.newAmount)}</span>
+                                            </div>
+                                            <div style={{ fontSize: 12, marginTop: 4 }}>
+                                                <strong>Lý do:</strong> {c.reason}
+                                            </div>
+                                            <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>
+                                                {new Date(c.createdAt).toLocaleString('vi-VN')}
+                                            </div>
+                                        </div>
+                                        <div style={{ display: 'flex', gap: 6, flexShrink: 0, flexDirection: 'column', alignItems: 'flex-end' }}>
+                                            {rejectingId === c.id ? (
+                                                <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                                                    <input
+                                                        className="form-input"
+                                                        placeholder="Lý do từ chối..."
+                                                        value={rejectNote}
+                                                        onChange={e => setRejectNote(e.target.value)}
+                                                        style={{ fontSize: 12, width: 200 }}
+                                                        autoFocus
+                                                    />
+                                                    <button className="btn btn-danger btn-sm" style={{ fontSize: 11 }}
+                                                        disabled={reviewingId === c.id}
+                                                        onClick={() => reviewCorrection(c.id, 'rejected', rejectNote)}>
+                                                        {reviewingId === c.id ? '⏳' : 'Xác nhận'}
+                                                    </button>
+                                                    <button className="btn btn-ghost btn-sm" style={{ fontSize: 11 }}
+                                                        onClick={() => { setRejectingId(null); setRejectNote(''); }}>
+                                                        Hủy
+                                                    </button>
+                                                </div>
+                                            ) : (
+                                                <>
+                                                    <button className="btn btn-success btn-sm" style={{ fontSize: 11 }}
+                                                        disabled={reviewingId === c.id}
+                                                        onClick={() => reviewCorrection(c.id, 'approved')}>
+                                                        {reviewingId === c.id ? '⏳' : '✅ Duyệt'}
+                                                    </button>
+                                                    <button className="btn btn-danger btn-sm" style={{ fontSize: 11 }}
+                                                        onClick={() => { setRejectingId(c.id); setRejectNote(''); }}>
+                                                        ❌ Từ chối
+                                                    </button>
+                                                </>
+                                            )}
+                                        </div>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    )}
                     {loading ? <div style={{ padding: 40, textAlign: 'center' }}>Đang tải...</div> : filteredPayments.length === 0 ? (
                         <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-muted)' }}>Không có đợt thanh toán nào</div>
                     ) : (
@@ -342,9 +491,15 @@ ${[1, 2].map(copy => `
                                                 {p.proofUrl && <a href={p.proofUrl} target="_blank" rel="noreferrer" title="Xem ảnh xác nhận" style={{ marginLeft: 4 }}>📸</a>}
                                             </td>
                                             <td>
-                                                <div style={{ display: 'flex', gap: 4 }}>
+                                                <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
                                                     {p.status !== 'Đã thu' && <button className="btn btn-primary btn-sm" style={{ fontSize: 11 }} onClick={() => startCollect(p)}>💵 Thu tiền</button>}
                                                     {(p.paidAmount || 0) > 0 && <button className="btn btn-ghost btn-sm" style={{ fontSize: 11 }} onClick={() => printReceipt(p)}>🧾 Phiếu thu</button>}
+                                                    {(p.paidAmount || 0) > 0 && !pendingByPaymentId.has(p.id) && (
+                                                        <button className="btn btn-secondary btn-sm" style={{ fontSize: 11 }} onClick={() => openCorrectionModal(p)}>✏️ Đính chính</button>
+                                                    )}
+                                                    {pendingByPaymentId.has(p.id) && (
+                                                        <span style={{ fontSize: 10, color: 'var(--status-warning)', fontWeight: 600 }}>⏳ Đang chờ duyệt</span>
+                                                    )}
                                                 </div>
                                             </td>
                                         </tr>
@@ -405,6 +560,51 @@ ${[1, 2].map(copy => `
                             <button className="btn btn-ghost" onClick={() => setConfirmModal(null)} disabled={uploading}>Hủy</button>
                             <button className="btn btn-primary" onClick={confirmCollect} disabled={uploading || !confirmModal.file}>
                                 {uploading ? '⏳ Đang xử lý...' : '✅ Xác nhận thu tiền'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+            {/* Modal đính chính */}
+            {correctionModal && (
+                <div className="modal-overlay" onClick={() => !submittingCorrection && setCorrectionModal(null)}>
+                    <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 440 }}>
+                        <div className="modal-header">
+                            <h3>✏️ Yêu cầu đính chính số tiền</h3>
+                            <button className="modal-close" onClick={() => !submittingCorrection && setCorrectionModal(null)}>×</button>
+                        </div>
+                        <div className="modal-body">
+                            <div style={{ padding: 12, background: 'var(--bg-secondary)', borderRadius: 8, marginBottom: 16, fontSize: 13 }}>
+                                <div><strong>HĐ:</strong> {correctionModal.payment.contract?.code} — {correctionModal.payment.contract?.name}</div>
+                                <div><strong>Đợt:</strong> {correctionModal.payment.phase}</div>
+                                <div><strong>Đã thu hiện tại:</strong> <span style={{ color: 'var(--status-danger)', fontWeight: 600 }}>{fmt(correctionModal.payment.paidAmount)}</span></div>
+                            </div>
+                            <div className="form-group">
+                                <label className="form-label">Số tiền đúng *</label>
+                                <input
+                                    className="form-input"
+                                    type="number"
+                                    value={correctionForm.newAmount}
+                                    onChange={e => setCorrectionForm(prev => ({ ...prev, newAmount: e.target.value }))}
+                                    autoFocus
+                                />
+                            </div>
+                            <div className="form-group">
+                                <label className="form-label">Lý do đính chính * <span style={{ color: 'var(--text-muted)', fontSize: 11, fontWeight: 400 }}>(tối thiểu 5 ký tự)</span></label>
+                                <textarea
+                                    className="form-input"
+                                    rows={3}
+                                    value={correctionForm.reason}
+                                    onChange={e => setCorrectionForm(prev => ({ ...prev, reason: e.target.value }))}
+                                    placeholder="Ví dụ: Kế toán nhập nhầm số tiền, đúng phải là..."
+                                    style={{ resize: 'vertical' }}
+                                />
+                            </div>
+                        </div>
+                        <div className="modal-footer">
+                            <button className="btn btn-ghost" onClick={() => setCorrectionModal(null)} disabled={submittingCorrection}>Hủy</button>
+                            <button className="btn btn-primary" onClick={submitCorrection} disabled={submittingCorrection || Number(correctionForm.newAmount) === correctionModal.payment.paidAmount}>
+                                {submittingCorrection ? '⏳ Đang gửi...' : '📤 Gửi yêu cầu'}
                             </button>
                         </div>
                     </div>
