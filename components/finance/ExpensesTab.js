@@ -33,7 +33,7 @@ export default function ExpensesTab() {
     const fetchData = async () => {
         setLoading(true);
         const [eRes, pRes, sRes, cRes] = await Promise.all([
-            fetch('/api/project-expenses?limit=1000').then(r => r.json()).then(d => d.data || []).catch(() => []),
+            fetch('/api/project-expenses?limit=1000').then(r => r.json()).then(d => { if (d.error) throw new Error(d.error); return d.data || []; }).catch(err => { console.error('Lỗi tải chi phí:', err); return []; }),
             fetch('/api/projects?limit=1000').then(r => r.json()).then(d => d.data || []).catch(() => []),
             fetch('/api/suppliers?limit=1000').then(r => r.json()).then(d => d.data || []).catch(() => []),
             fetch('/api/contractors?limit=1000').then(r => r.json()).then(d => d.data || []).catch(() => []),
@@ -80,11 +80,13 @@ export default function ExpensesTab() {
         form.recipientName = recipientName || '';
         const validAllocs = allocations.filter(a => a.projectId && Number(a.amount) > 0).map(a => ({ projectId: a.projectId, amount: Number(a.amount), ratio: 0 }));
         if (editing) {
-            await fetch('/api/project-expenses', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: editing.id, ...form, amount: Number(form.amount) }) });
+            const res = await fetch('/api/project-expenses', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: editing.id, ...form, amount: Number(form.amount) }) });
+            if (!res.ok) { const err = await res.json().catch(() => ({})); return alert('Lỗi cập nhật: ' + (err.error || res.status)); }
         } else {
             const payload = { ...form, amount: Number(form.amount), allocations: validAllocs };
             if (isHistorical) { payload.status = 'Đã chi'; payload.paidAmount = Number(form.amount); }
-            await fetch('/api/project-expenses', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+            const res = await fetch('/api/project-expenses', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+            if (!res.ok) { const err = await res.json().catch(() => ({})); return alert('Lỗi tạo lệnh chi: ' + (err.error || res.status)); }
         }
         setShowModal(false); fetchData();
     };
