@@ -85,24 +85,12 @@ export default function ReportsPage() {
     const [monthlyYear, setMonthlyYear] = useState(new Date().getFullYear());
     const [loading, setLoading] = useState(true);
     const [loadingMonthly, setLoadingMonthly] = useState(false);
-    const [pnl, setPnl] = useState(null);
-    const [loadingPnl, setLoadingPnl] = useState(false);
     const [agingRecv, setAgingRecv] = useState(null);
     const [loadingAging, setLoadingAging] = useState(false);
     const [cashflow, setCashflow] = useState(null);
     const [loadingCashflow, setLoadingCashflow] = useState(false);
 
     const [funnel, setFunnel] = useState(null);
-    const [portfolio, setPortfolio] = useState(null);
-    const [loadingPortfolio, setLoadingPortfolio] = useState(false);
-
-    // New tabs state
-    const [profitData, setProfitData] = useState(null);
-    const [loadingProfit, setLoadingProfit] = useState(false);
-    const [apData, setApData] = useState(null);
-    const [loadingAp, setLoadingAp] = useState(false);
-    const [reminders, setReminders] = useState(null);
-    const [loadingReminders, setLoadingReminders] = useState(false);
 
     useEffect(() => {
         Promise.all([
@@ -120,12 +108,6 @@ export default function ReportsPage() {
     }, [tab, monthlyYear]);
 
     useEffect(() => {
-        if (tab !== 'pnl' || pnl) return;
-        setLoadingPnl(true);
-        fetch('/api/reports/project-pnl').then(r => r.json()).then(d => { setPnl(d); setLoadingPnl(false); });
-    }, [tab]);
-
-    useEffect(() => {
         if (tab !== 'aging_recv' || agingRecv) return;
         setLoadingAging(true);
         fetch('/api/reports/aging-receivables').then(r => r.json()).then(d => { setAgingRecv(d); setLoadingAging(false); });
@@ -135,30 +117,6 @@ export default function ReportsPage() {
         if (tab !== 'cashflow' || cashflow) return;
         setLoadingCashflow(true);
         fetch('/api/reports/cashflow-forecast?days=90').then(r => r.json()).then(d => { setCashflow(d); setLoadingCashflow(false); });
-    }, [tab]);
-
-    useEffect(() => {
-        if (tab !== 'portfolio' || portfolio) return;
-        setLoadingPortfolio(true);
-        fetch('/api/reports/portfolio').then(r => r.json()).then(d => { setPortfolio(d); setLoadingPortfolio(false); });
-    }, [tab]);
-
-    useEffect(() => {
-        if (tab !== 'profit_project' || profitData) return;
-        setLoadingProfit(true);
-        fetch('/api/reports/profit-by-project').then(r => r.ok ? r.json() : null).then(d => { setProfitData(d); setLoadingProfit(false); }).catch(() => setLoadingProfit(false));
-    }, [tab]);
-
-    useEffect(() => {
-        if (tab !== 'ap' || apData) return;
-        setLoadingAp(true);
-        fetch('/api/reports/accounts-payable').then(r => r.ok ? r.json() : null).then(d => { setApData(d); setLoadingAp(false); }).catch(() => setLoadingAp(false));
-    }, [tab]);
-
-    useEffect(() => {
-        if (tab !== 'reminders' || reminders) return;
-        setLoadingReminders(true);
-        fetch('/api/reports/payment-reminders').then(r => r.ok ? r.json() : null).then(d => { setReminders(d); setLoadingReminders(false); }).catch(() => setLoadingReminders(false));
     }, [tab]);
 
     if (loading) return <div style={{ padding: 60, textAlign: 'center', color: 'var(--text-muted)' }}>Đang tải báo cáo...</div>;
@@ -171,25 +129,14 @@ export default function ReportsPage() {
         { key: 'overview', label: '🗺️ Tổng quan' },
         ...(canSeeFinance ? [
             { key: 'monthly', label: '📊 Doanh thu tháng' },
-            { key: 'pnl', label: '💹 P&L Dự án' },
+            { key: 'pnl', label: '💹 P&L Dự án', href: '/reports/pl-by-project' },
             { key: 'aging_recv', label: '⏰ Tuổi nợ KH' },
             { key: 'cashflow', label: '💸 Dòng tiền' },
             { key: 'supplier_debt', label: '🏭 Công nợ NCC' },
             { key: 'contractor_debt', label: '👷 Công nợ thầu' },
-            { key: 'reminders', label: '🔔 Nhắc TT' },
-        ] : []),
-        { key: 'projects', label: '🏗️ Thu chi dự án' },
-        ...(canSeeFinance ? [
-            { key: 'profit_project', label: '📊 Lãi/lỗ DA' },
-            { key: 'ap', label: '💳 Công nợ NCC v2' },
-            { key: 'portfolio', label: '🎯 Portfolio' },
         ] : []),
     ];
 
-    const handleExportProjects = () => exportCSV('du-an.csv',
-        ['Mã DA', 'Tên dự án', 'Khách hàng', 'Trạng thái', 'Giá trị HĐ', 'Đã thu', 'Còn thu', 'Chi thầu', 'Chi VT', 'Tổng chi'],
-        projects.map(p => [p.code, p.name, p.customer?.name, p.status, p.contractValue, p.paidAmount, Math.max(0, (p.contractValue || 0) - (p.paidAmount || 0)), p.contractorCost, p.poCost, (p.contractorCost || 0) + (p.poCost || 0)])
-    );
     const handleExportDebt = (type) => {
         const list = type === 'supplier' ? debt?.topSuppliers : debt?.topContractors;
         if (!list) return;
@@ -232,7 +179,7 @@ export default function ReportsPage() {
             <div className="card">
                 <div style={{ display: 'flex', gap: 0, borderBottom: '2px solid var(--border-color)', paddingLeft: 16 }}>
                     {TABS.map(t => (
-                        <button key={t.key} onClick={() => setTab(t.key)}
+                        <button key={t.key} onClick={() => t.href ? router.push(t.href) : setTab(t.key)}
                             style={{ padding: '10px 18px', fontWeight: 600, fontSize: 13, cursor: 'pointer', border: 'none', borderBottom: tab === t.key ? '3px solid var(--accent-primary)' : '3px solid transparent', background: 'none', color: tab === t.key ? 'var(--accent-primary)' : 'var(--text-muted)', transition: '0.2s' }}>
                             {t.label}
                         </button>
@@ -457,76 +404,6 @@ export default function ReportsPage() {
                     </div>
                 )}
 
-                {tab === 'pnl' && canSeeFinance && (
-                    <div style={{ padding: 24 }}>
-                        {loadingPnl ? <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-muted)' }}>Đang tải...</div> : pnl && (
-                            <>
-                                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: 14, marginBottom: 20 }}>
-                                    {[
-                                        { label: 'Tổng giá trị HĐ', val: pnl.summary.totalContractValue, color: 'var(--accent-primary)' },
-                                        { label: 'Đã thu từ KH', val: pnl.summary.totalPaid, color: 'var(--status-success)' },
-                                        { label: 'Tổng chi phí', val: pnl.summary.totalCost, color: 'var(--status-danger)' },
-                                        { label: 'Lợi nhuận gộp', val: pnl.summary.totalProfit, color: pnl.summary.totalProfit >= 0 ? 'var(--status-success)' : 'var(--status-danger)' },
-                                    ].map(k => (
-                                        <div key={k.label} style={{ background: 'var(--bg-secondary)', borderRadius: 8, padding: '12px 16px' }}>
-                                            <div style={{ fontSize: 10, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: 4 }}>{k.label}</div>
-                                            <div style={{ fontSize: 16, fontWeight: 700, color: k.color }}>{fmtShort(k.val)}</div>
-                                        </div>
-                                    ))}
-                                </div>
-                                {pnl.summary.alertCount > 0 && (
-                                    <div style={{ background: 'rgba(220,38,38,0.06)', border: '1px solid rgba(220,38,38,0.2)', borderRadius: 8, padding: '10px 14px', marginBottom: 16, fontSize: 13, color: 'var(--status-danger)' }}>
-                                        ⚠️ {pnl.summary.alertCount} dự án có margin &lt; 10% — cần kiểm tra
-                                    </div>
-                                )}
-                                <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 8 }}>
-                                    <button className="btn btn-ghost btn-sm" onClick={() => exportCSV('pnl-du-an.csv',
-                                        ['Mã DA', 'Dự án', 'Khách hàng', 'Trạng thái', 'Giá trị HĐ', 'Đã thu', 'Chi thầu', 'Chi VT', 'Chi khác', 'Tổng chi', 'Lợi nhuận', 'Margin %'],
-                                        pnl.rows.map(r => [r.code, r.name, r.customerName, r.status, r.contractValue, r.paidByCustomer, r.contractorCost, r.poCost, r.expenseCost, r.totalCost, r.grossProfit, r.margin]))}>
-                                        📥 Xuất CSV
-                                    </button>
-                                </div>
-                                <div style={{ overflowX: 'auto' }}>
-                                    <table className="data-table" style={{ margin: 0 }}>
-                                        <thead><tr>
-                                            <th>Dự án</th><th>Trạng thái</th>
-                                            <th style={{ textAlign: 'right' }}>Giá trị HĐ</th>
-                                            <th style={{ textAlign: 'right' }}>Đã thu</th>
-                                            <th style={{ textAlign: 'right' }}>Tổng chi</th>
-                                            <th style={{ textAlign: 'right' }}>Lợi nhuận</th>
-                                            <th style={{ textAlign: 'right' }}>Margin</th>
-                                            <th></th>
-                                        </tr></thead>
-                                        <tbody>
-                                            {pnl.rows.map(r => (
-                                                <tr key={r.id} style={{ background: r.alert ? 'rgba(220,38,38,0.03)' : undefined }}>
-                                                    <td>
-                                                        <div style={{ fontWeight: 600, fontSize: 13 }}>{r.name}</div>
-                                                        <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{r.code} · {r.customerName}</div>
-                                                    </td>
-                                                    <td><span className="badge muted">{r.status}</span></td>
-                                                    <td style={{ textAlign: 'right', fontSize: 12 }}>{r.contractValue > 0 ? fmt(r.contractValue) : '—'}</td>
-                                                    <td style={{ textAlign: 'right', fontSize: 12, color: 'var(--status-success)' }}>{r.paidByCustomer > 0 ? fmt(r.paidByCustomer) : '—'}</td>
-                                                    <td style={{ textAlign: 'right', fontSize: 12, color: 'var(--status-danger)' }}>{r.totalCost > 0 ? fmt(r.totalCost) : '—'}</td>
-                                                    <td style={{ textAlign: 'right', fontWeight: 700, color: r.grossProfit >= 0 ? 'var(--status-success)' : 'var(--status-danger)' }}>{r.contractValue > 0 ? fmt(r.grossProfit) : '—'}</td>
-                                                    <td style={{ textAlign: 'right' }}>
-                                                        {r.contractValue > 0 && (
-                                                            <span style={{ fontWeight: 700, fontSize: 13, color: r.margin < 10 ? 'var(--status-danger)' : r.margin < 20 ? 'var(--status-warning)' : 'var(--status-success)' }}>
-                                                                {r.margin}%{r.alert && ' ⚠️'}
-                                                            </span>
-                                                        )}
-                                                    </td>
-                                                    <td><button className="btn btn-ghost btn-sm" onClick={() => router.push(`/projects/${r.code}`)}>Xem →</button></td>
-                                                </tr>
-                                            ))}
-                                        </tbody>
-                                    </table>
-                                </div>
-                            </>
-                        )}
-                    </div>
-                )}
-
                 {tab === 'aging_recv' && canSeeFinance && (
                     <div style={{ padding: 24 }}>
                         {loadingAging ? <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-muted)' }}>Đang tải...</div> : agingRecv && (
@@ -646,372 +523,6 @@ export default function ReportsPage() {
                     </div>
                 )}
 
-                {tab === 'projects' && (
-                    <div style={{ overflowX: 'auto' }}>
-                        <div style={{ padding: '10px 16px', borderBottom: '1px solid var(--border-color)', display: 'flex', justifyContent: 'flex-end' }}>
-                            <button className="btn btn-ghost btn-sm" onClick={handleExportProjects}>📥 Xuất CSV</button>
-                        </div>
-                        {!projects.length ? <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-muted)' }}>Không có dữ liệu</div> : (
-                            <table className="data-table" style={{ margin: 0 }}>
-                                <thead><tr>
-                                    <th>Dự án</th><th>Trạng thái</th>
-                                    {canSeeFinance && <><th style={{ textAlign: 'right' }}>Giá trị HĐ</th><th style={{ textAlign: 'right' }}>Đã thu</th><th style={{ textAlign: 'right' }}>Còn thu</th><th style={{ textAlign: 'right' }}>Chi thầu</th><th style={{ textAlign: 'right' }}>Chi VT</th><th style={{ textAlign: 'right' }}>Tổng chi</th></>}
-                                    <th></th>
-                                </tr></thead>
-                                <tbody>
-                                    {projects.map(p => {
-                                        const receivable = Math.max(0, (p.contractValue || 0) - (p.paidAmount || 0));
-                                        const totalCost = (p.contractorCost || 0) + (p.poCost || 0);
-                                        return (
-                                            <tr key={p.id}>
-                                                <td><div style={{ fontWeight: 600, fontSize: 13 }}>{p.name}</div><div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{p.code} · {p.customer?.name}</div></td>
-                                                <td><span className={`badge ${p.status === 'Bàn giao' ? 'success' : 'muted'}`}>{p.status}</span></td>
-                                                {canSeeFinance && <>
-                                                    <td style={{ textAlign: 'right', fontSize: 12 }}>{p.contractValue > 0 ? fmt(p.contractValue) : '—'}</td>
-                                                    <td style={{ textAlign: 'right', fontSize: 12, color: 'var(--status-success)' }}>{p.paidAmount > 0 ? fmt(p.paidAmount) : '—'}</td>
-                                                    <td style={{ textAlign: 'right', fontSize: 12, fontWeight: 600, color: receivable > 0 ? 'var(--status-warning)' : 'var(--text-muted)' }}>{receivable > 0 ? fmt(receivable) : '—'}</td>
-                                                    <td style={{ textAlign: 'right', fontSize: 12 }}>{p.contractorCost > 0 ? fmt(p.contractorCost) : '—'}</td>
-                                                    <td style={{ textAlign: 'right', fontSize: 12 }}>{p.poCost > 0 ? fmt(p.poCost) : '—'}</td>
-                                                    <td style={{ textAlign: 'right', fontSize: 12, fontWeight: 600, color: totalCost > 0 ? 'var(--status-danger)' : 'var(--text-muted)' }}>{totalCost > 0 ? fmt(totalCost) : '—'}</td>
-                                                </>}
-                                                <td><button className="btn btn-ghost btn-sm" onClick={() => router.push(`/projects/${p.code}`)}>Xem →</button></td>
-                                            </tr>
-                                        );
-                                    })}
-                                </tbody>
-                                {canSeeFinance && (
-                                    <tfoot><tr style={{ background: 'var(--bg-secondary)', fontWeight: 700 }}>
-                                        <td colSpan={2} style={{ textAlign: 'right', fontSize: 13 }}>Tổng cộng</td>
-                                        <td style={{ textAlign: 'right', fontSize: 13 }}>{fmt(projects.reduce((s, p) => s + (p.contractValue || 0), 0))}</td>
-                                        <td style={{ textAlign: 'right', fontSize: 13, color: 'var(--status-success)' }}>{fmt(projects.reduce((s, p) => s + (p.paidAmount || 0), 0))}</td>
-                                        <td style={{ textAlign: 'right', fontSize: 13, color: 'var(--status-warning)' }}>{fmt(totalReceivable)}</td>
-                                        <td style={{ textAlign: 'right', fontSize: 13 }}>{fmt(projects.reduce((s, p) => s + (p.contractorCost || 0), 0))}</td>
-                                        <td style={{ textAlign: 'right', fontSize: 13 }}>{fmt(projects.reduce((s, p) => s + (p.poCost || 0), 0))}</td>
-                                        <td style={{ textAlign: 'right', fontSize: 13, color: 'var(--status-danger)' }}>{fmt(projects.reduce((s, p) => s + (p.contractorCost || 0) + (p.poCost || 0), 0))}</td>
-                                        <td></td>
-                                    </tr></tfoot>
-                                )}
-                            </table>
-                        )}
-                    </div>
-                )}
-                {tab === 'portfolio' && (
-                    <div style={{ padding: 24 }}>
-                        {loadingPortfolio ? (
-                            <div style={{ textAlign: 'center', padding: 40, color: 'var(--text-muted)' }}>Đang tải...</div>
-                        ) : portfolio ? (
-                            <>
-                                {/* Portfolio KPIs */}
-                                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: 14, marginBottom: 24 }}>
-                                    {[
-                                        { label: 'Tổng dự án', value: portfolio.kpis.total, color: 'var(--accent-primary)' },
-                                        { label: 'Đang thi công', value: portfolio.kpis.active, color: 'var(--status-warning)' },
-                                        { label: 'Tổng doanh thu', value: fmtShort(portfolio.kpis.portfolioRevenue), color: 'var(--status-success)' },
-                                        { label: 'Tổng chi phí', value: fmtShort(portfolio.kpis.portfolioCost), color: 'var(--status-danger)' },
-                                        { label: 'Lợi nhuận gộp', value: fmtShort(portfolio.kpis.portfolioProfit), color: portfolio.kpis.portfolioProfit >= 0 ? 'var(--status-success)' : 'var(--status-danger)' },
-                                        { label: 'Biên LN TB', value: `${portfolio.kpis.avgMargin}%`, color: 'var(--accent-secondary)' },
-                                    ].map(k => (
-                                        <div key={k.label} style={{ background: 'var(--bg-secondary)', borderRadius: 10, padding: '14px 16px' }}>
-                                            <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 4 }}>{k.label}</div>
-                                            <div style={{ fontSize: 18, fontWeight: 700, color: k.color }}>{k.value}</div>
-                                        </div>
-                                    ))}
-                                </div>
-
-                                {/* Cost Benchmark by type */}
-                                {portfolio.benchmark?.length > 0 && (
-                                    <div style={{ marginBottom: 28 }}>
-                                        <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 12 }}>Chi phí/m² theo loại dự án</div>
-                                        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                                            {portfolio.benchmark.map(b => {
-                                                const maxBm = portfolio.benchmark[0].avgCostPerSqm || 1;
-                                                return (
-                                                    <div key={b.type} style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                                                        <div style={{ width: 140, fontSize: 13, fontWeight: 600, flexShrink: 0 }}>{b.type}</div>
-                                                        <div style={{ flex: 1, height: 24, background: 'var(--bg-secondary)', borderRadius: 6, overflow: 'hidden' }}>
-                                                            <div style={{ width: `${(b.avgCostPerSqm / maxBm) * 100}%`, height: '100%', background: 'var(--accent-primary)', opacity: 0.7, borderRadius: 6, minWidth: 4 }} />
-                                                        </div>
-                                                        <div style={{ width: 120, textAlign: 'right', fontSize: 13, fontWeight: 700 }}>
-                                                            {new Intl.NumberFormat('vi-VN').format(b.avgCostPerSqm)} đ/m²
-                                                        </div>
-                                                        <div style={{ width: 60, textAlign: 'right', fontSize: 12, color: 'var(--text-muted)' }}>{b.count} DA</div>
-                                                    </div>
-                                                );
-                                            })}
-                                        </div>
-                                    </div>
-                                )}
-
-                                {/* Per-project table */}
-                                <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 12 }}>Chi tiết từng dự án</div>
-                                <div style={{ overflowX: 'auto' }}>
-                                    <table className="data-table" style={{ margin: 0 }}>
-                                        <thead><tr>
-                                            <th>Dự án</th><th>Loại</th><th>Tiến độ</th>
-                                            <th style={{ textAlign: 'right' }}>Doanh thu</th>
-                                            <th style={{ textAlign: 'right' }}>Chi phí</th>
-                                            <th style={{ textAlign: 'right' }}>LN gộp</th>
-                                            <th style={{ textAlign: 'right' }}>Biên LN</th>
-                                            <th style={{ textAlign: 'right' }}>Chi/m²</th>
-                                            <th></th>
-                                        </tr></thead>
-                                        <tbody>
-                                            {portfolio.projects.map(p => (
-                                                <tr key={p.id}>
-                                                    <td>
-                                                        <div style={{ fontWeight: 600, fontSize: 13 }}>{p.name}</div>
-                                                        <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{p.code} · {p.customer?.name}</div>
-                                                    </td>
-                                                    <td style={{ fontSize: 12 }}>{p.type}</td>
-                                                    <td>
-                                                        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                                                            <div style={{ flex: 1, height: 6, background: 'var(--bg-secondary)', borderRadius: 3 }}>
-                                                                <div style={{ width: `${p.progress}%`, height: '100%', background: 'var(--accent-primary)', borderRadius: 3 }} />
-                                                            </div>
-                                                            <span style={{ fontSize: 11, color: 'var(--text-muted)', width: 28 }}>{p.progress}%</span>
-                                                        </div>
-                                                    </td>
-                                                    <td style={{ textAlign: 'right', fontSize: 12 }}>{p.contractValue > 0 ? fmtShort(p.contractValue) : '—'}</td>
-                                                    <td style={{ textAlign: 'right', fontSize: 12 }}>{p.totalCost > 0 ? fmtShort(p.totalCost) : '—'}</td>
-                                                    <td style={{ textAlign: 'right', fontSize: 12, fontWeight: 700, color: p.grossProfit >= 0 ? 'var(--status-success)' : 'var(--status-danger)' }}>
-                                                        {p.contractValue > 0 ? fmtShort(p.grossProfit) : '—'}
-                                                    </td>
-                                                    <td style={{ textAlign: 'right', fontSize: 12, fontWeight: 600, color: p.margin >= 20 ? 'var(--status-success)' : p.margin >= 10 ? 'var(--status-warning)' : 'var(--status-danger)' }}>
-                                                        {p.contractValue > 0 ? `${p.margin}%` : '—'}
-                                                    </td>
-                                                    <td style={{ textAlign: 'right', fontSize: 12, color: 'var(--text-muted)' }}>
-                                                        {p.costPerSqm > 0 ? `${new Intl.NumberFormat('vi-VN').format(p.costPerSqm)}` : '—'}
-                                                    </td>
-                                                    <td><button className="btn btn-ghost btn-sm" onClick={() => router.push(`/projects/${p.code}`)}>→</button></td>
-                                                </tr>
-                                            ))}
-                                        </tbody>
-                                    </table>
-                                </div>
-                            </>
-                        ) : null}
-                    </div>
-                )}
-
-                {tab === 'profit_project' && canSeeFinance && (
-                    <div style={{ padding: 24 }}>
-                        {loadingProfit ? <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-muted)' }}>Đang tải...</div> : profitData && (
-                            <>
-                                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 12, marginBottom: 20 }}>
-                                    {[
-                                        { label: 'Tổng doanh thu', val: profitData.summary.totalRevenue, color: 'var(--status-success)' },
-                                        { label: 'Tổng chi phí', val: profitData.summary.totalCost, color: 'var(--status-danger)' },
-                                        { label: 'Tổng lợi nhuận', val: profitData.summary.totalProfit, color: profitData.summary.totalProfit >= 0 ? 'var(--status-success)' : 'var(--status-danger)' },
-                                        { label: 'DA có lãi', val: profitData.summary.profitableCount, color: 'var(--status-success)' },
-                                        { label: 'DA lỗ', val: profitData.summary.lossCount, color: 'var(--status-danger)' },
-                                    ].map(k => (
-                                        <div key={k.label} style={{ background: 'var(--bg-secondary)', borderRadius: 8, padding: '12px 16px' }}>
-                                            <div style={{ fontSize: 10, color: 'var(--text-muted)', marginBottom: 4 }}>{k.label}</div>
-                                            <div style={{ fontSize: 16, fontWeight: 700, color: k.color }}>{typeof k.val === 'number' && k.val > 999 ? fmtShort(k.val) : k.val}</div>
-                                        </div>
-                                    ))}
-                                </div>
-                                {/* Bar chart: Revenue vs Cost by project */}
-                                {profitData.data.length > 0 && (() => {
-                                    const maxVal = Math.max(...profitData.data.map(r => Math.max(r.revenue, r.totalCost)));
-                                    const chartData = profitData.data.slice(0, 15); // Top 15 projects
-                                    return (
-                                        <div style={{ background: 'var(--bg-secondary)', borderRadius: 10, padding: 20, marginBottom: 20 }}>
-                                            <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 12, color: 'var(--text-primary)' }}>📊 So sánh Doanh thu vs Chi phí (Top 15)</div>
-                                            <div style={{ display: 'flex', gap: 8, marginBottom: 12, fontSize: 11 }}>
-                                                <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}><span style={{ width: 10, height: 10, borderRadius: 2, background: 'var(--status-success)', display: 'inline-block' }}></span> Doanh thu</span>
-                                                <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}><span style={{ width: 10, height: 10, borderRadius: 2, background: 'var(--status-danger)', opacity: 0.7, display: 'inline-block' }}></span> Chi phí</span>
-                                            </div>
-                                            {chartData.map(r => {
-                                                const barColor = r.margin < 0 ? 'var(--status-danger)' : r.margin < 20 ? 'var(--status-warning)' : 'var(--status-success)';
-                                                return (
-                                                    <div key={r.id} style={{ marginBottom: 8 }}>
-                                                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 3 }}>
-                                                            <div style={{ width: 120, fontSize: 10, color: 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flexShrink: 0 }} title={r.name}>{r.code}</div>
-                                                            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 2 }}>
-                                                                <div style={{ height: 10, borderRadius: 4, background: barColor, width: `${maxVal > 0 ? (r.revenue / maxVal) * 100 : 0}%`, minWidth: r.revenue > 0 ? 2 : 0, transition: 'width .5s ease', opacity: 0.85 }}></div>
-                                                                <div style={{ height: 10, borderRadius: 4, background: 'var(--status-danger)', width: `${maxVal > 0 ? (r.totalCost / maxVal) * 100 : 0}%`, minWidth: r.totalCost > 0 ? 2 : 0, transition: 'width .5s ease', opacity: 0.4 }}></div>
-                                                            </div>
-                                                            <div style={{ width: 50, fontSize: 10, fontWeight: 700, textAlign: 'right', color: barColor, flexShrink: 0 }}>{r.margin}%</div>
-                                                        </div>
-                                                    </div>
-                                                );
-                                            })}
-                                        </div>
-                                    );
-                                })()}
-                                <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 8 }}>
-                                    <button className="btn btn-ghost btn-sm" onClick={() => exportCSV('lai-lo-du-an.csv',
-                                        ['Mã DA', 'Tên', 'Khách hàng', 'Trạng thái', 'Doanh thu', 'Chi phí', 'PO', 'Thầu phụ', 'Tổng chi', 'Lãi/lỗ', 'Margin %'],
-                                        profitData.data.map(r => [r.code, r.name, r.customer, r.status, r.revenue, r.expenses, r.purchaseOrders, r.contractorCosts, r.totalCost, r.profit, r.margin]))}>📥 Xuất CSV</button>
-                                </div>
-                                <div style={{ overflowX: 'auto' }}>
-                                    <table className="data-table" style={{ margin: 0 }}>
-                                        <thead><tr>
-                                            <th>Dự án</th><th>Trạng thái</th>
-                                            <th style={{ textAlign: 'right' }}>Doanh thu</th>
-                                            <th style={{ textAlign: 'right' }}>Chi phí PS</th>
-                                            <th style={{ textAlign: 'right' }}>PO</th>
-                                            <th style={{ textAlign: 'right' }}>Thầu phụ</th>
-                                            <th style={{ textAlign: 'right' }}>Tổng chi</th>
-                                            <th style={{ textAlign: 'right' }}>Lãi/lỗ</th>
-                                            <th style={{ textAlign: 'right' }}>Margin</th>
-                                            <th></th>
-                                        </tr></thead>
-                                        <tbody>
-                                            {profitData.data.map(r => (
-                                                <tr key={r.id} style={{ background: r.profit < 0 ? 'rgba(220,38,38,0.03)' : undefined }}>
-                                                    <td><div style={{ fontWeight: 600, fontSize: 13 }}>{r.name}</div><div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{r.code} · {r.customer}</div></td>
-                                                    <td><span className="badge muted">{r.status}</span></td>
-                                                    <td style={{ textAlign: 'right', color: 'var(--status-success)', fontSize: 12 }}>{r.revenue > 0 ? fmt(r.revenue) : '—'}</td>
-                                                    <td style={{ textAlign: 'right', fontSize: 12 }}>{r.expenses > 0 ? fmt(r.expenses) : '—'}</td>
-                                                    <td style={{ textAlign: 'right', fontSize: 12 }}>{r.purchaseOrders > 0 ? fmt(r.purchaseOrders) : '—'}</td>
-                                                    <td style={{ textAlign: 'right', fontSize: 12 }}>{r.contractorCosts > 0 ? fmt(r.contractorCosts) : '—'}</td>
-                                                    <td style={{ textAlign: 'right', fontSize: 12, color: 'var(--status-danger)', fontWeight: 600 }}>{r.totalCost > 0 ? fmt(r.totalCost) : '—'}</td>
-                                                    <td style={{ textAlign: 'right', fontWeight: 700, color: r.profit >= 0 ? 'var(--status-success)' : 'var(--status-danger)' }}>{fmt(r.profit)}</td>
-                                                    <td style={{ textAlign: 'right' }}>
-                                                        <span style={{ fontWeight: 700, fontSize: 13, color: r.margin < 0 ? 'var(--status-danger)' : r.margin < 10 ? 'var(--status-warning)' : 'var(--status-success)' }}>{r.margin}%</span>
-                                                    </td>
-                                                    <td><button className="btn btn-ghost btn-sm" onClick={() => router.push(`/projects/${r.id}`)}>→</button></td>
-                                                </tr>
-                                            ))}
-                                        </tbody>
-                                    </table>
-                                </div>
-                            </>
-                        )}
-                    </div>
-                )}
-
-                {tab === 'ap' && canSeeFinance && (
-                    <div style={{ padding: 24 }}>
-                        {loadingAp ? <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-muted)' }}>Đang tải...</div> : apData && (
-                            <>
-                                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, marginBottom: 20 }}>
-                                    {[
-                                        { label: 'Nợ NCC', val: apData.summary.totalSupplierDebt, color: 'var(--status-warning)' },
-                                        { label: 'Nợ thầu phụ', val: apData.summary.totalContractorDebt, color: 'var(--status-danger)' },
-                                        { label: 'Số NCC còn nợ', val: apData.summary.supplierCount, color: 'var(--accent-primary)' },
-                                        { label: 'Số thầu còn nợ', val: apData.summary.contractorCount, color: 'var(--accent-primary)' },
-                                    ].map(k => (
-                                        <div key={k.label} style={{ background: 'var(--bg-secondary)', borderRadius: 8, padding: '12px 16px' }}>
-                                            <div style={{ fontSize: 10, color: 'var(--text-muted)', marginBottom: 4 }}>{k.label}</div>
-                                            <div style={{ fontSize: 16, fontWeight: 700, color: k.color }}>{typeof k.val === 'number' && k.val > 999 ? fmtShort(k.val) : k.val}</div>
-                                        </div>
-                                    ))}
-                                </div>
-                                {apData.suppliers.length > 0 && (
-                                    <div style={{ marginBottom: 28 }}>
-                                        <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 12 }}>🏭 Nhà cung cấp ({apData.suppliers.length})</div>
-                                        <table className="data-table" style={{ margin: 0 }}>
-                                            <thead><tr><th>NCC</th><th style={{ textAlign: 'right' }}>Tổng nợ</th><th>Đơn hàng chưa TT</th></tr></thead>
-                                            <tbody>
-                                                {apData.suppliers.map(s => (
-                                                    <tr key={s.name}>
-                                                        <td><div style={{ fontWeight: 600 }}>{s.name}</div>{s.phone && <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{s.phone}</div>}</td>
-                                                        <td style={{ textAlign: 'right', fontWeight: 700, color: 'var(--status-danger)' }}>{fmt(s.totalOwed)}</td>
-                                                        <td style={{ fontSize: 12 }}>{s.orders.map(o => <div key={o.id} style={{ marginBottom: 2 }}><span style={{ fontWeight: 600 }}>{o.code}</span> · {o.project?.name || '—'} · còn {fmt(o.remaining)}</div>)}</td>
-                                                    </tr>
-                                                ))}
-                                            </tbody>
-                                        </table>
-                                    </div>
-                                )}
-                                {apData.contractors.length > 0 && (
-                                    <div>
-                                        <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 12 }}>👷 Thầu phụ ({apData.contractors.length})</div>
-                                        <table className="data-table" style={{ margin: 0 }}>
-                                            <thead><tr><th>Thầu phụ</th><th style={{ textAlign: 'right' }}>Tổng nợ</th><th>Chi tiết</th></tr></thead>
-                                            <tbody>
-                                                {apData.contractors.map(c => (
-                                                    <tr key={c.name}>
-                                                        <td><div style={{ fontWeight: 600 }}>{c.name}</div>{c.phone && <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{c.phone}</div>}</td>
-                                                        <td style={{ textAlign: 'right', fontWeight: 700, color: 'var(--status-danger)' }}>{fmt(c.totalOwed)}</td>
-                                                        <td style={{ fontSize: 12 }}>{c.payments.map(p => <div key={p.id} style={{ marginBottom: 2 }}>{p.phase} · {p.project?.name || '—'} · còn {fmt(p.remaining)}</div>)}</td>
-                                                    </tr>
-                                                ))}
-                                            </tbody>
-                                        </table>
-                                    </div>
-                                )}
-                            </>
-                        )}
-                    </div>
-                )}
-
-                {tab === 'reminders' && canSeeFinance && (
-                    <div style={{ padding: 24 }}>
-                        {loadingReminders ? <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-muted)' }}>Đang tải...</div> : reminders && (
-                            <>
-                                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginBottom: 20 }}>
-                                    {[
-                                        { label: '🔴 Quá hạn', count: reminders.summary.overdueCount, val: reminders.summary.overdueAmount, color: 'var(--status-danger)' },
-                                        { label: '🟡 Sắp đến hạn (7 ngày)', count: reminders.summary.dueSoonCount, val: reminders.summary.dueSoonAmount, color: 'var(--status-warning)' },
-                                        { label: '🟢 Sắp tới (30 ngày)', count: reminders.summary.upcomingCount, val: reminders.summary.upcomingAmount, color: 'var(--status-success)' },
-                                    ].map(k => (
-                                        <div key={k.label} style={{ background: 'var(--bg-secondary)', borderRadius: 8, padding: '14px 16px', borderTop: `3px solid ${k.color}` }}>
-                                            <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 4 }}>{k.label}</div>
-                                            <div style={{ fontSize: 20, fontWeight: 700, color: k.color }}>{k.count}</div>
-                                            <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>{fmtShort(k.val)}</div>
-                                        </div>
-                                    ))}
-                                </div>
-                                {reminders.overdue.length > 0 && (
-                                    <div style={{ marginBottom: 24 }}>
-                                        <div style={{ fontWeight: 700, fontSize: 14, color: 'var(--status-danger)', marginBottom: 10 }}>🔴 Quá hạn ({reminders.overdue.length})</div>
-                                        {reminders.overdue.map(p => (
-                                            <div key={p.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 14px', background: 'rgba(220,38,38,0.04)', borderRadius: 8, border: '1px solid rgba(220,38,38,0.15)', marginBottom: 6 }}>
-                                                <div>
-                                                    <div style={{ fontWeight: 600, fontSize: 13 }}>{p.phase}</div>
-                                                    <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{p.contract} · {p.customer} · {p.projectCode}</div>
-                                                    {p.customerPhone && <div style={{ fontSize: 11, color: 'var(--accent-primary)' }}>📞 {p.customerPhone}</div>}
-                                                </div>
-                                                <div style={{ textAlign: 'right' }}>
-                                                    <div style={{ fontWeight: 700, color: 'var(--status-danger)' }}>{fmt(p.remaining)}</div>
-                                                    <div style={{ fontSize: 11, color: 'var(--status-danger)' }}>Trễ {Math.abs(p.daysUntilDue)} ngày</div>
-                                                </div>
-                                            </div>
-                                        ))}
-                                    </div>
-                                )}
-                                {reminders.dueSoon.length > 0 && (
-                                    <div style={{ marginBottom: 24 }}>
-                                        <div style={{ fontWeight: 700, fontSize: 14, color: 'var(--status-warning)', marginBottom: 10 }}>🟡 Sắp đến hạn ({reminders.dueSoon.length})</div>
-                                        {reminders.dueSoon.map(p => (
-                                            <div key={p.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 14px', background: 'rgba(217,119,6,0.04)', borderRadius: 8, border: '1px solid rgba(217,119,6,0.15)', marginBottom: 6 }}>
-                                                <div>
-                                                    <div style={{ fontWeight: 600, fontSize: 13 }}>{p.phase}</div>
-                                                    <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{p.contract} · {p.customer} · {p.projectCode}</div>
-                                                </div>
-                                                <div style={{ textAlign: 'right' }}>
-                                                    <div style={{ fontWeight: 700, color: 'var(--status-warning)' }}>{fmt(p.remaining)}</div>
-                                                    <div style={{ fontSize: 11 }}>{p.daysUntilDue === 0 ? 'Hôm nay' : `Còn ${p.daysUntilDue} ngày`}</div>
-                                                </div>
-                                            </div>
-                                        ))}
-                                    </div>
-                                )}
-                                {reminders.upcoming.length > 0 && (
-                                    <div>
-                                        <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 10 }}>🟢 Sắp tới ({reminders.upcoming.length})</div>
-                                        <table className="data-table" style={{ margin: 0, fontSize: 12 }}>
-                                            <thead><tr><th>Đợt TT</th><th>KH</th><th>Dự án</th><th style={{ textAlign: 'right' }}>Số tiền</th><th>Hạn</th></tr></thead>
-                                            <tbody>{reminders.upcoming.map(p => (
-                                                <tr key={p.id}>
-                                                    <td style={{ fontWeight: 600 }}>{p.phase}</td>
-                                                    <td>{p.customer}</td>
-                                                    <td>{p.projectCode}</td>
-                                                    <td style={{ textAlign: 'right', fontWeight: 600 }}>{fmt(p.remaining)}</td>
-                                                    <td>{p.dueDate ? new Date(p.dueDate).toLocaleDateString('vi-VN') : '—'}</td>
-                                                </tr>
-                                            ))}</tbody>
-                                        </table>
-                                    </div>
-                                )}
-                            </>
-                        )}
-                    </div>
-                )}
             </div>
         </div>
     );
