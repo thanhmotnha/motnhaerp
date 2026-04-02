@@ -7,27 +7,29 @@ export const POST = withAuth(async (request, { params }) => {
     const { id } = await params;
     const data = await request.json();
 
-    const payment = await prisma.contractPayment.create({
-        data: {
-            contractId: id,
-            phase: data.phase || '',
-            amount: Number(data.amount) || 0,
-            paidAmount: Number(data.paidAmount) || 0,
-            category: data.category || '',
-            status: data.status || 'Chưa thu',
-            notes: data.notes || '',
-            dueDate: data.dueDate ? new Date(data.dueDate) : null,
-            isVariation: Boolean(data.isVariation),
-        },
-    });
-
-    const total = await prisma.contractPayment.aggregate({
-        where: { contractId: id },
-        _sum: { paidAmount: true },
-    });
-    await prisma.contract.update({
-        where: { id },
-        data: { paidAmount: total._sum.paidAmount || 0 },
+    const payment = await prisma.$transaction(async (tx) => {
+        const created = await tx.contractPayment.create({
+            data: {
+                contractId: id,
+                phase: data.phase || '',
+                amount: Number(data.amount) || 0,
+                paidAmount: Number(data.paidAmount) || 0,
+                category: data.category || '',
+                status: data.status || 'Chưa thu',
+                notes: data.notes || '',
+                dueDate: data.dueDate ? new Date(data.dueDate) : null,
+                isVariation: Boolean(data.isVariation),
+            },
+        });
+        const total = await tx.contractPayment.aggregate({
+            where: { contractId: id },
+            _sum: { paidAmount: true },
+        });
+        await tx.contract.update({
+            where: { id },
+            data: { paidAmount: total._sum.paidAmount || 0 },
+        });
+        return created;
     });
 
     return NextResponse.json(payment);
@@ -45,7 +47,7 @@ export const PATCH = withAuth(async (request, { params }) => {
     if (paidDate !== undefined) data.paidDate = paidDate ? new Date(paidDate) : null;
     if (status !== undefined) data.status = status;
 
-    const payment = await prisma.contractPayment.update({ where: { id: paymentId }, data });
+    const payment = await prisma.contractPayment.update({ where: { id: paymentId, contractId: id }, data });
 
     // Recalc contract paidAmount
     const total = await prisma.contractPayment.aggregate({
