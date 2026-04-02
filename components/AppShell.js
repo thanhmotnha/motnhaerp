@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { usePathname } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import Sidebar from '@/components/Sidebar';
@@ -14,10 +14,23 @@ export default function AppShell({ children }) {
     const pathname = usePathname();
     const { status } = useSession();
     const [sidebarOpen, setSidebarOpen] = useState(false);
+    const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
     const [searchOpen, setSearchOpen] = useState(false);
+
+    useEffect(() => {
+        const saved = localStorage.getItem('sidebarCollapsed');
+        if (saved === 'true') setSidebarCollapsed(true);
+    }, []);
 
     const toggleSidebar = useCallback(() => setSidebarOpen(prev => !prev), []);
     const closeSidebar = useCallback(() => setSidebarOpen(false), []);
+    const toggleSidebarCollapsed = useCallback(() => {
+        setSidebarCollapsed(prev => {
+            const next = !prev;
+            localStorage.setItem('sidebarCollapsed', String(next));
+            return next;
+        });
+    }, []);
 
     // Login page and public pages: no shell
     const noShellPaths = ['/login'];
@@ -40,11 +53,16 @@ export default function AppShell({ children }) {
     }
 
     return (
-        <div className="app-layout">
+        <div className={`app-layout${sidebarCollapsed ? ' sidebar-collapsed' : ''}`}>
             <Sidebar isOpen={sidebarOpen} onClose={closeSidebar} />
             <div className={`sidebar-overlay ${sidebarOpen ? 'visible' : ''}`} onClick={closeSidebar} />
             <div className="main-content">
-                <Header onMenuToggle={toggleSidebar} onSearchOpen={() => setSearchOpen(true)} />
+                <Header
+                    onMenuToggle={toggleSidebar}
+                    onSearchOpen={() => setSearchOpen(true)}
+                    onSidebarToggle={toggleSidebarCollapsed}
+                    sidebarCollapsed={sidebarCollapsed}
+                />
                 <main className="page-content">
                     <Breadcrumbs />
                     <ErrorBoundary>{children}</ErrorBoundary>
@@ -55,4 +73,3 @@ export default function AppShell({ children }) {
         </div>
     );
 }
-
