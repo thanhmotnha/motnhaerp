@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react';
 import { usePathname } from 'next/navigation';
 import { useSession, signOut } from 'next-auth/react';
-import { Sun, Moon, Settings, LogOut, Search, Menu } from 'lucide-react';
+import { Sun, Moon, Settings, LogOut, Search, Menu, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
 import NotificationBell from '@/components/ui/NotificationBell';
 
 const pageTitles = {
@@ -28,7 +28,7 @@ const pageTitles = {
     '/cong-no/bao-cao': 'Báo cáo công nợ',
 };
 
-export default function Header({ onMenuToggle, onSearchOpen }) {
+export default function Header({ onMenuToggle, onSearchOpen, onSidebarToggle, sidebarCollapsed }) {
     const pathname = usePathname();
     const { data: session } = useSession();
     const title = pageTitles[pathname] || pageTitles[Object.keys(pageTitles).find(k => k !== '/' && pathname.startsWith(k))] || 'HomeERP';
@@ -74,6 +74,14 @@ export default function Header({ onMenuToggle, onSearchOpen }) {
             <div className="header-left">
                 <button className="mobile-menu-btn" onClick={onMenuToggle} aria-label="Mở menu">
                     <Menu size={22} />
+                </button>
+                <button
+                    className="header-btn sidebar-toggle-btn"
+                    onClick={onSidebarToggle}
+                    title={sidebarCollapsed ? 'Mở sidebar' : 'Ẩn sidebar'}
+                    aria-label={sidebarCollapsed ? 'Mở sidebar' : 'Ẩn sidebar'}
+                >
+                    {sidebarCollapsed ? <PanelLeftOpen size={20} /> : <PanelLeftClose size={20} />}
                 </button>
                 <h2 className="header-title">{title}</h2>
                 <div className="header-search" onClick={() => onSearchOpen?.()}
