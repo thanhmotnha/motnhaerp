@@ -2,11 +2,19 @@ import { withAuth } from '@/lib/apiHandler';
 import prisma from '@/lib/prisma';
 import { NextResponse } from 'next/server';
 import { projectUpdateSchema } from '@/lib/validations/project';
+import { buildAssignedProjectWhere } from '@/lib/projectAccess';
 
-export const GET = withAuth(async (request, { params }) => {
+export const GET = withAuth(async (_request, { params }, session) => {
     const { id } = await params;
+    const filters = [{ OR: [{ id }, { code: id }] }];
+    const assignedProjectWhere = buildAssignedProjectWhere(session?.user);
+    if (assignedProjectWhere) filters.push(assignedProjectWhere);
+
     const project = await prisma.project.findFirst({
-        where: { OR: [{ id }, { code: id }], deletedAt: null },
+        where: {
+            deletedAt: null,
+            AND: filters,
+        },
         include: {
             customer: true,
             quotations: { include: { items: true } },
@@ -39,19 +47,19 @@ export const GET = withAuth(async (request, { params }) => {
     const totalCollected = activeContracts.reduce((s, c) =>
         s + c.payments.reduce((ps, pay) => ps + (pay.paidAmount ?? 0), 0), 0);
 
-    // P&L — uses actual collected, not stale project fields
-    const income = totalCollected;
-    const expense = project.spent ?? 0;
-    const profit = income - expense;
-    const profitMargin = income > 0 ? ((profit / income) * 100).toFixed(1) : 0;
-    const debtFromCustomer = totalA - totalCollected;
-    const debtToContractors = project.contractorPays.reduce((s, p) => s + ((p.contractAmount ?? 0) - (p.paidAmount ?? 0)), 0);
-
     // Settlement (Quyet toan)
     const totalPurchase = project.purchaseOrders.reduce((s, po) => s + (po.totalAmount ?? 0), 0);
     const totalExpenses = project.expenses.reduce((s, e) => s + (e.amount ?? 0), 0);
     const totalContractorCost = project.contractorPays.reduce((s, p) => s + (p.contractAmount ?? 0), 0);
     const totalCostB = totalPurchase + totalExpenses + totalContractorCost;
+
+    // P&L — uses actual collected + live cost totals (not stale project.spent)
+    const income = totalCollected;
+    const expense = totalCostB;
+    const profit = income - expense;
+    const profitMargin = income > 0 ? ((profit / income) * 100).toFixed(1) : 0;
+    const debtFromCustomer = totalA - totalCollected;
+    const debtToContractors = project.contractorPays.reduce((s, p) => s + ((p.contractAmount ?? 0) - (p.paidAmount ?? 0)), 0);
     const totalPaidB = project.purchaseOrders.reduce((s, po) => s + (po.paidAmount ?? 0), 0)
         + project.expenses.reduce((s, e) => s + (e.paidAmount ?? 0), 0)
         + project.contractorPays.reduce((s, p) => s + (p.paidAmount ?? 0), 0);
