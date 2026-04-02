@@ -5,8 +5,9 @@ import { withCodeRetry } from '@/lib/generateCode';
 import { NextResponse } from 'next/server';
 import { projectCreateSchema } from '@/lib/validations/project';
 import { createDefaultFolders } from '@/lib/defaultFolders';
+import { buildAssignedProjectWhere } from '@/lib/projectAccess';
 
-export const GET = withAuth(async (request) => {
+export const GET = withAuth(async (request, _context, session) => {
     const { searchParams } = new URL(request.url);
     const { page, limit, skip } = parsePagination(searchParams);
 
@@ -15,10 +16,18 @@ export const GET = withAuth(async (request) => {
     const search = searchParams.get('search');
     const includeMilestones = searchParams.get('milestones') === '1';
 
-    const where = { deletedAt: null };
-    if (type) where.type = type;
-    if (status) where.status = status;
-    if (search) where.name = { contains: search, mode: 'insensitive' };
+    const filters = [];
+    if (type) filters.push({ type });
+    if (status) filters.push({ status });
+    if (search) filters.push({ name: { contains: search, mode: 'insensitive' } });
+
+    const assignedProjectWhere = buildAssignedProjectWhere(session?.user);
+    if (assignedProjectWhere) filters.push(assignedProjectWhere);
+
+    const where = {
+        deletedAt: null,
+        ...(filters.length > 0 ? { AND: filters } : {}),
+    };
 
     const [projects, total] = await Promise.all([
         prisma.project.findMany({
