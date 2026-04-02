@@ -28,7 +28,7 @@ export default function ExpenseCategoriesTab() {
             const data = await apiFetch('/api/expense-categories?active=0');
             setCats(Array.isArray(data) ? data : []);
         } catch (e) {
-            toast.showToast(e.message || 'Lỗi tải hạng mục', 'error');
+            toast.error(e.message || 'Lỗi tải hạng mục');
         } finally {
             setLoading(false);
         }
@@ -46,21 +46,21 @@ export default function ExpenseCategoriesTab() {
 
     const save = async () => {
         if (!form.name.trim() || !form.code.trim()) {
-            toast.showToast('Tên và mã hạng mục bắt buộc', 'error'); return;
+            toast.error('Tên và mã hạng mục bắt buộc'); return;
         }
         setSaving(true);
         try {
             if (editId) {
                 await apiFetch(`/api/expense-categories/${editId}`, { method: 'PUT', body: JSON.stringify(form) });
-                toast.showToast('Đã cập nhật hạng mục', 'success');
+                toast.success('Đã cập nhật hạng mục');
             } else {
                 await apiFetch('/api/expense-categories', { method: 'POST', body: JSON.stringify(form) });
-                toast.showToast('Đã thêm hạng mục', 'success');
+                toast.success('Đã thêm hạng mục');
             }
             cancel();
             load();
         } catch (e) {
-            toast.showToast(e.message || 'Lỗi lưu hạng mục', 'error');
+            toast.error(e.message || 'Lỗi lưu hạng mục');
         } finally {
             setSaving(false);
         }
@@ -74,7 +74,7 @@ export default function ExpenseCategoriesTab() {
             });
             setCats(prev => prev.map(c => c.id === cat.id ? { ...c, isActive: !c.isActive } : c));
         } catch (e) {
-            toast.showToast(e.message || 'Lỗi cập nhật', 'error');
+            toast.error(e.message || 'Lỗi cập nhật');
         }
     };
 
