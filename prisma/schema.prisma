@@ -634,6 +634,7 @@ model ContractPayment {
   proofUrl            String   @default("")
   retentionRate       Float    @default(0)
   retentionAmount     Float    @default(0)
+  isVariation         Boolean  @default(false)
   retentionReleasedAt DateTime?
   contractId          String
   contract            Contract @relation(fields: [contractId], references: [id], onDelete: Cascade)
