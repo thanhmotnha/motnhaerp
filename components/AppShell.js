@@ -14,12 +14,18 @@ export default function AppShell({ children }) {
     const pathname = usePathname();
     const { status } = useSession();
     const [sidebarOpen, setSidebarOpen] = useState(false);
-    const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+    const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
+        if (typeof window === 'undefined') return false;
+        return localStorage.getItem('sidebarCollapsed') === 'true';
+    });
     const [searchOpen, setSearchOpen] = useState(false);
 
+    // Reset collapsed state when viewport drops to mobile (≤768px)
     useEffect(() => {
-        const saved = localStorage.getItem('sidebarCollapsed');
-        if (saved === 'true') setSidebarCollapsed(true);
+        const mq = window.matchMedia('(max-width: 768px)');
+        const handler = (e) => { if (e.matches) setSidebarCollapsed(false); };
+        mq.addEventListener('change', handler);
+        return () => mq.removeEventListener('change', handler);
     }, []);
 
     const toggleSidebar = useCallback(() => setSidebarOpen(prev => !prev), []);
