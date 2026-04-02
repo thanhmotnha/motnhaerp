@@ -58,6 +58,11 @@ function FinanceContent() {
 
     useEffect(load, []);
 
+    useEffect(() => {
+        const tab = searchParams.get('tab');
+        if (tab) handleTabChange(tab);
+    }, [searchParams]);
+
     const handleTabChange = (key) => {
         setActiveTab(key);
         setQuickType(null);
