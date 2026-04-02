@@ -1,8 +1,8 @@
 'use client';
 
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
-import { useState, useEffect } from 'react';
+import { usePathname, useSearchParams } from 'next/navigation';
+import { useState, useEffect, Suspense } from 'react';
 import {
     LayoutDashboard, TrendingUp, Users, Building2, FileText,
     Package, ClipboardList, Wrench, CreditCard, Receipt,
@@ -10,7 +10,8 @@ import {
     BarChart3, ChevronRight, ChevronDown, X, Factory,
     Activity, ClipboardCheck, Banknote, Settings, ShieldCheck,
     Shield, Plus, ArrowRightLeft,
-    CheckCircle, BookOpen, HardHat, PiggyBank, CalendarDays, Landmark
+    CheckCircle, BookOpen, HardHat, PiggyBank, CalendarDays, Landmark,
+    ArrowDownLeft, ArrowUpRight
 } from 'lucide-react';
 import { useRole } from '@/contexts/RoleContext';
 
@@ -46,7 +47,9 @@ const menuItems = [
     },
     {
         section: 'Tài chính', items: [
-            { href: '/finance', icon: Wallet, label: 'Tổng quan', roles: ['giam_doc', 'pho_gd', 'ke_toan'] },
+            { href: '/finance', icon: Wallet, label: 'Tổng quan', roles: ['giam_doc', 'pho_gd', 'ke_toan'], exactMatch: true },
+            { href: '/finance?tab=thu_tien', icon: ArrowDownLeft, label: 'Thu tiền', roles: ['giam_doc', 'pho_gd', 'ke_toan'], tab: 'thu_tien' },
+            { href: '/finance?tab=chi_phi', icon: ArrowUpRight, label: 'Chi phí', roles: ['giam_doc', 'pho_gd', 'ke_toan'], tab: 'chi_phi' },
             { href: '/accounting', icon: BookOpen, label: 'Sổ cái', roles: ['giam_doc', 'pho_gd', 'ke_toan'] },
             { href: '/cashflow-forecast', icon: Banknote, label: 'Dự báo dòng tiền', roles: ['giam_doc', 'pho_gd', 'ke_toan'] },
             { href: '/budget', icon: PiggyBank, label: 'Ngân sách', roles: ['giam_doc', 'pho_gd', 'ke_toan', 'quan_ly_du_an'] },
@@ -62,8 +65,10 @@ const menuItems = [
     },
 ];
 
-export default function Sidebar({ isOpen, onClose }) {
+function SidebarInner({ isOpen, onClose }) {
     const pathname = usePathname();
+    const searchParams = useSearchParams();
+    const currentTab = searchParams.get('tab');
     const { role, roleInfo } = useRole();
 
     // Collapsed sections — persist in localStorage
@@ -109,9 +114,11 @@ export default function Sidebar({ isOpen, onClose }) {
                     const visibleItems = section.items.filter(item => !item.roles || item.roles.includes(role));
                     if (visibleItems.length === 0) return null;
                     const isCollapsed = collapsed[section.section] && section.collapsible !== false;
-                    const hasActiveChild = visibleItems.some(item =>
-                        item.href === '/' ? pathname === '/' : pathname.startsWith(item.href)
-                    );
+                    const hasActiveChild = visibleItems.some(item => {
+                        if (item.tab) return pathname === '/finance' && currentTab === item.tab;
+                        if (item.exactMatch) return pathname === item.href && !currentTab;
+                        return item.href === '/' ? pathname === '/' : pathname.startsWith(item.href);
+                    });
 
                     return (
                         <div className="nav-section" key={section.section}>
@@ -144,7 +151,11 @@ export default function Sidebar({ isOpen, onClose }) {
                             }}>
                                 {visibleItems.map((item) => {
                                     const Icon = item.icon;
-                                    const isActive = item.href === '/' ? pathname === '/' : pathname.startsWith(item.href);
+                                    const isActive = item.tab
+                                        ? pathname === '/finance' && currentTab === item.tab
+                                        : item.exactMatch
+                                            ? pathname === item.href && !currentTab
+                                            : item.href === '/' ? pathname === '/' : pathname.startsWith(item.href);
                                     return (
                                         <div key={item.href} style={{ display: 'flex', alignItems: 'center' }}>
                                             <Link
@@ -199,5 +210,13 @@ export default function Sidebar({ isOpen, onClose }) {
                 </div>
             </div>
         </aside>
+    );
+}
+
+export default function Sidebar({ isOpen, onClose }) {
+    return (
+        <Suspense fallback={null}>
+            <SidebarInner isOpen={isOpen} onClose={onClose} />
+        </Suspense>
     );
 }

@@ -16,6 +16,7 @@ import QuotationTermsTab from '@/components/settings/QuotationTermsTab';
 import ContractTemplateTab from '@/components/settings/ContractTemplateTab';
 import AccountingSetupTab from '@/components/settings/AccountingSetupTab';
 import IntegrationTab from '@/components/settings/IntegrationTab';
+import ExpenseCategoriesTab from '@/components/settings/ExpenseCategoriesTab';
 
 // ========= Company Settings Keys =========
 const SETTING_KEYS = [
@@ -47,6 +48,7 @@ const MAIN_TABS = [
     { key: 'contract_templates', label: '📝 Mẫu HĐ' },
     { key: 'activity', label: '📝 Nhật ký' },
     { key: 'accounting', label: '📒 Kế toán' },
+    { key: 'expense_categories', label: '🗂️ Hạng mục chi' },
     { key: 'integration', label: '🔌 Tích hợp' },
 ];
 
@@ -346,6 +348,7 @@ export default function SettingsPage() {
                         </div>
                     )}
                     {tab === 'accounting' && <AccountingSetupTab />}
+                    {tab === 'expense_categories' && <ExpenseCategoriesTab />}
                     {tab === 'integration' && <IntegrationTab />}
                 </div>
             </div>

@@ -6,15 +6,17 @@ import { useToast } from '@/components/ui/Toast';
 const fmt = (n) => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(n || 0);
 const fmtDate = (d) => d ? new Date(d).toLocaleDateString('vi-VN') : '—';
 
-const PROJECT_CATS = ['Vật tư xây dựng', 'Nhân công', 'Vận chuyển', 'Thiết bị máy móc', 'Điện nước', 'Thuê ngoài', 'Sửa chữa', 'Bảo hiểm công trình', 'Khác'];
-const COMPANY_CATS = ['Thuê văn phòng', 'Lương & Phụ cấp', 'Điện nước VP', 'Văn phòng phẩm', 'Marketing & QC', 'Phí ngân hàng', 'Bảo hiểm xã hội', 'Tiếp khách', 'Công tác phí', 'Phần mềm & CNTT', 'Bảo trì & Sửa chữa', 'Thuế & Lệ phí', 'Khấu hao TSCD', 'Khác'];
 const STATUS_BADGE = { 'Chờ duyệt': 'warning', 'Đã duyệt': 'info', 'Đã chi': 'accent', 'Hoàn thành': 'success', 'Từ chối': 'danger' };
 
-const emptyForm = () => ({
+// Fallbacks used only if API returns no categories
+const FALLBACK_PROJECT_CATS = ['Vật tư xây dựng', 'Nhân công', 'Vận chuyển', 'Thiết bị máy móc', 'Điện nước', 'Thuê ngoài', 'Sửa chữa', 'Bảo hiểm công trình', 'Khác'];
+const FALLBACK_COMPANY_CATS = ['Thuê văn phòng', 'Lương & Phụ cấp', 'Điện nước VP', 'Marketing & QC', 'Phí ngân hàng', 'Tiếp khách', 'Thuế & Lệ phí', 'Khác'];
+
+const emptyForm = (firstCat = 'Vật tư xây dựng') => ({
     expenseType: 'Dự án',
     description: '',
     amount: '',
-    category: 'Vật tư xây dựng',
+    category: firstCat,
     submittedBy: '',
     date: new Date().toISOString().split('T')[0],
     notes: '',
@@ -29,6 +31,7 @@ export default function ExpensesTab() {
     const [projects, setProjects] = useState([]);
     const [suppliers, setSuppliers] = useState([]);
     const [contractors, setContractors] = useState([]);
+    const [categoryList, setCategoryList] = useState([]);
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState(null);
@@ -69,7 +72,8 @@ export default function ExpensesTab() {
             apiFetch('/api/projects?limit=1000').then(d => d.data || []).catch(() => []),
             apiFetch('/api/suppliers?limit=1000').then(d => d.data || []).catch(() => []),
             apiFetch('/api/contractors?limit=1000').then(d => d.data || []).catch(() => []),
-        ]).then(([p, s, c]) => { setProjects(p); setSuppliers(s); setContractors(c); });
+            apiFetch('/api/expense-categories').then(d => Array.isArray(d) ? d : []).catch(() => []),
+        ]).then(([p, s, c, cats]) => { setProjects(p); setSuppliers(s); setContractors(c); setCategoryList(cats); });
     }, []);
 
     // ── Stats ──────────────────────────────────────────────────────
@@ -118,14 +122,22 @@ export default function ExpensesTab() {
         setShowModal(true);
     };
 
+    const getCatsForType = (type) => {
+        const linkType = type === 'Công ty' ? 'company' : 'project';
+        const apiCats = categoryList.filter(c => c.linkType === linkType || c.linkType === '');
+        if (apiCats.length > 0) return apiCats.map(c => c.name);
+        return type === 'Công ty' ? FALLBACK_COMPANY_CATS : FALLBACK_PROJECT_CATS;
+    };
+
     const setExpenseType = (type) => {
+        const available = getCatsForType(type);
         setForm(f => ({
             ...f,
             expenseType: type,
             projectId: type === 'Công ty' ? null : f.projectId,
             recipientType: type === 'Công ty' ? '' : f.recipientType,
             recipientId: type === 'Công ty' ? '' : f.recipientId,
-            category: type === 'Công ty' ? 'Thuê văn phòng' : 'Vật tư xây dựng',
+            category: available[0] || '',
         }));
     };
 
@@ -252,7 +264,7 @@ ${e.proofUrl ? `<div style="text-align:center;margin:10px 0"><img src="${e.proof
     };
 
     // ── Render ─────────────────────────────────────────────────────
-    const cats = form.expenseType === 'Công ty' ? COMPANY_CATS : PROJECT_CATS;
+    const cats = getCatsForType(form.expenseType);
 
     return (
         <div>
