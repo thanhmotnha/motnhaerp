@@ -1,13 +1,17 @@
 'use client';
 import { useState, useEffect, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
 import { useRole } from '@/contexts/RoleContext';
 import { apiFetch } from '@/lib/fetchClient';
 import { useToast } from '@/components/ui/Toast';
+
+const CONTRACTOR_TYPES = ['Thầu xây dựng', 'CTV thiết kế kiến trúc', 'CTV Kết cấu', 'CTV 3D', 'Thầu mộc', 'Thầu điện', 'Thầu nước', 'Thầu sơn', 'Thầu đá', 'Thầu cơ khí', 'Thầu nhôm kính', 'Thầu trần thạch cao', 'Khác'];
 
 const fmt = v => new Intl.NumberFormat('vi-VN').format(v || 0);
 
 export default function ContractorsPage() {
     const { role } = useRole();
+    const router = useRouter();
     const toast = useToast();
     const [contractors, setContractors] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -42,7 +46,10 @@ export default function ContractorsPage() {
                     <h2 style={{ margin: 0 }}>Nhà thầu phụ</h2>
                     <div style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 2 }}>Quản lý nhà thầu phụ & lao động thuê ngoài</div>
                 </div>
-                {canManage && <button className="btn btn-primary" onClick={() => setShowForm(true)}>+ Thêm thầu phụ</button>}
+                <div style={{ display: 'flex', gap: 8 }}>
+                    <button className="btn btn-secondary" onClick={() => router.push('/partners')}>🏢 Quản lý NCC & Thầu phụ</button>
+                    {canManage && <button className="btn btn-primary" onClick={() => setShowForm(true)}>+ Thêm thầu phụ</button>}
+                </div>
             </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 12, marginBottom: 20 }}>
@@ -99,7 +106,7 @@ export default function ContractorsPage() {
 }
 
 function ContractorForm({ onClose, onSuccess, toast }) {
-    const [form, setForm] = useState({ name: '', specialty: '', phone: '', email: '', taxCode: '', bankAccount: '', bankName: '', address: '' });
+    const [form, setForm] = useState({ name: '', type: 'Thầu xây dựng', phone: '', taxCode: '', bankAccount: '', bankName: '', address: '', notes: '' });
     const [saving, setSaving] = useState(false);
 
     const handleSubmit = async (e) => {
@@ -121,18 +128,23 @@ function ContractorForm({ onClose, onSuccess, toast }) {
                 <form onSubmit={handleSubmit}>
                     <div className="form-group"><label className="form-label">Tên *</label><input className="form-input" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} required /></div>
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-                        <div className="form-group"><label className="form-label">Chuyên ngành</label><input className="form-input" value={form.specialty} onChange={e => setForm({ ...form, specialty: e.target.value })} /></div>
+                        <div className="form-group">
+                            <label className="form-label">Loại *</label>
+                            <select className="form-select" value={form.type} onChange={e => setForm({ ...form, type: e.target.value })}>
+                                {CONTRACTOR_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+                            </select>
+                        </div>
                         <div className="form-group"><label className="form-label">SĐT</label><input className="form-input" value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })} /></div>
-                    </div>
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-                        <div className="form-group"><label className="form-label">Email</label><input className="form-input" type="email" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} /></div>
-                        <div className="form-group"><label className="form-label">MST</label><input className="form-input" value={form.taxCode} onChange={e => setForm({ ...form, taxCode: e.target.value })} /></div>
                     </div>
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
                         <div className="form-group"><label className="form-label">Số TK ngân hàng</label><input className="form-input" value={form.bankAccount} onChange={e => setForm({ ...form, bankAccount: e.target.value })} /></div>
                         <div className="form-group"><label className="form-label">Ngân hàng</label><input className="form-input" value={form.bankName} onChange={e => setForm({ ...form, bankName: e.target.value })} /></div>
                     </div>
-                    <div className="form-group"><label className="form-label">Địa chỉ</label><input className="form-input" value={form.address} onChange={e => setForm({ ...form, address: e.target.value })} /></div>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                        <div className="form-group"><label className="form-label">MST</label><input className="form-input" value={form.taxCode} onChange={e => setForm({ ...form, taxCode: e.target.value })} /></div>
+                        <div className="form-group"><label className="form-label">Địa chỉ</label><input className="form-input" value={form.address} onChange={e => setForm({ ...form, address: e.target.value })} /></div>
+                    </div>
+                    <div className="form-group"><label className="form-label">Ghi chú</label><input className="form-input" value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })} /></div>
                     <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 16 }}>
                         <button type="button" className="btn" onClick={onClose}>Hủy</button>
                         <button type="submit" className="btn btn-primary" disabled={saving}>{saving ? 'Đang lưu...' : 'Thêm thầu phụ'}</button>
