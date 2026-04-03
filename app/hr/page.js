@@ -680,7 +680,7 @@ function HRContent() {
                                 <thead>
                                     <tr>
                                         <th>Mã</th><th>Họ tên</th><th>Chức vụ</th><th>Phòng ban</th>
-                                        <th>SĐT</th><th>Lương</th><th>Ngày vào</th><th>TT</th><th></th>
+                                        <th>Loại</th><th>SĐT</th><th>Lương CB</th><th>PC/tháng</th><th>Ngày vào</th><th>TT</th><th></th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -690,8 +690,19 @@ function HRContent() {
                                             <td className="primary" style={{ cursor: 'pointer' }} onClick={() => openEdit(e)}>{e.name}</td>
                                             <td style={{ fontSize: 13 }}>{e.position}</td>
                                             <td><span className="badge badge-info">{e.department?.name}</span></td>
+                                            <td>
+                                                <span className={`badge ${e.payrollType === 'workshop' ? 'badge-warning' : 'badge-info'}`} style={{ fontSize: 11 }}>
+                                                    {e.payrollType === 'workshop' ? '🏭 Xưởng' : '💼 VP'}
+                                                </span>
+                                            </td>
                                             <td style={{ fontSize: 13 }}>{e.phone}</td>
                                             <td style={{ fontWeight: 600 }}>{fmt(e.salary)}</td>
+                                            <td style={{ fontSize: 12 }}>
+                                                {(() => {
+                                                    const total = (e.positionAllowance || 0) + (e.phoneAllowance || 0) + (e.transportAllowance || 0) + (e.diligenceAllowance || 0);
+                                                    return total > 0 ? <span style={{ color: 'var(--accent-primary)' }}>{fmt(total)}</span> : <span style={{ color: 'var(--text-muted)' }}>—</span>;
+                                                })()}
+                                            </td>
                                             <td style={{ fontSize: 12, color: 'var(--text-muted)' }}>{fmtDate(e.joinDate)}</td>
                                             <td>
                                                 <span className={`badge ${STATUS_COLOR[e.status] || 'badge-default'}`}>{e.status}</span>

@@ -20,10 +20,10 @@ export default function EmployeeReviewTab() {
     const [loading, setLoading] = useState(false);
     const [showForm, setShowForm] = useState(false);
     const [form, setForm] = useState({ type: 'Quý', period: '', rating: 3, content: '', reviewer: '', goals: '' });
-    const { showToast } = useToast();
+    const toast = useToast();
 
     useEffect(() => {
-        apiFetch('/api/employees').then(d => setEmployees(d.employees || d)).catch(() => {});
+        apiFetch('/api/employees?limit=500').then(d => setEmployees(d.data || [])).catch(() => {});
     }, []);
 
     const loadReviews = async (empId) => {
@@ -33,7 +33,7 @@ export default function EmployeeReviewTab() {
             const d = await apiFetch(`/api/employees/${empId}/reviews`);
             setReviews(d);
         } catch {
-            showToast('Lỗi tải đánh giá', 'error');
+            toast.error('Lỗi tải đánh giá');
         } finally {
             setLoading(false);
         }
@@ -41,20 +41,20 @@ export default function EmployeeReviewTab() {
     useEffect(() => { if (selectedEmp) loadReviews(selectedEmp); }, [selectedEmp]);
 
     const handleSubmit = async () => {
-        if (!selectedEmp) return showToast('Chọn nhân viên', 'error');
-        if (!form.content.trim()) return showToast('Nhập nội dung đánh giá', 'error');
-        if (!form.period.trim()) return showToast('Nhập kỳ đánh giá', 'error');
+        if (!selectedEmp) return toast.error('Chọn nhân viên');
+        if (!form.content.trim()) return toast.error('Nhập nội dung đánh giá');
+        if (!form.period.trim()) return toast.error('Nhập kỳ đánh giá');
         try {
             await apiFetch(`/api/employees/${selectedEmp}/reviews`, {
                 method: 'POST',
                 body: { ...form, score: form.rating },
             });
-            showToast('Đã lưu đánh giá', 'success');
+            toast.success('Đã lưu đánh giá');
             setShowForm(false);
             setForm({ type: 'Quý', period: '', rating: 3, content: '', reviewer: '', goals: '' });
             loadReviews(selectedEmp);
         } catch (e) {
-            showToast(e.message || 'Lỗi lưu đánh giá', 'error');
+            toast.error(e.message || 'Lỗi lưu đánh giá');
         }
     };
 
