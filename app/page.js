@@ -278,6 +278,118 @@ function UpcomingMilestones() {
     );
 }
 
+function MonthlyMiniChart({ months, selectedYear }) {
+    const currentMonth = selectedYear === new Date().getFullYear() ? new Date().getMonth() + 1 : 12;
+    const display = (months || []).filter(m => m.month <= currentMonth && (m.revenue > 0 || m.expense > 0)).slice(-6);
+    if (!display.length) return (
+        <div style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '20px 0', fontSize: 12 }}>Chưa có dữ liệu tháng {selectedYear}</div>
+    );
+    const maxVal = Math.max(...display.flatMap(m => [m.revenue, m.expense]), 1);
+    const barW = 18, gap = 6, colW = barW * 2 + gap + 14;
+    const W = display.length * colW + 20, H = 80;
+    return (
+        <svg viewBox={`0 0 ${W} ${H + 24}`} style={{ width: '100%', height: 'auto', display: 'block' }}>
+            {display.map((m, i) => {
+                const x = 10 + i * colW;
+                const rh = Math.max(2, Math.round((m.revenue / maxVal) * H));
+                const eh = Math.max(2, Math.round((m.expense / maxVal) * H));
+                return (
+                    <g key={m.label}>
+                        <rect x={x} y={H - rh} width={barW} height={rh} fill="#234093" rx={2} opacity={0.85} />
+                        <rect x={x + barW + gap / 2} y={H - eh} width={barW} height={eh} fill="#F97316" rx={2} opacity={0.85} />
+                        <text x={x + barW} y={H + 16} textAnchor="middle" fontSize={9} fill="#888">{m.label}</text>
+                    </g>
+                );
+            })}
+            <text x={4} y={H + 16} fontSize={9} fill="#234093">■ DT</text>
+            <text x={display.length * colW - 20} y={H + 16} fontSize={9} fill="#F97316">■ CP</text>
+        </svg>
+    );
+}
+
+function AlertProjectsCard({ rows }) {
+    if (!rows || rows.length === 0) return (
+        <div className="card" style={{ marginBottom: 16 }}>
+            <div className="card-header" style={{ borderLeft: '4px solid #16A34A', paddingLeft: 12 }}>
+                <h3>✅ Dự án cần chú ý</h3>
+            </div>
+            <div style={{ padding: '16px 20px', color: '#16A34A', fontSize: 13 }}>Tất cả dự án đều đang ổn định.</div>
+        </div>
+    );
+    return (
+        <div className="card" style={{ marginBottom: 16 }}>
+            <div className="card-header" style={{ borderLeft: '4px solid #D97706', paddingLeft: 12, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <h3 style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    ⚠️ Dự án cần chú ý
+                    <span style={{ background: '#DC2626', color: '#fff', fontSize: 11, fontWeight: 700, padding: '1px 8px', borderRadius: 10 }}>{rows.length}</span>
+                </h3>
+                <a href="/reports/pl-by-project" style={{ fontSize: 12, color: '#234093', textDecoration: 'none', fontWeight: 600 }}>Xem tất cả P&L →</a>
+            </div>
+            <div className="table-container">
+                <table className="data-table">
+                    <thead>
+                        <tr>
+                            <th>Mã DA</th>
+                            <th>Tên dự án</th>
+                            <th>Loại</th>
+                            <th style={{ textAlign: 'right' }}>Doanh thu</th>
+                            <th style={{ textAlign: 'right' }}>Chi phí</th>
+                            <th style={{ textAlign: 'right' }}>Margin</th>
+                            <th>Trạng thái</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {rows.slice(0, 10).map(r => (
+                            <tr key={r.id}
+                                onClick={() => window.location.href = `/projects/${r.code}`}
+                                style={{ cursor: 'pointer', background: r.margin < 0 ? 'rgba(220,38,38,0.04)' : 'rgba(217,119,6,0.04)' }}
+                            >
+                                <td style={{ fontWeight: 600, color: '#234093' }}>{r.code}</td>
+                                <td style={{ fontWeight: 500 }}>{r.name}</td>
+                                <td style={{ fontSize: 12 }}>{r.groupType}</td>
+                                <td style={{ textAlign: 'right', fontSize: 13 }}>{fmtShort(r.paidByCustomer)}</td>
+                                <td style={{ textAlign: 'right', fontSize: 13 }}>{fmtShort(r.totalCost)}</td>
+                                <td style={{ textAlign: 'right', fontWeight: 700, color: r.margin < 0 ? '#DC2626' : '#D97706' }}>{r.margin?.toFixed(1)}%</td>
+                                <td><span className="badge badge-info">{r.status}</span></td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    );
+}
+
+function DebtPanels({ debtData }) {
+    if (!debtData) return null;
+    const panels = [
+        { title: 'Công nợ NCC', total: debtData.supplierTotal, items: debtData.topSuppliers?.slice(0, 4) || [], color: '#7C3AED' },
+        { title: 'Công nợ Nhà thầu', total: debtData.contractorTotal, items: debtData.topContractors?.slice(0, 4) || [], color: '#DC2626' },
+    ];
+    return (
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 }}>
+            {panels.map(panel => (
+                <div key={panel.title} className="card">
+                    <div className="card-header" style={{ borderLeft: `4px solid ${panel.color}`, paddingLeft: 12 }}>
+                        <h3>{panel.title}</h3>
+                        <span style={{ fontSize: 18, fontWeight: 800, color: panel.color }}>{fmtShort(panel.total)}</span>
+                    </div>
+                    <div style={{ padding: '8px 16px 12px' }}>
+                        {panel.items.length === 0 ? (
+                            <div style={{ color: '#16A34A', fontSize: 12 }}>Không có công nợ</div>
+                        ) : panel.items.map((item, i) => (
+                            <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 0', borderBottom: i < panel.items.length - 1 ? '1px solid var(--border)' : 'none' }}>
+                                <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>{item.name}</span>
+                                <span style={{ fontSize: 13, fontWeight: 700, color: panel.color }}>{fmtShort(item.totalDebt)}</span>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            ))}
+        </div>
+    );
+}
+
 export default function Dashboard() {
     const [data, setData] = useState(null);
     const [loading, setLoading] = useState(true);
@@ -363,28 +475,54 @@ export default function Dashboard() {
             {/* Payment alerts */}
             <PaymentAlertsCard />
 
-            {/* KPI Cards — Tier 1: Revenue + Collection + Profit */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginBottom: 12 }}>
-                <div className="card" style={{ padding: '16px 20px', borderTop: '3px solid #DBB35E' }}>
-                    <div style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 4 }}>Doanh thu tháng này</div>
-                    <div style={{ fontSize: 24, fontWeight: 800, color: '#234093', margin: '2px 0' }}>{fmtShort(s.thisMonthRevenue)}</div>
-                    {s.revenueGrowth != null && (
-                        <div style={{ fontSize: 11, color: s.revenueGrowth >= 0 ? '#16A34A' : '#DC2626', fontWeight: 600 }}>
-                            {s.revenueGrowth >= 0 ? '▲' : '▼'} {Math.abs(s.revenueGrowth)}% so tháng trước
+            {/* Block 1 — Tài chính tháng này */}
+            {(() => {
+                const curMonthIdx = new Date().getMonth();
+                const cm = monthlyData?.months?.[curMonthIdx] || { revenue: 0, expense: 0, profit: 0 };
+                const thisMonthExpense = cm.expense;
+                const thisMonthProfit = cm.revenue - cm.expense;
+                const yearOptions = [new Date().getFullYear(), new Date().getFullYear() - 1, new Date().getFullYear() - 2];
+                return (
+                    <div className="card" style={{ marginBottom: 16 }}>
+                        <div className="card-header" style={{ borderLeft: '4px solid #DBB35E', paddingLeft: 12, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <h3>📊 Tài chính tháng này</h3>
+                            <select
+                                className="form-input"
+                                style={{ width: 100, fontSize: 12, padding: '4px 8px' }}
+                                value={selectedYear}
+                                onChange={e => setSelectedYear(Number(e.target.value))}
+                            >
+                                {yearOptions.map(y => <option key={y} value={y}>{y}</option>)}
+                            </select>
                         </div>
-                    )}
-                </div>
-                <div className="card" style={{ padding: '16px 20px', borderTop: '3px solid #234093' }}>
-                    <div style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 4 }}>Còn phải thu</div>
-                    <div style={{ fontSize: 24, fontWeight: 800, color: '#234093', margin: '2px 0' }}>{fmtShort(Math.max(0, s.totalContractValue - s.totalPaid))}</div>
-                    <div style={{ fontSize: 11, color: collectionRate < 50 ? '#DC2626' : '#16A34A', fontWeight: 600 }}>Đã thu {collectionRate}%</div>
-                </div>
-                <div className="card" style={{ padding: '16px 20px', borderTop: `3px solid ${profit >= 0 ? '#16A34A' : '#DC2626'}` }}>
-                    <div style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 4 }}>Lợi nhuận tích lũy</div>
-                    <div style={{ fontSize: 24, fontWeight: 800, color: profit >= 0 ? '#16A34A' : '#DC2626', margin: '2px 0' }}>{fmtShort(profit)}</div>
-                    <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>DT {fmtShort(s.revenue)} · CP {fmtShort(s.expense)}</div>
-                </div>
-            </div>
+                        <div style={{ padding: '12px 16px 8px' }}>
+                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 10, marginBottom: 16 }}>
+                                {[
+                                    { label: 'Doanh thu tháng', value: s.thisMonthRevenue, color: '#234093', sub: s.revenueGrowth != null ? `${s.revenueGrowth >= 0 ? '▲' : '▼'} ${Math.abs(s.revenueGrowth)}% tháng trước` : null, subColor: s.revenueGrowth >= 0 ? '#16A34A' : '#DC2626' },
+                                    { label: 'Chi phí tháng', value: thisMonthExpense, color: '#F97316', sub: null },
+                                    { label: 'Lợi nhuận tháng', value: thisMonthProfit, color: thisMonthProfit >= 0 ? '#16A34A' : '#DC2626', sub: null },
+                                    { label: 'Còn phải thu', value: Math.max(0, s.totalContractValue - s.totalPaid), color: '#2D5CA3', sub: `Đã thu ${collectionRate}%`, subColor: collectionRate < 50 ? '#DC2626' : '#16A34A' },
+                                    { label: 'Công nợ NCC', value: debtData?.supplierTotal || 0, color: '#7C3AED', sub: null },
+                                    { label: 'Công nợ nhà thầu', value: debtData?.contractorTotal || 0, color: '#DC2626', sub: null },
+                                ].map(k => (
+                                    <div key={k.label} style={{ padding: '10px 14px', background: 'var(--bg-secondary)', borderRadius: 10, borderTop: `3px solid ${k.color}` }}>
+                                        <div style={{ fontSize: 10, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>{k.label}</div>
+                                        <div style={{ fontSize: 20, fontWeight: 800, color: k.color }}>{fmtShort(k.value)}</div>
+                                        {k.sub && <div style={{ fontSize: 10, color: k.subColor || 'var(--text-muted)', fontWeight: 600, marginTop: 2 }}>{k.sub}</div>}
+                                    </div>
+                                ))}
+                            </div>
+                            <MonthlyMiniChart months={monthlyData?.months} selectedYear={selectedYear} />
+                        </div>
+                    </div>
+                );
+            })()}
+
+            {/* Block 3 — Dự án cần chú ý */}
+            <AlertProjectsCard rows={pnlAlerts} />
+
+            {/* Block 4 — Công nợ */}
+            <DebtPanels debtData={debtData} />
 
             {/* KPI Cards — Tier 2: Operational */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 12, marginBottom: 20 }}>
