@@ -19,9 +19,6 @@ const menuItems = [
     {
         section: 'Tổng quan', collapsible: false, items: [
             { href: '/', icon: LayoutDashboard, label: 'Dashboard' },
-            { href: '/pipeline', icon: TrendingUp, label: 'Pipeline' },
-            { href: '/reports', icon: BarChart3, label: 'Báo cáo', roles: ['giam_doc', 'pho_gd', 'ke_toan'] },
-            { href: '/reports/pl-by-project', icon: TrendingUp, label: 'P&L Dự án', roles: ['giam_doc', 'pho_gd', 'ke_toan'] },
         ]
     },
     {
@@ -63,6 +60,13 @@ const menuItems = [
             { href: '/admin/settings', icon: Settings, label: 'Cài đặt', roles: ['giam_doc'] },
         ]
     },
+    {
+        section: 'Báo cáo chi tiết', defaultCollapsed: true, items: [
+            { href: '/pipeline', icon: TrendingUp, label: 'Pipeline' },
+            { href: '/reports', icon: BarChart3, label: 'Báo cáo', roles: ['giam_doc', 'pho_gd', 'ke_toan'] },
+            { href: '/reports/pl-by-project', icon: TrendingUp, label: 'P&L Dự án', roles: ['giam_doc', 'pho_gd', 'ke_toan'] },
+        ]
+    },
 ];
 
 function SidebarInner({ isOpen, onClose }) {
@@ -76,7 +80,10 @@ function SidebarInner({ isOpen, onClose }) {
     useEffect(() => {
         try {
             const saved = localStorage.getItem('sidebar_collapsed');
-            if (saved) setCollapsed(JSON.parse(saved));
+            const parsed = saved ? JSON.parse(saved) : {};
+            const defaults = {};
+            menuItems.forEach(s => { if (s.defaultCollapsed) defaults[s.section] = true; });
+            setCollapsed({ ...defaults, ...parsed });
         } catch { }
     }, []);
 
