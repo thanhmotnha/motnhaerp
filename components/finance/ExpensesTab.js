@@ -174,6 +174,8 @@ export default function ExpensesTab() {
                 ? suppliers.find(s => s.id === form.recipientId)?.name || ''
                 : form.recipientType === 'Thầu phụ'
                 ? contractors.find(c => c.id === form.recipientId)?.name || ''
+                : form.recipientType === 'Cá nhân'
+                ? form.recipientId || ''
                 : '';
 
             const validAllocs = allocations
@@ -517,23 +519,40 @@ ${e.proofUrl ? parseProofUrls(e.proofUrl).map(url => `<img src="${url}" style="m
                             </div>
 
                             {/* Phân bổ vào nhiều dự án */}
-                            <div style={{ borderTop: '1px solid var(--border)', paddingTop: 12, marginTop: 4 }}>
-                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-                                    <label className="form-label" style={{ margin: 0 }}>Phân bổ vào dự án <span style={{ color: 'var(--text-muted)', fontWeight: 400, fontSize: 11 }}>(tùy chọn)</span></label>
-                                    <button type="button" className="btn btn-sm" onClick={() => setAllocations(a => [...a, { projectId: '', amount: '' }])}>+ Thêm DA</button>
-                                </div>
-                                {allocations.length === 0 && <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>Chưa phân bổ vào dự án nào</div>}
-                                {allocations.map((a, i) => (
-                                    <div key={i} style={{ display: 'grid', gridTemplateColumns: '2fr 1fr auto', gap: 8, marginBottom: 6, alignItems: 'end' }}>
-                                        <select className="form-select" value={a.projectId} onChange={e => setAllocations(al => { const n = [...al]; n[i] = { ...n[i], projectId: e.target.value }; return n; })}>
-                                            <option value="">— Chọn dự án —</option>
-                                            {projects.map(p => <option key={p.id} value={p.id}>{p.code} — {p.name}</option>)}
-                                        </select>
-                                        <input className="form-input" type="number" placeholder="Số tiền" value={a.amount} onChange={e => setAllocations(al => { const n = [...al]; n[i] = { ...n[i], amount: e.target.value }; return n; })} />
-                                        <button type="button" className="btn" style={{ padding: '6px 8px', color: '#ef4444' }} onClick={() => setAllocations(al => al.filter((_, j) => j !== i))}>✕</button>
+                            {(() => {
+                                const total = Number(form.amount) || 0;
+                                const allocated = allocations.reduce((s, a) => s + (Number(a.amount) || 0), 0);
+                                const remaining = total - allocated;
+                                return (
+                                <div style={{ borderTop: '1px solid var(--border)', paddingTop: 12, marginTop: 4 }}>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                                        <label className="form-label" style={{ margin: 0 }}>
+                                            Phân bổ vào dự án <span style={{ color: 'var(--text-muted)', fontWeight: 400, fontSize: 11 }}>(tùy chọn)</span>
+                                            {allocations.length > 0 && total > 0 && (
+                                                <span style={{ marginLeft: 8, fontSize: 11, fontWeight: 600, color: remaining < 0 ? '#DC2626' : remaining === 0 ? '#16A34A' : '#D97706' }}>
+                                                    Còn lại: {fmtShort(remaining)}
+                                                </span>
+                                            )}
+                                        </label>
+                                        <button type="button" className="btn btn-sm" onClick={() => setAllocations(a => [...a, { projectId: '', amount: remaining > 0 ? remaining : '' }])}>+ Thêm DA</button>
                                     </div>
-                                ))}
-                            </div>
+                                    {allocations.length === 0 && <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>Chưa phân bổ vào dự án nào</div>}
+                                    {allocations.map((a, i) => (
+                                        <div key={i} style={{ display: 'grid', gridTemplateColumns: '2fr 1fr auto', gap: 8, marginBottom: 6, alignItems: 'end' }}>
+                                            <select className="form-select" value={a.projectId} onChange={e => setAllocations(al => { const n = [...al]; n[i] = { ...n[i], projectId: e.target.value }; return n; })}>
+                                                <option value="">— Chọn dự án —</option>
+                                                {projects.map(p => <option key={p.id} value={p.id}>{p.code} — {p.name}</option>)}
+                                            </select>
+                                            <input className="form-input" type="number" placeholder="Số tiền" value={a.amount} onChange={e => setAllocations(al => { const n = [...al]; n[i] = { ...n[i], amount: e.target.value }; return n; })} />
+                                            <button type="button" className="btn" style={{ padding: '6px 8px', color: '#ef4444' }} onClick={() => setAllocations(al => al.filter((_, j) => j !== i))}>✕</button>
+                                        </div>
+                                    ))}
+                                    {allocations.length > 0 && remaining < 0 && (
+                                        <div style={{ fontSize: 11, color: '#DC2626', fontWeight: 600 }}>⚠️ Tổng phân bổ vượt quá số tiền chi ({fmtShort(-remaining)})</div>
+                                    )}
+                                </div>
+                                );
+                            })()}
                         </div>
 
                         {/* Historical checkbox */}
