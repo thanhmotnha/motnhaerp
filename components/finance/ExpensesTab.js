@@ -195,11 +195,7 @@ export default function ExpensesTab() {
             }
 
             if (formProofFiles.length > 0) {
-                const urls = await Promise.all(formProofFiles.map(({ file }) => new Promise((resolve) => {
-                    const reader = new FileReader();
-                    reader.onload = () => resolve(reader.result);
-                    reader.readAsDataURL(file);
-                })));
+                const urls = await Promise.all(formProofFiles.map(({ file }) => uploadProofFile(file)));
                 payload.proofUrl = urls.length === 1 ? urls[0] : JSON.stringify(urls);
             }
 
@@ -241,19 +237,29 @@ export default function ExpensesTab() {
     };
 
     // ── Proof upload ───────────────────────────────────────────────
+    const uploadProofFile = async (file) => {
+        const fd = new FormData();
+        fd.append('file', file);
+        fd.append('type', 'proofs');
+        const res = await fetch('/api/upload', { method: 'POST', body: fd });
+        if (!res.ok) {
+            const err = await res.json().catch(() => ({}));
+            throw new Error(err.error || 'Upload chứng từ thất bại');
+        }
+        const data = await res.json();
+        return data.url;
+    };
+
     const confirmPayWithProof = async () => {
         if (!proofFile) return toast.error('Bắt buộc upload chứng từ!');
         setUploading(true);
         try {
-            const reader = new FileReader();
-            reader.onload = async () => {
-                await updateStatus(proofModal.id, 'Đã chi', { proofUrl: reader.result, paidAmount: proofModal.amount });
-                setUploading(false);
-                setProofModal(null);
-            };
-            reader.readAsDataURL(proofFile);
+            const url = await uploadProofFile(proofFile);
+            await updateStatus(proofModal.id, 'Đã chi', { proofUrl: url, paidAmount: proofModal.amount });
+            setProofModal(null);
         } catch (e) {
             toast.error(e.message);
+        } finally {
             setUploading(false);
         }
     };
