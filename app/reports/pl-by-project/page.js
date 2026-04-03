@@ -3,6 +3,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { TrendingUp, TrendingDown, DollarSign, AlertTriangle, Search, RefreshCw, ExternalLink, Clock } from 'lucide-react';
 import Link from 'next/link';
+import ProjectFinanceDrawer from '@/components/reports/ProjectFinanceDrawer';
 
 const fmt = (n) => new Intl.NumberFormat('vi-VN').format(Math.round(n || 0));
 
@@ -29,6 +30,7 @@ export default function PLByProjectPage() {
     const [statusFilter, setStatusFilter] = useState('Tất cả');
     const [sortField, setSortField] = useState('margin');
     const [sortDir, setSortDir] = useState('asc');
+    const [drawerProjectId, setDrawerProjectId] = useState(null);
 
     const load = async () => {
         setLoading(true);
@@ -174,9 +176,9 @@ export default function PLByProjectPage() {
                                                 const rowBg = r.margin < 0 ? '#fef2f2' : r.alert ? '#fffbeb' : '#fff';
                                                 return (
                                                     <tr key={r.id} style={{ background: rowBg, borderTop: '1px solid #f3f4f6' }}>
-                                                        <td style={td}>
-                                                            <div style={{ fontWeight: 600, fontSize: 12.5 }}>{r.code || '—'}</div>
-                                                            <div style={{ color: '#374151', maxWidth: 220 }}>{r.name}</div>
+                                                        <td style={{ ...td, cursor: 'pointer' }} onClick={() => setDrawerProjectId(r.id)} title="Xem chi tiết tài chính">
+                                                            <div style={{ fontWeight: 600, fontSize: 12.5, color: '#2563eb' }}>{r.code || '—'}</div>
+                                                            <div style={{ color: '#374151', maxWidth: 220, textDecoration: 'underline', textDecorationColor: '#bfdbfe' }}>{r.name}</div>
                                                             {r.alert && <div style={{ display: 'flex', alignItems: 'center', gap: 4, color: '#b45309', fontSize: 11, marginTop: 2 }}><AlertTriangle size={11} /> Margin thấp</div>}
                                                         </td>
                                                         <td style={td}>{r.customerName || '—'}</td>
@@ -253,6 +255,13 @@ export default function PLByProjectPage() {
             <div style={{ marginTop: 12, fontSize: 11, color: '#9ca3af' }}>
                 * Lợi nhuận = Đã thu − (Chi nhà thầu + Mua hàng đã trả + Chi phí DA) &nbsp;|&nbsp; Nhóm theo HĐ có giá trị lớn nhất &nbsp;|&nbsp; Cảnh báo: margin &lt; 10%
             </div>
+
+            {drawerProjectId && (
+                <ProjectFinanceDrawer
+                    projectId={drawerProjectId}
+                    onClose={() => setDrawerProjectId(null)}
+                />
+            )}
 
             <style>{`
                 .spin { animation: spin 1s linear infinite; }
