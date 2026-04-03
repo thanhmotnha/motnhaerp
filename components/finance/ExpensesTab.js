@@ -115,7 +115,8 @@ export default function ExpensesTab() {
     // ── Modal helpers ──────────────────────────────────────────────
     const openCreate = () => {
         setEditing(null);
-        setForm(emptyForm());
+        const firstCat = categoryList.find(c => c.isActive !== false)?.name || '';
+        setForm(emptyForm(firstCat));
         setAllocations([]);
         setIsHistorical(false);
         setFormProofFiles([]);
@@ -296,10 +297,10 @@ ${e.proofUrl ? parseProofUrls(e.proofUrl).map(url => `<img src="${url}" style="m
     // ── Render ─────────────────────────────────────────────────────
     // Show all categories regardless of type since we removed the type toggle
     const allCatNames = categoryList.length > 0
-        ? [...new Set(categoryList.map(c => c.name))]
+        ? [...new Set(categoryList.filter(c => c.isActive !== false).map(c => c.name))]
         : [...FALLBACK_PROJECT_CATS, ...FALLBACK_COMPANY_CATS];
-    // Ensure current form.category is always in the list
-    const cats = form.category && !allCatNames.includes(form.category)
+    // When editing, preserve existing category even if not in current list
+    const cats = editing && form.category && !allCatNames.includes(form.category)
         ? [form.category, ...allCatNames]
         : allCatNames;
 
