@@ -392,7 +392,7 @@ ${e.proofUrl ? parseProofUrls(e.proofUrl).map(url => `<img src="${url}" style="m
                                             {e.status === 'Từ chối' && <button className="btn btn-sm" style={{ background: 'var(--status-warning)', color: '#fff', border: 'none', borderRadius: 6, fontSize: 11, cursor: 'pointer', padding: '3px 8px' }} onClick={() => updateStatus(e.id, 'Chờ duyệt')}>↩ Mở lại</button>}
                                             {['Đã chi', 'Hoàn thành'].includes(e.status) && <button className="btn btn-ghost btn-sm" style={{ fontSize: 11 }} onClick={() => printVoucher(e)}>🧾 Phiếu chi</button>}
                                             {['ke_toan', 'giam_doc', 'pho_gd'].includes(role) && <button className="btn btn-ghost btn-sm" style={{ fontSize: 11 }} onClick={() => openEdit(e)}>✏️ Sửa</button>}
-                                            {['Chờ duyệt', 'Từ chối'].includes(e.status) && <button className="btn btn-ghost btn-sm" style={{ color: 'var(--status-danger)', fontSize: 11 }} onClick={() => handleDelete(e.id)}>🗑️</button>}
+                                            {(['Chờ duyệt', 'Từ chối'].includes(e.status) || ['ke_toan', 'giam_doc', 'pho_gd'].includes(role)) && <button className="btn btn-ghost btn-sm" style={{ color: 'var(--status-danger)', fontSize: 11 }} onClick={() => handleDelete(e.id)}>🗑️</button>}
                                         </div>
                                     </td>
                                 </tr>
