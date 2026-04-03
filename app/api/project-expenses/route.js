@@ -104,8 +104,25 @@ export const PUT = withAuth(async (request, context, session) => {
         }
     }
 
-    const data = expenseUpdateSchema.parse(raw);
-    const expense = await prisma.projectExpense.update({ where: { id }, data });
+    const { allocations, ...updateData } = expenseUpdateSchema.parse(raw);
+
+    const expense = await prisma.$transaction(async (tx) => {
+        if (allocations !== undefined) {
+            await tx.expenseAllocation.deleteMany({ where: { expenseId: id } });
+            if (allocations.length > 0) {
+                await tx.expenseAllocation.createMany({
+                    data: allocations.map(a => ({
+                        expenseId: id,
+                        projectId: a.projectId,
+                        amount: a.amount || 0,
+                        ratio: a.ratio || 0,
+                        notes: a.notes || '',
+                    })),
+                });
+            }
+        }
+        return tx.projectExpense.update({ where: { id }, data: updateData });
+    });
     return NextResponse.json(expense);
 });
 

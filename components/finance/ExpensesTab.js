@@ -166,7 +166,6 @@ export default function ExpensesTab() {
     // ── Submit ─────────────────────────────────────────────────────
     const handleSubmit = async () => {
         if (!form.description.trim()) return toast.error('Nhập mô tả chi phí!');
-        if (form.expenseType === 'Dự án' && !form.projectId) return toast.error('Chọn dự án!');
         if (!form.amount || Number(form.amount) <= 0) return toast.error('Nhập số tiền hợp lệ!');
 
         setSaving(true);
@@ -410,56 +409,49 @@ ${e.proofUrl ? parseProofUrls(e.proofUrl).map(url => `<img src="${url}" style="m
                             <h3>{editing ? '✏️ Sửa lệnh chi' : '+ Tạo lệnh chi tiền'}</h3>
                             <button className="modal-close" onClick={() => setShowModal(false)}>×</button>
                         </div>
-                        <div className="modal-body">
-                            {/* Type toggle */}
-                            <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
-                                {['Dự án', 'Công ty'].map(t => (
-                                    <button key={t} onClick={() => setExpenseType(t)}
-                                        style={{ flex: 1, padding: '10px 16px', borderRadius: 8, border: form.expenseType === t ? '2px solid var(--accent-primary)' : '1px solid var(--border)', background: form.expenseType === t ? 'var(--accent-primary)' : 'transparent', color: form.expenseType === t ? '#fff' : 'var(--text-primary)', fontWeight: 600, cursor: 'pointer', fontSize: 13 }}>
-                                        {t === 'Dự án' ? '🏗️ Chi phí dự án' : '🏢 Chi phí chung'}
-                                    </button>
-                                ))}
-                            </div>
-
+                                        <div className="modal-body">
                             {/* Project selector */}
-                            {form.expenseType === 'Dự án' && (
-                                <div className="form-group">
-                                    <label className="form-label">Dự án *</label>
-                                    <select className="form-select" value={form.projectId || ''} onChange={e => setForm(f => ({ ...f, projectId: e.target.value || null }))}>
-                                        <option value="">— Chọn dự án —</option>
-                                        {projects.map(p => <option key={p.id} value={p.id}>{p.code} — {p.name}</option>)}
-                                    </select>
-                                </div>
-                            )}
+                            <div className="form-group">
+                                <label className="form-label">Dự án</label>
+                                <select className="form-select" value={form.projectId || ''} onChange={e => setForm(f => ({ ...f, projectId: e.target.value || null }))}>
+                                    <option value="">— Không gắn dự án —</option>
+                                    {projects.map(p => <option key={p.id} value={p.id}>{p.code} — {p.name}</option>)}
+                                </select>
+                            </div>
 
                             <div className="form-group">
                                 <label className="form-label">Mô tả chi phí *</label>
                                 <input className="form-input" value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} placeholder="VD: Mua xi măng, thuê xe cẩu..." />
                             </div>
 
-                            {/* Recipient (project only) */}
-                            {form.expenseType === 'Dự án' && (
-                                <div className="form-row">
+                            {/* Recipient */}
+                            <div className="form-row">
+                                <div className="form-group">
+                                    <label className="form-label">Chi cho</label>
+                                    <select className="form-select" value={form.recipientType} onChange={e => setForm(f => ({ ...f, recipientType: e.target.value, recipientId: '' }))}>
+                                        <option value="">— Không chọn —</option>
+                                        <option value="Cá nhân">Cá nhân</option>
+                                        <option value="NCC">Nhà cung cấp</option>
+                                        <option value="Thầu phụ">Thầu phụ</option>
+                                    </select>
+                                </div>
+                                {form.recipientType === 'Cá nhân' && (
                                     <div className="form-group">
-                                        <label className="form-label">Chi cho</label>
-                                        <select className="form-select" value={form.recipientType} onChange={e => setForm(f => ({ ...f, recipientType: e.target.value, recipientId: '' }))}>
-                                            <option value="">— Không chọn —</option>
-                                            <option value="NCC">Nhà cung cấp</option>
-                                            <option value="Thầu phụ">Thầu phụ</option>
+                                        <label className="form-label">Tên người nhận</label>
+                                        <input className="form-input" value={form.recipientId} onChange={e => setForm(f => ({ ...f, recipientId: e.target.value }))} placeholder="Nhập tên..." />
+                                    </div>
+                                )}
+                                {(form.recipientType === 'NCC' || form.recipientType === 'Thầu phụ') && (
+                                    <div className="form-group">
+                                        <label className="form-label">Người nhận</label>
+                                        <select className="form-select" value={form.recipientId} onChange={e => setForm(f => ({ ...f, recipientId: e.target.value }))}>
+                                            <option value="">— Chọn —</option>
+                                            {form.recipientType === 'NCC' && suppliers.map(s => <option key={s.id} value={s.id}>{s.code} — {s.name}</option>)}
+                                            {form.recipientType === 'Thầu phụ' && contractors.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                                         </select>
                                     </div>
-                                    {form.recipientType && (
-                                        <div className="form-group">
-                                            <label className="form-label">Người nhận</label>
-                                            <select className="form-select" value={form.recipientId} onChange={e => setForm(f => ({ ...f, recipientId: e.target.value }))}>
-                                                <option value="">— Chọn —</option>
-                                                {form.recipientType === 'NCC' && suppliers.map(s => <option key={s.id} value={s.id}>{s.code} — {s.name}</option>)}
-                                                {form.recipientType === 'Thầu phụ' && contractors.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                                            </select>
-                                        </div>
-                                    )}
-                                </div>
-                            )}
+                                )}
+                            </div>
 
                             <div className="form-row">
                                 <div className="form-group">
@@ -517,26 +509,24 @@ ${e.proofUrl ? parseProofUrls(e.proofUrl).map(url => `<img src="${url}" style="m
                                 </div>
                             </div>
 
-                            {/* Allocations (company expenses) */}
-                            {form.expenseType === 'Công ty' && (
-                                <div style={{ borderTop: '1px solid var(--border)', paddingTop: 12, marginTop: 4 }}>
-                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-                                        <label className="form-label" style={{ margin: 0 }}>Phân bổ vào dự án</label>
-                                        <button type="button" className="btn btn-sm" onClick={() => setAllocations(a => [...a, { projectId: '', amount: '' }])}>+ Thêm DA</button>
-                                    </div>
-                                    {allocations.length === 0 && <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>Không phân bổ — chi phí công ty chung</div>}
-                                    {allocations.map((a, i) => (
-                                        <div key={i} style={{ display: 'grid', gridTemplateColumns: '2fr 1fr auto', gap: 8, marginBottom: 6, alignItems: 'end' }}>
-                                            <select className="form-select" value={a.projectId} onChange={e => setAllocations(al => { const n = [...al]; n[i] = { ...n[i], projectId: e.target.value }; return n; })}>
-                                                <option value="">— Chọn dự án —</option>
-                                                {projects.map(p => <option key={p.id} value={p.id}>{p.code} — {p.name}</option>)}
-                                            </select>
-                                            <input className="form-input" type="number" placeholder="Số tiền" value={a.amount} onChange={e => setAllocations(al => { const n = [...al]; n[i] = { ...n[i], amount: e.target.value }; return n; })} />
-                                            <button type="button" className="btn" style={{ padding: '6px 8px', color: '#ef4444' }} onClick={() => setAllocations(al => al.filter((_, j) => j !== i))}>✕</button>
-                                        </div>
-                                    ))}
+                            {/* Phân bổ vào nhiều dự án */}
+                            <div style={{ borderTop: '1px solid var(--border)', paddingTop: 12, marginTop: 4 }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                                    <label className="form-label" style={{ margin: 0 }}>Phân bổ vào dự án <span style={{ color: 'var(--text-muted)', fontWeight: 400, fontSize: 11 }}>(tùy chọn)</span></label>
+                                    <button type="button" className="btn btn-sm" onClick={() => setAllocations(a => [...a, { projectId: '', amount: '' }])}>+ Thêm DA</button>
                                 </div>
-                            )}
+                                {allocations.length === 0 && <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>Chưa phân bổ vào dự án nào</div>}
+                                {allocations.map((a, i) => (
+                                    <div key={i} style={{ display: 'grid', gridTemplateColumns: '2fr 1fr auto', gap: 8, marginBottom: 6, alignItems: 'end' }}>
+                                        <select className="form-select" value={a.projectId} onChange={e => setAllocations(al => { const n = [...al]; n[i] = { ...n[i], projectId: e.target.value }; return n; })}>
+                                            <option value="">— Chọn dự án —</option>
+                                            {projects.map(p => <option key={p.id} value={p.id}>{p.code} — {p.name}</option>)}
+                                        </select>
+                                        <input className="form-input" type="number" placeholder="Số tiền" value={a.amount} onChange={e => setAllocations(al => { const n = [...al]; n[i] = { ...n[i], amount: e.target.value }; return n; })} />
+                                        <button type="button" className="btn" style={{ padding: '6px 8px', color: '#ef4444' }} onClick={() => setAllocations(al => al.filter((_, j) => j !== i))}>✕</button>
+                                    </div>
+                                ))}
+                            </div>
                         </div>
 
                         {/* Historical checkbox */}
