@@ -174,8 +174,6 @@ export default function ExpensesTab() {
                 ? suppliers.find(s => s.id === form.recipientId)?.name || ''
                 : form.recipientType === 'Thầu phụ'
                 ? contractors.find(c => c.id === form.recipientId)?.name || ''
-                : form.recipientType === 'Cá nhân'
-                ? form.recipientId || ''
                 : '';
 
             const validAllocs = allocations
@@ -439,17 +437,10 @@ ${e.proofUrl ? parseProofUrls(e.proofUrl).map(url => `<img src="${url}" style="m
                                     <label className="form-label">Chi cho</label>
                                     <select className="form-select" value={form.recipientType} onChange={e => setForm(f => ({ ...f, recipientType: e.target.value, recipientId: '' }))}>
                                         <option value="">— Không chọn —</option>
-                                        <option value="Cá nhân">Cá nhân</option>
                                         <option value="NCC">Nhà cung cấp</option>
                                         <option value="Thầu phụ">Thầu phụ</option>
                                     </select>
                                 </div>
-                                {form.recipientType === 'Cá nhân' && (
-                                    <div className="form-group">
-                                        <label className="form-label">Tên người nhận</label>
-                                        <input className="form-input" value={form.recipientId} onChange={e => setForm(f => ({ ...f, recipientId: e.target.value }))} placeholder="Nhập tên..." />
-                                    </div>
-                                )}
                                 {(form.recipientType === 'NCC' || form.recipientType === 'Thầu phụ') && (
                                     <div className="form-group">
                                         <label className="form-label">Người nhận</label>
