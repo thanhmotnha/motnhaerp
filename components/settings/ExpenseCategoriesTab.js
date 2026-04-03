@@ -4,13 +4,7 @@ import { apiFetch } from '@/lib/fetchClient';
 import { useToast } from '@/components/ui/Toast';
 import { Plus, Pencil, X, Check, ToggleLeft, ToggleRight } from 'lucide-react';
 
-const LINK_TYPE_LABELS = {
-    'project': 'Dự án',
-    'company': 'Công ty',
-    '': 'Cả hai',
-};
-
-const emptyForm = () => ({ name: '', code: '', description: '', linkType: 'project', sortOrder: 0 });
+const emptyForm = () => ({ name: '', code: '', description: '', linkType: '', sortOrder: 0 });
 
 export default function ExpenseCategoriesTab() {
     const toast = useToast();
@@ -20,7 +14,6 @@ export default function ExpenseCategoriesTab() {
     const [editId, setEditId] = useState(null);
     const [form, setForm] = useState(emptyForm());
     const [saving, setSaving] = useState(false);
-    const [filterType, setFilterType] = useState('all');
 
     const load = async () => {
         setLoading(true);
@@ -90,19 +83,11 @@ export default function ExpenseCategoriesTab() {
             .replace(/[^A-Z0-9\s]/g, '').trim().split(/\s+/).map(w => w[0]).join('');
     };
 
-    const filtered = cats.filter(c => filterType === 'all' || c.linkType === filterType || (filterType === '' && c.linkType === ''));
+    const filtered = cats;
 
     return (
         <div>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16, flexWrap: 'wrap', gap: 8 }}>
-                <div style={{ display: 'flex', gap: 6 }}>
-                    {[['all', 'Tất cả'], ['project', 'Dự án'], ['company', 'Công ty'], ['', 'Cả hai']].map(([v, label]) => (
-                        <button key={v} onClick={() => setFilterType(v)}
-                            className={`btn btn-sm ${filterType === v ? 'btn-primary' : 'btn-ghost'}`}>
-                            {label}
-                        </button>
-                    ))}
-                </div>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 16 }}>
                 <button className="btn btn-primary btn-sm" onClick={openAdd}>
                     <Plus size={14} /> Thêm hạng mục
                 </button>
@@ -125,15 +110,6 @@ export default function ExpenseCategoriesTab() {
                             <input className="form-input" value={form.code}
                                 onChange={e => setForm(f => ({ ...f, code: e.target.value.toUpperCase() }))}
                                 placeholder="VD: VTXD" />
-                        </div>
-                        <div>
-                            <label className="form-label">Loại</label>
-                            <select className="form-input" value={form.linkType}
-                                onChange={e => setForm(f => ({ ...f, linkType: e.target.value }))}>
-                                <option value="project">Dự án</option>
-                                <option value="company">Công ty</option>
-                                <option value="">Cả hai</option>
-                            </select>
                         </div>
                         <div>
                             <label className="form-label">Thứ tự</label>
@@ -170,7 +146,6 @@ export default function ExpenseCategoriesTab() {
                         <tr>
                             <th>Tên hạng mục</th>
                             <th>Mã</th>
-                            <th>Loại</th>
                             <th>Mô tả</th>
                             <th style={{ textAlign: 'center' }}>Thứ tự</th>
                             <th style={{ textAlign: 'center' }}>Trạng thái</th>
@@ -182,11 +157,6 @@ export default function ExpenseCategoriesTab() {
                             <tr key={cat.id} style={{ opacity: cat.isActive ? 1 : 0.5 }}>
                                 <td style={{ fontWeight: 500 }}>{cat.name}</td>
                                 <td><code style={{ fontSize: 11, background: 'var(--bg-tertiary)', padding: '2px 6px', borderRadius: 4 }}>{cat.code}</code></td>
-                                <td>
-                                    <span className={`badge badge-${cat.linkType === 'project' ? 'info' : cat.linkType === 'company' ? 'warning' : 'accent'}`}>
-                                        {LINK_TYPE_LABELS[cat.linkType ?? ''] ?? 'Cả hai'}
-                                    </span>
-                                </td>
                                 <td style={{ color: 'var(--text-secondary)', fontSize: 13 }}>{cat.description || '—'}</td>
                                 <td style={{ textAlign: 'center' }}>{cat.sortOrder}</td>
                                 <td style={{ textAlign: 'center' }}>
