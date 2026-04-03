@@ -282,18 +282,35 @@ export default function Dashboard() {
     const [data, setData] = useState(null);
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
+    const [debtData, setDebtData] = useState(null);
+    const [pnlAlerts, setPnlAlerts] = useState([]);
+    const [monthlyData, setMonthlyData] = useState(null);
+    const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
     const { widgets, showConfig, setShowConfig, toggleWidget, moveWidget, resetConfig } = useDashboardWidgets();
 
     const load = useCallback((showRefresh = false) => {
         if (showRefresh) setRefreshing(true);
-        fetch('/api/dashboard').then(r => r.json()).then(d => {
-            setData(d);
+        Promise.all([
+            fetch('/api/dashboard').then(r => r.json()),
+            fetch('/api/reports/debt').then(r => r.json()),
+            fetch('/api/reports/project-pnl').then(r => r.json()),
+        ]).then(([dashboard, debt, pnl]) => {
+            setData(dashboard);
+            setDebtData(debt);
+            setPnlAlerts((pnl.rows || []).filter(r => r.alert));
             setLoading(false);
             setRefreshing(false);
-        });
+        }).catch(() => { setLoading(false); setRefreshing(false); });
     }, []);
 
     useEffect(() => { load(); }, [load]);
+
+    useEffect(() => {
+        fetch(`/api/reports/monthly?year=${selectedYear}`)
+            .then(r => r.json())
+            .then(setMonthlyData)
+            .catch(() => {});
+    }, [selectedYear]);
 
     if (loading) return <SkeletonDashboard />;
 
