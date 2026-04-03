@@ -112,7 +112,7 @@ export default function ExpensesTab() {
     };
 
     const openEdit = (e) => {
-        const canEdit = ['Chờ duyệt', 'Từ chối'].includes(e.status) || role === 'ke_toan';
+        const canEdit = ['Chờ duyệt', 'Từ chối'].includes(e.status) || ['ke_toan', 'giam_doc', 'pho_gd'].includes(role);
         if (!canEdit) return;
         setEditing(e);
         setForm({
@@ -350,7 +350,7 @@ ${e.proofUrl ? `<div style="text-align:center;margin:10px 0"><img src="${e.proof
                             {filtered.map(e => (
                                 <tr key={e.id} style={{ opacity: e.status === 'Hoàn thành' ? 0.65 : 1 }}>
                                     <td style={{ fontSize: 12, color: 'var(--accent-primary)', fontWeight: 600 }}>{e.code}</td>
-                                    <td style={{ cursor: (['Chờ duyệt', 'Từ chối'].includes(e.status) || role === 'ke_toan') ? 'pointer' : 'default', fontWeight: 500 }} onClick={() => openEdit(e)}>
+                                    <td style={{ cursor: (['Chờ duyệt', 'Từ chối'].includes(e.status) || ['ke_toan', 'giam_doc', 'pho_gd'].includes(role)) ? 'pointer' : 'default', fontWeight: 500 }} onClick={() => openEdit(e)}>
                                         {e.description}
                                     </td>
                                     <td>
