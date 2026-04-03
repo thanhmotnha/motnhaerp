@@ -9,6 +9,9 @@ const LeaveCalendarTab = dynamic(() => import('@/components/hr/LeaveCalendarTab'
 const EmployeeReviewTab = dynamic(() => import('@/components/hr/EmployeeReviewTab'), { ssr: false, loading: () => <div style={{ padding: 40, textAlign: 'center' }}>Đang tải...</div> });
 const SalaryAdvanceTab = dynamic(() => import('@/components/hr/SalaryAdvanceTab'), { ssr: false, loading: () => <div style={{ padding: 40, textAlign: 'center' }}>Đang tải...</div> });
 const EmployeeContractTab = dynamic(() => import('@/components/EmployeeContractTab'), { ssr: false, loading: () => <div style={{ padding: 40, textAlign: 'center' }}>Đang tải...</div> });
+const OfficePayrollTab = dynamic(() => import('@/components/hr/OfficePayrollTab'), { ssr: false, loading: () => <div style={{ padding: 40, textAlign: 'center' }}>Đang tải...</div> });
+const WorkshopPayrollTab = dynamic(() => import('@/components/hr/WorkshopPayrollTab'), { ssr: false, loading: () => <div style={{ padding: 40, textAlign: 'center' }}>Đang tải...</div> });
+const CommissionTab = dynamic(() => import('@/components/hr/CommissionTab'), { ssr: false, loading: () => <div style={{ padding: 40, textAlign: 'center' }}>Đang tải...</div> });
 const fmt = (n) => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(n || 0);
 const fmtDate = (d) => d ? new Date(d).toLocaleDateString('vi-VN') : '—';
 const MONTHS = ['T1', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'T8', 'T9', 'T10', 'T11', 'T12'];
@@ -441,7 +444,7 @@ function LeaveTab({ employees }) {
 const STATUS_OPTS = ['Đang làm', 'Nghỉ phép', 'Nghỉ việc'];
 const STATUS_COLOR = { 'Đang làm': 'badge-success', 'Nghỉ phép': 'badge-warning', 'Nghỉ việc': 'badge-default' };
 
-const EMPTY_FORM = { name: '', position: '', phone: '', email: '', salary: '', insuranceSalary: '', departmentId: '', status: 'Đang làm', joinDate: '' };
+const EMPTY_FORM = { name: '', position: '', phone: '', email: '', salary: '', insuranceSalary: '', departmentId: '', status: 'Đang làm', joinDate: '', payrollType: 'office', positionAllowance: 0, phoneAllowance: 0, transportAllowance: 0, diligenceAllowance: 0, mealAllowanceRate: 0, dailyWage: 0 };
 
 export default function HRPage() {
     return <Suspense><HRContent /></Suspense>;
@@ -485,6 +488,13 @@ function HRContent() {
             email: e.email, salary: e.salary, insuranceSalary: e.insuranceSalary || '',
             departmentId: e.departmentId, status: e.status,
             joinDate: e.joinDate ? e.joinDate.split('T')[0] : '',
+            payrollType: e.payrollType || 'office',
+            positionAllowance: e.positionAllowance || 0,
+            phoneAllowance: e.phoneAllowance || 0,
+            transportAllowance: e.transportAllowance || 0,
+            diligenceAllowance: e.diligenceAllowance || 0,
+            mealAllowanceRate: e.mealAllowanceRate || 0,
+            dailyWage: e.dailyWage || 0,
         });
         setShowModal(true);
     };
@@ -567,7 +577,7 @@ function HRContent() {
 
             {/* Tab switcher */}
             <div style={{ display: 'flex', gap: 4, marginBottom: 24, borderBottom: '2px solid var(--border)' }}>
-                {[{ key: 'employees', label: '👥 Nhân viên' }, { key: 'attendance', label: '📅 Chấm công & Lương' }, { key: 'daily-attendance', label: '⏰ Chấm công ngày' }, { key: 'leave', label: '🗓️ Nghỉ phép' }, { key: 'leave-calendar', label: '📆 Lịch nghỉ' }, { key: 'payroll', label: '💰 Bảng lương' }, { key: 'reviews', label: '📊 Đánh giá' }, { key: 'advances', label: '💸 Tạm ứng' }, { key: 'contracts', label: '📄 Hợp đồng' }].map(t => (
+                {[{ key: 'employees', label: '👥 Nhân viên' }, { key: 'attendance', label: '📅 Chấm công & Lương' }, { key: 'daily-attendance', label: '⏰ Chấm công ngày' }, { key: 'leave', label: '🗓️ Nghỉ phép' }, { key: 'leave-calendar', label: '📆 Lịch nghỉ' }, { key: 'payroll', label: '💰 Bảng lương' }, { key: 'reviews', label: '📊 Đánh giá' }, { key: 'advances', label: '💸 Tạm ứng' }, { key: 'contracts', label: '📄 Hợp đồng' }, { key: 'office-payroll', label: '💼 Lương VP' }, { key: 'workshop-payroll', label: '🏭 Lương Xưởng' }, { key: 'commission', label: '💰 Hoa hồng KD' }].map(t => (
                     <button key={t.key} onClick={() => setMainTab(t.key)}
                         style={{ padding: '8px 18px', border: 'none', borderBottom: mainTab === t.key ? '2px solid var(--accent-primary)' : '2px solid transparent', background: 'none', cursor: 'pointer', fontWeight: mainTab === t.key ? 700 : 400, color: mainTab === t.key ? 'var(--accent-primary)' : 'var(--text-muted)', fontSize: 13, marginBottom: -2 }}>
                         {t.label}
@@ -598,6 +608,18 @@ function HRContent() {
             ) : mainTab === 'advances' ? (
                 <div className="card" style={{ padding: 24 }}>
                     <SalaryAdvanceTab />
+                </div>
+            ) : mainTab === 'office-payroll' ? (
+                <div className="card" style={{ padding: 24 }}>
+                    <OfficePayrollTab />
+                </div>
+            ) : mainTab === 'workshop-payroll' ? (
+                <div className="card" style={{ padding: 24 }}>
+                    <WorkshopPayrollTab />
+                </div>
+            ) : mainTab === 'commission' ? (
+                <div className="card" style={{ padding: 24 }}>
+                    <CommissionTab />
                 </div>
             ) : mainTab === 'contracts' ? (
                 <div className="card" style={{ padding: 24 }}>
@@ -765,6 +787,42 @@ function HRContent() {
                                     </select>
                                 </div>
                             )}
+                        </div>
+                        <div style={{ marginTop: 16, paddingTop: 16, borderTop: '1px solid var(--border)', padding: '16px 24px' }}>
+                            <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 12 }}>Phân loại & Phụ cấp</div>
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                                <div className="form-group">
+                                    <label className="form-label">Loại nhân viên</label>
+                                    <select className="form-select" value={form.payrollType || 'office'} onChange={e => setForm({ ...form, payrollType: e.target.value })}>
+                                        <option value="office">Văn phòng</option>
+                                        <option value="workshop">Nhà xưởng</option>
+                                    </select>
+                                </div>
+                                <div className="form-group">
+                                    <label className="form-label">PC Chức vụ (đ/tháng)</label>
+                                    <input className="form-input" type="number" value={form.positionAllowance || 0} onChange={e => setForm({ ...form, positionAllowance: parseInt(e.target.value) || 0 })} />
+                                </div>
+                                <div className="form-group">
+                                    <label className="form-label">PC Điện thoại (đ/tháng)</label>
+                                    <input className="form-input" type="number" value={form.phoneAllowance || 0} onChange={e => setForm({ ...form, phoneAllowance: parseInt(e.target.value) || 0 })} />
+                                </div>
+                                <div className="form-group">
+                                    <label className="form-label">PC Xăng xe (đ/tháng)</label>
+                                    <input className="form-input" type="number" value={form.transportAllowance || 0} onChange={e => setForm({ ...form, transportAllowance: parseInt(e.target.value) || 0 })} />
+                                </div>
+                                <div className="form-group">
+                                    <label className="form-label">PC Chuyên cần (đ/tháng)</label>
+                                    <input className="form-input" type="number" value={form.diligenceAllowance || 0} onChange={e => setForm({ ...form, diligenceAllowance: parseInt(e.target.value) || 0 })} />
+                                </div>
+                                <div className="form-group">
+                                    <label className="form-label">Tiền ăn/ngày (xưởng)</label>
+                                    <input className="form-input" type="number" value={form.mealAllowanceRate || 0} onChange={e => setForm({ ...form, mealAllowanceRate: parseInt(e.target.value) || 0 })} />
+                                </div>
+                                <div className="form-group">
+                                    <label className="form-label">Lương ngày (xưởng)</label>
+                                    <input className="form-input" type="number" value={form.dailyWage || 0} onChange={e => setForm({ ...form, dailyWage: parseInt(e.target.value) || 0 })} />
+                                </div>
+                            </div>
                         </div>
                         <div className="modal-footer">
                             <button className="btn btn-ghost" onClick={() => setShowModal(false)}>Hủy</button>
