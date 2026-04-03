@@ -47,10 +47,23 @@ export const GET = withAuth(async (_request, { params }, session) => {
     const totalCollected = activeContracts.reduce((s, c) =>
         s + c.payments.reduce((ps, pay) => ps + (pay.paidAmount ?? 0), 0), 0);
 
-    // Settlement (Quyet toan)
+    // Settlement (Quyet toan) — allocation-aware expense totals
     const totalPurchase = project.purchaseOrders.reduce((s, po) => s + (po.totalAmount ?? 0), 0);
-    const totalExpenses = project.expenses.reduce((s, e) => s + (e.amount ?? 0), 0);
     const totalContractorCost = project.contractorPays.reduce((s, p) => s + (p.contractAmount ?? 0), 0);
+
+    // Fetch allocation-aware expense totals in parallel
+    const [directExpenseAgg, allocatedExpenseAgg] = await Promise.all([
+        prisma.projectExpense.aggregate({
+            where: { projectId: project.id, deletedAt: null, status: { not: 'Từ chối' }, allocations: { none: {} } },
+            _sum: { amount: true },
+        }),
+        prisma.expenseAllocation.aggregate({
+            where: { projectId: project.id, expense: { status: { not: 'Từ chối' }, deletedAt: null } },
+            _sum: { amount: true },
+        }),
+    ]);
+    const totalExpenses = Number(directExpenseAgg._sum.amount || 0) + Number(allocatedExpenseAgg._sum.amount || 0);
+
     const totalCostB = totalPurchase + totalExpenses + totalContractorCost;
 
     // P&L — uses actual collected + live cost totals (not stale project.spent)

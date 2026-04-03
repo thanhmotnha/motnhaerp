@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **MỘT NHÀ ERP** — Enterprise Resource Planning system for a Vietnamese furniture & construction company. Built with Next.js 16 App Router, React 19, Prisma 6, PostgreSQL, Zod 4, and React Query 5.
 
-Live: https://admin.tiktak.vn | Repo: https://github.com/sherlock-126/motnha
+Live: https://erp.motnha.vn | Repo: https://github.com/thanhmotnha/motnhaerp
 
 ## Commands
 
