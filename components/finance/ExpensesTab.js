@@ -55,9 +55,21 @@ export default function ExpensesTab() {
     const [uploading, setUploading] = useState(false);
     const proofRef = useRef();
 
-    const [formProofFile, setFormProofFile] = useState(null);
-    const [formProofPreview, setFormProofPreview] = useState(null);
+    const [formProofFiles, setFormProofFiles] = useState([]); // [{file, preview}]
     const formProofRef = useRef();
+
+    const addFormProofFiles = (files) => {
+        const imgs = Array.from(files).filter(f => f.type.startsWith('image/'));
+        if (!imgs.length) return;
+        setFormProofFiles(prev => [...prev, ...imgs.map(f => ({ file: f, preview: URL.createObjectURL(f) }))]);
+    };
+    const removeFormProofFile = (i) => setFormProofFiles(prev => prev.filter((_, j) => j !== i));
+
+    const parseProofUrls = (url) => {
+        if (!url) return [];
+        try { const p = JSON.parse(url); return Array.isArray(p) ? p : [url]; }
+        catch { return [url]; }
+    };
 
     // ── Data fetching ──────────────────────────────────────────────
     const fetchExpenses = async () => {
@@ -106,8 +118,7 @@ export default function ExpensesTab() {
         setForm(emptyForm());
         setAllocations([]);
         setIsHistorical(false);
-        setFormProofFile(null);
-        setFormProofPreview(null);
+        setFormProofFiles([]);
         setShowModal(true);
     };
 
@@ -129,8 +140,7 @@ export default function ExpensesTab() {
         });
         setAllocations((e.allocations || []).map(a => ({ projectId: a.projectId, amount: a.amount })));
         setIsHistorical(false);
-        setFormProofFile(null);
-        setFormProofPreview(null);
+        setFormProofFiles([]);
         setShowModal(true);
     };
 
@@ -184,12 +194,13 @@ export default function ExpensesTab() {
                 payload.paidAmount = Number(form.amount);
             }
 
-            if (formProofFile) {
-                payload.proofUrl = await new Promise((resolve) => {
+            if (formProofFiles.length > 0) {
+                const urls = await Promise.all(formProofFiles.map(({ file }) => new Promise((resolve) => {
                     const reader = new FileReader();
                     reader.onload = () => resolve(reader.result);
-                    reader.readAsDataURL(formProofFile);
-                });
+                    reader.readAsDataURL(file);
+                })));
+                payload.proofUrl = urls.length === 1 ? urls[0] : JSON.stringify(urls);
             }
 
             if (editing) {
@@ -274,7 +285,7 @@ export default function ExpensesTab() {
 <div class="row"><span class="label">Hạng mục:</span><span class="value">${e.category}</span></div>
 <div class="row"><span class="label">Mô tả:</span><span class="value">${e.description}</span></div>
 <div class="amount"><div style="font-size:12px;color:#555;text-transform:uppercase;letter-spacing:2px;margin-bottom:4px">Số tiền chi</div><div class="val">${fmt(e.amount)}</div></div>
-${e.proofUrl ? `<div style="text-align:center;margin:10px 0"><img src="${e.proofUrl}" style="max-width:200px;max-height:120px;border:1px solid #ddd;border-radius:4px"/></div>` : ''}
+${e.proofUrl ? parseProofUrls(e.proofUrl).map(url => `<img src="${url}" style="max-width:200px;max-height:120px;border:1px solid #ddd;border-radius:4px;margin:4px"/>`).join('') : ''}
 <div class="signs">
 <div><div class="role">Người lập phiếu</div><div style="font-size:10px;color:#999">(Ký, ghi rõ họ tên)</div></div>
 <div><div class="role">Người duyệt</div><div style="font-size:10px;color:#999">(Ký, ghi rõ họ tên)</div></div>
@@ -366,7 +377,9 @@ ${e.proofUrl ? `<div style="text-align:center;margin:10px 0"><img src="${e.proof
                                     <td style={{ fontSize: 12 }}>{fmtDate(e.date)}</td>
                                     <td>
                                         <span className={`badge ${STATUS_BADGE[e.status] || 'muted'}`}>{e.status}</span>
-                                        {e.proofUrl && <a href={e.proofUrl} target="_blank" rel="noreferrer" title="Xem chứng từ" style={{ marginLeft: 4 }}>📎</a>}
+                                        {e.proofUrl && parseProofUrls(e.proofUrl).map((url, pi) => (
+                                            <a key={pi} href={url} target="_blank" rel="noreferrer" title={`Chứng từ ${pi + 1}`} style={{ marginLeft: 4 }}>📎</a>
+                                        ))}
                                     </td>
                                     <td>
                                         <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
@@ -478,24 +491,27 @@ ${e.proofUrl ? `<div style="text-align:center;margin:10px 0"><img src="${e.proof
 
                             {/* Proof upload */}
                             <div className="form-group">
-                                <label className="form-label">📎 Chứng từ <span style={{ color: 'var(--text-muted)', fontWeight: 400, fontSize: 11 }}>(tùy chọn — ảnh/hóa đơn)</span></label>
+                                <label className="form-label">📎 Chứng từ <span style={{ color: 'var(--text-muted)', fontWeight: 400, fontSize: 11 }}>(tùy chọn — nhiều ảnh)</span></label>
                                 <div
-                                    onPaste={e => { const f = e.clipboardData?.items?.[0]?.getAsFile(); if (f?.type.startsWith('image/')) { setFormProofFile(f); setFormProofPreview(URL.createObjectURL(f)); } }}
-                                    onDrop={e => { e.preventDefault(); const f = e.dataTransfer?.files?.[0]; if (f?.type.startsWith('image/')) { setFormProofFile(f); setFormProofPreview(URL.createObjectURL(f)); } }}
+                                    onPaste={e => { const f = e.clipboardData?.items?.[0]?.getAsFile(); if (f) addFormProofFiles([f]); }}
+                                    onDrop={e => { e.preventDefault(); addFormProofFiles(e.dataTransfer.files); }}
                                     onDragOver={e => e.preventDefault()}
                                     tabIndex={0}
                                     onClick={() => formProofRef.current?.click()}
-                                    style={{ border: '2px dashed var(--border)', borderRadius: 8, padding: 12, textAlign: 'center', cursor: 'pointer', outline: 'none', minHeight: 60 }}>
-                                    <input ref={formProofRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={e => { const f = e.target.files?.[0]; if (f) { setFormProofFile(f); setFormProofPreview(URL.createObjectURL(f)); } }} />
-                                    {formProofPreview
-                                        ? <div style={{ display: 'flex', alignItems: 'center', gap: 10, justifyContent: 'center' }}>
-                                            <img src={formProofPreview} alt="preview" style={{ height: 50, borderRadius: 4, border: '1px solid var(--border)' }} />
-                                            <div>
-                                                <div style={{ fontSize: 12, color: 'var(--status-success)', fontWeight: 600 }}>✅ {formProofFile?.name || 'Ảnh từ clipboard'}</div>
-                                                <button type="button" onClick={ev => { ev.stopPropagation(); setFormProofFile(null); setFormProofPreview(null); }} style={{ fontSize: 11, color: 'var(--status-danger)', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>Xóa</button>
-                                            </div>
+                                    style={{ border: '2px dashed var(--border)', borderRadius: 8, padding: 12, cursor: 'pointer', outline: 'none', minHeight: 60 }}>
+                                    <input ref={formProofRef} type="file" accept="image/*" multiple style={{ display: 'none' }} onChange={e => addFormProofFiles(e.target.files)} />
+                                    {formProofFiles.length > 0
+                                        ? <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                                            {formProofFiles.map((item, i) => (
+                                                <div key={i} style={{ position: 'relative', display: 'inline-block' }}>
+                                                    <img src={item.preview} alt="" style={{ height: 60, borderRadius: 4, border: '1px solid var(--border)', display: 'block' }} />
+                                                    <button type="button" onClick={ev => { ev.stopPropagation(); removeFormProofFile(i); }}
+                                                        style={{ position: 'absolute', top: -6, right: -6, background: '#ef4444', color: '#fff', border: 'none', borderRadius: '50%', width: 18, height: 18, fontSize: 11, lineHeight: '18px', cursor: 'pointer', padding: 0 }}>×</button>
+                                                </div>
+                                            ))}
+                                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 60, height: 60, border: '1px dashed var(--border)', borderRadius: 4, color: 'var(--text-muted)', fontSize: 20 }}>+</div>
                                           </div>
-                                        : <div style={{ color: 'var(--text-muted)', fontSize: 12 }}>📋 <strong>Ctrl+V</strong> paste &nbsp;|&nbsp; 📁 Click chọn &nbsp;|&nbsp; 🖱️ Kéo thả</div>
+                                        : <div style={{ color: 'var(--text-muted)', fontSize: 12, textAlign: 'center', paddingTop: 8 }}>📋 <strong>Ctrl+V</strong> paste &nbsp;|&nbsp; 📁 Click chọn nhiều &nbsp;|&nbsp; 🖱️ Kéo thả</div>
                                     }
                                 </div>
                             </div>
