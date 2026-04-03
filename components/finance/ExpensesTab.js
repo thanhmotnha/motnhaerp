@@ -294,7 +294,14 @@ ${e.proofUrl ? parseProofUrls(e.proofUrl).map(url => `<img src="${url}" style="m
     };
 
     // ── Render ─────────────────────────────────────────────────────
-    const cats = getCatsForType(form.expenseType);
+    // Show all categories regardless of type since we removed the type toggle
+    const allCatNames = categoryList.length > 0
+        ? [...new Set(categoryList.map(c => c.name))]
+        : [...FALLBACK_PROJECT_CATS, ...FALLBACK_COMPANY_CATS];
+    // Ensure current form.category is always in the list
+    const cats = form.category && !allCatNames.includes(form.category)
+        ? [form.category, ...allCatNames]
+        : allCatNames;
 
     return (
         <div>
