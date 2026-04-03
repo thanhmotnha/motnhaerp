@@ -1,22 +1,20 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
+import { withAuth } from '@/lib/apiHandler';
 
-// GET /api/employees/[id]/contracts
-export async function GET(req, { params }) {
+export const GET = withAuth(async (req, { params }) => {
     const { id } = await params;
     const contracts = await prisma.employeeContract.findMany({
         where: { employeeId: id },
         orderBy: { startDate: 'desc' },
     });
     return NextResponse.json(contracts);
-}
+});
 
-// POST /api/employees/[id]/contracts
-export async function POST(req, { params }) {
+export const POST = withAuth(async (req, { params }) => {
     const { id } = await params;
     const body = await req.json();
 
-    // auto-gen code: HDLD-001, HDLD-002...
     const last = await prisma.employeeContract.findFirst({ orderBy: { code: 'desc' } });
     const num = last ? parseInt(last.code.replace('HDLD-', '')) + 1 : 1;
     const code = `HDLD-${String(num).padStart(3, '0')}`;
@@ -34,8 +32,27 @@ export async function POST(req, { params }) {
             department: body.department || '',
             notes: body.notes || '',
             signedAt: body.signedAt ? new Date(body.signedAt) : null,
+            status: body.status || 'Hiệu lực',
         },
     });
 
     return NextResponse.json(contract, { status: 201 });
-}
+});
+
+export const PATCH = withAuth(async (req, { params }) => {
+    const { id } = await params;
+    const { contractId, status } = await req.json();
+    const updated = await prisma.employeeContract.update({
+        where: { id: contractId, employeeId: id },
+        data: { status },
+    });
+    return NextResponse.json(updated);
+});
+
+export const DELETE = withAuth(async (req, { params }) => {
+    const { id } = await params;
+    const { searchParams } = new URL(req.url);
+    const contractId = searchParams.get('contractId');
+    await prisma.employeeContract.delete({ where: { id: contractId, employeeId: id } });
+    return NextResponse.json({ success: true });
+});
