@@ -14,12 +14,21 @@ export const GET = withAuth(async (request) => {
     });
 
     // Get all cost events with dates
-    const [poItems, expenses, contractorPayments, materialPlans] = await Promise.all([
+    const [poItems, directExpenses, allocatedExpenses, contractorPayments, materialPlans] = await Promise.all([
         prisma.purchaseOrderItem.findMany({
             where: { purchaseOrder: { projectId } },
             include: { purchaseOrder: { select: { orderDate: true, status: true } } },
         }),
-        prisma.projectExpense.findMany({ where: { projectId } }),
+        // Chi phí trực tiếp (không phân bổ)
+        prisma.projectExpense.findMany({
+            where: { projectId, status: { not: 'Từ chối' }, allocations: { none: {} } },
+            select: { amount: true, date: true, createdAt: true },
+        }),
+        // Chi phí phân bổ vào dự án này
+        prisma.expenseAllocation.findMany({
+            where: { projectId, expense: { status: { not: 'Từ chối' }, deletedAt: null } },
+            select: { amount: true, createdAt: true },
+        }),
         prisma.contractorPayment.findMany({
             where: { projectId },
             select: { contractAmount: true, netAmount: true, paidAmount: true, status: true, createdAt: true },
@@ -39,9 +48,14 @@ export const GET = withAuth(async (request) => {
         events.push({ date, type: 'actual', amount: item.quantity * item.unitPrice, label: 'PO' });
     });
 
-    // Expenses
-    expenses.forEach(e => {
-        events.push({ date: e.createdAt, type: 'actual', amount: Number(e.amount) || 0, label: 'Chi phí' });
+    // Chi phí trực tiếp
+    directExpenses.forEach(e => {
+        events.push({ date: e.date || e.createdAt, type: 'actual', amount: Number(e.amount) || 0, label: 'Chi phí' });
+    });
+
+    // Chi phí phân bổ
+    allocatedExpenses.forEach(a => {
+        events.push({ date: a.createdAt, type: 'actual', amount: Number(a.amount) || 0, label: 'Chi phí phân bổ' });
     });
 
     // Contractor payments

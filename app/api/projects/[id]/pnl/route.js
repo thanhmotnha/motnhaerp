@@ -9,7 +9,8 @@ export const GET = withAuth(async (request, { params }) => {
 
     const [
         contracts,
-        expenses,
+        directExpenses,
+        allocatedExpenses,
         contractorPays,
         purchaseOrders,
     ] = await Promise.all([
@@ -18,10 +19,15 @@ export const GET = withAuth(async (request, { params }) => {
             where: { projectId: id, deletedAt: null, status: { not: 'Nháp' } },
             include: { payments: true },
         }),
-        // Cost: project expenses (approved/paid)
+        // Cost: chi phí trực tiếp (không phân bổ)
         prisma.projectExpense.findMany({
-            where: { projectId: id, deletedAt: null, status: { not: 'Từ chối' } },
+            where: { projectId: id, deletedAt: null, status: { not: 'Từ chối' }, allocations: { none: {} } },
             select: { amount: true, paidAmount: true, category: true, status: true },
+        }),
+        // Cost: chi phí phân bổ vào dự án này
+        prisma.expenseAllocation.findMany({
+            where: { projectId: id, expense: { status: { not: 'Từ chối' }, deletedAt: null } },
+            select: { amount: true, expense: { select: { category: true } } },
         }),
         // Cost: contractor payments
         prisma.contractorPayment.findMany({
@@ -34,6 +40,12 @@ export const GET = withAuth(async (request, { params }) => {
             select: { totalAmount: true, paidAmount: true, status: true },
         }),
     ]);
+
+    // Gộp expenses: trực tiếp + phân bổ thành cùng format
+    const expenses = [
+        ...directExpenses,
+        ...allocatedExpenses.map(a => ({ amount: a.amount, paidAmount: 0, category: a.expense.category, status: 'Đã duyệt' })),
+    ];
 
     // === Revenue ===
     const contractValue = contracts.reduce((s, c) => s + (c.contractValue || 0), 0);
@@ -55,7 +67,7 @@ export const GET = withAuth(async (request, { params }) => {
     }
 
     const totalExpenses = expenses.reduce((s, e) => s + (e.amount || 0), 0);
-    const totalExpensesPaid = expenses.reduce((s, e) => s + (e.paidAmount || 0), 0);
+    const totalExpensesPaid = directExpenses.reduce((s, e) => s + (e.paidAmount || 0), 0);
 
     const totalContractorCost = contractorPays.reduce((s, p) => s + (p.contractAmount || 0), 0);
     const totalContractorPaid = contractorPays.reduce((s, p) => s + (p.paidAmount || 0), 0);

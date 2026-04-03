@@ -33,7 +33,7 @@ export const GET = withAuth(async (request) => {
     }
 
     // Actual costs — server-side aggregation
-    const [materialResult, contractorResult, expenseResult] = await Promise.all([
+    const [materialResult, contractorResult, directExpenseResult, allocatedExpenseResult] = await Promise.all([
         prisma.purchaseOrder.aggregate({
             where: { projectId, status: { not: 'Đã hủy' } },
             _sum: { totalAmount: true },
@@ -42,15 +42,21 @@ export const GET = withAuth(async (request) => {
             where: { projectId },
             _sum: { contractAmount: true },
         }),
+        // Chi phí trực tiếp (không phân bổ)
         prisma.projectExpense.aggregate({
-            where: { projectId, deletedAt: null, status: { not: 'Đã hủy' } },
+            where: { projectId, deletedAt: null, status: { not: 'Từ chối' }, allocations: { none: {} } },
+            _sum: { amount: true },
+        }),
+        // Chi phí phân bổ vào dự án này
+        prisma.expenseAllocation.aggregate({
+            where: { projectId, expense: { status: { not: 'Từ chối' }, deletedAt: null } },
             _sum: { amount: true },
         }),
     ]);
 
     const materialCost = materialResult._sum.totalAmount || 0;
     const contractorCost = contractorResult._sum.contractAmount || 0;
-    const expenseCost = expenseResult._sum.amount || 0;
+    const expenseCost = (directExpenseResult._sum.amount || 0) + (allocatedExpenseResult._sum.amount || 0);
     const totalActual = materialCost + contractorCost + expenseCost;
 
     const overspend = totalActual - lockedBudget;
