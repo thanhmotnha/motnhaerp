@@ -5,6 +5,7 @@ import { useToast } from '@/components/ui/Toast';
 import { useRole } from '@/contexts/RoleContext';
 
 const fmt = (n) => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(n || 0);
+const fmtShort = (n) => new Intl.NumberFormat('vi-VN').format(Math.round(n || 0));
 const fmtDate = (d) => d ? new Date(d).toLocaleDateString('vi-VN') : '—';
 
 const STATUS_BADGE = { 'Chờ duyệt': 'warning', 'Đã duyệt': 'info', 'Đã chi': 'accent', 'Hoàn thành': 'success', 'Từ chối': 'danger' };
