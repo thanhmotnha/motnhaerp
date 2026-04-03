@@ -100,6 +100,7 @@ function DrawerHeader({ data, onClose }) {
                 )}
                 <button
                     onClick={onClose}
+                    aria-label="Đóng"
                     style={{
                         background: 'none', border: 'none', cursor: 'pointer',
                         padding: 6, borderRadius: 8,
@@ -160,6 +161,10 @@ function KpiCard({ label, value, color, sub, subColor, highlight }) {
 function SideAB({ data }) {
     const { details, revenue, costs } = data;
 
+    const poPaid = details.purchaseOrders.reduce((s, p) => s + (p.paidAmount || 0), 0);
+    const contractorPaid = details.contractorPayments.reduce((s, c) => s + (c.paidAmount || 0), 0);
+    const remaining = (costs.purchaseOrders + costs.contractorPayments) - (poPaid + contractorPaid);
+
     return (
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
             {/* BÊN A */}
@@ -196,17 +201,12 @@ function SideAB({ data }) {
                     {costs.contractorPayments > 0 && <SideRow label="Thầu phụ" value={fmt(costs.contractorPayments)} />}
                     {costs.expenses > 0 && <SideRow label="Chi phí phát sinh" value={fmt(costs.expenses)} />}
                     <SideRow label="Tổng chi bên B" value={fmt(costs.totalCost)} bold color="#b91c1c" />
-                    {costs.totalCost > 0 && (() => {
-                        const totalPaid = details.purchaseOrders.reduce((s, p) => s + (p.paidAmount || 0), 0)
-                            + details.contractorPayments.reduce((s, c) => s + (c.paidAmount || 0), 0);
-                        const remaining = costs.totalCost - totalPaid;
-                        return remaining > 0 ? (
-                            <div style={{ background: '#fef3c7', borderRadius: 6, padding: '6px 8px', display: 'flex', justifyContent: 'space-between', fontSize: 12, marginTop: 4 }}>
-                                <span style={{ color: '#b45309', fontWeight: 600 }}>Còn phải trả</span>
-                                <span style={{ color: '#b45309', fontWeight: 700 }}>{fmt(remaining)}</span>
-                            </div>
-                        ) : null;
-                    })()}
+                    {remaining > 0 && (
+                        <div style={{ background: '#fef3c7', borderRadius: 6, padding: '6px 8px', display: 'flex', justifyContent: 'space-between', fontSize: 12, marginTop: 4 }}>
+                            <span style={{ color: '#b45309', fontWeight: 600 }}>Còn phải trả NCC/Thầu</span>
+                            <span style={{ color: '#b45309', fontWeight: 700 }}>{fmt(remaining)}</span>
+                        </div>
+                    )}
                 </div>
             </div>
         </div>
