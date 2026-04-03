@@ -521,7 +521,7 @@ ${e.proofUrl ? parseProofUrls(e.proofUrl).map(url => `<img src="${url}" style="m
                                             Phân bổ vào dự án <span style={{ color: 'var(--text-muted)', fontWeight: 400, fontSize: 11 }}>(tùy chọn)</span>
                                             {allocations.length > 0 && total > 0 && (
                                                 <span style={{ marginLeft: 8, fontSize: 11, fontWeight: 600, color: remaining < 0 ? '#DC2626' : remaining === 0 ? '#16A34A' : '#D97706' }}>
-                                                    Còn lại: {fmtShort(remaining)}
+                                                    Còn lại: {fmt(remaining)}
                                                 </span>
                                             )}
                                         </label>
