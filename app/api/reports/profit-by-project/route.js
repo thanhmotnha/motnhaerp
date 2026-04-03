@@ -25,11 +25,25 @@ export const GET = withAuth(async (request, context, session) => {
     // Lấy chi phí thực tế từ nhiều nguồn
     const projectIds = projects.map(p => p.id);
 
-    const [expensesByProject, poBYProject, contractorByProject] = await Promise.all([
-        // Chi phí phát sinh
+    const [directExpenses, allocatedExpenses, poBYProject, contractorByProject] = await Promise.all([
+        // Chi phí trực tiếp (không có phân bổ)
         prisma.projectExpense.groupBy({
             by: ['projectId'],
-            where: { projectId: { in: projectIds }, status: { not: 'Từ chối' }, deletedAt: null },
+            where: {
+                projectId: { in: projectIds },
+                status: { not: 'Từ chối' },
+                deletedAt: null,
+                allocations: { none: {} },
+            },
+            _sum: { amount: true },
+        }),
+        // Chi phí phân bổ qua ExpenseAllocation
+        prisma.expenseAllocation.groupBy({
+            by: ['projectId'],
+            where: {
+                projectId: { in: projectIds },
+                expense: { status: { not: 'Từ chối' }, deletedAt: null },
+            },
             _sum: { amount: true },
         }),
         // PO đã duyệt
@@ -46,8 +60,14 @@ export const GET = withAuth(async (request, context, session) => {
         }),
     ]);
 
-    // Map costs
-    const expenseMap = Object.fromEntries(expensesByProject.map(e => [e.projectId, e._sum.amount || 0]));
+    // Map costs: gộp chi phí trực tiếp + phân bổ
+    const expenseMap = {};
+    for (const e of directExpenses) {
+        if (e.projectId) expenseMap[e.projectId] = (expenseMap[e.projectId] || 0) + (e._sum.amount || 0);
+    }
+    for (const a of allocatedExpenses) {
+        expenseMap[a.projectId] = (expenseMap[a.projectId] || 0) + (a._sum.amount || 0);
+    }
     const poMap = Object.fromEntries(poBYProject.map(e => [e.projectId, e._sum.totalAmount || 0]));
     const contractorMap = Object.fromEntries(contractorByProject.map(e => [e.projectId, e._sum.netAmount || 0]));
 

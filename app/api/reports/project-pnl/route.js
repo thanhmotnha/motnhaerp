@@ -18,25 +18,45 @@ export const GET = withAuth(async () => {
             customer: { select: { name: true } },
             contracts: {
                 where: { deletedAt: null, status: { not: 'Nháp' } },
-                select: {
-                    type: true,
-                    contractValue: true,
-                    paidAmount: true,
-                },
+                select: { type: true, contractValue: true, paidAmount: true },
             },
-            contractorPays: {
-                select: { paidAmount: true },
-            },
-            purchaseOrders: {
-                select: { paidAmount: true },
-            },
-            expenses: {
-                where: { deletedAt: null, status: { not: 'Từ chối' } },
-                select: { amount: true },
-            },
+            contractorPays: { select: { paidAmount: true } },
+            purchaseOrders: { select: { paidAmount: true } },
         },
         orderBy: { createdAt: 'desc' },
     });
+
+    const projectIds = projects.map(p => p.id);
+
+    // Chi phí: gộp trực tiếp (không phân bổ) + phân bổ qua ExpenseAllocation
+    const [directExpenses, allocatedExpenses] = await Promise.all([
+        prisma.projectExpense.groupBy({
+            by: ['projectId'],
+            where: {
+                projectId: { in: projectIds },
+                status: { not: 'Từ chối' },
+                deletedAt: null,
+                allocations: { none: {} },
+            },
+            _sum: { amount: true },
+        }),
+        prisma.expenseAllocation.groupBy({
+            by: ['projectId'],
+            where: {
+                projectId: { in: projectIds },
+                expense: { status: { not: 'Từ chối' }, deletedAt: null },
+            },
+            _sum: { amount: true },
+        }),
+    ]);
+
+    const expenseMap = {};
+    for (const e of directExpenses) {
+        if (e.projectId) expenseMap[e.projectId] = (expenseMap[e.projectId] || 0) + (e._sum.amount || 0);
+    }
+    for (const a of allocatedExpenses) {
+        expenseMap[a.projectId] = (expenseMap[a.projectId] || 0) + (a._sum.amount || 0);
+    }
 
     const rows = projects.map(p => {
         const contractValue = p.contracts.reduce((s, c) => s + (c.contractValue || 0), 0);
@@ -45,7 +65,7 @@ export const GET = withAuth(async () => {
 
         const contractorCost = p.contractorPays.reduce((s, cp) => s + (cp.paidAmount || 0), 0);
         const poCost = p.purchaseOrders.reduce((s, po) => s + (po.paidAmount || 0), 0);
-        const expenseCost = p.expenses.reduce((s, e) => s + (e.amount || 0), 0);
+        const expenseCost = expenseMap[p.id] || 0;
         const totalCost = contractorCost + poCost + expenseCost;
 
         const grossProfit = paidByCustomer - totalCost;

@@ -33,11 +33,20 @@ export const GET = withAuth(async (request, context, session) => {
     const totalAddenda = contracts.reduce((s, c) => s + c.addenda.reduce((a, d) => a + (d.amount || 0), 0), 0);
 
     // Costs breakdown
-    const [expenses, purchaseOrders, contractorPayments, budgets] = await Promise.all([
+    const [directExpenses, allocatedExpenses, purchaseOrders, contractorPayments, budgets] = await Promise.all([
+        // Chi phí trực tiếp (không có phân bổ)
         prisma.projectExpense.findMany({
-            where: { projectId: id, deletedAt: null, status: { not: 'Từ chối' } },
+            where: { projectId: id, deletedAt: null, status: { not: 'Từ chối' }, allocations: { none: {} } },
             select: { id: true, code: true, description: true, amount: true, category: true, date: true },
             orderBy: { date: 'desc' },
+        }),
+        // Chi phí phân bổ từ expense chung
+        prisma.expenseAllocation.findMany({
+            where: { projectId: id, expense: { status: { not: 'Từ chối' }, deletedAt: null } },
+            select: {
+                amount: true,
+                expense: { select: { id: true, code: true, description: true, category: true, date: true } },
+            },
         }),
         prisma.purchaseOrder.findMany({
             where: { projectId: id, status: { in: ['Đã duyệt', 'Đã giao', 'Hoàn thành'] } },
@@ -56,6 +65,19 @@ export const GET = withAuth(async (request, context, session) => {
             select: { category: true, budgetAmount: true, actualAmount: true },
         }),
     ]);
+
+    // Gộp chi phí trực tiếp + phân bổ thành 1 danh sách chuẩn
+    const expenses = [
+        ...directExpenses,
+        ...allocatedExpenses.map(a => ({
+            id: a.expense.id,
+            code: a.expense.code,
+            description: `[Phân bổ] ${a.expense.description}`,
+            amount: a.amount,
+            category: a.expense.category,
+            date: a.expense.date,
+        })),
+    ];
 
     const totalExpenses = expenses.reduce((s, e) => s + (e.amount || 0), 0);
     const totalPO = purchaseOrders.reduce((s, p) => s + (p.totalAmount || 0), 0);
