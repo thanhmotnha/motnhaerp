@@ -288,7 +288,7 @@ function MonthlyMiniChart({ months, selectedYear }) {
     const barW = 18, gap = 6, colW = barW * 2 + gap + 14;
     const W = display.length * colW + 20, H = 80;
     return (
-        <svg viewBox={`0 0 ${W} ${H + 24}`} style={{ width: '100%', height: 'auto', display: 'block' }}>
+        <svg viewBox={`0 0 ${W} ${H + 24}`} style={{ width: '100%', height: 120, display: 'block' }}>
             {display.map((m, i) => {
                 const x = 10 + i * colW;
                 const rh = Math.max(2, Math.round((m.revenue / maxVal) * H));
