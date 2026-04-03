@@ -2,6 +2,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { apiFetch } from '@/lib/fetchClient';
 import { useToast } from '@/components/ui/Toast';
+import { useRole } from '@/contexts/RoleContext';
 
 const fmt = (n) => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(n || 0);
 const fmtDate = (d) => d ? new Date(d).toLocaleDateString('vi-VN') : '—';
@@ -46,11 +47,17 @@ export default function ExpensesTab() {
     const [isHistorical, setIsHistorical] = useState(false);
     const [allocations, setAllocations] = useState([]);
 
+    const { role } = useRole();
+
     const [proofModal, setProofModal] = useState(null);
     const [proofFile, setProofFile] = useState(null);
     const [proofPreview, setProofPreview] = useState(null);
     const [uploading, setUploading] = useState(false);
     const proofRef = useRef();
+
+    const [formProofFile, setFormProofFile] = useState(null);
+    const [formProofPreview, setFormProofPreview] = useState(null);
+    const formProofRef = useRef();
 
     // ── Data fetching ──────────────────────────────────────────────
     const fetchExpenses = async () => {
@@ -99,11 +106,14 @@ export default function ExpensesTab() {
         setForm(emptyForm());
         setAllocations([]);
         setIsHistorical(false);
+        setFormProofFile(null);
+        setFormProofPreview(null);
         setShowModal(true);
     };
 
     const openEdit = (e) => {
-        if (!['Chờ duyệt', 'Từ chối'].includes(e.status)) return;
+        const canEdit = ['Chờ duyệt', 'Từ chối'].includes(e.status) || role === 'ke_toan';
+        if (!canEdit) return;
         setEditing(e);
         setForm({
             expenseType: e.expenseType || 'Dự án',
@@ -119,6 +129,8 @@ export default function ExpensesTab() {
         });
         setAllocations((e.allocations || []).map(a => ({ projectId: a.projectId, amount: a.amount })));
         setIsHistorical(false);
+        setFormProofFile(null);
+        setFormProofPreview(null);
         setShowModal(true);
     };
 
@@ -170,6 +182,14 @@ export default function ExpensesTab() {
             if (!editing && isHistorical) {
                 payload.status = 'Đã chi';
                 payload.paidAmount = Number(form.amount);
+            }
+
+            if (formProofFile) {
+                payload.proofUrl = await new Promise((resolve) => {
+                    const reader = new FileReader();
+                    reader.onload = () => resolve(reader.result);
+                    reader.readAsDataURL(formProofFile);
+                });
             }
 
             if (editing) {
@@ -330,7 +350,7 @@ ${e.proofUrl ? `<div style="text-align:center;margin:10px 0"><img src="${e.proof
                             {filtered.map(e => (
                                 <tr key={e.id} style={{ opacity: e.status === 'Hoàn thành' ? 0.65 : 1 }}>
                                     <td style={{ fontSize: 12, color: 'var(--accent-primary)', fontWeight: 600 }}>{e.code}</td>
-                                    <td style={{ cursor: ['Chờ duyệt', 'Từ chối'].includes(e.status) ? 'pointer' : 'default', fontWeight: 500 }} onClick={() => openEdit(e)}>
+                                    <td style={{ cursor: (['Chờ duyệt', 'Từ chối'].includes(e.status) || role === 'ke_toan') ? 'pointer' : 'default', fontWeight: 500 }} onClick={() => openEdit(e)}>
                                         {e.description}
                                     </td>
                                     <td>
@@ -454,6 +474,30 @@ ${e.proofUrl ? `<div style="text-align:center;margin:10px 0"><img src="${e.proof
                             <div className="form-group">
                                 <label className="form-label">Ghi chú</label>
                                 <textarea className="form-input" rows={2} value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} />
+                            </div>
+
+                            {/* Proof upload */}
+                            <div className="form-group">
+                                <label className="form-label">📎 Chứng từ <span style={{ color: 'var(--text-muted)', fontWeight: 400, fontSize: 11 }}>(tùy chọn — ảnh/hóa đơn)</span></label>
+                                <div
+                                    onPaste={e => { const f = e.clipboardData?.items?.[0]?.getAsFile(); if (f?.type.startsWith('image/')) { setFormProofFile(f); setFormProofPreview(URL.createObjectURL(f)); } }}
+                                    onDrop={e => { e.preventDefault(); const f = e.dataTransfer?.files?.[0]; if (f?.type.startsWith('image/')) { setFormProofFile(f); setFormProofPreview(URL.createObjectURL(f)); } }}
+                                    onDragOver={e => e.preventDefault()}
+                                    tabIndex={0}
+                                    onClick={() => formProofRef.current?.click()}
+                                    style={{ border: '2px dashed var(--border)', borderRadius: 8, padding: 12, textAlign: 'center', cursor: 'pointer', outline: 'none', minHeight: 60 }}>
+                                    <input ref={formProofRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={e => { const f = e.target.files?.[0]; if (f) { setFormProofFile(f); setFormProofPreview(URL.createObjectURL(f)); } }} />
+                                    {formProofPreview
+                                        ? <div style={{ display: 'flex', alignItems: 'center', gap: 10, justifyContent: 'center' }}>
+                                            <img src={formProofPreview} alt="preview" style={{ height: 50, borderRadius: 4, border: '1px solid var(--border)' }} />
+                                            <div>
+                                                <div style={{ fontSize: 12, color: 'var(--status-success)', fontWeight: 600 }}>✅ {formProofFile?.name || 'Ảnh từ clipboard'}</div>
+                                                <button type="button" onClick={ev => { ev.stopPropagation(); setFormProofFile(null); setFormProofPreview(null); }} style={{ fontSize: 11, color: 'var(--status-danger)', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>Xóa</button>
+                                            </div>
+                                          </div>
+                                        : <div style={{ color: 'var(--text-muted)', fontSize: 12 }}>📋 <strong>Ctrl+V</strong> paste &nbsp;|&nbsp; 📁 Click chọn &nbsp;|&nbsp; 🖱️ Kéo thả</div>
+                                    }
+                                </div>
                             </div>
 
                             {/* Allocations (company expenses) */}
