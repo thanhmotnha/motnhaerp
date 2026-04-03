@@ -50,6 +50,7 @@ export default function ExpensesTab() {
     const { role } = useRole();
 
     const [proofModal, setProofModal] = useState(null);
+    const [lightbox, setLightbox] = useState(null); // { urls: [], idx: 0 }
     const [proofFile, setProofFile] = useState(null);
     const [proofPreview, setProofPreview] = useState(null);
     const [uploading, setUploading] = useState(false);
@@ -390,9 +391,14 @@ ${e.proofUrl ? parseProofUrls(e.proofUrl).map(url => `<img src="${url}" style="m
                                     <td style={{ fontSize: 12 }}>{fmtDate(e.date)}</td>
                                     <td>
                                         <span className={`badge ${STATUS_BADGE[e.status] || 'muted'}`}>{e.status}</span>
-                                        {e.proofUrl && parseProofUrls(e.proofUrl).map((url, pi) => (
-                                            <a key={pi} href={url} target="_blank" rel="noreferrer" title={`Chứng từ ${pi + 1}`} style={{ marginLeft: 4 }}>📎</a>
-                                        ))}
+                                        {e.proofUrl && (() => {
+                                            const urls = parseProofUrls(e.proofUrl);
+                                            return urls.length > 0 && (
+                                                <button onClick={() => setLightbox({ urls, idx: 0 })} style={{ background: 'none', border: 'none', cursor: 'pointer', marginLeft: 4, padding: 0, fontSize: 14 }} title={`${urls.length} chứng từ`}>
+                                                    📎{urls.length > 1 ? <sup style={{ fontSize: 9, color: '#234093' }}>{urls.length}</sup> : null}
+                                                </button>
+                                            );
+                                        })()}
                                     </td>
                                     <td>
                                         <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
@@ -613,6 +619,25 @@ ${e.proofUrl ? parseProofUrls(e.proofUrl).map(url => `<img src="${url}" style="m
                             </button>
                         </div>
                     </div>
+                </div>
+            )}
+
+            {/* Lightbox xem chứng từ */}
+            {lightbox && (
+                <div onClick={() => setLightbox(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 12 }}>
+                    <div onClick={e => e.stopPropagation()} style={{ position: 'relative', maxWidth: '90vw', maxHeight: '80vh' }}>
+                        <img src={lightbox.urls[lightbox.idx]} alt="Chứng từ" style={{ maxWidth: '90vw', maxHeight: '80vh', objectFit: 'contain', borderRadius: 8, display: 'block' }} />
+                        <button onClick={() => setLightbox(null)} style={{ position: 'absolute', top: -12, right: -12, background: '#fff', border: 'none', borderRadius: '50%', width: 28, height: 28, fontSize: 16, cursor: 'pointer', fontWeight: 700, lineHeight: '28px', textAlign: 'center' }}>×</button>
+                    </div>
+                    {lightbox.urls.length > 1 && (
+                        <div style={{ display: 'flex', gap: 8 }}>
+                            {lightbox.urls.map((url, i) => (
+                                <img key={i} src={url} alt="" onClick={e => { e.stopPropagation(); setLightbox(l => ({ ...l, idx: i })); }}
+                                    style={{ width: 56, height: 56, objectFit: 'cover', borderRadius: 6, cursor: 'pointer', border: lightbox.idx === i ? '3px solid #fff' : '2px solid rgba(255,255,255,0.3)' }} />
+                            ))}
+                        </div>
+                    )}
+                    <div style={{ color: 'rgba(255,255,255,0.6)', fontSize: 12 }}>Nhấn ra ngoài để đóng{lightbox.urls.length > 1 ? ` • ${lightbox.idx + 1}/${lightbox.urls.length}` : ''}</div>
                 </div>
             )}
         </div>
