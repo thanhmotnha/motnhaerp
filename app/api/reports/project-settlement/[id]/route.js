@@ -132,7 +132,7 @@ export const GET = withAuth(async (request, context, session) => {
         },
         milestones: project.milestones,
         details: {
-            expenses: expenses.slice(0, 20),
+            expenses,
             purchaseOrders,
             contractorPayments,
             contracts: contracts.map(c => ({

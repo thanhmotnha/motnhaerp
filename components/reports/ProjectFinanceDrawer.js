@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { apiFetch } from '@/lib/fetchClient';
 
 const fmt = (n) => new Intl.NumberFormat('vi-VN').format(Math.round(n || 0));
+const fmtDate = (d) => d ? new Date(d).toLocaleDateString('vi-VN') : '—';
 
 export default function ProjectFinanceDrawer({ projectId, onClose }) {
     const [data, setData] = useState(null);
@@ -115,7 +116,7 @@ function DrawerHeader({ data, onClose }) {
 }
 
 function DrawerBody({ data }) {
-    const { revenue, costs, profitability } = data;
+    const { revenue, costs, profitability, details } = data;
     const isProfit = profitability.grossProfit >= 0;
 
     return (
@@ -140,8 +141,154 @@ function DrawerBody({ data }) {
 
             {/* Profit bar */}
             <ProfitBar profit={profitability.grossProfit} margin={profitability.grossMargin} revenue={revenue.received} />
+
+            {/* Detail: Thầu phụ */}
+            {details.contractorPayments?.length > 0 && (
+                <DetailSection title="Thầu phụ" count={details.contractorPayments.length} total={fmt(costs.contractorPayments)}>
+                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+                        <thead>
+                            <tr style={{ background: 'var(--bg-secondary,#f9fafb)', borderBottom: '1px solid var(--border,#e5e7eb)' }}>
+                                <th style={thStyle}>Nhà thầu</th>
+                                <th style={thStyle}>Hạng mục</th>
+                                <th style={{ ...thStyle, textAlign: 'right' }}>Giá trị HĐ</th>
+                                <th style={{ ...thStyle, textAlign: 'right' }}>Đã TT</th>
+                                <th style={{ ...thStyle, textAlign: 'right' }}>Giữ lại</th>
+                                <th style={thStyle}>TT</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {details.contractorPayments.map((cp, i) => (
+                                <tr key={cp.id} style={{ borderBottom: '1px solid var(--border,#e5e7eb)', background: i % 2 === 1 ? 'var(--bg-secondary,#f9fafb)' : undefined }}>
+                                    <td style={tdStyle}><span style={{ fontWeight: 500 }}>{cp.contractor?.name || '—'}</span></td>
+                                    <td style={{ ...tdStyle, color: 'var(--text-muted,#9ca3af)' }}>{cp.phase || '—'}</td>
+                                    <td style={{ ...tdStyle, textAlign: 'right' }}>{fmt(cp.contractAmount)}</td>
+                                    <td style={{ ...tdStyle, textAlign: 'right', color: '#16a34a' }}>{fmt(cp.paidAmount)}</td>
+                                    <td style={{ ...tdStyle, textAlign: 'right', color: cp.retentionAmount > 0 ? '#b45309' : 'inherit' }}>{cp.retentionAmount > 0 ? fmt(cp.retentionAmount) : '—'}</td>
+                                    <td style={tdStyle}><StatusBadge status={cp.status} /></td>
+                                </tr>
+                            ))}
+                        </tbody>
+                        <tfoot>
+                            <tr style={{ fontWeight: 700, borderTop: '2px solid var(--border,#e5e7eb)', background: 'var(--bg-secondary,#f9fafb)' }}>
+                                <td style={tdStyle} colSpan={2}>Tổng</td>
+                                <td style={{ ...tdStyle, textAlign: 'right' }}>{fmt(details.contractorPayments.reduce((s, c) => s + (c.contractAmount || 0), 0))}</td>
+                                <td style={{ ...tdStyle, textAlign: 'right', color: '#16a34a' }}>{fmt(details.contractorPayments.reduce((s, c) => s + (c.paidAmount || 0), 0))}</td>
+                                <td style={{ ...tdStyle, textAlign: 'right', color: '#b45309' }}>{fmt(details.contractorPayments.reduce((s, c) => s + (c.retentionAmount || 0), 0))}</td>
+                                <td />
+                            </tr>
+                        </tfoot>
+                    </table>
+                </DetailSection>
+            )}
+
+            {/* Detail: Vật tư / PO */}
+            {details.purchaseOrders?.length > 0 && (
+                <DetailSection title="Vật tư / Đơn hàng (PO)" count={details.purchaseOrders.length} total={fmt(costs.purchaseOrders)}>
+                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+                        <thead>
+                            <tr style={{ background: 'var(--bg-secondary,#f9fafb)', borderBottom: '1px solid var(--border,#e5e7eb)' }}>
+                                <th style={thStyle}>Mã PO</th>
+                                <th style={thStyle}>Nhà cung cấp</th>
+                                <th style={{ ...thStyle, textAlign: 'right' }}>Tổng tiền</th>
+                                <th style={{ ...thStyle, textAlign: 'right' }}>Đã TT</th>
+                                <th style={thStyle}>TT</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {details.purchaseOrders.map((po, i) => (
+                                <tr key={po.id} style={{ borderBottom: '1px solid var(--border,#e5e7eb)', background: i % 2 === 1 ? 'var(--bg-secondary,#f9fafb)' : undefined }}>
+                                    <td style={{ ...tdStyle, fontWeight: 500, color: 'var(--text-accent,#3b82f6)' }}>{po.code}</td>
+                                    <td style={tdStyle}>{po.supplier || '—'}</td>
+                                    <td style={{ ...tdStyle, textAlign: 'right' }}>{fmt(po.totalAmount)}</td>
+                                    <td style={{ ...tdStyle, textAlign: 'right', color: '#16a34a' }}>{fmt(po.paidAmount)}</td>
+                                    <td style={tdStyle}><StatusBadge status={po.status} /></td>
+                                </tr>
+                            ))}
+                        </tbody>
+                        <tfoot>
+                            <tr style={{ fontWeight: 700, borderTop: '2px solid var(--border,#e5e7eb)', background: 'var(--bg-secondary,#f9fafb)' }}>
+                                <td style={tdStyle} colSpan={2}>Tổng</td>
+                                <td style={{ ...tdStyle, textAlign: 'right' }}>{fmt(details.purchaseOrders.reduce((s, p) => s + (p.totalAmount || 0), 0))}</td>
+                                <td style={{ ...tdStyle, textAlign: 'right', color: '#16a34a' }}>{fmt(details.purchaseOrders.reduce((s, p) => s + (p.paidAmount || 0), 0))}</td>
+                                <td />
+                            </tr>
+                        </tfoot>
+                    </table>
+                </DetailSection>
+            )}
+
+            {/* Detail: Chi phí phát sinh */}
+            {details.expenses?.length > 0 && (
+                <DetailSection title="Chi phí phát sinh" count={details.expenses.length} total={fmt(costs.expenses)}>
+                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+                        <thead>
+                            <tr style={{ background: 'var(--bg-secondary,#f9fafb)', borderBottom: '1px solid var(--border,#e5e7eb)' }}>
+                                <th style={thStyle}>Ngày</th>
+                                <th style={thStyle}>Mô tả</th>
+                                <th style={thStyle}>Hạng mục</th>
+                                <th style={{ ...thStyle, textAlign: 'right' }}>Số tiền</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {details.expenses.map((e, i) => (
+                                <tr key={e.id + i} style={{ borderBottom: '1px solid var(--border,#e5e7eb)', background: i % 2 === 1 ? 'var(--bg-secondary,#f9fafb)' : undefined }}>
+                                    <td style={{ ...tdStyle, whiteSpace: 'nowrap', color: 'var(--text-muted,#9ca3af)' }}>{fmtDate(e.date)}</td>
+                                    <td style={tdStyle}>{e.description || '—'}</td>
+                                    <td style={tdStyle}>{e.category ? <span style={{ background: '#f3f4f6', padding: '2px 6px', borderRadius: 4 }}>{e.category}</span> : '—'}</td>
+                                    <td style={{ ...tdStyle, textAlign: 'right' }}>{fmt(e.amount)}</td>
+                                </tr>
+                            ))}
+                        </tbody>
+                        <tfoot>
+                            <tr style={{ fontWeight: 700, borderTop: '2px solid var(--border,#e5e7eb)', background: 'var(--bg-secondary,#f9fafb)' }}>
+                                <td style={tdStyle} colSpan={3}>Tổng</td>
+                                <td style={{ ...tdStyle, textAlign: 'right' }}>{fmt(details.expenses.reduce((s, e) => s + (e.amount || 0), 0))}</td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </DetailSection>
+            )}
         </div>
     );
+}
+
+const thStyle = { padding: '6px 8px', textAlign: 'left', fontWeight: 600, fontSize: 11, color: 'var(--text-secondary,#6b7280)', whiteSpace: 'nowrap' };
+const tdStyle = { padding: '7px 8px', verticalAlign: 'middle' };
+
+function DetailSection({ title, count, total, children }) {
+    const [open, setOpen] = useState(true);
+    return (
+        <div style={{ border: '1px solid var(--border,#e5e7eb)', borderRadius: 10, overflow: 'hidden' }}>
+            <button
+                onClick={() => setOpen(o => !o)}
+                style={{
+                    width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                    padding: '10px 14px', background: 'var(--bg-secondary,#f9fafb)',
+                    border: 'none', cursor: 'pointer', fontSize: 13,
+                }}
+            >
+                <span style={{ fontWeight: 600 }}>{title} <span style={{ color: 'var(--text-muted,#9ca3af)', fontWeight: 400 }}>({count})</span></span>
+                <span style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <span style={{ fontWeight: 700, color: 'var(--text-primary)' }}>{total}</span>
+                    <span style={{ color: 'var(--text-muted,#9ca3af)' }}>{open ? '▲' : '▼'}</span>
+                </span>
+            </button>
+            {open && <div style={{ overflowX: 'auto' }}>{children}</div>}
+        </div>
+    );
+}
+
+function StatusBadge({ status }) {
+    const map = {
+        'Đã duyệt': { bg: '#dcfce7', color: '#15803d' },
+        'Đã giao': { bg: '#dbeafe', color: '#1d4ed8' },
+        'Hoàn thành': { bg: '#f0fdf4', color: '#15803d' },
+        'Chờ duyệt': { bg: '#fef9c3', color: '#b45309' },
+        'approved': { bg: '#dcfce7', color: '#15803d' },
+        'paid': { bg: '#f0fdf4', color: '#15803d' },
+    };
+    const s = map[status] || { bg: '#f3f4f6', color: '#6b7280' };
+    return <span style={{ ...s, padding: '2px 6px', borderRadius: 4, fontSize: 11, fontWeight: 500, whiteSpace: 'nowrap' }}>{status || '—'}</span>;
 }
 
 function KpiCard({ label, value, color, sub, subColor, highlight }) {
