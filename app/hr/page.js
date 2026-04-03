@@ -12,6 +12,7 @@ const EmployeeContractTab = dynamic(() => import('@/components/EmployeeContractT
 const OfficePayrollTab = dynamic(() => import('@/components/hr/OfficePayrollTab'), { ssr: false, loading: () => <div style={{ padding: 40, textAlign: 'center' }}>Đang tải...</div> });
 const WorkshopPayrollTab = dynamic(() => import('@/components/hr/WorkshopPayrollTab'), { ssr: false, loading: () => <div style={{ padding: 40, textAlign: 'center' }}>Đang tải...</div> });
 const CommissionTab = dynamic(() => import('@/components/hr/CommissionTab'), { ssr: false, loading: () => <div style={{ padding: 40, textAlign: 'center' }}>Đang tải...</div> });
+const EmployeeContractsTab = dynamic(() => import('@/components/hr/EmployeeContractsTab'), { ssr: false, loading: () => <div style={{ padding: 40, textAlign: 'center' }}>Đang tải...</div> });
 const fmt = (n) => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(n || 0);
 const fmtDate = (d) => d ? new Date(d).toLocaleDateString('vi-VN') : '—';
 const MONTHS = ['T1', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'T8', 'T9', 'T10', 'T11', 'T12'];
@@ -623,14 +624,7 @@ function HRContent() {
                 </div>
             ) : mainTab === 'contracts' ? (
                 <div className="card" style={{ padding: 24 }}>
-                    <div style={{ marginBottom: 16 }}>
-                        <label style={{ fontWeight: 500, marginRight: 8 }}>Chọn nhân viên:</label>
-                        <select onChange={e => setFilterDept(e.target.value)} style={{ padding: '6px 12px', borderRadius: 8, border: '1px solid var(--border)' }}>
-                            <option value="">-- Chọn --</option>
-                            {allEmployees.map(emp => <option key={emp.id} value={emp.id}>{emp.name} ({emp.code})</option>)}
-                        </select>
-                    </div>
-                    {filterDept && <EmployeeContractTab employeeId={filterDept} />}
+                    <EmployeeContractsTab />
                 </div>
             ) : (<>
 
