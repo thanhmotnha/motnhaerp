@@ -10,8 +10,8 @@ const DEDUCTION_PRESETS = [
 export default function QuotationSummary({ hook }) {
     const {
         form, setForm,
-        directCost, adjustmentAmount, total,
-        discountAmount, afterDiscount, totalDeductions, grandTotal,
+        directCost, managementFee, adjustmentAmount, total,
+        discountAmount, afterDiscount, vatAmount, totalDeductions, grandTotal,
         deductions, addDeduction, removeDeduction, updateDeduction,
         products,
     } = hook;
@@ -45,12 +45,43 @@ export default function QuotationSummary({ hook }) {
             <div className="card-body">
                 <div className="quotation-summary-grid">
 
+                    {/* Tổng hạng mục */}
+                    <div className="quotation-summary-row">
+                        <span>Tổng chi phí hạng mục</span>
+                        <span className="quotation-summary-value">{fmt(directCost)} đ</span>
+                    </div>
+
+                    {/* Phí quản lý */}
+                    <div className="quotation-summary-row">
+                        <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                            Chi phí quản lý
+                            <input className="form-input form-input-compact" type="number"
+                                value={form.managementFeeRate ?? 5}
+                                onChange={e => setForm({ ...form, managementFeeRate: parseFloat(e.target.value) || 0 })}
+                                style={{ width: 50, display: 'inline-block' }} />%
+                        </span>
+                        <span className="quotation-summary-value">{fmt(managementFee)} đ</span>
+                    </div>
+
+                    {/* Chi phí thiết kế */}
+                    {(form.designFee > 0 || isInterior) && (
+                        <div className="quotation-summary-row">
+                            <span>Chi phí thiết kế <input className="form-input form-input-compact" type="number"
+                                value={form.designFee || ''} onChange={e => setForm({ ...form, designFee: parseFloat(e.target.value) || 0 })}
+                                style={{ width: 100, display: 'inline-block', marginLeft: 6 }} /></span>
+                            <span className="quotation-summary-value">{fmt(form.designFee)} đ</span>
+                        </div>
+                    )}
+
+                    {/* Chi phí vận chuyển */}
                     <div className="quotation-summary-row">
                         <span>Chi phí vận chuyển, lắp đặt <input className="form-input form-input-compact" type="number"
                             value={form.otherFee || ''} onChange={e => setForm({ ...form, otherFee: parseFloat(e.target.value) || 0 })}
                             style={{ width: 100, display: 'inline-block', marginLeft: 6 }} /></span>
                         <span className="quotation-summary-value">{fmt(form.otherFee)} đ</span>
                     </div>
+
+                    {/* Điều chỉnh */}
                     <div className="quotation-summary-row">
                         <span style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>Điều chỉnh giá
                             <input className="form-input form-input-compact" type="number"
@@ -67,9 +98,13 @@ export default function QuotationSummary({ hook }) {
                             {adjustmentAmount >= 0 ? '+' : ''}{fmt(adjustmentAmount)} đ
                         </span>
                     </div>
+
+                    {/* Tổng cộng */}
                     <div className="quotation-summary-row quotation-summary-subtotal">
                         <span>Tổng cộng</span><span className="quotation-summary-value">{fmt(total)} đ</span>
                     </div>
+
+                    {/* Chiết khấu */}
                     <div className="quotation-summary-row">
                         <span>Chiết khấu <input className="form-input form-input-compact" type="number"
                             value={form.discount || ''} onChange={e => setForm({ ...form, discount: parseFloat(e.target.value) || 0 })}
@@ -140,9 +175,12 @@ export default function QuotationSummary({ hook }) {
                         </div>
                     )}
 
-                    {/* Note VAT */}
-                    <div style={{ fontSize: 11, color: 'var(--text-muted)', fontStyle: 'italic', padding: '6px 0', borderTop: '1px solid var(--border-light)', marginTop: 4 }}>
-                        * Đơn giá đã bao gồm VAT
+                    {/* VAT */}
+                    <div className="quotation-summary-row">
+                        <span>VAT <input className="form-input form-input-compact" type="number"
+                            value={form.vat ?? 10} onChange={e => setForm({ ...form, vat: parseFloat(e.target.value) || 0 })}
+                            style={{ width: 50, display: 'inline-block', margin: '0 4px' }} />%</span>
+                        <span className="quotation-summary-value">{fmt(vatAmount)} đ</span>
                     </div>
 
                     <div className="quotation-summary-row quotation-summary-grand">
