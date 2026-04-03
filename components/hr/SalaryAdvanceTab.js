@@ -14,7 +14,7 @@ export default function SalaryAdvanceTab() {
     const [form, setForm] = useState({ amount: '', reason: '', requestedBy: '' });
 
     useEffect(() => {
-        fetch('/api/employees').then(r => r.json()).then(d => setEmployees(d.employees || d));
+        fetch('/api/employees?limit=500').then(r => r.json()).then(d => setEmployees(d.data || []));
     }, []);
 
     const loadAdvances = (empId) => {
