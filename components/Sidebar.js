@@ -55,9 +55,8 @@ const menuItems = [
     },
     {
         section: 'Quản lý', items: [
-            { href: '/contractors', icon: HardHat, label: 'Nhà thầu phụ' },
             { href: '/hr', icon: UserCog, label: 'Nhân sự', roles: ['giam_doc', 'pho_gd', 'ke_toan'] },
-            { href: '/admin/settings', icon: Settings, label: 'Cài đặt', roles: ['giam_doc'] },
+            { href: '/admin/settings', icon: Settings, label: 'Cài đặt', roles: ['giam_doc', 'ke_toan'] },
         ]
     },
     {
