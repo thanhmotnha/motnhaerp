@@ -9,8 +9,8 @@ const BHTN_EMP  = 0.01;
 const BHXH_COMP = 0.215;
 const STD_DAYS  = 26;
 
-export const PATCH = withAuth(async (request, context) => {
-    const { id } = context.params;
+export const PATCH = withAuth(async (request, { params }) => {
+    const { id } = await params;
     const body = await request.json();
     const patch = officePayrollPatchSchema.parse(body);
 

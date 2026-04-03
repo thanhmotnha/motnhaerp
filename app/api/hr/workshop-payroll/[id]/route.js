@@ -3,8 +3,8 @@ import { withAuth } from '@/lib/apiHandler';
 import prisma from '@/lib/prisma';
 import { workshopPayrollPatchSchema } from '@/lib/validations/workshopPayroll';
 
-export const PATCH = withAuth(async (request, context) => {
-    const { id } = context.params;
+export const PATCH = withAuth(async (request, { params }) => {
+    const { id } = await params;
     const body = await request.json();
     const patch = workshopPayrollPatchSchema.parse(body);
 
