@@ -3,6 +3,7 @@ import { useState, useEffect, useRef } from 'react';
 import { apiFetch } from '@/lib/fetchClient';
 import { useToast } from '@/components/ui/Toast';
 import { useRole } from '@/contexts/RoleContext';
+import { DEFAULT_SUPPLIER_TYPES, DEFAULT_CONTRACTOR_TYPES } from '@/lib/partnerTypes';
 
 const fmt = (n) => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(n || 0);
 const fmtShort = (n) => new Intl.NumberFormat('vi-VN').format(Math.round(n || 0));
@@ -462,6 +463,10 @@ ${e.proofUrl ? parseProofUrls(e.proofUrl).map(url => `<img src="${url}" style="m
                                         suppliers={suppliers}
                                         contractors={contractors}
                                         onChange={id => setForm(f => ({ ...f, recipientId: id }))}
+                                        onAdd={(type, newItem) => {
+                                            if (type === 'NCC') setSuppliers(prev => [...prev, newItem]);
+                                            else setContractors(prev => [...prev, newItem]);
+                                        }}
                                     />
                                 )}
                             </div>
@@ -644,10 +649,16 @@ ${e.proofUrl ? parseProofUrls(e.proofUrl).map(url => `<img src="${url}" style="m
     );
 }
 
-function RecipientSearch({ recipientType, recipientId, suppliers, contractors, onChange }) {
+function RecipientSearch({ recipientType, recipientId, suppliers, contractors, onChange, onAdd }) {
+    const toast = useToast();
     const list = recipientType === 'NCC' ? suppliers : contractors;
+    const typeOptions = recipientType === 'NCC' ? DEFAULT_SUPPLIER_TYPES : DEFAULT_CONTRACTOR_TYPES;
+
     const [search, setSearch] = useState('');
     const [open, setOpen] = useState(false);
+    const [showAddForm, setShowAddForm] = useState(false);
+    const [addForm, setAddForm] = useState({ name: '', phone: '', type: '' });
+    const [addSaving, setAddSaving] = useState(false);
     const ref = useRef();
 
     const selected = list.find(x => x.id === recipientId);
@@ -662,8 +673,30 @@ function RecipientSearch({ recipientType, recipientId, suppliers, contractors, o
         return () => document.removeEventListener('mousedown', handleClick);
     }, []);
 
-    // Reset search khi đổi loại
     useEffect(() => { setSearch(''); setOpen(false); }, [recipientType]);
+
+    const openAddForm = () => {
+        setOpen(false);
+        setAddForm({ name: search.trim(), phone: '', type: typeOptions[0] || '' });
+        setShowAddForm(true);
+    };
+
+    const handleAdd = async (e) => {
+        e.preventDefault();
+        if (!addForm.name.trim()) return toast.error('Vui lòng nhập tên');
+        if (recipientType === 'Thầu phụ' && !addForm.type) return toast.error('Vui lòng chọn loại');
+        setAddSaving(true);
+        try {
+            const endpoint = recipientType === 'NCC' ? '/api/suppliers' : '/api/contractors';
+            const body = { name: addForm.name.trim(), type: addForm.type, phone: addForm.phone.trim() };
+            const newItem = await apiFetch(endpoint, { method: 'POST', body: JSON.stringify(body) });
+            onAdd(recipientType, newItem);
+            onChange(newItem.id);
+            setShowAddForm(false);
+            toast.success(`Đã thêm: ${newItem.name}`);
+        } catch (err) { toast.error(err.message); }
+        setAddSaving(false);
+    };
 
     return (
         <div className="form-group" ref={ref} style={{ position: 'relative' }}>
@@ -690,11 +723,12 @@ function RecipientSearch({ recipientType, recipientId, suppliers, contractors, o
                     position: 'absolute', zIndex: 1000, top: '100%', left: 0, right: 0,
                     background: 'var(--bg-primary)', border: '1px solid var(--border)',
                     borderRadius: 8, boxShadow: '0 4px 16px rgba(0,0,0,0.12)',
-                    maxHeight: 220, overflowY: 'auto', marginTop: 2,
+                    maxHeight: 240, overflowY: 'auto', marginTop: 2,
                 }}>
-                    {filtered.length === 0 ? (
+                    {filtered.length === 0 && (
                         <div style={{ padding: '10px 14px', color: 'var(--text-muted)', fontSize: 13 }}>Không tìm thấy</div>
-                    ) : filtered.map(x => (
+                    )}
+                    {filtered.map(x => (
                         <div
                             key={x.id}
                             onClick={() => { onChange(x.id); setOpen(false); setSearch(''); }}
@@ -710,6 +744,49 @@ function RecipientSearch({ recipientType, recipientId, suppliers, contractors, o
                             {x.name}
                         </div>
                     ))}
+                    <div
+                        onClick={openAddForm}
+                        style={{
+                            padding: '8px 14px', cursor: 'pointer', fontSize: 13,
+                            color: 'var(--primary)', fontWeight: 500,
+                            borderTop: filtered.length > 0 ? '1px solid var(--border)' : 'none',
+                            position: 'sticky', bottom: 0,
+                            background: 'var(--bg-primary)',
+                        }}
+                        onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-secondary)'}
+                        onMouseLeave={e => e.currentTarget.style.background = 'var(--bg-primary)'}
+                    >
+                        + Thêm {recipientType === 'NCC' ? 'nhà cung cấp' : 'thầu phụ'} mới
+                    </div>
+                </div>
+            )}
+            {showAddForm && (
+                <div className="modal-overlay" onClick={() => setShowAddForm(false)}>
+                    <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: 400 }}>
+                        <h4 style={{ marginTop: 0, marginBottom: 16 }}>
+                            Thêm nhanh {recipientType === 'NCC' ? 'nhà cung cấp' : 'thầu phụ'}
+                        </h4>
+                        <form onSubmit={handleAdd}>
+                            <div className="form-group">
+                                <label className="form-label">Tên *</label>
+                                <input className="form-input" value={addForm.name} onChange={e => setAddForm(f => ({ ...f, name: e.target.value }))} autoFocus />
+                            </div>
+                            <div className="form-group">
+                                <label className="form-label">Loại {recipientType === 'Thầu phụ' ? '*' : ''}</label>
+                                <select className="form-select" value={addForm.type} onChange={e => setAddForm(f => ({ ...f, type: e.target.value }))}>
+                                    {typeOptions.map(t => <option key={t} value={t}>{t}</option>)}
+                                </select>
+                            </div>
+                            <div className="form-group">
+                                <label className="form-label">SĐT</label>
+                                <input className="form-input" value={addForm.phone} onChange={e => setAddForm(f => ({ ...f, phone: e.target.value }))} />
+                            </div>
+                            <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 16 }}>
+                                <button type="button" className="btn" onClick={() => setShowAddForm(false)}>Hủy</button>
+                                <button type="submit" className="btn btn-primary" disabled={addSaving}>{addSaving ? 'Đang lưu...' : 'Thêm'}</button>
+                            </div>
+                        </form>
+                    </div>
                 </div>
             )}
         </div>
