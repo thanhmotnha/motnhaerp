@@ -17,6 +17,7 @@ export const GET = withAuth(async (request) => {
                 where: {
                     deletedAt: null,
                     status: { in: ['Đã duyệt', 'Đã chi', 'Hoàn thành'] },
+                    date: { gte: start, lt: new Date(year + 1, 0, 1) },  // scoped to year
                 },
                 select: { amount: true },
             },
@@ -24,7 +25,7 @@ export const GET = withAuth(async (request) => {
                 where: {
                     batch: {
                         status: 'confirmed',
-                        confirmedAt: { gte: start, lte: end },
+                        confirmedAt: { gte: start, lt: new Date(year + 1, 0, 1) },
                     },
                 },
                 select: { amount: true },
