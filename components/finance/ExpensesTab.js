@@ -10,6 +10,16 @@ const fmtShort = (n) => new Intl.NumberFormat('vi-VN').format(Math.round(n || 0)
 const fmtDate = (d) => d ? new Date(d).toLocaleDateString('vi-VN') : '—';
 
 const STATUS_BADGE = { 'Chờ duyệt': 'warning', 'Đã duyệt': 'info', 'Đã chi': 'accent', 'Hoàn thành': 'success', 'Từ chối': 'danger' };
+const PROJECT_TAG_COLORS = [
+    { bg: '#dbeafe', text: '#1d4ed8' },
+    { bg: '#dcfce7', text: '#15803d' },
+    { bg: '#fef3c7', text: '#b45309' },
+    { bg: '#ede9fe', text: '#6d28d9' },
+    { bg: '#fce7f3', text: '#be185d' },
+    { bg: '#ffedd5', text: '#c2410c' },
+    { bg: '#f0fdf4', text: '#166534' },
+    { bg: '#e0f2fe', text: '#0369a1' },
+];
 
 // Fallbacks used only if API returns no categories
 const FALLBACK_PROJECT_CATS = ['Vật tư xây dựng', 'Nhân công', 'Vận chuyển', 'Thiết bị máy móc', 'Điện nước', 'Thuê ngoài', 'Sửa chữa', 'Bảo hiểm công trình', 'Khác'];
@@ -387,11 +397,13 @@ ${e.proofUrl ? parseProofUrls(e.proofUrl).map(url => `<img src="${url}" style="m
                                     <td style={{ fontSize: 12 }}>
                                         {/* Dự án: ưu tiên allocations (nhiều DA), fallback về project trực tiếp */}
                                         {e.allocations?.length > 0 ? (
-                                            <div style={{ color: 'var(--text-secondary)' }}>
-                                                {e.allocations.map(a => a.project.name).join(', ')}
+                                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 3 }}>
+                                                {e.allocations.map((a, i) => (
+                                                    <span key={a.id} style={{ fontSize: 11, padding: '1px 7px', borderRadius: 10, fontWeight: 500, background: PROJECT_TAG_COLORS[i % PROJECT_TAG_COLORS.length].bg, color: PROJECT_TAG_COLORS[i % PROJECT_TAG_COLORS.length].text, whiteSpace: 'nowrap' }}>{a.project.name}</span>
+                                                ))}
                                             </div>
                                         ) : e.project ? (
-                                            <div style={{ color: 'var(--text-secondary)' }}>{e.project.name}</div>
+                                            <span style={{ fontSize: 11, padding: '1px 7px', borderRadius: 10, fontWeight: 500, background: PROJECT_TAG_COLORS[0].bg, color: PROJECT_TAG_COLORS[0].text, whiteSpace: 'nowrap' }}>{e.project.name}</span>
                                         ) : null}
                                         {e.recipientName && (
                                             <div style={{ marginTop: (e.allocations?.length > 0 || e.project) ? 2 : 0, color: 'var(--text-muted)' }}>
