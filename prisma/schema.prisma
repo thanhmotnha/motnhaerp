@@ -2045,6 +2045,8 @@ model OverheadExpense {
   status      String    @default("draft")
   notes       String    @default("")
   createdById String    @default("")
+  approvedBy  String    @default("")
+  approvedAt  DateTime?
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
   deletedAt   DateTime?
@@ -2054,6 +2056,7 @@ model OverheadExpense {
 
   @@index([categoryId])
   @@index([date])
+  @@index([status])
 }
 
 model OverheadBatch {
@@ -2068,11 +2071,13 @@ model OverheadBatch {
   confirmedAt DateTime?
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
+  deletedAt   DateTime?
 
   items       OverheadBatchItem[]
   allocations OverheadAllocation[]
 
   @@index([period])
+  @@index([status])
 }
 
 model OverheadBatchItem {
@@ -2082,7 +2087,7 @@ model OverheadBatchItem {
   amount    Float  @default(0)
 
   batch   OverheadBatch   @relation(fields: [batchId], references: [id], onDelete: Cascade)
-  expense OverheadExpense @relation(fields: [expenseId], references: [id])
+  expense OverheadExpense @relation(fields: [expenseId], references: [id], onDelete: Cascade)
 
   @@unique([batchId, expenseId])
   @@index([batchId])
