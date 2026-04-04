@@ -13,6 +13,7 @@ const OfficePayrollTab = dynamic(() => import('@/components/hr/OfficePayrollTab'
 const WorkshopPayrollTab = dynamic(() => import('@/components/hr/WorkshopPayrollTab'), { ssr: false, loading: () => <div style={{ padding: 40, textAlign: 'center' }}>Đang tải...</div> });
 const CommissionTab = dynamic(() => import('@/components/hr/CommissionTab'), { ssr: false, loading: () => <div style={{ padding: 40, textAlign: 'center' }}>Đang tải...</div> });
 const EmployeeContractsTab = dynamic(() => import('@/components/hr/EmployeeContractsTab'), { ssr: false, loading: () => <div style={{ padding: 40, textAlign: 'center' }}>Đang tải...</div> });
+const HandbookTab = dynamic(() => import('@/components/hr/HandbookTab'), { ssr: false, loading: () => <div style={{ padding: 40, textAlign: 'center' }}>Đang tải...</div> });
 const fmt = (n) => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(n || 0);
 const fmtDate = (d) => d ? new Date(d).toLocaleDateString('vi-VN') : '—';
 const MONTHS = ['T1', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'T8', 'T9', 'T10', 'T11', 'T12'];
@@ -578,7 +579,7 @@ function HRContent() {
 
             {/* Tab switcher */}
             <div style={{ display: 'flex', gap: 4, marginBottom: 24, borderBottom: '2px solid var(--border)' }}>
-                {[{ key: 'employees', label: '👥 Nhân viên' }, { key: 'attendance', label: '📅 Chấm công & Lương' }, { key: 'daily-attendance', label: '⏰ Chấm công ngày' }, { key: 'leave', label: '🗓️ Nghỉ phép' }, { key: 'leave-calendar', label: '📆 Lịch nghỉ' }, { key: 'payroll', label: '💰 Bảng lương' }, { key: 'reviews', label: '📊 Đánh giá' }, { key: 'advances', label: '💸 Tạm ứng' }, { key: 'contracts', label: '📄 Hợp đồng' }, { key: 'office-payroll', label: '💼 Lương VP' }, { key: 'workshop-payroll', label: '🏭 Lương Xưởng' }, { key: 'commission', label: '💰 Hoa hồng KD' }].map(t => (
+                {[{ key: 'employees', label: '👥 Nhân viên' }, { key: 'attendance', label: '📅 Chấm công & Lương' }, { key: 'daily-attendance', label: '⏰ Chấm công ngày' }, { key: 'leave', label: '🗓️ Nghỉ phép' }, { key: 'leave-calendar', label: '📆 Lịch nghỉ' }, { key: 'payroll', label: '💰 Bảng lương' }, { key: 'reviews', label: '📊 Đánh giá' }, { key: 'advances', label: '💸 Tạm ứng' }, { key: 'contracts', label: '📄 Hợp đồng' }, { key: 'office-payroll', label: '💼 Lương VP' }, { key: 'workshop-payroll', label: '🏭 Lương Xưởng' }, { key: 'commission', label: '💰 Hoa hồng KD' }, { key: 'handbook', label: '📖 Sổ tay' }].map(t => (
                     <button key={t.key} onClick={() => setMainTab(t.key)}
                         style={{ padding: '8px 18px', border: 'none', borderBottom: mainTab === t.key ? '2px solid var(--accent-primary)' : '2px solid transparent', background: 'none', cursor: 'pointer', fontWeight: mainTab === t.key ? 700 : 400, color: mainTab === t.key ? 'var(--accent-primary)' : 'var(--text-muted)', fontSize: 13, marginBottom: -2 }}>
                         {t.label}
@@ -626,6 +627,10 @@ function HRContent() {
                 <div className="card" style={{ padding: 24 }}>
                     <EmployeeContractsTab />
                 </div>
+            ) : mainTab === 'handbook' ? (
+                <div className="card" style={{ padding: 24 }}>
+                    <HandbookTab />
+                </div>
             ) : (<>
 
                 {/* Department cards */}
@@ -648,7 +653,16 @@ function HRContent() {
                 <div className="card">
                     <div className="card-header">
                         <h3>Nhân viên {filtered.length !== allEmployees.length && `(${filtered.length}/${allEmployees.length})`}</h3>
-                        <button className="btn btn-primary" onClick={openAdd}>+ Thêm NV</button>
+                        <div style={{ display: 'flex', gap: 8 }}>
+                            <button className="btn btn-ghost btn-sm" title="Kiểm tra và gửi thông báo sinh nhật hôm nay" onClick={async () => {
+                                try {
+                                    const res = await fetch('/api/cron/birthday');
+                                    const d = await res.json();
+                                    alert(d.count > 0 ? `🎂 Đã gửi thông báo: ${d.employees?.join(', ')}` : '✅ Hôm nay không có sinh nhật');
+                                } catch { alert('Lỗi kiểm tra sinh nhật'); }
+                            }}>🎂</button>
+                            <button className="btn btn-primary" onClick={openAdd}>+ Thêm NV</button>
+                        </div>
                     </div>
                     <div className="filter-bar" style={{ display: 'flex', gap: 10, padding: '10px 16px', borderBottom: '1px solid var(--border)' }}>
                         <input
