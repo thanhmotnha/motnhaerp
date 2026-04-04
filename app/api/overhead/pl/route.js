@@ -4,7 +4,8 @@ import { NextResponse } from 'next/server';
 
 export const GET = withAuth(async (request) => {
     const { searchParams } = new URL(request.url);
-    const year = parseInt(searchParams.get('year') || new Date().getFullYear());
+    const yearParam = parseInt(searchParams.get('year'), 10);
+    const year = Number.isFinite(yearParam) ? yearParam : new Date().getFullYear();
     const start = new Date(year, 0, 1);
     const end = new Date(year, 11, 31, 23, 59, 59, 999);
 

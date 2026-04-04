@@ -1,5 +1,6 @@
 'use client';
 import { useState, useEffect, useCallback } from 'react';
+import { apiFetch } from '@/lib/fetchClient';
 import { useRouter } from 'next/navigation';
 import { useRole } from '@/contexts/RoleContext';
 
@@ -126,10 +127,12 @@ export default function ReportsPage() {
     const fetchPL = useCallback(async () => {
         setPlLoading(true);
         try {
-            const res = await fetch(`/api/overhead/pl?year=${plYear}`);
-            const data = await res.json();
+            const data = await apiFetch(`/api/overhead/pl?year=${plYear}`);
             setPlData(data);
-        } catch (e) { console.error(e); }
+        } catch (e) {
+            console.error('P&L fetch error:', e);
+            setPlData(null);
+        }
         setPlLoading(false);
     }, [plYear]);
 
