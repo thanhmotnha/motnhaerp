@@ -83,11 +83,13 @@ export default function EmployeeContractsTab() {
         if (!tpl) return toast.error('Không tìm thấy mẫu hợp đồng');
         setExporting(true);
         try {
-            const { fillEmployeeVariables } = await import('@/lib/contractVariables');
-            const html = fillEmployeeVariables(tpl.body, { contract, employee: empData });
-            const htmlToDocx = (await import('html-to-docx')).default;
-            const docxBuffer = await htmlToDocx(html, null, { orientation: 'portrait', margins: { top: 720, right: 720, bottom: 720, left: 1080 } });
-            const blob = new Blob([docxBuffer], { type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' });
+            const params = new URLSearchParams({ contractId: contract.id, templateId: tpl.id });
+            const res = await fetch(`/api/employees/${empData.id}/contracts/export-docx?${params}`, {
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'include',
+            });
+            if (!res.ok) { const err = await res.json(); throw new Error(err.error || 'Lỗi xuất Word'); }
+            const blob = await res.blob();
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url; a.download = `${contract.code}-${empData.name}.docx`; a.click();
