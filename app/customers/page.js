@@ -115,6 +115,36 @@ export default function CustomersPage() {
                         <button onClick={() => setView('kanban')} style={{ padding: '6px 14px', fontSize: 13, fontWeight: 500, border: 'none', cursor: 'pointer', background: view === 'kanban' ? 'var(--primary)' : 'transparent', color: view === 'kanban' ? '#fff' : 'var(--text-secondary)', transition: 'all .15s' }}>📋 Kanban</button>
                         <button onClick={() => setView('table')} style={{ padding: '6px 14px', fontSize: 13, fontWeight: 500, border: 'none', cursor: 'pointer', background: view === 'table' ? 'var(--primary)' : 'transparent', color: view === 'table' ? '#fff' : 'var(--text-secondary)', transition: 'all .15s' }}>📊 Bảng</button>
                     </div>
+                    <div style={{ position: 'relative' }} className="holiday-menu-wrapper">
+                        <button className="btn btn-ghost btn-sm" title="Gửi lời chúc ngày lễ" onClick={e => {
+                            const menu = e.currentTarget.nextSibling;
+                            menu.style.display = menu.style.display === 'block' ? 'none' : 'block';
+                        }}>🎉 Gửi lời chúc</button>
+                        <div style={{ display: 'none', position: 'absolute', right: 0, top: '100%', marginTop: 4, background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 10, padding: 8, zIndex: 100, minWidth: 220, boxShadow: '0 4px 16px rgba(0,0,0,0.12)' }}>
+                            {[
+                                { key: 'tet', label: '🧧 Tết Nguyên Đán' },
+                                { key: 'new-year', label: '🎉 Tết Dương lịch' },
+                                { key: 'women-day-3-8', label: '🌸 Ngày 8/3 (chỉ khách nữ)' },
+                                { key: 'women-day-20-10', label: '🌺 Ngày 20/10 (chỉ khách nữ)' },
+                                { key: 'national-day', label: '🇻🇳 Quốc khánh 2/9' },
+                                { key: 'mid-autumn', label: '🏮 Tết Trung Thu' },
+                            ].map(h => (
+                                <button key={h.key} style={{ display: 'block', width: '100%', textAlign: 'left', padding: '8px 12px', border: 'none', background: 'none', cursor: 'pointer', borderRadius: 6, fontSize: 13 }}
+                                    onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-secondary)'}
+                                    onMouseLeave={e => e.currentTarget.style.background = 'none'}
+                                    onClick={async (e) => {
+                                        e.currentTarget.closest('.holiday-menu-wrapper').querySelector('div').style.display = 'none';
+                                        if (!confirm(`Gửi lời chúc "${h.label}" đến TẤT CẢ khách hàng có số điện thoại?`)) return;
+                                        const res = await fetch(`/api/cron/holiday-greeting?holiday=${h.key}`);
+                                        const d = await res.json();
+                                        if (res.ok) alert(`✅ Đã gửi cho ${d.sent} khách${d.failed ? `, ${d.failed} thất bại` : ''}`);
+                                        else alert('Lỗi: ' + (d.error || 'Không rõ'));
+                                    }}>
+                                    {h.label}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
                     <button className="btn btn-primary" onClick={() => setShowModal(true)}>+ Thêm KH</button>
                 </div>
             </div>

@@ -1,7 +1,15 @@
+/**
+ * GET /api/cron/birthday
+ * Chạy hàng ngày lúc 8:00 — chúc mừng sinh nhật nhân viên
+ * Kênh: in-app notification + Lark group webhook + OpenClaw (nhắn riêng qua Zalo/Lark)
+ *
+ * Cron: 0 8 * * * curl "https://erp.motnha.vn/api/cron/birthday?secret=YOUR_CRON_SECRET"
+ */
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
+import { sendViaOpenClaw, isOpenClawConfigured } from '@/lib/openclaw';
 
-async function sendLarkMessage(text) {
+async function sendLarkGroupMessage(text) {
     const webhookUrl = process.env.LARK_WEBHOOK_URL;
     if (!webhookUrl) return;
     try {
@@ -25,7 +33,7 @@ export async function GET(request) {
 
     const employees = await prisma.employee.findMany({
         where: { dateOfBirth: { not: null }, status: 'Đang làm' },
-        select: { id: true, name: true, dateOfBirth: true, position: true },
+        select: { id: true, name: true, dateOfBirth: true, position: true, phone: true },
     });
 
     const birthdayEmployees = employees.filter(emp => {
@@ -39,23 +47,45 @@ export async function GET(request) {
     }
 
     const names = birthdayEmployees.map(e => e.name).join(', ');
-    const title = `🎂 Sinh nhật hôm nay: ${names}`;
-    const message = `Chúc mừng sinh nhật ${names}! Chúc bạn một ngày tuyệt vời và nhiều sức khỏe, hạnh phúc!`;
 
+    // 1. In-app notification
     await prisma.notification.create({
         data: {
             type: 'info',
             icon: '🎂',
-            title,
-            message,
+            title: `🎂 Sinh nhật hôm nay: ${names}`,
+            message: `Chúc mừng sinh nhật ${names}! Chúc bạn một ngày tuyệt vời và nhiều sức khỏe, hạnh phúc!`,
             link: '/hr',
             source: 'birthday-cron',
             expiresAt: new Date(today.getTime() + 24 * 60 * 60 * 1000),
         },
     });
 
+    // 2. Lark group webhook — thông báo chung cho cả nhóm
     const larkText = `🎂 Sinh nhật hôm nay!\n${birthdayEmployees.map(e => `• ${e.name}${e.position ? ` (${e.position})` : ''}`).join('\n')}\n\nChúc mừng sinh nhật các bạn! 🎉`;
-    await sendLarkMessage(larkText);
+    await sendLarkGroupMessage(larkText);
 
-    return NextResponse.json({ message: 'Birthday notifications sent', count: birthdayEmployees.length, employees: birthdayEmployees.map(e => e.name) });
+    // 3. OpenClaw — nhắn riêng từng người qua Zalo (nếu có số điện thoại)
+    const openclawResults = [];
+    if (isOpenClawConfigured) {
+        for (const emp of birthdayEmployees) {
+            if (!emp.phone) continue;
+            const personalMsg = `🎂 Chúc mừng sinh nhật ${emp.name}!\n\nCông ty Beetify kính chúc bạn một ngày sinh nhật thật vui vẻ, hạnh phúc và tràn đầy năng lượng! Cảm ơn bạn đã cống hiến cho công ty trong thời gian qua!\n\n🎉 Chúc bạn luôn khỏe mạnh và thành công!`;
+            const r = await sendViaOpenClaw({
+                event: 'employee_birthday',
+                channel: 'zalo',
+                to: emp.phone,
+                message: personalMsg,
+                requestId: `emp-birthday-${emp.id}-${today.toISOString().split('T')[0]}`,
+            });
+            openclawResults.push({ name: emp.name, sent: r.ok });
+        }
+    }
+
+    return NextResponse.json({
+        message: 'Birthday notifications sent',
+        count: birthdayEmployees.length,
+        employees: birthdayEmployees.map(e => e.name),
+        openclaw: openclawResults,
+    });
 }
