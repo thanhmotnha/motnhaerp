@@ -7,7 +7,7 @@
  */
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
-import { sendViaOpenClaw, isOpenClawConfigured } from '@/lib/openclaw';
+import { sendToCustomer, isOpenClawConfigured } from '@/lib/openclaw';
 
 function buildMessage(name, gender) {
     const title = gender === 'Nữ' ? 'chị' : 'anh';
@@ -51,13 +51,11 @@ export async function GET(request) {
         const message = buildMessage(c.name, c.gender);
 
         if (isOpenClawConfigured) {
-            const r = await sendViaOpenClaw({
+            const r = await sendToCustomer({
                 event: 'customer_birthday',
-                channel: 'zalo',
-                to: c.phone,
-                message,
-                customer: { id: c.code, name: c.name },
-                requestId: `customer-birthday-${c.code}-${today.toISOString().split('T')[0]}`,
+                phone: c.phone,
+                toName: c.name,
+                content: message,
             });
             results.push({ customer: c.name, phone: c.phone, sent: r.ok, status: r.status });
         } else {

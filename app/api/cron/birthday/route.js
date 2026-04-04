@@ -7,7 +7,7 @@
  */
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
-import { sendViaOpenClaw, isOpenClawConfigured } from '@/lib/openclaw';
+import { sendToEmployee, isOpenClawConfigured } from '@/lib/openclaw';
 
 async function sendLarkGroupMessage(text) {
     const webhookUrl = process.env.LARK_WEBHOOK_URL;
@@ -33,7 +33,7 @@ export async function GET(request) {
 
     const employees = await prisma.employee.findMany({
         where: { dateOfBirth: { not: null }, status: 'Đang làm' },
-        select: { id: true, name: true, dateOfBirth: true, position: true, phone: true },
+        select: { id: true, name: true, dateOfBirth: true, position: true, larkId: true },
     });
 
     const birthdayEmployees = employees.filter(emp => {
@@ -65,18 +65,17 @@ export async function GET(request) {
     const larkText = `🎂 Sinh nhật hôm nay!\n${birthdayEmployees.map(e => `• ${e.name}${e.position ? ` (${e.position})` : ''}`).join('\n')}\n\nChúc mừng sinh nhật các bạn! 🎉`;
     await sendLarkGroupMessage(larkText);
 
-    // 3. OpenClaw — nhắn riêng từng người qua Zalo (nếu có số điện thoại)
+    // 3. OpenClaw — nhắn riêng từng người qua Lark (nếu có larkId)
     const openclawResults = [];
     if (isOpenClawConfigured) {
         for (const emp of birthdayEmployees) {
-            if (!emp.phone) continue;
+            if (!emp.larkId) continue;
             const personalMsg = `🎂 Chúc mừng sinh nhật ${emp.name}!\n\nCông ty Beetify kính chúc bạn một ngày sinh nhật thật vui vẻ, hạnh phúc và tràn đầy năng lượng! Cảm ơn bạn đã cống hiến cho công ty trong thời gian qua!\n\n🎉 Chúc bạn luôn khỏe mạnh và thành công!`;
-            const r = await sendViaOpenClaw({
+            const r = await sendToEmployee({
                 event: 'employee_birthday',
-                channel: 'zalo',
-                to: emp.phone,
-                message: personalMsg,
-                requestId: `emp-birthday-${emp.id}-${today.toISOString().split('T')[0]}`,
+                larkId: emp.larkId,
+                toName: emp.name,
+                content: personalMsg,
             });
             openclawResults.push({ name: emp.name, sent: r.ok });
         }

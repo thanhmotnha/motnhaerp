@@ -13,7 +13,7 @@
  */
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
-import { sendViaOpenClaw, isOpenClawConfigured } from '@/lib/openclaw';
+import { sendToCustomer, isOpenClawConfigured } from '@/lib/openclaw';
 
 const HOLIDAY_TEMPLATES = {
     'tet': {
@@ -112,13 +112,11 @@ export async function GET(request) {
         const batch = customers.slice(i, i + 10);
         await Promise.all(batch.map(async c => {
             const message = tpl.buildMessage(c.name, c.gender);
-            const r = await sendViaOpenClaw({
+            const r = await sendToCustomer({
                 event: 'holiday_greeting',
-                channel: 'zalo',
-                to: c.phone,
-                message,
-                customer: { id: c.code, name: c.name },
-                requestId: `holiday-${holiday}-${c.code}-${today}`,
+                phone: c.phone,
+                toName: c.name,
+                content: message,
             });
             if (r.ok) sent++; else failed++;
         }));

@@ -409,6 +409,7 @@ model Employee {
   diligenceAllowance Int                @default(0)
   mealAllowanceRate  Int                @default(0)           // tiền ăn/ngày cho xưởng
   dailyWage          Int                @default(0)           // lương ngày cho xưởng
+  larkId             String             @default("")          // Lark user ID (ou_xxx) để nhắn tin
   officePayrolls     OfficePayrollRecord[]
   workshopPayrolls   WorkshopPayrollRecord[]
   contractCommissions ContractCommission[]
