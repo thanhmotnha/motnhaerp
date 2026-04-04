@@ -446,7 +446,7 @@ function LeaveTab({ employees }) {
 const STATUS_OPTS = ['Đang làm', 'Nghỉ phép', 'Nghỉ việc'];
 const STATUS_COLOR = { 'Đang làm': 'badge-success', 'Nghỉ phép': 'badge-warning', 'Nghỉ việc': 'badge-default' };
 
-const EMPTY_FORM = { name: '', position: '', phone: '', email: '', salary: '', insuranceSalary: '', departmentId: '', status: 'Đang làm', joinDate: '', payrollType: 'office', positionAllowance: 0, phoneAllowance: 0, transportAllowance: 0, diligenceAllowance: 0, mealAllowanceRate: 0, dailyWage: 0 };
+const EMPTY_FORM = { name: '', position: '', phone: '', email: '', salary: '', insuranceSalary: '', departmentId: '', status: 'Đang làm', joinDate: '', payrollType: 'office', positionAllowance: 0, phoneAllowance: 0, transportAllowance: 0, diligenceAllowance: 0, mealAllowanceRate: 0, dailyWage: 0, larkId: '' };
 
 export default function HRPage() {
     return <Suspense><HRContent /></Suspense>;
@@ -497,6 +497,7 @@ function HRContent() {
             diligenceAllowance: e.diligenceAllowance || 0,
             mealAllowanceRate: e.mealAllowanceRate || 0,
             dailyWage: e.dailyWage || 0,
+            larkId: e.larkId || '',
         });
         setShowModal(true);
     };
@@ -841,6 +842,13 @@ function HRContent() {
                                     <label className="form-label">Lương ngày (xưởng)</label>
                                     <input className="form-input" type="number" value={form.dailyWage || 0} onChange={e => setForm({ ...form, dailyWage: parseInt(e.target.value) || 0 })} />
                                 </div>
+                            </div>
+                        </div>
+                        <div style={{ borderTop: '1px solid var(--border)', paddingTop: 16, marginTop: 4 }}>
+                            <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 12 }}>Liên kết nhắn tin</div>
+                            <div className="form-group">
+                                <label className="form-label">Lark ID <span style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 400 }}>(ou_xxx — để gửi thông báo qua Lark)</span></label>
+                                <input className="form-input" value={form.larkId || ''} onChange={e => setForm({ ...form, larkId: e.target.value })} placeholder="ou_xxxxxxxxxxxxxxxxxx" />
                             </div>
                         </div>
                         <div className="modal-footer">
