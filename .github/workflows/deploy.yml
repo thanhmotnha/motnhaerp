@@ -25,6 +25,10 @@ jobs:
           R2_BUCKET_NAME=${{ secrets.R2_BUCKET_NAME }}
           R2_PUBLIC_URL=${{ secrets.R2_PUBLIC_URL }}
           GEMINI_API_KEY=${{ secrets.GEMINI_API_KEY }}
+          OPENCLAW_WEBHOOK_URL=${{ secrets.OPENCLAW_WEBHOOK_URL }}
+          OPENCLAW_WEBHOOK_SECRET=${{ secrets.OPENCLAW_WEBHOOK_SECRET }}
+          LARK_WEBHOOK_URL=${{ secrets.LARK_WEBHOOK_URL }}
+          CRON_SECRET=${{ secrets.CRON_SECRET }}
           EOF
           sed -i s/^[[:space:]]*// .env
 
