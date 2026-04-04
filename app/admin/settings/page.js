@@ -53,7 +53,6 @@ const MAIN_TABS = [
     { key: 'expense_categories', label: '🗂️ Hạng mục chi' },
     { key: 'integration', label: '🔌 Tích hợp' },
     { key: 'partners', label: '🤝 Đối tác' },
-    { key: 'partner_types', label: '🗂️ Loại NCC & Thầu' },
 ];
 
 const SUB_TABS = [
@@ -354,8 +353,14 @@ export default function SettingsPage() {
                     {tab === 'accounting' && <AccountingSetupTab />}
                     {tab === 'expense_categories' && <ExpenseCategoriesTab />}
                     {tab === 'integration' && <IntegrationTab />}
-                    {tab === 'partners' && <PartnersPage />}
-                    {tab === 'partner_types' && <PartnerTypesTab />}
+                    {tab === 'partners' && (
+                        <div>
+                            <div className="card" style={{ padding: 24, marginBottom: 24 }}>
+                                <PartnerTypesTab />
+                            </div>
+                            <PartnersPage />
+                        </div>
+                    )}
                 </div>
             </div>
         </div>
