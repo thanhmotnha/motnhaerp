@@ -2,14 +2,12 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useRole } from '@/contexts/RoleContext';
+import { fetchPartnerTypes, DEFAULT_SUPPLIER_TYPES, DEFAULT_CONTRACTOR_TYPES } from '@/lib/partnerTypes';
 
 const fmt = (n) => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(n || 0);
 
-const SUPPLIER_TYPES = ['Vật tư xây dựng', 'Thiết bị vệ sinh', 'Thiết bị điện', 'Nội thất', 'Sắt thép', 'Gạch ốp lát', 'Sơn', 'Nhôm kính', 'Cơ khí', 'Khác'];
-const CONTRACTOR_TYPES = ['Thầu xây dựng', 'CTV thiết kế kiến trúc', 'CTV Kết cấu', 'CTV 3D', 'Thầu mộc', 'Thầu điện', 'Thầu nước', 'Thầu sơn', 'Thầu đá', 'Thầu cơ khí', 'Thầu nhôm kính', 'Thầu trần thạch cao', 'Khác'];
-
-const emptySup = { name: '', type: 'Vật tư xây dựng', contact: '', phone: '', email: '', address: '', taxCode: '', bankAccount: '', bankName: '', rating: 3, notes: '', isBlacklisted: false, creditLimit: 0 };
-const emptyCon = { name: '', type: 'Thầu xây dựng', phone: '', address: '', taxCode: '', bankAccount: '', bankName: '', rating: 3, notes: '', isBlacklisted: false, creditLimit: 0 };
+const emptySup = { name: '', type: '', contact: '', phone: '', email: '', address: '', taxCode: '', bankAccount: '', bankName: '', rating: 3, notes: '', isBlacklisted: false, creditLimit: 0 };
+const emptyCon = { name: '', type: '', phone: '', address: '', taxCode: '', bankAccount: '', bankName: '', rating: 3, notes: '', isBlacklisted: false, creditLimit: 0 };
 const FINANCE_ROLES = ['giam_doc', 'pho_gd', 'ke_toan'];
 
 export default function PartnersPage() {
@@ -32,6 +30,8 @@ export default function PartnersPage() {
     const [importing, setImporting] = useState(false);
     const [inlineEditSup, setInlineEditSup] = useState(null);
     const [inlineEditCon, setInlineEditCon] = useState(null);
+    const [SUPPLIER_TYPES, setSupplierTypes] = useState(DEFAULT_SUPPLIER_TYPES);
+    const [CONTRACTOR_TYPES, setContractorTypes] = useState(DEFAULT_CONTRACTOR_TYPES);
 
     const fetchData = async () => {
         setLoading(true);
@@ -41,10 +41,16 @@ export default function PartnersPage() {
         ]);
         setSuppliers(s); setContractors(c); setLoading(false);
     };
-    useEffect(() => { fetchData(); }, []);
+    useEffect(() => {
+        fetchData();
+        fetchPartnerTypes().then(({ supplierTypes, contractorTypes }) => {
+            setSupplierTypes(supplierTypes);
+            setContractorTypes(contractorTypes);
+        });
+    }, []);
 
     // === Suppliers CRUD ===
-    const openCreateSup = () => { setEditing(null); setSupForm(emptySup); setShowModal('ncc'); };
+    const openCreateSup = () => { setEditing(null); setSupForm({ ...emptySup, type: SUPPLIER_TYPES[0] || '' }); setShowModal('ncc'); };
     const openEditSup = (s) => { setEditing(s); setSupForm({ name: s.name, type: s.type, contact: s.contact, phone: s.phone, email: s.email, address: s.address, taxCode: s.taxCode, bankAccount: s.bankAccount, bankName: s.bankName, rating: s.rating, notes: s.notes }); setShowModal('ncc'); };
     const submitSup = async () => {
         if (!supForm.name.trim()) return alert('Nhập tên NCC!');
@@ -60,7 +66,7 @@ export default function PartnersPage() {
     };
 
     // === Contractors CRUD ===
-    const openCreateCon = () => { setEditing(null); setConForm(emptyCon); setShowModal('tp'); };
+    const openCreateCon = () => { setEditing(null); setConForm({ ...emptyCon, type: CONTRACTOR_TYPES[0] || '' }); setShowModal('tp'); };
     const openEditCon = (c) => { setEditing(c); setConForm({ name: c.name, type: c.type, phone: c.phone, address: c.address, taxCode: c.taxCode, bankAccount: c.bankAccount, bankName: c.bankName, rating: c.rating, notes: c.notes }); setShowModal('tp'); };
     const submitCon = async () => {
         if (!conForm.name.trim()) return alert('Nhập tên thầu phụ!');

@@ -17,6 +17,7 @@ import ContractTemplateTab from '@/components/settings/ContractTemplateTab';
 import AccountingSetupTab from '@/components/settings/AccountingSetupTab';
 import IntegrationTab from '@/components/settings/IntegrationTab';
 import ExpenseCategoriesTab from '@/components/settings/ExpenseCategoriesTab';
+import PartnerTypesTab from '@/components/settings/PartnerTypesTab';
 import PartnersPage from '@/app/partners/page';
 
 // ========= Company Settings Keys =========
@@ -52,6 +53,7 @@ const MAIN_TABS = [
     { key: 'expense_categories', label: '🗂️ Hạng mục chi' },
     { key: 'integration', label: '🔌 Tích hợp' },
     { key: 'partners', label: '🤝 Đối tác' },
+    { key: 'partner_types', label: '🗂️ Loại NCC & Thầu' },
 ];
 
 const SUB_TABS = [
@@ -353,6 +355,7 @@ export default function SettingsPage() {
                     {tab === 'expense_categories' && <ExpenseCategoriesTab />}
                     {tab === 'integration' && <IntegrationTab />}
                     {tab === 'partners' && <PartnersPage />}
+                    {tab === 'partner_types' && <PartnerTypesTab />}
                 </div>
             </div>
         </div>

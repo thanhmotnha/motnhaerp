@@ -5,7 +5,7 @@ import { useRole } from '@/contexts/RoleContext';
 import { apiFetch } from '@/lib/fetchClient';
 import { useToast } from '@/components/ui/Toast';
 
-const CONTRACTOR_TYPES = ['Thầu xây dựng', 'CTV thiết kế kiến trúc', 'CTV Kết cấu', 'CTV 3D', 'Thầu mộc', 'Thầu điện', 'Thầu nước', 'Thầu sơn', 'Thầu đá', 'Thầu cơ khí', 'Thầu nhôm kính', 'Thầu trần thạch cao', 'Khác'];
+import { fetchPartnerTypes, DEFAULT_CONTRACTOR_TYPES } from '@/lib/partnerTypes';
 
 const fmt = v => new Intl.NumberFormat('vi-VN').format(v || 0);
 
@@ -17,6 +17,7 @@ export default function ContractorsPage() {
     const [loading, setLoading] = useState(true);
     const [showForm, setShowForm] = useState(false);
     const [search, setSearch] = useState('');
+    const [CONTRACTOR_TYPES, setContractorTypes] = useState(DEFAULT_CONTRACTOR_TYPES);
     const canManage = ['giam_doc', 'pho_gd', 'ke_toan'].includes(role);
 
     const fetchData = useCallback(async () => {
@@ -28,7 +29,10 @@ export default function ContractorsPage() {
         setLoading(false);
     }, []);
 
-    useEffect(() => { fetchData(); }, [fetchData]);
+    useEffect(() => {
+        fetchData();
+        fetchPartnerTypes().then(({ contractorTypes }) => setContractorTypes(contractorTypes));
+    }, [fetchData]);
 
     const filtered = contractors.filter(c =>
         !search || c.name?.toLowerCase().includes(search.toLowerCase()) ||
