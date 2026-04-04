@@ -26,6 +26,7 @@ const pageTitles = {
     '/hr/payroll': 'Bảng lương',
     '/cong-no': 'Công nợ',
     '/cong-no/bao-cao': 'Báo cáo công nợ',
+    '/overhead': 'Chi phí chung',
 };
 
 export default function Header({ onMenuToggle, onSearchOpen, onSidebarToggle, sidebarCollapsed }) {

@@ -51,6 +51,7 @@ const menuItems = [
             { href: '/cashflow-forecast', icon: Banknote, label: 'Dự báo dòng tiền', roles: ['giam_doc', 'pho_gd', 'ke_toan'] },
             { href: '/budget', icon: PiggyBank, label: 'Ngân sách', roles: ['giam_doc', 'pho_gd', 'ke_toan', 'quan_ly_du_an'] },
             { href: '/cong-no', icon: Landmark, label: 'Công nợ', roles: ['giam_doc', 'pho_gd', 'ke_toan'] },
+            { href: '/overhead', icon: Building2, label: 'Chi phí chung', roles: ['giam_doc', 'pho_gd', 'ke_toan'] },
         ]
     },
     {
