@@ -367,53 +367,59 @@ ${e.proofUrl ? parseProofUrls(e.proofUrl).map(url => `<img src="${url}" style="m
                     <table className="data-table" style={{ margin: 0 }}>
                         <thead>
                             <tr>
-                                <th>Mã</th><th>Mô tả</th><th>Dự án</th><th>Người nhận</th>
-                                <th>Hạng mục</th><th style={{ textAlign: 'right' }}>Số tiền</th>
-                                <th>Người nộp</th><th>Ngày</th><th>Trạng thái</th>
-                                <th style={{ minWidth: 160 }}>Thao tác</th>
+                                <th style={{ whiteSpace: 'nowrap' }}>Mã</th>
+                                <th>Mô tả</th>
+                                <th>Dự án / Người nhận</th>
+                                <th>Hạng mục</th>
+                                <th style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>Số tiền</th>
+                                <th style={{ whiteSpace: 'nowrap' }}>Ngày</th>
+                                <th>Trạng thái</th>
+                                <th style={{ whiteSpace: 'nowrap' }}>Thao tác</th>
                             </tr>
                         </thead>
                         <tbody>
                             {filtered.map(e => (
                                 <tr key={e.id} style={{ opacity: e.status === 'Hoàn thành' ? 0.65 : 1 }}>
-                                    <td style={{ fontSize: 12, color: 'var(--accent-primary)', fontWeight: 600 }}>{e.code}</td>
-                                    <td style={{ cursor: (['Chờ duyệt', 'Từ chối'].includes(e.status) || ['ke_toan', 'giam_doc', 'pho_gd'].includes(role)) ? 'pointer' : 'default', fontWeight: 500 }} onClick={() => openEdit(e)}>
+                                    <td style={{ fontSize: 12, color: 'var(--accent-primary)', fontWeight: 600, whiteSpace: 'nowrap' }}>{e.code}</td>
+                                    <td style={{ cursor: (['Chờ duyệt', 'Từ chối'].includes(e.status) || ['ke_toan', 'giam_doc', 'pho_gd'].includes(role)) ? 'pointer' : 'default', fontWeight: 500, maxWidth: 220, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} onClick={() => openEdit(e)} title={e.description}>
                                         {e.description}
                                     </td>
-                                    <td>
-                                        {e.project ? <><span className="badge info" style={{ fontSize: 10 }}>{e.project.code}</span> <span style={{ fontSize: 11 }}>{e.project.name}</span></> : <span style={{ color: 'var(--text-muted)', fontSize: 12 }}>—</span>}
-                                    </td>
                                     <td style={{ fontSize: 12 }}>
-                                        {e.recipientType && <span className="badge" style={{ fontSize: 9, background: e.recipientType === 'NCC' ? '#e8f5e9' : '#fff3e0', color: e.recipientType === 'NCC' ? '#2e7d32' : '#e65100', marginRight: 4 }}>{e.recipientType}</span>}
-                                        {e.recipientName || '—'}
+                                        {e.project && <div><span className="badge info" style={{ fontSize: 10 }}>{e.project.code}</span></div>}
+                                        {e.recipientName && (
+                                            <div style={{ marginTop: e.project ? 2 : 0 }}>
+                                                {e.recipientType && <span className="badge" style={{ fontSize: 9, background: e.recipientType === 'NCC' ? '#e8f5e9' : '#fff3e0', color: e.recipientType === 'NCC' ? '#2e7d32' : '#e65100', marginRight: 4 }}>{e.recipientType}</span>}
+                                                {e.recipientName}
+                                            </div>
+                                        )}
+                                        {!e.project && !e.recipientName && <span style={{ color: 'var(--text-muted)' }}>—</span>}
                                     </td>
-                                    <td><span className="badge muted">{e.category}</span></td>
-                                    <td style={{ textAlign: 'right', fontWeight: 600, fontSize: 13 }}>{fmt(e.amount)}</td>
-                                    <td style={{ fontSize: 12 }}>{e.submittedBy || '—'}</td>
-                                    <td style={{ fontSize: 12 }}>{fmtDate(e.date)}</td>
-                                    <td>
+                                    <td style={{ fontSize: 12 }}><span className="badge muted">{e.category}</span></td>
+                                    <td style={{ textAlign: 'right', fontWeight: 600, fontSize: 13, whiteSpace: 'nowrap' }}>{fmt(e.amount)}</td>
+                                    <td style={{ fontSize: 12, whiteSpace: 'nowrap' }}>{fmtDate(e.date)}</td>
+                                    <td style={{ whiteSpace: 'nowrap' }}>
                                         <span className={`badge ${STATUS_BADGE[e.status] || 'muted'}`}>{e.status}</span>
                                         {e.proofUrl && (() => {
                                             const urls = parseProofUrls(e.proofUrl);
                                             return urls.length > 0 && (
-                                                <button onClick={() => setLightbox({ urls, idx: 0 })} style={{ background: 'none', border: 'none', cursor: 'pointer', marginLeft: 4, padding: 0, fontSize: 14 }} title={`${urls.length} chứng từ`}>
+                                                <button onClick={() => setLightbox({ urls, idx: 0 })} style={{ background: 'none', border: 'none', cursor: 'pointer', marginLeft: 4, padding: 0, fontSize: 13 }} title={`${urls.length} chứng từ`}>
                                                     📎{urls.length > 1 ? <sup style={{ fontSize: 9, color: '#234093' }}>{urls.length}</sup> : null}
                                                 </button>
                                             );
                                         })()}
                                     </td>
-                                    <td>
-                                        <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+                                    <td style={{ whiteSpace: 'nowrap' }}>
+                                        <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
                                             {e.status === 'Chờ duyệt' && <>
-                                                <button className="btn btn-sm" style={{ background: 'var(--status-success)', color: '#fff', border: 'none', borderRadius: 6, fontSize: 11, cursor: 'pointer', padding: '3px 8px' }} onClick={() => updateStatus(e.id, 'Đã duyệt')}>✓ Duyệt</button>
-                                                <button className="btn btn-sm" style={{ background: 'var(--status-danger)', color: '#fff', border: 'none', borderRadius: 6, fontSize: 11, cursor: 'pointer', padding: '3px 8px' }} onClick={() => updateStatus(e.id, 'Từ chối')}>✗ Từ chối</button>
+                                                <button title="Duyệt" style={{ background: 'var(--status-success)', color: '#fff', border: 'none', borderRadius: 6, fontSize: 13, cursor: 'pointer', padding: '3px 7px', lineHeight: 1 }} onClick={() => updateStatus(e.id, 'Đã duyệt')}>✓</button>
+                                                <button title="Từ chối" style={{ background: 'var(--status-danger)', color: '#fff', border: 'none', borderRadius: 6, fontSize: 13, cursor: 'pointer', padding: '3px 7px', lineHeight: 1 }} onClick={() => updateStatus(e.id, 'Từ chối')}>✗</button>
                                             </>}
-                                            {e.status === 'Đã duyệt' && <button className="btn btn-sm" style={{ background: 'var(--accent-primary)', color: '#fff', border: 'none', borderRadius: 6, fontSize: 11, cursor: 'pointer', padding: '3px 8px' }} onClick={() => { setProofModal(e); setProofFile(null); setProofPreview(null); }}>💸 Chi tiền</button>}
-                                            {e.status === 'Đã chi' && <button className="btn btn-sm" style={{ background: 'var(--status-success)', color: '#fff', border: 'none', borderRadius: 6, fontSize: 11, cursor: 'pointer', padding: '3px 8px' }} onClick={() => updateStatus(e.id, 'Hoàn thành')}>✅ Hoàn thành</button>}
-                                            {e.status === 'Từ chối' && <button className="btn btn-sm" style={{ background: 'var(--status-warning)', color: '#fff', border: 'none', borderRadius: 6, fontSize: 11, cursor: 'pointer', padding: '3px 8px' }} onClick={() => updateStatus(e.id, 'Chờ duyệt')}>↩ Mở lại</button>}
-                                            {['Đã chi', 'Hoàn thành'].includes(e.status) && <button className="btn btn-ghost btn-sm" style={{ fontSize: 11 }} onClick={() => printVoucher(e)}>🧾 Phiếu chi</button>}
-                                            {['ke_toan', 'giam_doc', 'pho_gd'].includes(role) && <button className="btn btn-ghost btn-sm" style={{ fontSize: 11 }} onClick={() => openEdit(e)}>✏️ Sửa</button>}
-                                            {(['Chờ duyệt', 'Từ chối'].includes(e.status) || ['ke_toan', 'giam_doc', 'pho_gd'].includes(role)) && <button className="btn btn-ghost btn-sm" style={{ color: 'var(--status-danger)', fontSize: 11 }} onClick={() => handleDelete(e.id)}>🗑️</button>}
+                                            {e.status === 'Đã duyệt' && <button title="Xác nhận chi tiền" style={{ background: 'var(--accent-primary)', color: '#fff', border: 'none', borderRadius: 6, fontSize: 12, cursor: 'pointer', padding: '3px 7px', lineHeight: 1 }} onClick={() => { setProofModal(e); setProofFile(null); setProofPreview(null); }}>💸</button>}
+                                            {e.status === 'Đã chi' && <button title="Hoàn thành" style={{ background: 'var(--status-success)', color: '#fff', border: 'none', borderRadius: 6, fontSize: 12, cursor: 'pointer', padding: '3px 7px', lineHeight: 1 }} onClick={() => updateStatus(e.id, 'Hoàn thành')}>✅</button>}
+                                            {e.status === 'Từ chối' && <button title="Mở lại" style={{ background: 'var(--status-warning)', color: '#fff', border: 'none', borderRadius: 6, fontSize: 12, cursor: 'pointer', padding: '3px 7px', lineHeight: 1 }} onClick={() => updateStatus(e.id, 'Chờ duyệt')}>↩</button>}
+                                            {['Đã chi', 'Hoàn thành'].includes(e.status) && <button title="In phiếu chi" className="btn btn-ghost btn-sm" style={{ fontSize: 13, padding: '3px 6px' }} onClick={() => printVoucher(e)}>🧾</button>}
+                                            {['ke_toan', 'giam_doc', 'pho_gd'].includes(role) && <button title="Sửa" className="btn btn-ghost btn-sm" style={{ fontSize: 13, padding: '3px 6px' }} onClick={() => openEdit(e)}>✏️</button>}
+                                            {(['Chờ duyệt', 'Từ chối'].includes(e.status) || ['ke_toan', 'giam_doc', 'pho_gd'].includes(role)) && <button title="Xóa" className="btn btn-ghost btn-sm" style={{ color: 'var(--status-danger)', fontSize: 13, padding: '3px 6px' }} onClick={() => handleDelete(e.id)}>🗑️</button>}
                                         </div>
                                     </td>
                                 </tr>
