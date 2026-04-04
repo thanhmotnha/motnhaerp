@@ -456,14 +456,13 @@ ${e.proofUrl ? parseProofUrls(e.proofUrl).map(url => `<img src="${url}" style="m
                                     </select>
                                 </div>
                                 {(form.recipientType === 'NCC' || form.recipientType === 'Thầu phụ') && (
-                                    <div className="form-group">
-                                        <label className="form-label">Người nhận</label>
-                                        <select className="form-select" value={form.recipientId} onChange={e => setForm(f => ({ ...f, recipientId: e.target.value }))}>
-                                            <option value="">— Chọn —</option>
-                                            {form.recipientType === 'NCC' && suppliers.map(s => <option key={s.id} value={s.id}>{s.code} — {s.name}</option>)}
-                                            {form.recipientType === 'Thầu phụ' && contractors.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                                        </select>
-                                    </div>
+                                    <RecipientSearch
+                                        recipientType={form.recipientType}
+                                        recipientId={form.recipientId}
+                                        suppliers={suppliers}
+                                        contractors={contractors}
+                                        onChange={id => setForm(f => ({ ...f, recipientId: id }))}
+                                    />
                                 )}
                             </div>
 
@@ -639,6 +638,78 @@ ${e.proofUrl ? parseProofUrls(e.proofUrl).map(url => `<img src="${url}" style="m
                         </div>
                     )}
                     <div style={{ color: 'rgba(255,255,255,0.6)', fontSize: 12 }}>Nhấn ra ngoài để đóng{lightbox.urls.length > 1 ? ` • ${lightbox.idx + 1}/${lightbox.urls.length}` : ''}</div>
+                </div>
+            )}
+        </div>
+    );
+}
+
+function RecipientSearch({ recipientType, recipientId, suppliers, contractors, onChange }) {
+    const list = recipientType === 'NCC' ? suppliers : contractors;
+    const [search, setSearch] = useState('');
+    const [open, setOpen] = useState(false);
+    const ref = useRef();
+
+    const selected = list.find(x => x.id === recipientId);
+    const filtered = list.filter(x =>
+        !search || x.name.toLowerCase().includes(search.toLowerCase()) ||
+        (x.code && x.code.toLowerCase().includes(search.toLowerCase()))
+    );
+
+    useEffect(() => {
+        const handleClick = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
+        document.addEventListener('mousedown', handleClick);
+        return () => document.removeEventListener('mousedown', handleClick);
+    }, []);
+
+    // Reset search khi đổi loại
+    useEffect(() => { setSearch(''); setOpen(false); }, [recipientType]);
+
+    return (
+        <div className="form-group" ref={ref} style={{ position: 'relative' }}>
+            <label className="form-label">Người nhận</label>
+            <div style={{ position: 'relative' }}>
+                <input
+                    className="form-input"
+                    placeholder="Tìm theo tên hoặc mã..."
+                    value={open ? search : (selected ? (selected.code ? `${selected.code} — ${selected.name}` : selected.name) : '')}
+                    onChange={e => { setSearch(e.target.value); setOpen(true); if (!e.target.value) onChange(''); }}
+                    onFocus={() => { setSearch(''); setOpen(true); }}
+                    style={{ paddingRight: 28 }}
+                />
+                {recipientId && (
+                    <button
+                        type="button"
+                        onClick={() => { onChange(''); setSearch(''); setOpen(false); }}
+                        style={{ position: 'absolute', right: 6, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', fontSize: 14, lineHeight: 1 }}
+                    >✕</button>
+                )}
+            </div>
+            {open && (
+                <div style={{
+                    position: 'absolute', zIndex: 1000, top: '100%', left: 0, right: 0,
+                    background: 'var(--bg-primary)', border: '1px solid var(--border)',
+                    borderRadius: 8, boxShadow: '0 4px 16px rgba(0,0,0,0.12)',
+                    maxHeight: 220, overflowY: 'auto', marginTop: 2,
+                }}>
+                    {filtered.length === 0 ? (
+                        <div style={{ padding: '10px 14px', color: 'var(--text-muted)', fontSize: 13 }}>Không tìm thấy</div>
+                    ) : filtered.map(x => (
+                        <div
+                            key={x.id}
+                            onClick={() => { onChange(x.id); setOpen(false); setSearch(''); }}
+                            style={{
+                                padding: '8px 14px', cursor: 'pointer', fontSize: 13,
+                                background: x.id === recipientId ? 'var(--bg-secondary)' : 'transparent',
+                                borderBottom: '1px solid var(--border-light)',
+                            }}
+                            onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-secondary)'}
+                            onMouseLeave={e => e.currentTarget.style.background = x.id === recipientId ? 'var(--bg-secondary)' : 'transparent'}
+                        >
+                            {x.code && <span style={{ fontFamily: 'monospace', fontSize: 11, color: 'var(--text-muted)', marginRight: 6 }}>{x.code}</span>}
+                            {x.name}
+                        </div>
+                    ))}
                 </div>
             )}
         </div>
