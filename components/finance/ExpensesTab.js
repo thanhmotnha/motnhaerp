@@ -385,19 +385,29 @@ ${e.proofUrl ? parseProofUrls(e.proofUrl).map(url => `<img src="${url}" style="m
                                         {e.description}
                                     </td>
                                     <td style={{ fontSize: 12 }}>
-                                        {e.project && (
+                                        {/* Dự án: ưu tiên allocations (nhiều DA), fallback về project trực tiếp */}
+                                        {e.allocations?.length > 0 ? (
+                                            <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                                                {e.allocations.map(a => (
+                                                    <div key={a.id}>
+                                                        <span className="badge info" style={{ fontSize: 10 }}>{a.project.code}</span>
+                                                        <span style={{ marginLeft: 4, color: 'var(--text-secondary)' }}>{a.project.name}</span>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        ) : e.project ? (
                                             <div>
                                                 <span className="badge info" style={{ fontSize: 10 }}>{e.project.code}</span>
-                                                {e.project.name && <span style={{ marginLeft: 4, color: 'var(--text-secondary)' }}>{e.project.name}</span>}
+                                                <span style={{ marginLeft: 4, color: 'var(--text-secondary)' }}>{e.project.name}</span>
                                             </div>
-                                        )}
+                                        ) : null}
                                         {e.recipientName && (
-                                            <div style={{ marginTop: e.project ? 2 : 0, color: 'var(--text-muted)' }}>
+                                            <div style={{ marginTop: (e.allocations?.length > 0 || e.project) ? 2 : 0, color: 'var(--text-muted)' }}>
                                                 {e.recipientType && <span className="badge" style={{ fontSize: 9, background: e.recipientType === 'NCC' ? '#e8f5e9' : '#fff3e0', color: e.recipientType === 'NCC' ? '#2e7d32' : '#e65100', marginRight: 4 }}>{e.recipientType}</span>}
                                                 {e.recipientName}
                                             </div>
                                         )}
-                                        {!e.project && !e.recipientName && <span style={{ color: 'var(--text-muted)' }}>—</span>}
+                                        {!e.project && !e.recipientName && !e.allocations?.length && <span style={{ color: 'var(--text-muted)' }}>—</span>}
                                     </td>
                                     <td style={{ fontSize: 12 }}><span className="badge muted">{e.category}</span></td>
                                     <td style={{ textAlign: 'right', fontWeight: 600, fontSize: 13, whiteSpace: 'nowrap' }}>{fmt(e.amount)}</td>
