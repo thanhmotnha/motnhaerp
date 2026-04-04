@@ -145,7 +145,7 @@ export default function PipelinePage() {
             {/* KPI Target (finance only) */}
             {canSeeFinance && (
                 <div className="card" style={{ marginBottom: 24, padding: '16px 20px' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12, flexWrap: 'wrap', gap: 12 }}>
                         <div style={{ fontSize: 12, color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: 1 }}>
                             KPI Pipeline tháng này
                         </div>

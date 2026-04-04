@@ -133,7 +133,7 @@ function PurchasingContent() {
 
     return (
         <div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24, flexWrap: 'wrap', gap: 12 }}>
                 <h2 style={{ margin: 0 }}>🛒 Mua sắm vật tư toàn công ty</h2>
                 <button className="btn btn-primary" onClick={() => setShowModal(true)}>+ Tạo PO mới</button>
             </div>
@@ -262,7 +262,7 @@ function PurchasingContent() {
 
                             {/* Items table */}
                             <div style={{ marginTop: 12 }}>
-                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8, flexWrap: 'wrap', gap: 12 }}>
                                     <label className="form-label" style={{ margin: 0 }}>Danh sách sản phẩm</label>
                                     <button className="btn btn-ghost btn-sm" onClick={() => setPoItems(it => [...it, { productName: '', unit: 'cái', quantity: 1, unitPrice: 0, amount: 0, productId: null }])}>
                                         + Thêm dòng

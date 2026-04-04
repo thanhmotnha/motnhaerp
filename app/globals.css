@@ -168,6 +168,7 @@ body {
   margin-left: var(--sidebar-width);
   padding-top: var(--header-height);
   min-height: 100vh;
+  min-width: 0;
   transition: margin-left 0.25s ease;
 }
 
@@ -533,6 +534,8 @@ body {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
   margin-bottom: 28px;
 }
 
@@ -649,6 +652,7 @@ body {
   border: 1px solid var(--border-color);
   border-radius: var(--border-radius);
   padding: 24px;
+  overflow-x: auto;
   transition: all var(--transition-normal);
 }
 
@@ -661,6 +665,8 @@ body {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
   margin-bottom: 20px;
 }
 
@@ -2389,9 +2395,11 @@ select.form-input-compact {
   border-radius: var(--border-radius-lg, 12px);
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
   width: 90%;
+  max-width: 92vw;
+  max-height: 90vh;
   display: flex;
   flex-direction: column;
-  overflow: hidden;
+  overflow-y: auto;
   animation: slideUp 0.2s ease;
 }
 

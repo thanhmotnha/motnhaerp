@@ -237,7 +237,7 @@ export default function CongNoPage() {
                     <div style={{ padding: 24 }}>
 
                         {/* Header row */}
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20 }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20, flexWrap: 'wrap', gap: 12 }}>
                             <div>
                                 <h2 style={{ margin: 0, fontSize: 18 }}>{selectedEntity?.name}</h2>
                                 <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>{selectedEntity?.code}</div>

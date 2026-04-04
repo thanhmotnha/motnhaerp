@@ -89,7 +89,7 @@ export default function CashflowTab({ cashflow, transactions, onAddTx }) {
 
             {/* Thu chi khác */}
             <div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12, flexWrap: 'wrap', gap: 12 }}>
                     <h3 style={{ fontSize: 15, fontWeight: 600 }}>💳 Thu chi thủ công</h3>
                     <div style={{ display: 'flex', gap: 8 }}>
                         <select className="form-input" style={{ width: 120 }} value={filterType} onChange={e => setFilterType(e.target.value)}>

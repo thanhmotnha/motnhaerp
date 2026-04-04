@@ -87,7 +87,7 @@ export default function MaterialPlansPage() {
 
     return (
         <div style={{ padding: '24px 28px', maxWidth: 1400, margin: '0 auto' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, flexWrap: 'wrap', gap: 12 }}>
                 <div><h1 style={{ fontSize: 22, fontWeight: 700, color: 'var(--text-primary)' }}>Kế hoạch & Yêu cầu vật tư</h1>
                     <p style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 2 }}>Quản lý kế hoạch vật tư dự án và yêu cầu mua sắm</p></div>
             </div>

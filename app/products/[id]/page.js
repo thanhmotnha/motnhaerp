@@ -418,7 +418,7 @@ export default function ProductDetailPage() {
             {/* ===== TAB: BOM ===== */}
             {tab === 'bom' && (
                 <div className="pd-section" style={{ maxWidth: 900 }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, flexWrap: 'wrap', gap: 12 }}>
                         <div>
                             <div className="pd-section-title" style={{ marginBottom: 2 }}>Định mức vật tư (BOM)</div>
                             <div style={{ fontSize: 12, opacity: 0.5 }}>Nguyên vật liệu cần dùng để sản xuất: <strong>{product.name}</strong></div>
@@ -610,7 +610,7 @@ export default function ProductDetailPage() {
             {/* ===== TAB: LỊCH SỬ KHO ===== */}
             {tab === 'inventory' && (
                 <div style={{ maxWidth: 900 }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, flexWrap: 'wrap', gap: 12 }}>
                         <div className="pd-section-title">Lịch sử nhập/xuất kho</div>
                         <div style={{ fontSize: 13, opacity: 0.6 }}>Tồn hiện tại: <strong style={{ fontSize: 16, color: 'var(--primary)' }}>{fmt(product.stock)}</strong> {product.unit}</div>
                     </div>

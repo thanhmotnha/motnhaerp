@@ -444,7 +444,7 @@ export default function ReportsPage() {
                                         </div>
                                     ))}
                                 </div>
-                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10, flexWrap: 'wrap', gap: 12 }}>
                                     <div style={{ fontWeight: 700, fontSize: 14 }}>Tổng phải thu: <span style={{ color: 'var(--status-warning)' }}>{fmt(agingRecv.totalOutstanding)}</span></div>
                                     <button className="btn btn-ghost btn-sm" onClick={() => exportCSV('aging-phai-thu.csv',
                                         ['Hợp đồng', 'Đợt thanh toán', 'Khách hàng', 'Dự án', 'Còn lại', 'Hạn thu', 'Quá hạn (ngày)', 'Nhóm'],

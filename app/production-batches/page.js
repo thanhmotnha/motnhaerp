@@ -33,7 +33,7 @@ function KanbanCard({ b, onMove, router }) {
     return (
         <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 10, padding: '10px 12px', marginBottom: 8, cursor: 'pointer', transition: 'box-shadow .15s', boxShadow: '0 1px 3px rgba(0,0,0,0.06)' }}
             onClick={() => b.furnitureOrder?.id && router.push(`/furniture-orders/${b.furnitureOrder.id}`)}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6, flexWrap: 'wrap', gap: 12 }}>
                 <span style={{ fontWeight: 700, fontSize: 13, color: 'var(--accent-primary)' }}>{b.code}</span>
                 <span style={{ fontSize: 10, fontWeight: 600, color: qc.color }}>{qc.label}</span>
             </div>

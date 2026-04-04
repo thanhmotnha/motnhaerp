@@ -58,7 +58,7 @@ export default function ContractorTab({ project: p, projectId, onRefresh }) {
 
     return (
         <div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, flexWrap: 'wrap', gap: 12 }}>
                 <div style={{ display: 'flex', gap: 24, fontSize: 13 }}>
                     <span>Tổng HĐ thầu: <strong>{fmtVND(totalContract)}</strong></span>
                     <span>Đã thanh toán: <strong style={{ color: 'var(--status-success)' }}>{fmtVND(totalPaid)}</strong></span>

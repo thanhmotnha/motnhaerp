@@ -151,7 +151,7 @@ export default function DebtTab({ summary, retentions, supplierDebt }) {
 
             {/* Section 2: Công nợ NCC */}
             <div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12, flexWrap: 'wrap', gap: 12 }}>
                     <h3 style={{ fontSize: 15, fontWeight: 700, margin: 0 }}>🏪 Công nợ Nhà cung cấp</h3>
                     <span style={{ fontWeight: 700, color: 'var(--status-warning)' }}>{fmtVND(nccData.totalSoDu)}</span>
                 </div>
@@ -266,7 +266,7 @@ export default function DebtTab({ summary, retentions, supplierDebt }) {
 
             {/* Section 3: Công nợ Thầu phụ */}
             <div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12, flexWrap: 'wrap', gap: 12 }}>
                     <h3 style={{ fontSize: 15, fontWeight: 700, margin: 0 }}>👷 Công nợ Nhà thầu phụ</h3>
                     <span style={{ fontWeight: 700, color: 'var(--status-warning)' }}>{fmtVND(contractorData.totalSoDu)}</span>
                 </div>
@@ -426,7 +426,7 @@ export default function DebtTab({ summary, retentions, supplierDebt }) {
 
             {/* Section 5: Báo cáo công nợ theo kỳ (Feature C) */}
             <div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12, flexWrap: 'wrap', gap: 12 }}>
                     <h3 style={{ fontSize: 15, fontWeight: 700, margin: 0 }}>📊 Báo cáo công nợ theo kỳ</h3>
                     <input
                         type="month"

@@ -587,7 +587,7 @@ function BatchDetailModal({ batchId, onClose, toast, canManage }) {
     return (
         <div className="modal-overlay" onClick={onClose}>
             <div className="modal-content" onClick={ev => ev.stopPropagation()} style={{ maxWidth: 720 }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16, flexWrap: 'wrap', gap: 12 }}>
                     <div>
                         <h3 style={{ margin: 0 }}>{batch?.code} — {batch?.name}</h3>
                         <div style={{ fontSize: 13, color: 'var(--text-muted)' }}>
@@ -615,7 +615,7 @@ function BatchDetailModal({ batchId, onClose, toast, canManage }) {
                     </table>
                 </div>
 
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6, flexWrap: 'wrap', gap: 12 }}>
                     <div style={{ fontWeight: 600, fontSize: 13 }}>Phân bổ dự án ({allocations.length}):</div>
                     {!isConfirmed && canManage && (
                         <button className="btn btn-ghost btn-sm" onClick={recalculate} disabled={recalculating}>

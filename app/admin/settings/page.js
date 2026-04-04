@@ -371,7 +371,7 @@ export default function SettingsPage() {
 function PaymentTemplateContent({ paymentTemplates, addPhase, removePhase, updatePhase, addContractType, removeContractType, renameContractType }) {
     return (
         <>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, flexWrap: 'wrap', gap: 12 }}>
                 <div>
                     <SectionTitle icon="💵" title="Mẫu đợt thanh toán theo loại HĐ" />
                     <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: '-8px 0 0 0' }}>Mỗi loại hợp đồng có các đợt thanh toán mặc định. Khi tạo HĐ mới, hệ thống tự tạo đợt TT theo mẫu.</p>
@@ -453,7 +453,7 @@ function QuotationTemplateContent({ quotationDefaults, setQuotationDefaults, quo
             </div>
 
             {/* Quotation Category Templates */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, flexWrap: 'wrap', gap: 12 }}>
                 <div>
                     <SectionTitle icon="🗂️" title="Mẫu hạng mục báo giá" />
                     <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: '-8px 0 0 0' }}>Cây hạng mục mặc định khi tạo báo giá mới. Gồm Nhóm chính → Phân nhóm con.</p>
@@ -506,7 +506,7 @@ function QuotationTemplateContent({ quotationDefaults, setQuotationDefaults, quo
             ))}
 
             {/* ĐVT Management */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, marginTop: 24 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, marginTop: 24, flexWrap: 'wrap', gap: 12 }}>
                 <div>
                     <SectionTitle icon="📏" title="Đơn vị tính (ĐVT)" />
                     <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: '-8px 0 0 0' }}>Danh sách ĐVT hiển thị trong dropdown khi tạo báo giá.</p>
@@ -601,7 +601,7 @@ function GeminiStatusWidget() {
         <div style={{ marginTop: 24 }}>
             <SectionTitle icon="🤖" title="AI / Gemini API" />
             <div style={{ border: '1px solid var(--border)', borderRadius: 10, padding: 16, background: 'var(--bg-card)' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12, flexWrap: 'wrap', gap: 12 }}>
                     <div>
                         <div style={{ fontWeight: 600, fontSize: 14 }}>Google Gemini API</div>
                         <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>

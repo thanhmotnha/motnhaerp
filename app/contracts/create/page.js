@@ -166,7 +166,7 @@ export default function CreateContractPage() {
 
     return (
         <div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, flexWrap: 'wrap', gap: 12 }}>
                 <h2 style={{ margin: 0 }}>📝 Tạo hợp đồng mới</h2>
                 <div style={{ display: 'flex', gap: 8 }}>
                     <button className="btn btn-ghost" onClick={() => router.back()}>← Quay lại</button>

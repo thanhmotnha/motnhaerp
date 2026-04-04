@@ -47,7 +47,7 @@ export default function CongNoBaoCaoPage() {
     return (
         <div>
             {/* Header */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, flexWrap: 'wrap', gap: 12 }}>
                 <h2 style={{ margin: 0 }}>Báo cáo công nợ theo kỳ</h2>
                 <input
                     type="month"
