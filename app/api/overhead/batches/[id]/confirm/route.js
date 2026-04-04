@@ -19,6 +19,14 @@ export const POST = withAuth(async (request, { params }, session) => {
     const { allocations } = overheadBatchConfirmSchema.parse(await request.json());
 
     const batch = await prisma.$transaction(async (tx) => {
+        const projectIds = allocations.map(a => a.projectId);
+        const validProjects = await tx.project.findMany({
+            where: { id: { in: projectIds }, deletedAt: null },
+            select: { id: true },
+        });
+        if (validProjects.length !== projectIds.length) {
+            throw new Error('Một số dự án không tồn tại');
+        }
         await tx.overheadAllocation.deleteMany({ where: { batchId: id } });
         await tx.overheadAllocation.createMany({
             data: allocations.map(a => ({

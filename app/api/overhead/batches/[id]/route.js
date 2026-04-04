@@ -6,7 +6,7 @@ import { overheadBatchUpdateSchema } from '@/lib/validations/overhead';
 export const GET = withAuth(async (_request, { params }) => {
     const { id } = await params;
     const batch = await prisma.overheadBatch.findFirst({
-        where: { id },
+        where: { id, deletedAt: null },
         include: {
             items: {
                 include: { expense: { include: { category: { select: { name: true } } } } },
@@ -22,7 +22,7 @@ export const GET = withAuth(async (_request, { params }) => {
 
 export const PUT = withAuth(async (request, { params }) => {
     const { id } = await params;
-    const existing = await prisma.overheadBatch.findFirst({ where: { id } });
+    const existing = await prisma.overheadBatch.findFirst({ where: { id, deletedAt: null } });
     if (!existing) return NextResponse.json({ error: 'Không tìm thấy' }, { status: 404 });
     if (existing.status === 'confirmed') {
         return NextResponse.json({ error: 'Không thể sửa đợt đã xác nhận' }, { status: 400 });
@@ -42,14 +42,21 @@ export const PUT = withAuth(async (request, { params }) => {
             });
             data.totalAmount = totalAmount;
         }
-        return tx.overheadBatch.update({ where: { id }, data });
+        await tx.overheadBatch.update({ where: { id }, data });
+        return tx.overheadBatch.findFirst({
+            where: { id },
+            include: {
+                items: { include: { expense: { include: { category: { select: { name: true } } } } } },
+                allocations: { include: { project: { select: { id: true, name: true, code: true } } } },
+            },
+        });
     });
     return NextResponse.json(batch);
 });
 
 export const DELETE = withAuth(async (_request, { params }) => {
     const { id } = await params;
-    const existing = await prisma.overheadBatch.findFirst({ where: { id } });
+    const existing = await prisma.overheadBatch.findFirst({ where: { id, deletedAt: null } });
     if (!existing) return NextResponse.json({ error: 'Không tìm thấy' }, { status: 404 });
     if (existing.status === 'confirmed') {
         return NextResponse.json({ error: 'Không thể xóa đợt đã xác nhận' }, { status: 400 });
