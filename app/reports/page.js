@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { useRole } from '@/contexts/RoleContext';
 
@@ -92,6 +92,10 @@ export default function ReportsPage() {
 
     const [funnel, setFunnel] = useState(null);
 
+    const [plData, setPlData] = useState(null);
+    const [plYear, setPlYear] = useState(new Date().getFullYear());
+    const [plLoading, setPlLoading] = useState(false);
+
     useEffect(() => {
         Promise.all([
             fetch('/api/reports/debt').then(r => r.ok ? r.json() : null).catch(() => null),
@@ -119,6 +123,20 @@ export default function ReportsPage() {
         fetch('/api/reports/cashflow-forecast?days=90').then(r => r.json()).then(d => { setCashflow(d); setLoadingCashflow(false); });
     }, [tab]);
 
+    const fetchPL = useCallback(async () => {
+        setPlLoading(true);
+        try {
+            const res = await fetch(`/api/overhead/pl?year=${plYear}`);
+            const data = await res.json();
+            setPlData(data);
+        } catch (e) { console.error(e); }
+        setPlLoading(false);
+    }, [plYear]);
+
+    useEffect(() => {
+        if (tab === 'pl') fetchPL();
+    }, [tab, fetchPL]);
+
     if (loading) return <div style={{ padding: 60, textAlign: 'center', color: 'var(--text-muted)' }}>Đang tải báo cáo...</div>;
 
     const totalPayable = (debt?.supplierTotal || 0) + (debt?.contractorTotal || 0);
@@ -134,6 +152,7 @@ export default function ReportsPage() {
             { key: 'cashflow', label: '💸 Dòng tiền' },
             { key: 'supplier_debt', label: '🏭 Công nợ NCC' },
             { key: 'contractor_debt', label: '👷 Công nợ thầu' },
+            { key: 'pl', label: '📊 P&L Công ty' },
         ] : []),
     ];
 
@@ -464,6 +483,68 @@ export default function ReportsPage() {
                                     </table>
                                 </div>
                             </>
+                        )}
+                    </div>
+                )}
+
+                {tab === 'pl' && canSeeFinance && (
+                    <div style={{ padding: 24 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20 }}>
+                            <select className="form-select" value={plYear} onChange={e => setPlYear(Number(e.target.value))} style={{ width: 120 }}>
+                                {[2024, 2025, 2026, 2027].map(y => <option key={y} value={y}>{y}</option>)}
+                            </select>
+                        </div>
+                        {plLoading ? (
+                            <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-muted)' }}>Đang tải...</div>
+                        ) : plData ? (
+                            <>
+                                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 12, marginBottom: 24 }}>
+                                    {[
+                                        { label: 'Tổng doanh thu', value: new Intl.NumberFormat('vi-VN').format(plData.summary.totalRevenue) + 'đ', color: '#22c55e' },
+                                        { label: 'Chi phí trực tiếp', value: new Intl.NumberFormat('vi-VN').format(plData.summary.totalDirectCost) + 'đ', color: '#ef4444' },
+                                        { label: 'Chi phí chung', value: new Intl.NumberFormat('vi-VN').format(plData.summary.totalOverheadCost) + 'đ', color: '#f59e0b' },
+                                        { label: 'Lợi nhuận gộp', value: new Intl.NumberFormat('vi-VN').format(plData.summary.totalGrossProfit) + 'đ', color: plData.summary.totalGrossProfit >= 0 ? '#3b82f6' : '#ef4444' },
+                                    ].map(k => (
+                                        <div key={k.label} className="card" style={{ padding: '14px 16px', textAlign: 'center' }}>
+                                            <div style={{ fontSize: 18, fontWeight: 700, color: k.color }}>{k.value}</div>
+                                            <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>{k.label}</div>
+                                        </div>
+                                    ))}
+                                </div>
+                                <div className="card" style={{ overflow: 'auto' }}>
+                                    <table className="data-table">
+                                        <thead>
+                                            <tr>
+                                                <th>Dự án</th>
+                                                <th style={{ textAlign: 'right' }}>Giá trị HĐ</th>
+                                                <th style={{ textAlign: 'right' }}>Đã thu</th>
+                                                <th style={{ textAlign: 'right' }}>CP trực tiếp</th>
+                                                <th style={{ textAlign: 'right' }}>CP chung</th>
+                                                <th style={{ textAlign: 'right' }}>LN gộp</th>
+                                                <th style={{ textAlign: 'right' }}>Biên LN</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {plData.projects.map(p => (
+                                                <tr key={p.id}>
+                                                    <td><span style={{ fontFamily: 'monospace', fontSize: 12, color: 'var(--text-muted)', marginRight: 6 }}>{p.code}</span>{p.name}</td>
+                                                    <td style={{ textAlign: 'right', fontFamily: 'monospace' }}>{new Intl.NumberFormat('vi-VN').format(p.contractValue)}</td>
+                                                    <td style={{ textAlign: 'right', fontFamily: 'monospace' }}>{new Intl.NumberFormat('vi-VN').format(p.revenue)}</td>
+                                                    <td style={{ textAlign: 'right', fontFamily: 'monospace', color: '#ef4444' }}>({new Intl.NumberFormat('vi-VN').format(p.directCost)})</td>
+                                                    <td style={{ textAlign: 'right', fontFamily: 'monospace', color: '#f59e0b' }}>({new Intl.NumberFormat('vi-VN').format(p.overheadCost)})</td>
+                                                    <td style={{ textAlign: 'right', fontFamily: 'monospace', fontWeight: 600, color: p.grossProfit >= 0 ? '#22c55e' : '#ef4444' }}>{new Intl.NumberFormat('vi-VN').format(p.grossProfit)}</td>
+                                                    <td style={{ textAlign: 'right', color: p.margin >= 0 ? '#22c55e' : '#ef4444' }}>{p.margin}%</td>
+                                                </tr>
+                                            ))}
+                                            {plData.projects.length === 0 && (
+                                                <tr><td colSpan={7} style={{ textAlign: 'center', color: 'var(--text-muted)', padding: 30 }}>Không có dữ liệu</td></tr>
+                                            )}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </>
+                        ) : (
+                            <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-muted)' }}>Chọn năm để xem báo cáo</div>
                         )}
                     </div>
                 )}
