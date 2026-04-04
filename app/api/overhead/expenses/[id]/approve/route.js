@@ -1,6 +1,7 @@
 import { withAuth } from '@/lib/apiHandler';
 import prisma from '@/lib/prisma';
 import { NextResponse } from 'next/server';
+import { logActivity } from '@/lib/activityLogger';
 
 const FINANCE_ROLES = ['giam_doc', 'pho_gd', 'ke_toan'];
 
@@ -21,6 +22,14 @@ export const PATCH = withAuth(async (_request, { params }, session) => {
             approvedBy: session.user.name || session.user.email || '',
             approvedAt: new Date(),
         },
+    });
+    await logActivity({
+        action: 'APPROVE',
+        entityType: 'OverheadExpense',
+        entityId: id,
+        entityLabel: existing.description,
+        actor: session.user.name || session.user.email || '',
+        actorId: session.user.id,
     });
     return NextResponse.json(updated);
 });

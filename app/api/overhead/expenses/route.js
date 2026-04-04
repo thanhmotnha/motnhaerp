@@ -4,6 +4,7 @@ import { generateCode } from '@/lib/generateCode';
 import prisma from '@/lib/prisma';
 import { NextResponse } from 'next/server';
 import { overheadExpenseCreateSchema } from '@/lib/validations/overhead';
+import { logActivity } from '@/lib/activityLogger';
 
 export const GET = withAuth(async (request) => {
     const { searchParams } = new URL(request.url);
@@ -42,6 +43,14 @@ export const POST = withAuth(async (request, _ctx, session) => {
     const expense = await prisma.overheadExpense.create({
         data: { code, ...data, createdById: session.user.id },
         include: { category: { select: { id: true, name: true } } },
+    });
+    await logActivity({
+        action: 'CREATE',
+        entityType: 'OverheadExpense',
+        entityId: expense.id,
+        entityLabel: expense.description,
+        actor: session.user.name || session.user.email || '',
+        actorId: session.user.id,
     });
     return NextResponse.json(expense, { status: 201 });
 });
