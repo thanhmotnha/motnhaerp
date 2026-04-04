@@ -387,19 +387,11 @@ ${e.proofUrl ? parseProofUrls(e.proofUrl).map(url => `<img src="${url}" style="m
                                     <td style={{ fontSize: 12 }}>
                                         {/* Dự án: ưu tiên allocations (nhiều DA), fallback về project trực tiếp */}
                                         {e.allocations?.length > 0 ? (
-                                            <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                                                {e.allocations.map(a => (
-                                                    <div key={a.id}>
-                                                        <span className="badge info" style={{ fontSize: 10 }}>{a.project.code}</span>
-                                                        <span style={{ marginLeft: 4, color: 'var(--text-secondary)' }}>{a.project.name}</span>
-                                                    </div>
-                                                ))}
+                                            <div style={{ color: 'var(--text-secondary)' }}>
+                                                {e.allocations.map(a => a.project.name).join(', ')}
                                             </div>
                                         ) : e.project ? (
-                                            <div>
-                                                <span className="badge info" style={{ fontSize: 10 }}>{e.project.code}</span>
-                                                <span style={{ marginLeft: 4, color: 'var(--text-secondary)' }}>{e.project.name}</span>
-                                            </div>
+                                            <div style={{ color: 'var(--text-secondary)' }}>{e.project.name}</div>
                                         ) : null}
                                         {e.recipientName && (
                                             <div style={{ marginTop: (e.allocations?.length > 0 || e.project) ? 2 : 0, color: 'var(--text-muted)' }}>
