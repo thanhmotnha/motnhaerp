@@ -138,6 +138,7 @@ model Project {
   transactions          Transaction[]
   warrantyTickets       WarrantyTicket[]
   workOrders            WorkOrder[]
+  overheadAllocations   OverheadAllocation[]
 
   @@index([customerId])
 }
@@ -951,7 +952,8 @@ model ExpenseCategory {
   createdAt   DateTime          @default(now())
   parent      ExpenseCategory?  @relation("CategoryTree", fields: [parentId], references: [id])
   children    ExpenseCategory[] @relation("CategoryTree")
-  expenses    ProjectExpense[]
+  expenses         ProjectExpense[]
+  overheadExpenses OverheadExpense[]
 
   @@index([parentId])
 }
@@ -2030,4 +2032,77 @@ model ProjectRisk {
 
   @@index([projectId])
   @@index([status])
+}
+
+model OverheadExpense {
+  id          String    @id @default(cuid())
+  code        String    @unique
+  categoryId  String?
+  description String
+  amount      Float     @default(0)
+  date        DateTime  @default(now())
+  proofUrl    String    @default("")
+  status      String    @default("draft")
+  notes       String    @default("")
+  createdById String    @default("")
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  deletedAt   DateTime?
+
+  category   ExpenseCategory?    @relation(fields: [categoryId], references: [id])
+  batchItems OverheadBatchItem[]
+
+  @@index([categoryId])
+  @@index([date])
+}
+
+model OverheadBatch {
+  id          String    @id @default(cuid())
+  code        String    @unique
+  name        String
+  period      String    @default("")
+  totalAmount Float     @default(0)
+  status      String    @default("draft")
+  notes       String    @default("")
+  createdById String    @default("")
+  confirmedAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  items       OverheadBatchItem[]
+  allocations OverheadAllocation[]
+
+  @@index([period])
+}
+
+model OverheadBatchItem {
+  id        String @id @default(cuid())
+  batchId   String
+  expenseId String
+  amount    Float  @default(0)
+
+  batch   OverheadBatch   @relation(fields: [batchId], references: [id], onDelete: Cascade)
+  expense OverheadExpense @relation(fields: [expenseId], references: [id])
+
+  @@unique([batchId, expenseId])
+  @@index([batchId])
+  @@index([expenseId])
+}
+
+model OverheadAllocation {
+  id         String   @id @default(cuid())
+  batchId    String
+  projectId  String
+  ratio      Float    @default(0)
+  amount     Float    @default(0)
+  isOverride Boolean  @default(false)
+  notes      String   @default("")
+  createdAt  DateTime @default(now())
+
+  batch   OverheadBatch @relation(fields: [batchId], references: [id], onDelete: Cascade)
+  project Project       @relation(fields: [projectId], references: [id])
+
+  @@unique([batchId, projectId])
+  @@index([batchId])
+  @@index([projectId])
 }
