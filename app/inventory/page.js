@@ -22,6 +22,17 @@ export default function InventoryPage() {
     const [projects, setProjects] = useState([]);
     const [saving, setSaving] = useState(false);
     const [reorderAlerts, setReorderAlerts] = useState([]);
+    const [receipts, setReceipts] = useState([]);
+    const [issues, setIssues] = useState([]);
+    const [viewReceipt, setViewReceipt] = useState(null);
+    const [viewIssue, setViewIssue] = useState(null);
+    const [showIssueForm, setShowIssueForm] = useState(false);
+    const [issueWarehouseId, setIssueWarehouseId] = useState('');
+    const [issueProjectId, setIssueProjectId] = useState('');
+    const [issueIssuedBy, setIssueIssuedBy] = useState('');
+    const [issueNotes, setIssueNotes] = useState('');
+    const [issueItems, setIssueItems] = useState([{ productId: '', productName: '', unit: '', qty: '', unitPrice: 0, stock: 0 }]);
+    const [issueSaving, setIssueSaving] = useState(false);
 
     const fetchTx = async () => {
         setLoading(true);
@@ -42,9 +53,116 @@ export default function InventoryPage() {
         setLoading(false);
     };
 
+    const fetchReceipts = async () => {
+        setLoading(true);
+        const res = await fetch('/api/inventory/receipts');
+        const d = await res.json();
+        setReceipts(Array.isArray(d) ? d : []);
+        setLoading(false);
+    };
+
+    const fetchIssues = async () => {
+        setLoading(true);
+        const res = await fetch('/api/inventory/issues');
+        const d = await res.json();
+        setIssues(Array.isArray(d) ? d : []);
+        setLoading(false);
+    };
+
+    const printReceipt = (r) => {
+        const win = window.open('', '_blank');
+        win.document.write(`
+            <html><head><title>Phiếu nhập kho ${r.code}</title>
+            <style>
+                body { font-family: Arial, sans-serif; font-size: 13px; padding: 24px; color: #000; }
+                h2 { text-align: center; margin: 0 0 4px; }
+                .sub { text-align: center; color: #555; margin-bottom: 16px; }
+                table { width: 100%; border-collapse: collapse; margin: 12px 0; }
+                th, td { border: 1px solid #999; padding: 6px 10px; text-align: left; }
+                th { background: #f5f5f5; font-weight: 600; }
+                .sign { display: flex; justify-content: space-between; margin-top: 40px; }
+                .sign div { text-align: center; width: 200px; }
+                @media print { button { display: none; } }
+            </style></head><body>
+            <h2>PHIẾU NHẬP KHO</h2>
+            <div class="sub">Mã: ${r.code} | Ngày: ${new Date(r.receivedDate).toLocaleDateString('vi-VN')} | Kho: ${r.warehouse?.name || ''}</div>
+            <p><strong>PO:</strong> ${r.purchaseOrder?.code} &nbsp;&nbsp; <strong>NCC:</strong> ${r.purchaseOrder?.supplier || ''}</p>
+            <p><strong>Người nhận:</strong> ${r.receivedBy || '—'} &nbsp;&nbsp; <strong>Ghi chú:</strong> ${r.notes || '—'}</p>
+            <table>
+                <thead><tr><th>#</th><th>Tên sản phẩm</th><th>ĐVT</th><th>SL đặt</th><th>SL nhận</th><th>Đơn giá</th><th>Thành tiền</th></tr></thead>
+                <tbody>
+                    ${(r.items || []).map((it, i) => `
+                        <tr>
+                            <td>${i + 1}</td><td>${it.productName}</td><td>${it.unit}</td>
+                            <td style="text-align:right">${it.qtyOrdered}</td>
+                            <td style="text-align:right">${it.qtyReceived}</td>
+                            <td style="text-align:right">${new Intl.NumberFormat('vi-VN').format(it.unitPrice)}</td>
+                            <td style="text-align:right">${new Intl.NumberFormat('vi-VN').format(it.qtyReceived * it.unitPrice)}</td>
+                        </tr>`).join('')}
+                </tbody>
+            </table>
+            <div class="sign">
+                <div><p>Người lập phiếu</p><br><br><small>(Ký, ghi rõ họ tên)</small></div>
+                <div><p>Thủ kho</p><br><br><small>(Ký, ghi rõ họ tên)</small></div>
+                <div><p>Kế toán</p><br><br><small>(Ký, ghi rõ họ tên)</small></div>
+            </div>
+            <button onclick="window.print()">In phiếu</button>
+            </body></html>
+        `);
+        win.document.close();
+        win.focus();
+        setTimeout(() => win.print(), 400);
+    };
+
+    const printIssue = (si) => {
+        const win = window.open('', '_blank');
+        win.document.write(`
+            <html><head><title>Phiếu xuất kho ${si.code}</title>
+            <style>
+                body { font-family: Arial, sans-serif; font-size: 13px; padding: 24px; color: #000; }
+                h2 { text-align: center; margin: 0 0 4px; }
+                .sub { text-align: center; color: #555; margin-bottom: 16px; }
+                table { width: 100%; border-collapse: collapse; margin: 12px 0; }
+                th, td { border: 1px solid #999; padding: 6px 10px; text-align: left; }
+                th { background: #f5f5f5; font-weight: 600; }
+                .sign { display: flex; justify-content: space-between; margin-top: 40px; }
+                .sign div { text-align: center; width: 200px; }
+                @media print { button { display: none; } }
+            </style></head><body>
+            <h2>PHIẾU XUẤT KHO</h2>
+            <div class="sub">Mã: ${si.code} | Ngày: ${new Date(si.issuedDate).toLocaleDateString('vi-VN')} | Kho: ${si.warehouse?.name || ''}</div>
+            <p><strong>Dự án:</strong> ${si.project ? `${si.project.code} — ${si.project.name}` : '—'} &nbsp;&nbsp; <strong>Người lập:</strong> ${si.issuedBy || '—'}</p>
+            <p><strong>Ghi chú:</strong> ${si.notes || '—'}</p>
+            <table>
+                <thead><tr><th>#</th><th>Tên vật tư</th><th>ĐVT</th><th>Số lượng</th><th>Đơn giá</th><th>Thành tiền</th></tr></thead>
+                <tbody>
+                    ${(si.items || []).map((it, i) => `
+                        <tr>
+                            <td>${i + 1}</td><td>${it.productName}</td><td>${it.unit}</td>
+                            <td style="text-align:right">${it.qty}</td>
+                            <td style="text-align:right">${new Intl.NumberFormat('vi-VN').format(it.unitPrice)}</td>
+                            <td style="text-align:right">${new Intl.NumberFormat('vi-VN').format(it.qty * it.unitPrice)}</td>
+                        </tr>`).join('')}
+                </tbody>
+            </table>
+            <div class="sign">
+                <div><p>Người lập phiếu</p><br><br><small>(Ký, ghi rõ họ tên)</small></div>
+                <div><p>Người nhận</p><br><br><small>(Ký, ghi rõ họ tên)</small></div>
+                <div><p>Thủ kho</p><br><br><small>(Ký, ghi rõ họ tên)</small></div>
+            </div>
+            <button onclick="window.print()">In phiếu</button>
+            </body></html>
+        `);
+        win.document.close();
+        win.focus();
+        setTimeout(() => win.print(), 400);
+    };
+
     useEffect(() => {
         if (activeTab === 'stock') fetchStock();
-        else fetchTx();
+        else if (activeTab === 'history') fetchTx();
+        else if (activeTab === 'receipts') fetchReceipts();
+        else if (activeTab === 'issues') fetchIssues();
     }, [activeTab, filterType, filterWarehouse]);
 
     useEffect(() => {
@@ -152,6 +270,12 @@ export default function InventoryPage() {
                         </button>
                         <button className={`tab-item ${activeTab === 'history' ? 'active' : ''}`} onClick={() => setActiveTab('history')}>
                             📋 Lịch sử nhập/xuất
+                        </button>
+                        <button className={`tab-item ${activeTab === 'receipts' ? 'active' : ''}`} onClick={() => setActiveTab('receipts')}>
+                            📥 Phiếu nhập (GRN)
+                        </button>
+                        <button className={`tab-item ${activeTab === 'issues' ? 'active' : ''}`} onClick={() => setActiveTab('issues')}>
+                            📤 Phiếu xuất
                         </button>
                     </div>
                     <button className="btn btn-primary" onClick={openModal}>+ Nhập/Xuất kho</button>
@@ -272,6 +396,95 @@ export default function InventoryPage() {
                         )}
                     </>
                 )}
+
+                {/* TAB: Phiếu nhập GRN */}
+                {activeTab === 'receipts' && (
+                    loading ? <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-muted)' }}>Đang tải...</div> : (
+                        <div className="table-container">
+                            <table className="data-table">
+                                <thead>
+                                    <tr>
+                                        <th>Mã GRN</th><th>Ngày nhận</th><th>PO</th><th>NCC</th>
+                                        <th>Kho</th><th style={{ textAlign: 'right' }}>Số SP</th>
+                                        <th>Người nhận</th><th></th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {receipts.map(r => (
+                                        <tr key={r.id}>
+                                            <td style={{ fontFamily: 'monospace', fontWeight: 600, fontSize: 12 }}>{r.code}</td>
+                                            <td style={{ fontSize: 13 }}>{new Date(r.receivedDate).toLocaleDateString('vi-VN')}</td>
+                                            <td style={{ fontSize: 12, fontFamily: 'monospace' }}>{r.purchaseOrder?.code}</td>
+                                            <td style={{ fontSize: 12 }}>{r.purchaseOrder?.supplier}</td>
+                                            <td style={{ fontSize: 12 }}>{r.warehouse?.name}</td>
+                                            <td style={{ textAlign: 'right', fontSize: 13 }}>{r.items?.length}</td>
+                                            <td style={{ fontSize: 12 }}>{r.receivedBy || '—'}</td>
+                                            <td>
+                                                <div style={{ display: 'flex', gap: 4 }}>
+                                                    <button className="btn btn-ghost btn-sm" onClick={() => setViewReceipt(r)}>Xem</button>
+                                                    <button className="btn btn-ghost btn-sm" onClick={() => printReceipt(r)}>🖨️ In</button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                    {receipts.length === 0 && (
+                                        <tr><td colSpan={8} style={{ textAlign: 'center', color: 'var(--text-muted)', padding: 30 }}>Chưa có phiếu nhập kho nào</td></tr>
+                                    )}
+                                </tbody>
+                            </table>
+                        </div>
+                    )
+                )}
+
+                {/* TAB: Phiếu xuất */}
+                {activeTab === 'issues' && (
+                    <>
+                        <div style={{ display: 'flex', justifyContent: 'flex-end', padding: '12px 16px 8px', flexWrap: 'wrap', gap: 8 }}>
+                            <button className="btn btn-primary" onClick={() => {
+                                setIssueItems([{ productId: '', productName: '', unit: '', qty: '', unitPrice: 0, stock: 0 }]);
+                                setIssueWarehouseId(txData.warehouses[0]?.id || '');
+                                setIssueProjectId('');
+                                setIssueIssuedBy('');
+                                setIssueNotes('');
+                                setShowIssueForm(true);
+                            }}>+ Tạo phiếu xuất</button>
+                        </div>
+                        {loading ? <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-muted)' }}>Đang tải...</div> : (
+                            <div className="table-container">
+                                <table className="data-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Mã PXK</th><th>Ngày xuất</th><th>Kho</th><th>Dự án</th>
+                                            <th style={{ textAlign: 'right' }}>Số SP</th>
+                                            <th>Người lập</th><th></th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {issues.map(si => (
+                                            <tr key={si.id}>
+                                                <td style={{ fontFamily: 'monospace', fontWeight: 600, fontSize: 12 }}>{si.code}</td>
+                                                <td style={{ fontSize: 13 }}>{new Date(si.issuedDate).toLocaleDateString('vi-VN')}</td>
+                                                <td style={{ fontSize: 12 }}>{si.warehouse?.name}</td>
+                                                <td style={{ fontSize: 12 }}>{si.project ? `${si.project.code} — ${si.project.name}` : '—'}</td>
+                                                <td style={{ textAlign: 'right', fontSize: 13 }}>{si.items?.length}</td>
+                                                <td style={{ fontSize: 12 }}>{si.issuedBy || '—'}</td>
+                                                <td>
+                                                    <div style={{ display: 'flex', gap: 4 }}>
+                                                        <button className="btn btn-ghost btn-sm" onClick={() => setViewIssue(si)}>Xem</button>
+                                                        <button className="btn btn-ghost btn-sm" onClick={() => printIssue(si)}>🖨️ In</button>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        ))}
+                                        {issues.length === 0 && (
+                                            <tr><td colSpan={7} style={{ textAlign: 'center', color: 'var(--text-muted)', padding: 30 }}>Chưa có phiếu xuất kho nào</td></tr>
+                                        )}
+                                    </tbody>
+                                </table>
+                            </div>
+                        )}
+                    </>
+                )}
             </div>
 
             {/* Modal nhập/xuất kho */}
@@ -345,6 +558,173 @@ export default function InventoryPage() {
                             >
                                 {saving ? 'Đang lưu...' : `Tạo phiếu ${form.type}`}
                             </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Modal tạo phiếu xuất */}
+            {showIssueForm && (
+                <div className="modal-overlay" onClick={() => setShowIssueForm(false)}>
+                    <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 680, width: '95%' }}>
+                        <div className="modal-header">
+                            <h3>+ Tạo phiếu xuất kho</h3>
+                            <button className="modal-close" onClick={() => setShowIssueForm(false)}>×</button>
+                        </div>
+                        <div className="modal-body">
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
+                                <div className="form-group">
+                                    <label className="form-label">Kho *</label>
+                                    <select className="form-select" value={issueWarehouseId} onChange={e => setIssueWarehouseId(e.target.value)}>
+                                        <option value="">— Chọn kho —</option>
+                                        {txData.warehouses.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}
+                                    </select>
+                                </div>
+                                <div className="form-group">
+                                    <label className="form-label">Dự án</label>
+                                    <select className="form-select" value={issueProjectId} onChange={e => setIssueProjectId(e.target.value)}>
+                                        <option value="">— Không gắn dự án —</option>
+                                        {projects.map(p => <option key={p.id} value={p.id}>{p.code} — {p.name}</option>)}
+                                    </select>
+                                </div>
+                                <div className="form-group">
+                                    <label className="form-label">Người lập</label>
+                                    <input className="form-input" value={issueIssuedBy} onChange={e => setIssueIssuedBy(e.target.value)} placeholder="Tên người lập phiếu" />
+                                </div>
+                                <div className="form-group">
+                                    <label className="form-label">Ghi chú</label>
+                                    <input className="form-input" value={issueNotes} onChange={e => setIssueNotes(e.target.value)} />
+                                </div>
+                            </div>
+                            <div style={{ fontWeight: 600, marginBottom: 8, fontSize: 14 }}>Danh sách vật tư xuất:</div>
+                            {issueItems.map((item, i) => (
+                                <div key={i} style={{ display: 'grid', gridTemplateColumns: '2fr 80px 100px 28px', gap: 6, marginBottom: 6, alignItems: 'center' }}>
+                                    <select className="form-select" value={item.productId} onChange={e => {
+                                        const p = stockData.products.find(p => p.id === e.target.value);
+                                        setIssueItems(prev => prev.map((it, idx) => idx === i ? {
+                                            ...it, productId: e.target.value,
+                                            productName: p?.name || '',
+                                            unit: p?.unit || '',
+                                            unitPrice: p?.importPrice || 0,
+                                            stock: p?.stock || 0,
+                                        } : it));
+                                    }}>
+                                        <option value="">— Chọn sản phẩm —</option>
+                                        {stockData.products.map(p => <option key={p.id} value={p.id}>{p.name} (tồn: {p.stock} {p.unit})</option>)}
+                                    </select>
+                                    <div style={{ fontSize: 12, color: 'var(--text-muted)', textAlign: 'center' }}>{item.unit}</div>
+                                    <input className="form-input" type="number" min="0.001" step="0.001" placeholder="SL" value={item.qty}
+                                        onChange={e => setIssueItems(prev => prev.map((it, idx) => idx === i ? { ...it, qty: e.target.value } : it))} />
+                                    <button type="button" style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--status-danger)', fontSize: 16 }}
+                                        onClick={() => setIssueItems(prev => prev.filter((_, idx) => idx !== i))}>×</button>
+                                </div>
+                            ))}
+                            <button className="btn btn-ghost btn-sm" style={{ marginBottom: 8 }}
+                                onClick={() => setIssueItems(prev => [...prev, { productId: '', productName: '', unit: '', qty: '', unitPrice: 0, stock: 0 }])}>
+                                + Thêm dòng
+                            </button>
+                        </div>
+                        <div className="modal-footer">
+                            <button className="btn btn-ghost" onClick={() => setShowIssueForm(false)}>Hủy</button>
+                            <button className="btn btn-primary" disabled={issueSaving} onClick={async () => {
+                                const items = issueItems.filter(it => it.productId && Number(it.qty) > 0);
+                                if (!items.length) return alert('Thêm ít nhất 1 sản phẩm với số lượng > 0');
+                                if (!issueWarehouseId) return alert('Chọn kho');
+                                setIssueSaving(true);
+                                const res = await fetch('/api/inventory/issues', {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({
+                                        warehouseId: issueWarehouseId,
+                                        projectId: issueProjectId || null,
+                                        issuedBy: issueIssuedBy,
+                                        notes: issueNotes,
+                                        items: items.map(it => ({
+                                            productId: it.productId,
+                                            productName: it.productName,
+                                            unit: it.unit,
+                                            qty: Number(it.qty),
+                                            unitPrice: it.unitPrice,
+                                        })),
+                                    }),
+                                });
+                                setIssueSaving(false);
+                                if (!res.ok) { const e = await res.json(); return alert(e.error || 'Lỗi tạo phiếu xuất'); }
+                                setShowIssueForm(false);
+                                fetchIssues();
+                                fetchStock();
+                            }}>{issueSaving ? 'Đang lưu...' : 'Tạo phiếu xuất'}</button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Modal xem chi tiết GRN */}
+            {viewReceipt && (
+                <div className="modal-overlay" onClick={() => setViewReceipt(null)}>
+                    <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 600, width: '95%' }}>
+                        <div className="modal-header">
+                            <h3>Phiếu nhập kho — {viewReceipt.code}</h3>
+                            <div style={{ display: 'flex', gap: 8 }}>
+                                <button className="btn btn-ghost btn-sm" onClick={() => printReceipt(viewReceipt)}>🖨️ In</button>
+                                <button className="modal-close" onClick={() => setViewReceipt(null)}>×</button>
+                            </div>
+                        </div>
+                        <div className="modal-body">
+                            <div style={{ fontSize: 13, color: 'var(--text-muted)', marginBottom: 12 }}>
+                                PO: {viewReceipt.purchaseOrder?.code} | NCC: {viewReceipt.purchaseOrder?.supplier} | Kho: {viewReceipt.warehouse?.name}<br />
+                                Ngày: {new Date(viewReceipt.receivedDate).toLocaleDateString('vi-VN')} | Người nhận: {viewReceipt.receivedBy || '—'}
+                            </div>
+                            <table className="data-table">
+                                <thead><tr><th>Sản phẩm</th><th>ĐVT</th><th style={{ textAlign: 'right' }}>SL đặt</th><th style={{ textAlign: 'right' }}>SL nhận</th></tr></thead>
+                                <tbody>
+                                    {(viewReceipt.items || []).map(it => (
+                                        <tr key={it.id}>
+                                            <td>{it.productName}</td><td>{it.unit}</td>
+                                            <td style={{ textAlign: 'right' }}>{it.qtyOrdered}</td>
+                                            <td style={{ textAlign: 'right', fontWeight: 600 }}>{it.qtyReceived}</td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                        <div className="modal-footer">
+                            <button className="btn btn-ghost" onClick={() => setViewReceipt(null)}>Đóng</button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Modal xem chi tiết StockIssue */}
+            {viewIssue && (
+                <div className="modal-overlay" onClick={() => setViewIssue(null)}>
+                    <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 600, width: '95%' }}>
+                        <div className="modal-header">
+                            <h3>Phiếu xuất kho — {viewIssue.code}</h3>
+                            <div style={{ display: 'flex', gap: 8 }}>
+                                <button className="btn btn-ghost btn-sm" onClick={() => printIssue(viewIssue)}>🖨️ In</button>
+                                <button className="modal-close" onClick={() => setViewIssue(null)}>×</button>
+                            </div>
+                        </div>
+                        <div className="modal-body">
+                            <div style={{ fontSize: 13, color: 'var(--text-muted)', marginBottom: 12 }}>
+                                Kho: {viewIssue.warehouse?.name} | Dự án: {viewIssue.project ? `${viewIssue.project.code} — ${viewIssue.project.name}` : '—'}<br />
+                                Ngày: {new Date(viewIssue.issuedDate).toLocaleDateString('vi-VN')} | Người lập: {viewIssue.issuedBy || '—'}
+                            </div>
+                            <table className="data-table">
+                                <thead><tr><th>Vật tư</th><th>ĐVT</th><th style={{ textAlign: 'right' }}>Số lượng</th></tr></thead>
+                                <tbody>
+                                    {(viewIssue.items || []).map(it => (
+                                        <tr key={it.id}>
+                                            <td>{it.productName}</td><td>{it.unit}</td>
+                                            <td style={{ textAlign: 'right', fontWeight: 600 }}>{it.qty}</td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                        <div className="modal-footer">
+                            <button className="btn btn-ghost" onClick={() => setViewIssue(null)}>Đóng</button>
                         </div>
                     </div>
                 </div>
