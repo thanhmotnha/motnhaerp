@@ -1,12 +1,22 @@
 /**
  * Tests for lib/activityLogger.js
  */
+import { vi } from 'vitest';
 import { logActivity, computeDiff } from '@/lib/activityLogger';
+
+vi.mock('@/lib/prisma', () => ({
+    default: {
+        activityLog: {
+            create: vi.fn(),
+        },
+    },
+}));
+
 import prisma from '@/lib/prisma';
 
 describe('logActivity', () => {
     beforeEach(() => {
-        jest.clearAllMocks();
+        vi.clearAllMocks();
         prisma.activityLog.create.mockResolvedValue({ id: 'test-log-id' });
     });
 

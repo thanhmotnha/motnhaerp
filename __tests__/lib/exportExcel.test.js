@@ -6,14 +6,14 @@ import { exportToExcel, EXPORT_COLUMNS } from '@/lib/exportExcel';
 describe('exportExcel', () => {
     beforeEach(() => {
         // Mock DOM elements
-        global.URL.createObjectURL = jest.fn(() => 'blob:test');
-        global.URL.revokeObjectURL = jest.fn();
-        global.Blob = jest.fn((content, options) => ({ content, options }));
-        document.createElement = jest.fn(() => ({
-            click: jest.fn(),
+        global.URL.createObjectURL = vi.fn(() => 'blob:test');
+        global.URL.revokeObjectURL = vi.fn();
+        vi.spyOn(document, 'createElement').mockReturnValue({
+            click: vi.fn(),
             href: '',
             download: '',
-        }));
+            style: {},
+        });
     });
 
     test('should not crash with empty data', () => {
@@ -29,7 +29,7 @@ describe('exportExcel', () => {
             { code: 'DA-001', name: 'Test Project', status: 'Đang thi công' },
         ];
         exportToExcel(data, EXPORT_COLUMNS.projects, 'projects');
-        expect(global.Blob).toHaveBeenCalled();
+        expect(global.URL.createObjectURL).toHaveBeenCalled();
         expect(document.createElement).toHaveBeenCalledWith('a');
     });
 
