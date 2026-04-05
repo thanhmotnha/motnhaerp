@@ -139,6 +139,7 @@ model Project {
   warrantyTickets       WarrantyTicket[]
   workOrders            WorkOrder[]
   overheadAllocations   OverheadAllocation[]
+  stockIssues           StockIssue[]
 
   @@index([customerId])
 }
@@ -199,6 +200,8 @@ model Product {
   purchaseItems          PurchaseOrderItem[]
   quotationItems         QuotationItem[]
   warehouseTransfers     WarehouseTransfer[]
+  receiptItems           GoodsReceiptItem[]
+  issueItems             StockIssueItem[]
 
   @@index([categoryId])
 }
@@ -328,6 +331,8 @@ model Warehouse {
   inventoryTx  InventoryTransaction[]
   transfersOut WarehouseTransfer[]    @relation("TransferFrom")
   transfersIn  WarehouseTransfer[]    @relation("TransferTo")
+  receipts     GoodsReceipt[]
+  stockIssues  StockIssue[]
 }
 
 model InventoryTransaction {
@@ -882,6 +887,7 @@ model PurchaseOrder {
   project         Project?              @relation(fields: [projectId], references: [id])
   supplierRel     Supplier?             @relation(fields: [supplierId], references: [id])
   items           PurchaseOrderItem[]
+  receipts        GoodsReceipt[]
 
   @@index([projectId])
   @@index([supplierId])
@@ -904,6 +910,7 @@ model PurchaseOrderItem {
   materialPlan         MaterialPlan?       @relation(fields: [materialPlanId], references: [id])
   product              Product?            @relation(fields: [productId], references: [id])
   purchaseOrder        PurchaseOrder       @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
+  receiptItems         GoodsReceiptItem[]
 
   @@index([purchaseOrderId])
   @@index([materialPlanId])
@@ -2110,4 +2117,77 @@ model OverheadAllocation {
   @@unique([batchId, projectId])
   @@index([batchId])
   @@index([projectId])
+}
+
+model GoodsReceipt {
+  id              String             @id @default(cuid())
+  code            String             @unique
+  purchaseOrderId String
+  warehouseId     String
+  receivedDate    DateTime           @default(now())
+  receivedBy      String             @default("")
+  notes           String             @default("")
+  createdById     String             @default("")
+  createdAt       DateTime           @default(now())
+
+  purchaseOrder   PurchaseOrder      @relation(fields: [purchaseOrderId], references: [id])
+  warehouse       Warehouse          @relation(fields: [warehouseId], references: [id])
+  items           GoodsReceiptItem[]
+
+  @@index([purchaseOrderId])
+  @@index([warehouseId])
+}
+
+model GoodsReceiptItem {
+  id                  String             @id @default(cuid())
+  receiptId           String
+  productId           String?
+  productName         String
+  unit                String             @default("")
+  qtyOrdered          Float              @default(0)
+  qtyReceived         Float              @default(0)
+  unitPrice           Float              @default(0)
+  purchaseOrderItemId String?
+
+  receipt             GoodsReceipt       @relation(fields: [receiptId], references: [id], onDelete: Cascade)
+  product             Product?           @relation(fields: [productId], references: [id])
+  purchaseOrderItem   PurchaseOrderItem? @relation(fields: [purchaseOrderItemId], references: [id])
+
+  @@index([receiptId])
+  @@index([productId])
+}
+
+model StockIssue {
+  id          String           @id @default(cuid())
+  code        String           @unique
+  warehouseId String
+  projectId   String?
+  issuedDate  DateTime         @default(now())
+  issuedBy    String           @default("")
+  notes       String           @default("")
+  createdById String           @default("")
+  createdAt   DateTime         @default(now())
+
+  warehouse   Warehouse        @relation(fields: [warehouseId], references: [id])
+  project     Project?         @relation(fields: [projectId], references: [id])
+  items       StockIssueItem[]
+
+  @@index([warehouseId])
+  @@index([projectId])
+}
+
+model StockIssueItem {
+  id          String     @id @default(cuid())
+  issueId     String
+  productId   String?
+  productName String
+  unit        String     @default("")
+  qty         Float      @default(0)
+  unitPrice   Float      @default(0)
+
+  issue       StockIssue @relation(fields: [issueId], references: [id], onDelete: Cascade)
+  product     Product?   @relation(fields: [productId], references: [id])
+
+  @@index([issueId])
+  @@index([productId])
 }
