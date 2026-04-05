@@ -29,6 +29,9 @@ function PurchasingContent() {
     const [grnItems, setGrnItems] = useState([]);
     const [grnNote, setGrnNote] = useState('');
     const [grnSaving, setGrnSaving] = useState(false);
+    const [grnWarehouseId, setGrnWarehouseId] = useState('');
+    const [warehouses, setWarehouses] = useState([]);
+    const [poReceipts, setPoReceipts] = useState([]);
 
     const fetchOrders = () => {
         setLoading(true);
@@ -37,15 +40,27 @@ function PurchasingContent() {
 
     const openGrn = async (poId, e) => {
         e.stopPropagation();
-        const res = await fetch(`/api/purchase-orders/${poId}`);
-        const po = await res.json();
+        const [poRes, receiptsRes, whRes] = await Promise.all([
+            fetch(`/api/purchase-orders/${poId}`),
+            fetch(`/api/inventory/receipts?poId=${poId}`),
+            fetch('/api/warehouses'),
+        ]);
+        const po = await poRes.json();
+        const receipts = await receiptsRes.json();
+        const whs = await whRes.json();
+        setWarehouses(whs.data || whs || []);
+        setPoReceipts(Array.isArray(receipts) ? receipts : []);
         setGrnPO(po);
+        const defaultWh = (whs.data || whs || [])[0];
+        setGrnWarehouseId(defaultWh?.id || '');
         setGrnItems((po.items || []).map(it => ({
             id: it.id,
+            productId: it.productId || null,
             productName: it.productName,
             unit: it.unit,
             quantity: it.quantity,
             receivedQty: it.receivedQty || 0,
+            unitPrice: it.unitPrice || 0,
             toReceive: Math.max(0, it.quantity - (it.receivedQty || 0)),
         })));
         setGrnNote('');
@@ -54,15 +69,30 @@ function PurchasingContent() {
     const submitGrn = async () => {
         const validItems = grnItems.filter(it => (it.toReceive || 0) > 0);
         if (!validItems.length) return alert('Nhập số lượng cần nhận cho ít nhất 1 sản phẩm');
+        if (!grnWarehouseId) return alert('Vui lòng chọn kho nhập');
         setGrnSaving(true);
-        const res = await fetch(`/api/purchase-orders/${grnPO.id}/receive`, {
+        const res = await fetch('/api/inventory/receipts', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ items: validItems.map(it => ({ id: it.id, receivedQty: Number(it.toReceive) })), note: grnNote }),
+            body: JSON.stringify({
+                purchaseOrderId: grnPO.id,
+                warehouseId: grnWarehouseId,
+                receivedBy: '',
+                notes: grnNote,
+                items: validItems.map(it => ({
+                    productId: it.productId,
+                    productName: it.productName,
+                    unit: it.unit,
+                    qtyOrdered: it.quantity,
+                    qtyReceived: Number(it.toReceive),
+                    unitPrice: it.unitPrice,
+                    purchaseOrderItemId: it.id,
+                })),
+            }),
         });
         setGrnSaving(false);
         if (!res.ok) { const e = await res.json(); return alert(e.error || 'Lỗi nhận hàng'); }
-        alert('Đã ghi nhận hàng thành công!');
+        alert('Đã tạo phiếu nhập kho thành công!');
         setGrnPO(null);
         fetchOrders();
     };
@@ -343,6 +373,23 @@ function PurchasingContent() {
                                 NCC: <strong>{grnPO.supplier}</strong>
                                 {grnPO.project && <> &nbsp;|&nbsp; Dự án: <strong>{grnPO.project.code}</strong></>}
                             </div>
+                            <div className="form-group" style={{ marginBottom: 12 }}>
+                                <label className="form-label">Kho nhập *</label>
+                                <select className="form-select" value={grnWarehouseId} onChange={e => setGrnWarehouseId(e.target.value)}>
+                                    <option value="">— Chọn kho —</option>
+                                    {warehouses.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}
+                                </select>
+                            </div>
+                            {poReceipts.length > 0 && (
+                                <div style={{ marginBottom: 12, background: 'var(--bg-secondary)', borderRadius: 8, padding: 12 }}>
+                                    <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 6 }}>Đã nhập trước ({poReceipts.length} lần):</div>
+                                    {poReceipts.map(r => (
+                                        <div key={r.id} style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 2 }}>
+                                            {r.code} — {new Date(r.receivedDate).toLocaleDateString('vi-VN')} — {r.warehouse?.name} — {r.items.length} mặt hàng
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
                             <table className="data-table" style={{ margin: 0 }}>
                                 <thead><tr>
                                     <th>Sản phẩm</th>
