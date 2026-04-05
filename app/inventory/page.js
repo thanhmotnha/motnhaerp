@@ -5,9 +5,9 @@ const fmt = (n) => new Intl.NumberFormat('vi-VN', { style: 'currency', currency:
 const fmtDate = (d) => new Date(d).toLocaleDateString('vi-VN');
 
 const EMPTY_FORM = {
-    type: 'Nhập', productId: '', warehouseId: '', quantity: '',
-    unit: '', note: '', projectId: '', date: new Date().toISOString().split('T')[0],
+    type: 'Nhập', warehouseId: '', note: '', projectId: '', date: new Date().toISOString().split('T')[0],
 };
+const EMPTY_ITEM = { productId: '', quantity: '', unit: '' };
 
 export default function InventoryPage() {
     const [activeTab, setActiveTab] = useState('stock');
@@ -19,6 +19,7 @@ export default function InventoryPage() {
     const [stockSearch, setStockSearch] = useState('');
     const [showModal, setShowModal] = useState(false);
     const [form, setForm] = useState(EMPTY_FORM);
+    const [formItems, setFormItems] = useState([{ ...EMPTY_ITEM }]);
     const [projects, setProjects] = useState([]);
     const [saving, setSaving] = useState(false);
     const [reorderAlerts, setReorderAlerts] = useState([]);
@@ -174,22 +175,26 @@ export default function InventoryPage() {
 
     const openModal = () => {
         setForm({ ...EMPTY_FORM, warehouseId: txData.warehouses[0]?.id || '' });
+        setFormItems([{ ...EMPTY_ITEM }]);
         setShowModal(true);
     };
 
-    const handleProductSelect = (productId) => {
-        const p = stockData.products.find(p => p.id === productId);
-        setForm(f => ({ ...f, productId, unit: p?.unit || '' }));
-    };
-
     const handleSubmit = async () => {
-        if (!form.productId || !form.warehouseId || !form.quantity) return;
-        if (Number(form.quantity) <= 0) return alert('Số lượng phải lớn hơn 0');
+        const validItems = formItems.filter(it => it.productId && Number(it.quantity) > 0);
+        if (!validItems.length) return alert('Thêm ít nhất 1 sản phẩm với số lượng > 0');
+        if (!form.warehouseId) return alert('Chọn kho');
         setSaving(true);
         const res = await fetch('/api/inventory', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ ...form, quantity: Number(form.quantity) }),
+            body: JSON.stringify({
+                type: form.type,
+                warehouseId: form.warehouseId,
+                projectId: form.projectId || null,
+                note: form.note,
+                date: form.date,
+                items: validItems.map(it => ({ productId: it.productId, quantity: Number(it.quantity), unit: it.unit })),
+            }),
         });
         if (!res.ok) {
             const err = await res.json();
@@ -496,7 +501,7 @@ export default function InventoryPage() {
                             <button className="modal-close" onClick={() => setShowModal(false)}>×</button>
                         </div>
                         <div className="modal-body">
-                            <div className="form-row">
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
                                 <div className="form-group">
                                     <label className="form-label">Loại *</label>
                                     <select className="form-select" value={form.type} onChange={e => setForm({ ...form, type: e.target.value })}>
@@ -508,27 +513,6 @@ export default function InventoryPage() {
                                     <label className="form-label">Ngày</label>
                                     <input className="form-input" type="date" value={form.date} onChange={e => setForm({ ...form, date: e.target.value })} />
                                 </div>
-                            </div>
-                            <div className="form-group">
-                                <label className="form-label">Sản phẩm *</label>
-                                <select className="form-select" value={form.productId} onChange={e => handleProductSelect(e.target.value)}>
-                                    <option value="">— Chọn sản phẩm —</option>
-                                    {stockData.products.map(p => (
-                                        <option key={p.id} value={p.id}>{p.name} ({p.code}) — tồn: {p.stock} {p.unit}</option>
-                                    ))}
-                                </select>
-                            </div>
-                            <div className="form-row">
-                                <div className="form-group">
-                                    <label className="form-label">Số lượng *</label>
-                                    <input className="form-input" type="number" min="0.01" step="0.01" value={form.quantity} onChange={e => setForm({ ...form, quantity: e.target.value })} />
-                                </div>
-                                <div className="form-group">
-                                    <label className="form-label">Đơn vị</label>
-                                    <input className="form-input" value={form.unit} onChange={e => setForm({ ...form, unit: e.target.value })} />
-                                </div>
-                            </div>
-                            <div className="form-row">
                                 <div className="form-group">
                                     <label className="form-label">Kho *</label>
                                     <select className="form-select" value={form.warehouseId} onChange={e => setForm({ ...form, warehouseId: e.target.value })}>
@@ -544,18 +528,32 @@ export default function InventoryPage() {
                                     </select>
                                 </div>
                             </div>
-                            <div className="form-group">
+                            <div className="form-group" style={{ marginBottom: 12 }}>
                                 <label className="form-label">Ghi chú</label>
                                 <input className="form-input" value={form.note} onChange={e => setForm({ ...form, note: e.target.value })} />
                             </div>
+                            <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 8 }}>Danh sách sản phẩm:</div>
+                            {formItems.map((item, i) => (
+                                <div key={i} style={{ display: 'grid', gridTemplateColumns: '2fr 100px 28px', gap: 6, marginBottom: 6, alignItems: 'center' }}>
+                                    <select className="form-select" value={item.productId} onChange={e => {
+                                        const p = stockData.products.find(p => p.id === e.target.value);
+                                        setFormItems(prev => prev.map((it, idx) => idx === i ? { ...it, productId: e.target.value, unit: p?.unit || '' } : it));
+                                    }}>
+                                        <option value="">— Chọn sản phẩm —</option>
+                                        {stockData.products.map(p => <option key={p.id} value={p.id}>{p.name} (tồn: {p.stock} {p.unit})</option>)}
+                                    </select>
+                                    <input className="form-input" type="number" min="0.001" step="0.001" placeholder="Số lượng" value={item.quantity}
+                                        onChange={e => setFormItems(prev => prev.map((it, idx) => idx === i ? { ...it, quantity: e.target.value } : it))}
+                                        style={{ textAlign: 'center' }} />
+                                    <button type="button" style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--status-danger)', fontSize: 18, lineHeight: 1 }}
+                                        onClick={() => setFormItems(prev => prev.filter((_, idx) => idx !== i))}>×</button>
+                                </div>
+                            ))}
+                            <button className="btn btn-ghost btn-sm" onClick={() => setFormItems(prev => [...prev, { ...EMPTY_ITEM }])}>+ Thêm sản phẩm</button>
                         </div>
                         <div className="modal-footer">
                             <button className="btn btn-ghost" onClick={() => setShowModal(false)}>Hủy</button>
-                            <button
-                                className="btn btn-primary"
-                                onClick={handleSubmit}
-                                disabled={saving || !form.productId || !form.warehouseId || !form.quantity}
-                            >
+                            <button className="btn btn-primary" onClick={handleSubmit} disabled={saving}>
                                 {saving ? 'Đang lưu...' : `Tạo phiếu ${form.type}`}
                             </button>
                         </div>

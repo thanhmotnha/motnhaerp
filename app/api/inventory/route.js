@@ -47,38 +47,54 @@ export const GET = withAuth(async (request) => {
 
 export const POST = withAuth(async (request) => {
     const data = await request.json();
-    if (!data.productId) return NextResponse.json({ error: 'Sản phẩm bắt buộc' }, { status: 400 });
     if (!data.warehouseId) return NextResponse.json({ error: 'Kho bắt buộc' }, { status: 400 });
-    const prefix = data.type === 'Nhập' ? 'PNK' : 'PXK';
-    const code = await generateCode('inventoryTransaction', prefix);
-    const qty = Number(data.quantity) || 0;
+
+    // Support both single item (legacy) and items array
+    const items = data.items?.length > 0
+        ? data.items
+        : [{ productId: data.productId, quantity: data.quantity, unit: data.unit }];
+
+    if (!items.length || !items[0].productId) {
+        return NextResponse.json({ error: 'Sản phẩm bắt buộc' }, { status: 400 });
+    }
+
+    const type = data.type || 'Nhập';
+    const prefix = type === 'Nhập' ? 'PNK' : 'PXK';
 
     // Validate xuất kho không vượt tồn kho
-    if (data.type !== 'Nhập') {
-        const product = await prisma.product.findUnique({ where: { id: data.productId }, select: { stock: true, name: true } });
-        if (!product) return NextResponse.json({ error: 'Sản phẩm không tồn tại' }, { status: 400 });
-        if ((product.stock || 0) < qty) {
-            return NextResponse.json({ error: `Tồn kho không đủ. Hiện có: ${product.stock} — Cần xuất: ${qty}` }, { status: 400 });
+    if (type !== 'Nhập') {
+        for (const item of items) {
+            const qty = Number(item.quantity) || 0;
+            const product = await prisma.product.findUnique({ where: { id: item.productId }, select: { stock: true, name: true } });
+            if (!product) return NextResponse.json({ error: 'Sản phẩm không tồn tại' }, { status: 400 });
+            if ((product.stock || 0) < qty) {
+                return NextResponse.json({ error: `${product.name}: tồn kho không đủ (tồn: ${product.stock}, cần: ${qty})` }, { status: 400 });
+            }
         }
     }
 
-    const tx = await prisma.inventoryTransaction.create({
-        data: {
-            code,
-            type: data.type || 'Nhập',
-            quantity: qty,
-            unit: data.unit || '',
-            note: data.note || '',
-            date: data.date ? new Date(data.date) : new Date(),
-            productId: data.productId,
-            warehouseId: data.warehouseId,
-            projectId: data.projectId || null,
-        },
-    });
+    const results = [];
+    for (const item of items) {
+        const qty = Number(item.quantity) || 0;
+        if (!item.productId || qty <= 0) continue;
+        const code = await generateCode('inventoryTransaction', prefix);
+        const tx = await prisma.inventoryTransaction.create({
+            data: {
+                code,
+                type,
+                quantity: qty,
+                unit: item.unit || '',
+                note: data.note || '',
+                date: data.date ? new Date(data.date) : new Date(),
+                productId: item.productId,
+                warehouseId: data.warehouseId,
+                projectId: data.projectId || null,
+            },
+        });
+        const delta = type === 'Nhập' ? qty : -qty;
+        await prisma.product.update({ where: { id: item.productId }, data: { stock: { increment: delta } } });
+        results.push(tx);
+    }
 
-    // Update product stock
-    const delta = data.type === 'Nhập' ? qty : -qty;
-    await prisma.product.update({ where: { id: data.productId }, data: { stock: { increment: delta } } });
-
-    return NextResponse.json(tx, { status: 201 });
+    return NextResponse.json(results.length === 1 ? results[0] : results, { status: 201 });
 });
