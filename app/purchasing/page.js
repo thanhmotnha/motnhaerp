@@ -1,5 +1,6 @@
 'use client';
 import { useState, useEffect, Suspense } from 'react';
+import PoBulkFromQuotationModal from '@/components/PoBulkFromQuotationModal';
 import { useRouter, useSearchParams } from 'next/navigation';
 
 const fmt = (n) => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(n);
@@ -23,6 +24,7 @@ function PurchasingContent() {
     const [poForm, setPoForm] = useState({ supplier: '', supplierId: null, projectId: '', deliveryDate: '', notes: '' });
     const [poItems, setPoItems] = useState([{ productName: '', unit: 'cái', quantity: 1, unitPrice: 0, amount: 0, productId: null }]);
     const [saving, setSaving] = useState(false);
+    const [showBulkModal, setShowBulkModal] = useState(false);
 
     // GRN (Goods Receipt Note) state
     const [grnPO, setGrnPO] = useState(null);
@@ -165,7 +167,10 @@ function PurchasingContent() {
         <div>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24, flexWrap: 'wrap', gap: 12 }}>
                 <h2 style={{ margin: 0 }}>🛒 Mua sắm vật tư toàn công ty</h2>
-                <button className="btn btn-primary" onClick={() => setShowModal(true)}>+ Tạo PO mới</button>
+                <div style={{ display: 'flex', gap: 8 }}>
+                    <button className="btn" onClick={() => setShowBulkModal(true)}>📋 Tạo PO từ Báo giá</button>
+                    <button className="btn btn-primary" onClick={() => setShowModal(true)}>+ Tạo PO mới</button>
+                </div>
             </div>
 
             <div className="stats-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', marginBottom: 24 }}>
@@ -436,6 +441,13 @@ function PurchasingContent() {
                     </div>
                 </div>
             )}
+
+            <PoBulkFromQuotationModal
+                open={showBulkModal}
+                onClose={() => setShowBulkModal(false)}
+                prefillProjectId={null}
+                onSuccess={() => { setShowBulkModal(false); fetchOrders(); }}
+            />
         </div>
     );
 }
