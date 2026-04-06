@@ -254,6 +254,7 @@ model Quotation {
   project           Project?            @relation(fields: [projectId], references: [id])
   categories        QuotationCategory[]
   items             QuotationItem[]
+  purchaseOrders    PurchaseOrder[]
 
   @@index([customerId])
   @@index([projectId])
@@ -883,14 +884,17 @@ model PurchaseOrder {
   deliveryAddress String                @default("")
   deliveryType    String                @default("Giao thẳng dự án")
   supplierId      String?
+  quotationId     String?
   requisitions    MaterialRequisition[]
   project         Project?              @relation(fields: [projectId], references: [id])
   supplierRel     Supplier?             @relation(fields: [supplierId], references: [id])
+  quotation       Quotation?            @relation(fields: [quotationId], references: [id])
   items           PurchaseOrderItem[]
   receipts        GoodsReceipt[]
 
   @@index([projectId])
   @@index([supplierId])
+  @@index([quotationId])
 }
 
 model PurchaseOrderItem {
