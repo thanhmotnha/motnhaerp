@@ -2,6 +2,7 @@
 import { useState } from 'react';
 import { fmtVND } from '@/lib/projectUtils';
 import { apiFetch } from '@/lib/fetchClient';
+import PoBulkFromQuotationModal from '@/components/PoBulkFromQuotationModal';
 
 export default function MaterialTab({ project: p, projectId, onRefresh }) {
     const [selectedPlans, setSelectedPlans] = useState([]);
@@ -10,6 +11,7 @@ export default function MaterialTab({ project: p, projectId, onRefresh }) {
     const [poItems, setPoItems] = useState([]);
     const [suppliers, setSuppliers] = useState([]);
     const [savingPO, setSavingPO] = useState(false);
+    const [showBulkModal, setShowBulkModal] = useState(false);
 
     const materials = (p.materialPlans || []).filter(m => m.costType !== 'Thầu phụ');
     const totalBudget = materials.reduce((s, m) => s + (Number(m.totalAmount) || 0), 0);
@@ -93,6 +95,9 @@ export default function MaterialTab({ project: p, projectId, onRefresh }) {
                     <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                         {(p.quotations?.length || 0) > 0 && (
                             <button className="btn btn-ghost btn-sm" onClick={importFromQuotation}>📋 Tạo từ Báo giá</button>
+                        )}
+                        {(p.quotations?.length || 0) > 0 && (
+                            <button className="btn btn-sm" onClick={() => setShowBulkModal(true)}>📋 Tạo PO từ Báo giá</button>
                         )}
                         {needOrder > 0 && (
                             <button className="btn btn-primary btn-sm" onClick={openPOModal}>
@@ -221,6 +226,13 @@ export default function MaterialTab({ project: p, projectId, onRefresh }) {
                     </div>
                 </div>
             )}
+
+            <PoBulkFromQuotationModal
+                open={showBulkModal}
+                onClose={() => setShowBulkModal(false)}
+                prefillProjectId={projectId}
+                onSuccess={() => { setShowBulkModal(false); onRefresh(); }}
+            />
         </div>
     );
 }
