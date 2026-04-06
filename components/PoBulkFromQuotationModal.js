@@ -14,6 +14,7 @@ export default function PoBulkFromQuotationModal({ open, onClose, prefillProject
     const [quotationId, setQuotationId] = useState('');
     const [poItems, setPoItems] = useState([]);
     const [selectAll, setSelectAll] = useState(true);
+    const [extraItems, setExtraItems] = useState([{ id: 'ex-0', name: '', unit: '', quantity: 1, unitPrice: 0 }]);
 
     // Step 2
     const [supplierMap, setSupplierMap] = useState({});
@@ -27,6 +28,7 @@ export default function PoBulkFromQuotationModal({ open, onClose, prefillProject
         setQuotationId('');
         setPoItems([]);
         setSelectAll(true);
+        setExtraItems([{ id: 'ex-0', name: '', unit: '', quantity: 1, unitPrice: 0 }]);
         setSupplierMap({});
         setDeliveryDate('');
         setSaving(false);
@@ -71,19 +73,21 @@ export default function PoBulkFromQuotationModal({ open, onClose, prefillProject
     };
 
     const selectedItems = poItems.filter(it => it.selected);
+    const validExtraItems = extraItems.filter(it => it.name.trim() && it.quantity > 0);
+    const allItems = [...selectedItems, ...validExtraItems];
 
-    const setSupplierForItem = (productId, supplierId) => {
+    const setSupplierForItem = (itemId, supplierId) => {
         const sup = suppliers.find(s => s.id === supplierId);
         setSupplierMap(prev => ({
             ...prev,
-            [productId]: { supplierId, supplierName: sup?.name || '' },
+            [itemId]: { supplierId, supplierName: sup?.name || '' },
         }));
     };
 
     const groups = () => {
         const map = {};
-        for (const it of selectedItems) {
-            const sup = supplierMap[it.productId];
+        for (const it of allItems) {
+            const sup = supplierMap[it.id];
             if (!sup?.supplierId) continue;
             if (!map[sup.supplierId]) map[sup.supplierId] = { ...sup, items: [] };
             map[sup.supplierId].items.push(it);
@@ -91,9 +95,10 @@ export default function PoBulkFromQuotationModal({ open, onClose, prefillProject
         return Object.values(map);
     };
 
-    const unassigned = selectedItems.filter(it => !supplierMap[it.productId]?.supplierId);
+    const unassigned = allItems.filter(it => !supplierMap[it.id]?.supplierId);
 
     const handleCreate = async () => {
+        if (allItems.length === 0) return alert('Chưa có sản phẩm nào');
         if (unassigned.length > 0) return alert(`${unassigned.length} sản phẩm chưa được gán NCC`);
         const g = groups();
         if (g.length === 0) return alert('Chưa có sản phẩm nào được gán NCC');
@@ -102,14 +107,14 @@ export default function PoBulkFromQuotationModal({ open, onClose, prefillProject
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                quotationId,
+                quotationId: quotationId || null,
                 projectId: projectId || null,
                 deliveryDate: deliveryDate || null,
                 groups: g.map(grp => ({
                     supplierId: grp.supplierId,
                     supplierName: grp.supplierName,
                     items: grp.items.map(it => ({
-                        productId: it.productId,
+                        productId: it.productId || null,
                         productName: it.name,
                         unit: it.unit,
                         quantity: it.quantity,
@@ -284,7 +289,7 @@ export default function PoBulkFromQuotationModal({ open, onClose, prefillProject
         <div className="modal-overlay" onClick={onClose}>
             <div className="modal" style={{ maxWidth: step === 1 ? 760 : 700 }} onClick={e => e.stopPropagation()}>
                 <div className="modal-header">
-                    <h3>📋 Tạo PO từ Báo giá — Bước {step}/2</h3>
+                    <h3>📋 Tạo PO — Bước {step}/2</h3>
                     <button className="modal-close" onClick={onClose}>×</button>
                 </div>
 
@@ -351,17 +356,56 @@ export default function PoBulkFromQuotationModal({ open, onClose, prefillProject
                             )}
 
                             {quotationId && poItems.length === 0 && (
-                                <p style={{ color: 'var(--text-muted)', textAlign: 'center', padding: 24 }}>
+                                <p style={{ color: 'var(--text-muted)', textAlign: 'center', padding: '8px 0 0' }}>
                                     Báo giá này không có sản phẩm nào gắn với hệ thống.
                                 </p>
                             )}
+
+                            <div style={{ marginTop: 20 }}>
+                                <div style={{ fontWeight: 600, marginBottom: 8, fontSize: 13 }}>➕ Sản phẩm bổ sung (không trong báo giá)</div>
+                                <table className="data-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Tên sản phẩm</th>
+                                            <th style={{ width: 80 }}>ĐVT</th>
+                                            <th style={{ width: 90 }}>Số lượng</th>
+                                            <th style={{ width: 110 }}>Đơn giá</th>
+                                            <th style={{ width: 32 }}></th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {extraItems.map((it, idx) => (
+                                            <tr key={it.id}>
+                                                <td><input className="form-input" placeholder="Tên sản phẩm" value={it.name}
+                                                    onChange={e => setExtraItems(prev => prev.map((x, i) => i === idx ? { ...x, name: e.target.value } : x))}
+                                                    style={{ width: '100%' }} /></td>
+                                                <td><input className="form-input" placeholder="ĐVT" value={it.unit}
+                                                    onChange={e => setExtraItems(prev => prev.map((x, i) => i === idx ? { ...x, unit: e.target.value } : x))}
+                                                    style={{ width: '100%' }} /></td>
+                                                <td><input type="number" className="form-input" min="0" step="0.01" value={it.quantity}
+                                                    onChange={e => setExtraItems(prev => prev.map((x, i) => i === idx ? { ...x, quantity: Number(e.target.value) || 0 } : x))}
+                                                    style={{ width: '100%' }} /></td>
+                                                <td><input type="number" className="form-input" min="0" step="1000" value={it.unitPrice}
+                                                    onChange={e => setExtraItems(prev => prev.map((x, i) => i === idx ? { ...x, unitPrice: Number(e.target.value) || 0 } : x))}
+                                                    style={{ width: '100%' }} /></td>
+                                                <td><button className="btn btn-sm" style={{ padding: '2px 6px' }}
+                                                    onClick={() => setExtraItems(prev => prev.filter((_, i) => i !== idx))}>×</button></td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                                <button className="btn btn-sm" style={{ marginTop: 6 }}
+                                    onClick={() => setExtraItems(prev => [...prev, { id: `ex-${Date.now()}`, name: '', unit: '', quantity: 1, unitPrice: 0 }])}>
+                                    + Thêm dòng
+                                </button>
+                            </div>
                         </div>
                         <div className="modal-footer">
                             <button className="btn" onClick={onClose}>Hủy</button>
                             <button className="btn btn-primary"
-                                disabled={selectedItems.length === 0}
+                                disabled={allItems.length === 0}
                                 onClick={() => setStep(2)}>
-                                Tiếp theo → ({selectedItems.length} SP)
+                                Tiếp theo → ({allItems.length} SP)
                             </button>
                         </div>
                     </>
@@ -386,14 +430,17 @@ export default function PoBulkFromQuotationModal({ open, onClose, prefillProject
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {selectedItems.map(it => (
+                                    {allItems.map(it => (
                                         <tr key={it.id}>
-                                            <td>{it.name}</td>
+                                            <td>
+                                                {it.name}
+                                                {!it.productId && <span style={{ fontSize: 11, color: 'var(--text-muted)', marginLeft: 6 }}>(bổ sung)</span>}
+                                            </td>
                                             <td style={{ textAlign: 'center' }}>{it.quantity}</td>
                                             <td>
                                                 <select className="form-select"
-                                                    value={supplierMap[it.productId]?.supplierId || ''}
-                                                    onChange={e => setSupplierForItem(it.productId, e.target.value)}>
+                                                    value={supplierMap[it.id]?.supplierId || ''}
+                                                    onChange={e => setSupplierForItem(it.id, e.target.value)}>
                                                     <option value="">— Chọn NCC —</option>
                                                     {suppliers.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
                                                 </select>

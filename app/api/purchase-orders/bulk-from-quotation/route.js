@@ -5,7 +5,7 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 
 const itemSchema = z.object({
-    productId: z.string().min(1),
+    productId: z.string().optional().nullable(),
     productName: z.string().min(1),
     unit: z.string().default(''),
     quantity: z.number().positive(),
@@ -19,7 +19,7 @@ const groupSchema = z.object({
 });
 
 const bodySchema = z.object({
-    quotationId: z.string().min(1),
+    quotationId: z.string().optional().nullable(),
     projectId: z.string().optional().nullable(),
     deliveryDate: z.string().optional().nullable(),
     groups: z.array(groupSchema).min(1),
