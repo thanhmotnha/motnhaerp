@@ -30,6 +30,7 @@ const emptyForm = (firstCat = 'Vật tư xây dựng') => ({
     description: '',
     amount: '',
     category: firstCat,
+    categoryId: '',
     submittedBy: '',
     date: new Date().toISOString().split('T')[0],
     notes: '',
@@ -146,6 +147,7 @@ export default function ExpensesTab() {
             description: e.description || '',
             amount: e.amount || '',
             category: e.category || 'Vật tư xây dựng',
+            categoryId: e.categoryId || '',
             submittedBy: e.submittedBy || '',
             date: e.date ? e.date.split('T')[0] : new Date().toISOString().split('T')[0],
             notes: e.notes || '',
@@ -546,9 +548,19 @@ ${e.proofUrl ? parseProofUrls(e.proofUrl).map(url => `<img src="${url}" style="m
                                 </div>
                                 <div className="form-group">
                                     <label className="form-label">Hạng mục</label>
-                                    <select className="form-select" value={form.category} onChange={e => setForm(f => ({ ...f, category: e.target.value }))}>
-                                        {cats.map(c => <option key={c}>{c}</option>)}
-                                    </select>
+                                    {form.expenseType === 'Chi phí chung' ? (
+                                        <select className="form-select" value={form.categoryId || ''} onChange={e => {
+                                            const selected = categoryList.find(c => c.id === e.target.value);
+                                            setForm(f => ({ ...f, categoryId: e.target.value || '', category: selected?.name || '' }));
+                                        }}>
+                                            <option value="">-- Không chọn --</option>
+                                            {categoryList.filter(c => c.isActive !== false).map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                                        </select>
+                                    ) : (
+                                        <select className="form-select" value={form.category} onChange={e => setForm(f => ({ ...f, category: e.target.value }))}>
+                                            {cats.map(c => <option key={c}>{c}</option>)}
+                                        </select>
+                                    )}
                                 </div>
                             </div>
 
