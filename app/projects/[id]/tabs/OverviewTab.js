@@ -1,9 +1,10 @@
 'use client';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { fmtDate } from '@/lib/projectUtils';
 import { apiFetch } from '@/lib/fetchClient';
 
 const LOG_TYPES = ['Điện thoại', 'Gặp mặt', 'Email', 'Zalo', 'Ghi chú'];
+const fmtNum = v => new Intl.NumberFormat('vi-VN').format(v || 0);
 
 export default function OverviewTab({ project: p, projectId, onRefresh }) {
     const [showForm, setShowForm] = useState(false);
@@ -23,6 +24,9 @@ export default function OverviewTab({ project: p, projectId, onRefresh }) {
         notes: p.notes || '',
     });
     const [savingEdit, setSavingEdit] = useState(false);
+    const [overheadData, setOverheadData] = useState(null);
+    const [overheadYear, setOverheadYear] = useState(new Date().getFullYear());
+    const [overheadLoading, setOverheadLoading] = useState(false);
 
     const addLog = async () => {
         if (!form.content.trim()) return alert('Nhập nội dung nhật ký!');
@@ -55,6 +59,14 @@ export default function OverviewTab({ project: p, projectId, onRefresh }) {
     };
 
     const recentLogs = (p.trackingLogs || []).slice(0, 5);
+
+    useEffect(() => {
+        setOverheadLoading(true);
+        apiFetch(`/api/overhead/summary?projectId=${projectId}&year=${overheadYear}`)
+            .then(res => setOverheadData(res))
+            .catch(() => setOverheadData(null))
+            .finally(() => setOverheadLoading(false));
+    }, [projectId, overheadYear]);
 
     return (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
@@ -197,6 +209,56 @@ export default function OverviewTab({ project: p, projectId, onRefresh }) {
                             </div>
                         )}
                     </div>
+                )}
+            </div>
+        </div>
+
+            {/* Chi phí chung được phân bổ */}
+            <div className="card" style={{ padding: 20 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+                    <span className="card-title">🏢 Chi phí chung được phân bổ</span>
+                    <select className="form-select" value={overheadYear}
+                        onChange={e => setOverheadYear(Number(e.target.value))}
+                        style={{ width: 110 }}>
+                        {[0, 1, 2].map(offset => {
+                            const y = new Date().getFullYear() - offset;
+                            return <option key={y} value={y}>Năm {y}</option>;
+                        })}
+                    </select>
+                </div>
+
+                {overheadLoading ? (
+                    <div style={{ color: 'var(--text-muted)', fontSize: 13 }}>Đang tải...</div>
+                ) : !overheadData || overheadData.allocations.length === 0 ? (
+                    <div style={{ color: 'var(--text-muted)', fontSize: 13 }}>Chưa có phân bổ chi phí chung nào trong năm {overheadYear}.</div>
+                ) : (
+                    <>
+                        <table className="data-table" style={{ marginBottom: 12 }}>
+                            <thead>
+                                <tr>
+                                    <th>Đợt phân bổ</th>
+                                    <th>Kỳ</th>
+                                    <th style={{ textAlign: 'right' }}>Số tiền</th>
+                                    <th style={{ textAlign: 'right' }}>Tỷ lệ</th>
+                                    <th>Ngày XN</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {overheadData.allocations.map(a => (
+                                    <tr key={a.batchId}>
+                                        <td style={{ fontFamily: 'monospace', fontWeight: 600, color: 'var(--primary)' }}>{a.batchCode}</td>
+                                        <td style={{ fontSize: 13, color: 'var(--text-muted)' }}>{a.period || '—'}</td>
+                                        <td style={{ textAlign: 'right', fontFamily: 'monospace' }}>{fmtNum(a.amount)}đ</td>
+                                        <td style={{ textAlign: 'right', fontSize: 13, color: 'var(--text-muted)' }}>{a.ratio}%</td>
+                                        <td style={{ fontSize: 13 }}>{a.confirmedAt ? new Date(a.confirmedAt).toLocaleDateString('vi-VN') : '—'}</td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                        <div style={{ textAlign: 'right', fontWeight: 700, color: 'var(--primary)' }}>
+                            Tổng: {fmtNum(overheadData.total)}đ
+                        </div>
+                    </>
                 )}
             </div>
         </div>
