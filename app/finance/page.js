@@ -35,7 +35,7 @@ function FinanceContent() {
     const [cashflow, setCashflow] = useState(null);
     const [retentions, setRetentions] = useState([]);
     const [quickType, setQuickType] = useState(null); // null | 'Thu tiền' | 'Chi phí' | 'Giao dịch khác'
-    const [qForm, setQForm] = useState({ type: 'Thu', description: '', amount: '', category: '', date: new Date().toISOString().slice(0, 10) });
+    const [qForm, setQForm] = useState({ type: 'Thu', description: '', amount: '', category: '', date: new Date().toISOString().slice(0, 10), paymentAccount: '' });
     const [saving, setSaving] = useState(false);
 
     const load = () => {
@@ -80,7 +80,7 @@ function FinanceContent() {
         });
         setSaving(false);
         setQuickType(null);
-        setQForm({ type: 'Thu', description: '', amount: '', category: '', date: new Date().toISOString().slice(0, 10) });
+        setQForm({ type: 'Thu', description: '', amount: '', category: '', date: new Date().toISOString().slice(0, 10), paymentAccount: '' });
         load();
     };
 
@@ -132,6 +132,18 @@ function FinanceContent() {
                         <div>
                             <label style={{ fontSize: 12, color: 'var(--text-muted)' }}>Ngày</label>
                             <input className="form-input" type="date" value={qForm.date} onChange={e => setQForm({ ...qForm, date: e.target.value })} />
+                        </div>
+                        <div>
+                            <label style={{ fontSize: 12, color: 'var(--text-muted)' }}>Tài khoản</label>
+                            <select
+                                className="form-select"
+                                value={qForm.paymentAccount}
+                                onChange={e => setQForm(q => ({ ...q, paymentAccount: e.target.value }))}
+                            >
+                                <option value="">-- Chọn TK --</option>
+                                <option value="Tiền mặt">Tiền mặt</option>
+                                <option value="Ngân hàng">Ngân hàng</option>
+                            </select>
                         </div>
                     </div>
                     <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 10 }}>
