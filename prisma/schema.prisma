@@ -370,9 +370,10 @@ model Transaction {
   amount      Float
   category    String   @default("")
   date        DateTime @default(now())
-  projectId   String?
-  createdAt   DateTime @default(now())
-  project     Project? @relation(fields: [projectId], references: [id])
+  projectId      String?
+  paymentAccount String   @default("")
+  createdAt      DateTime @default(now())
+  project        Project? @relation(fields: [projectId], references: [id])
 
   @@index([projectId])
 }
@@ -568,6 +569,7 @@ model ContractorPayment {
   updatedAt         DateTime                @updatedAt
   approvedAt        DateTime?
   approvedBy        String                  @default("")
+  paymentAccount    String                  @default("")
   attachments       Json?
   netAmount         Float                   @default(0)
   phase             String                  @default("")
@@ -628,10 +630,11 @@ model SupplierPayment {
   supplierId  String
   amount      Float
   date        DateTime @default(now())
-  notes       String   @default("")
-  createdById String?
-  createdAt   DateTime @default(now())
-  supplier    Supplier @relation(fields: [supplierId], references: [id])
+  notes          String   @default("")
+  paymentAccount String   @default("")
+  createdById    String?
+  createdAt      DateTime @default(now())
+  supplier       Supplier @relation(fields: [supplierId], references: [id])
 }
 
 model ProjectMilestone {
@@ -735,6 +738,7 @@ model ContractPayment {
   dueDate             DateTime?
   paidDate            DateTime?
   notes               String              @default("")
+  paymentAccount      String              @default("")
   proofUrl            String              @default("")
   contractId          String
   createdAt           DateTime            @default(now())
@@ -938,6 +942,7 @@ model ProjectExpense {
   recipientName   String              @default("")
   date            DateTime            @default(now())
   notes           String              @default("")
+  paymentAccount  String              @default("")
   projectId       String?
   deletedAt       DateTime?
   createdAt       DateTime            @default(now())
@@ -2054,13 +2059,14 @@ model OverheadExpense {
   date        DateTime  @default(now())
   proofUrl    String    @default("")
   status      String    @default("draft")
-  notes       String    @default("")
-  createdById String    @default("")
-  approvedBy  String    @default("")
-  approvedAt  DateTime?
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-  deletedAt   DateTime?
+  notes          String    @default("")
+  paymentAccount String    @default("")
+  createdById    String    @default("")
+  approvedBy     String    @default("")
+  approvedAt     DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  deletedAt      DateTime?
 
   category   ExpenseCategory?    @relation(fields: [categoryId], references: [id])
   batchItems OverheadBatchItem[]
