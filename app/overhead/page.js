@@ -15,7 +15,7 @@ export default function OverheadPage() {
     const { role } = useRole();
     const toast = useToast();
     const [activeTab, setActiveTab] = useState('expenses');
-    const canManage = ['giam_doc', 'pho_gd', 'ke_toan'].includes(role);
+    const canManage = ['giam_doc', 'ke_toan'].includes(role);
 
     const [expenses, setExpenses] = useState([]);
     const [categories, setCategories] = useState([]);

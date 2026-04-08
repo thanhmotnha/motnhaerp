@@ -26,7 +26,7 @@ export default function PipelinePage() {
     const [monthlyTarget, setMonthlyTarget] = useState(0);
     const [targetInput, setTargetInput] = useState('');
     const { role } = useRole();
-    const canSeeFinance = ['giam_doc', 'pho_gd', 'ke_toan'].includes(role);
+    const canSeeFinance = ['giam_doc', 'ke_toan'].includes(role);
 
     useEffect(() => {
         const saved = localStorage.getItem(LS_KEY);

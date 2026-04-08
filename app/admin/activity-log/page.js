@@ -29,7 +29,7 @@ export default function ActivityLogPage() {
     const [expanded, setExpanded] = useState(null);
 
     useEffect(() => {
-        if (role && !['giam_doc', 'pho_gd'].includes(role)) { router.replace('/'); }
+        if (role && role !== 'giam_doc') { router.replace('/'); }
     }, [role]);
 
     const fetchLogs = useCallback(async () => {
@@ -56,7 +56,7 @@ export default function ActivityLogPage() {
 
     const badgeColor = (action) => ACTION_COLOR[action] || ACTION_COLOR[action?.toLowerCase()] || 'muted';
 
-    if (role && !['giam_doc', 'pho_gd'].includes(role)) return null;
+    if (role && role !== 'giam_doc') return null;
 
     return (
         <div>

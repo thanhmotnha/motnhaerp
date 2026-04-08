@@ -29,7 +29,7 @@ export default function AcceptanceDetailPage() {
     const [signedByCustomer, setSignedByCustomer] = useState('');
     const [showApprovePanel, setShowApprovePanel] = useState(false);
 
-    const canApprove = ['giam_doc', 'pho_gd'].includes(role);
+    const canApprove = role === 'giam_doc';
 
     const load = async () => {
         try {

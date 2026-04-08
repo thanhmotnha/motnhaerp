@@ -11,7 +11,7 @@ export default function WorkshopsPage() {
     const [loading, setLoading] = useState(true);
     const [showCreate, setShowCreate] = useState(false);
 
-    const canManage = ['giam_doc', 'pho_gd'].includes(role);
+    const canManage = role === 'giam_doc';
 
     const fetchWorkshops = useCallback(async () => {
         setLoading(true);

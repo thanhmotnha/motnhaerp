@@ -8,7 +8,7 @@ const fmt = (n) => new Intl.NumberFormat('vi-VN', { style: 'currency', currency:
 
 const emptySup = { name: '', type: '', contact: '', phone: '', email: '', address: '', taxCode: '', bankAccount: '', bankName: '', rating: 3, notes: '', isBlacklisted: false, creditLimit: 0 };
 const emptyCon = { name: '', type: '', phone: '', address: '', taxCode: '', bankAccount: '', bankName: '', rating: 3, notes: '', isBlacklisted: false, creditLimit: 0 };
-const FINANCE_ROLES = ['giam_doc', 'pho_gd', 'ke_toan'];
+const FINANCE_ROLES = ['giam_doc', 'ke_toan'];
 
 export default function PartnersPage() {
     const router = useRouter();

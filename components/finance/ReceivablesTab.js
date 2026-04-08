@@ -25,7 +25,7 @@ export default function ReceivablesTab() {
     const proofRef = useRef();
     const { role } = useRole();
     const { showToast } = useToast();
-    const canReview = role === 'giam_doc' || role === 'pho_gd';
+    const canReview = role === 'giam_doc';
     const [corrections, setCorrections] = useState([]);
     const [correctionModal, setCorrectionModal] = useState(null); // { payment }
     const [correctionForm, setCorrectionForm] = useState({ newAmount: '', reason: '' });

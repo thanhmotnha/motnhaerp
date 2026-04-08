@@ -19,7 +19,7 @@ export default function ExpensesPage() {
     const [filterType, setFilterType] = useState('');
     const [filterStatus, setFilterStatus] = useState('');
     const [filterCategory, setFilterCategory] = useState('');
-    const canManage = ['giam_doc', 'pho_gd', 'ke_toan', 'quan_ly_du_an'].includes(role);
+    const canManage = ['giam_doc', 'ke_toan'].includes(role);
 
     const fetchData = useCallback(async () => {
         setLoading(true);

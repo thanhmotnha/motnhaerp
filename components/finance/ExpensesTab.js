@@ -137,7 +137,7 @@ export default function ExpensesTab() {
     };
 
     const openEdit = (e) => {
-        const canEdit = ['Chờ duyệt', 'Từ chối'].includes(e.status) || ['ke_toan', 'giam_doc', 'pho_gd'].includes(role);
+        const canEdit = ['Chờ duyệt', 'Từ chối'].includes(e.status) || ['ke_toan', 'giam_doc'].includes(role);
         if (!canEdit) return;
         setEditing(e);
         setForm({
@@ -391,7 +391,7 @@ ${e.proofUrl ? parseProofUrls(e.proofUrl).map(url => `<img src="${url}" style="m
                             {filtered.map(e => (
                                 <tr key={e.id} style={{ opacity: e.status === 'Hoàn thành' ? 0.65 : 1 }}>
                                     <td style={{ fontSize: 12, color: 'var(--accent-primary)', fontWeight: 600, whiteSpace: 'nowrap' }}>{e.code}</td>
-                                    <td style={{ cursor: (['Chờ duyệt', 'Từ chối'].includes(e.status) || ['ke_toan', 'giam_doc', 'pho_gd'].includes(role)) ? 'pointer' : 'default', fontWeight: 500, maxWidth: 220, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} onClick={() => openEdit(e)} title={e.description}>
+                                    <td style={{ cursor: (['Chờ duyệt', 'Từ chối'].includes(e.status) || ['ke_toan', 'giam_doc'].includes(role)) ? 'pointer' : 'default', fontWeight: 500, maxWidth: 220, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} onClick={() => openEdit(e)} title={e.description}>
                                         {e.description}
                                     </td>
                                     <td style={{ fontSize: 12 }}>
@@ -437,8 +437,8 @@ ${e.proofUrl ? parseProofUrls(e.proofUrl).map(url => `<img src="${url}" style="m
                                             {e.status === 'Đã chi' && <button title="Hoàn thành" style={{ background: 'var(--status-success)', color: '#fff', border: 'none', borderRadius: 6, fontSize: 12, cursor: 'pointer', padding: '3px 7px', lineHeight: 1 }} onClick={() => updateStatus(e.id, 'Hoàn thành')}>✅</button>}
                                             {e.status === 'Từ chối' && <button title="Mở lại" style={{ background: 'var(--status-warning)', color: '#fff', border: 'none', borderRadius: 6, fontSize: 12, cursor: 'pointer', padding: '3px 7px', lineHeight: 1 }} onClick={() => updateStatus(e.id, 'Chờ duyệt')}>↩</button>}
                                             {['Đã chi', 'Hoàn thành'].includes(e.status) && <button title="In phiếu chi" className="btn btn-ghost btn-sm" style={{ fontSize: 13, padding: '3px 6px' }} onClick={() => printVoucher(e)}>🧾</button>}
-                                            {['ke_toan', 'giam_doc', 'pho_gd'].includes(role) && <button title="Sửa" className="btn btn-ghost btn-sm" style={{ fontSize: 13, padding: '3px 6px' }} onClick={() => openEdit(e)}>✏️</button>}
-                                            {(['Chờ duyệt', 'Từ chối'].includes(e.status) || ['ke_toan', 'giam_doc', 'pho_gd'].includes(role)) && <button title="Xóa" className="btn btn-ghost btn-sm" style={{ color: 'var(--status-danger)', fontSize: 13, padding: '3px 6px' }} onClick={() => handleDelete(e.id)}>🗑️</button>}
+                                            {['ke_toan', 'giam_doc'].includes(role) && <button title="Sửa" className="btn btn-ghost btn-sm" style={{ fontSize: 13, padding: '3px 6px' }} onClick={() => openEdit(e)}>✏️</button>}
+                                            {(['Chờ duyệt', 'Từ chối'].includes(e.status) || ['ke_toan', 'giam_doc'].includes(role)) && <button title="Xóa" className="btn btn-ghost btn-sm" style={{ color: 'var(--status-danger)', fontSize: 13, padding: '3px 6px' }} onClick={() => handleDelete(e.id)}>🗑️</button>}
                                         </div>
                                     </td>
                                 </tr>

@@ -21,7 +21,7 @@ export default function ProductDrawer({ product, onClose, onEdit, onDelete, onDu
     if (!product) return null;
     const p = product;
     const badge = stockBadge(p);
-    const canSeeFinance = !role || ['giam_doc', 'pho_gd', 'ke_toan'].includes(role);
+    const canSeeFinance = !role || ['giam_doc', 'ke_toan'].includes(role);
 
     const copyCode = () => {
         navigator.clipboard.writeText(p.code);

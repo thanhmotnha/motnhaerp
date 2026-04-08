@@ -18,7 +18,7 @@ export default function ContractorsPage() {
     const [showForm, setShowForm] = useState(false);
     const [search, setSearch] = useState('');
     const [CONTRACTOR_TYPES, setContractorTypes] = useState(DEFAULT_CONTRACTOR_TYPES);
-    const canManage = ['giam_doc', 'pho_gd', 'ke_toan'].includes(role);
+    const canManage = ['giam_doc', 'ke_toan'].includes(role);
 
     const fetchData = useCallback(async () => {
         setLoading(true);
