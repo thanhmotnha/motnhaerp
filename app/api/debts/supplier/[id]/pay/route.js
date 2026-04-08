@@ -20,19 +20,27 @@ export const POST = withAuth(async (request, { params }, session) => {
         return NextResponse.json({ error: `Số tiền vượt quá còn nợ (${remaining.toLocaleString('vi-VN')}đ)` }, { status: 400 });
     }
 
-    const newPaid = debt.paidAmount + data.amount;
-    const newStatus = newPaid >= debt.totalAmount ? 'paid' : 'partial';
     const code = await generateCode('supplierDebtPayment', 'TTNCC');
 
-    const [payment] = await prisma.$transaction([
-        prisma.supplierDebtPayment.create({
-            data: { code, debtId: id, ...data, createdById: session.user.id },
-        }),
-        prisma.supplierDebt.update({
+    const payment = await prisma.$transaction(async (tx) => {
+        const current = await tx.supplierDebt.findUnique({
             where: { id },
-            data: { paidAmount: newPaid, status: newStatus },
-        }),
-    ]);
+            select: { totalAmount: true, paidAmount: true },
+        });
+        const newPaid = current.paidAmount + data.amount;
+        const newStatus = newPaid >= current.totalAmount ? 'paid' : 'partial';
+
+        const [p] = await Promise.all([
+            tx.supplierDebtPayment.create({
+                data: { code, debtId: id, ...data, createdById: session.user.id },
+            }),
+            tx.supplierDebt.update({
+                where: { id },
+                data: { paidAmount: newPaid, status: newStatus },
+            }),
+        ]);
+        return p;
+    });
 
     return NextResponse.json(payment, { status: 201 });
 });
