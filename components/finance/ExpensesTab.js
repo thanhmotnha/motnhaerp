@@ -60,6 +60,9 @@ export default function ExpensesTab() {
     const [form, setForm] = useState(emptyForm());
     const [isHistorical, setIsHistorical] = useState(false);
     const [allocations, setAllocations] = useState([]);
+    const [linkDebt, setLinkDebt] = useState(false);
+    const [debtOptions, setDebtOptions] = useState([]);
+    const [selectedDebtId, setSelectedDebtId] = useState('');
 
     const { role } = useRole();
 
@@ -99,6 +102,21 @@ export default function ExpensesTab() {
             setLoading(false);
         }
     };
+
+    useEffect(() => {
+        if (!form.recipientId || !form.recipientType || (form.recipientType !== 'NCC' && form.recipientType !== 'Thầu phụ')) {
+            setDebtOptions([]);
+            setLinkDebt(false);
+            setSelectedDebtId('');
+            return;
+        }
+        const endpoint = form.recipientType === 'NCC'
+            ? `/api/debts/supplier?supplierId=${form.recipientId}`
+            : `/api/debts/contractor?contractorId=${form.recipientId}`;
+        apiFetch(endpoint)
+            .then(res => setDebtOptions((res || []).filter(d => d.status !== 'paid')))
+            .catch(() => setDebtOptions([]));
+    }, [form.recipientId, form.recipientType]);
 
     useEffect(() => {
         fetchExpenses();
@@ -241,7 +259,19 @@ export default function ExpensesTab() {
                 toast.success('Đã tạo lệnh chi');
             }
 
+            // Link to debt if selected
+            if (linkDebt && selectedDebtId && !editing) {
+                const payEndpoint = form.recipientType === 'NCC'
+                    ? `/api/debts/supplier/${selectedDebtId}/pay`
+                    : `/api/debts/contractor/${selectedDebtId}/pay`;
+                await apiFetch(payEndpoint, {
+                    method: 'POST',
+                    body: { amount: Number(form.amount), date: form.date, notes: form.notes || '' },
+                }).catch(() => {});
+            }
             setShowModal(false);
+            setLinkDebt(false);
+            setSelectedDebtId('');
             fetchExpenses();
         } catch (e) {
             toast.error('Lỗi: ' + e.message);
@@ -476,11 +506,11 @@ ${e.proofUrl ? parseProofUrls(e.proofUrl).map(url => `<img src="${url}" style="m
 
             {/* Modal tạo/sửa */}
             {showModal && (
-                <div className="modal-overlay" onClick={() => !saving && setShowModal(false)}>
+                <div className="modal-overlay" onClick={() => { if (!saving) { setShowModal(false); setLinkDebt(false); setSelectedDebtId(''); } }}>
                     <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 560 }}>
                         <div className="modal-header">
                             <h3>{editing ? '✏️ Sửa lệnh chi' : '+ Tạo lệnh chi tiền'}</h3>
-                            <button className="modal-close" onClick={() => setShowModal(false)}>×</button>
+                            <button className="modal-close" onClick={() => { setShowModal(false); setLinkDebt(false); setSelectedDebtId(''); }}×</button>
                         </div>
                                         <div className="modal-body">
                             {/* Type toggle */}
@@ -656,6 +686,26 @@ ${e.proofUrl ? parseProofUrls(e.proofUrl).map(url => `<img src="${url}" style="m
                             })()}
                         </div>
 
+                        {/* Link to debt */}
+                        {!editing && (form.recipientType === 'NCC' || form.recipientType === 'Thầu phụ') && debtOptions.length > 0 && (
+                            <div style={{ padding: '10px 20px', borderTop: '1px solid var(--border)' }}>
+                                <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 13, marginBottom: linkDebt ? 10 : 0 }}>
+                                    <input type="checkbox" checked={linkDebt} onChange={e => { setLinkDebt(e.target.checked); if (!e.target.checked) setSelectedDebtId(''); }} style={{ width: 15, height: 15 }} />
+                                    <span style={{ fontWeight: 600 }}>💳 Trả công nợ cụ thể</span>
+                                </label>
+                                {linkDebt && (
+                                    <select className="form-select" value={selectedDebtId} onChange={e => setSelectedDebtId(e.target.value)}>
+                                        <option value="">— Chọn công nợ —</option>
+                                        {debtOptions.map(d => (
+                                            <option key={d.id} value={d.id}>
+                                                {d.code} — {d.description} (còn {new Intl.NumberFormat('vi-VN').format(d.remaining)}đ)
+                                            </option>
+                                        ))}
+                                    </select>
+                                )}
+                            </div>
+                        )}
+
                         {/* Historical checkbox */}
                         {!editing && (
                             <div style={{ padding: '10px 20px', borderTop: '1px solid var(--border)', background: isHistorical ? 'var(--bg-secondary)' : 'transparent' }}>
@@ -668,7 +718,7 @@ ${e.proofUrl ? parseProofUrls(e.proofUrl).map(url => `<img src="${url}" style="m
                         )}
 
                         <div className="modal-footer">
-                            <button className="btn btn-ghost" onClick={() => setShowModal(false)} disabled={saving}>Hủy</button>
+                            <button className="btn btn-ghost" onClick={() => { setShowModal(false); setLinkDebt(false); setSelectedDebtId(''); }} disabled={saving}>Hủy</button>
                             <button className="btn btn-primary" onClick={handleSubmit} disabled={saving}>
                                 {saving ? 'Đang lưu...' : editing ? 'Cập nhật' : isHistorical ? '📋 Lưu lịch sử' : 'Tạo lệnh chi'}
                             </button>
