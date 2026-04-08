@@ -140,6 +140,8 @@ model Project {
   workOrders            WorkOrder[]
   overheadAllocations   OverheadAllocation[]
   stockIssues           StockIssue[]
+  supplierDebts         SupplierDebt[]
+  contractorDebts       ContractorDebt[]
 
   @@index([customerId])
 }
@@ -540,6 +542,7 @@ model Contractor {
   paymentLogs    ContractorPaymentLog[]
   documents      ProjectDocument[]
   tasks          SubContractorTask[]
+  debts          ContractorDebt[]
 }
 
 model ContractorPaymentLog {
@@ -622,6 +625,7 @@ model Supplier {
   documents        ProjectDocument[]
   purchaseOrders   PurchaseOrder[]
   supplierPayments SupplierPayment[]
+  debts            SupplierDebt[]
 }
 
 model SupplierPayment {
@@ -2200,4 +2204,91 @@ model StockIssueItem {
 
   @@index([issueId])
   @@index([productId])
+}
+
+model SupplierDebt {
+  id          String   @id @default(cuid())
+  code        String   @unique
+  supplierId  String
+  projectId   String?
+  invoiceNo   String   @default("")
+  description String
+  totalAmount Float    @default(0)
+  paidAmount  Float    @default(0)
+  status      String   @default("open")
+  date        DateTime @default(now())
+  proofUrl    String   @default("")
+  notes       String   @default("")
+  createdById String   @default("")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  supplier Supplier              @relation(fields: [supplierId], references: [id])
+  project  Project?              @relation(fields: [projectId], references: [id])
+  payments SupplierDebtPayment[]
+
+  @@index([supplierId])
+  @@index([projectId])
+  @@index([status])
+}
+
+model SupplierDebtPayment {
+  id             String   @id @default(cuid())
+  code           String   @unique
+  debtId         String
+  amount         Float
+  date           DateTime @default(now())
+  notes          String   @default("")
+  proofUrl       String   @default("")
+  paymentAccount String   @default("")
+  expenseId      String?
+  createdById    String   @default("")
+  createdAt      DateTime @default(now())
+
+  debt SupplierDebt @relation(fields: [debtId], references: [id], onDelete: Cascade)
+
+  @@index([debtId])
+}
+
+model ContractorDebt {
+  id           String   @id @default(cuid())
+  code         String   @unique
+  contractorId String
+  projectId    String
+  description  String
+  totalAmount  Float    @default(0)
+  paidAmount   Float    @default(0)
+  status       String   @default("open")
+  date         DateTime @default(now())
+  proofUrl     String   @default("")
+  notes        String   @default("")
+  createdById  String   @default("")
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  contractor Contractor              @relation(fields: [contractorId], references: [id])
+  project    Project                 @relation(fields: [projectId], references: [id])
+  payments   ContractorDebtPayment[]
+
+  @@index([contractorId])
+  @@index([projectId])
+  @@index([status])
+}
+
+model ContractorDebtPayment {
+  id             String   @id @default(cuid())
+  code           String   @unique
+  debtId         String
+  amount         Float
+  date           DateTime @default(now())
+  notes          String   @default("")
+  proofUrl       String   @default("")
+  paymentAccount String   @default("")
+  expenseId      String?
+  createdById    String   @default("")
+  createdAt      DateTime @default(now())
+
+  debt ContractorDebt @relation(fields: [debtId], references: [id], onDelete: Cascade)
+
+  @@index([debtId])
 }
