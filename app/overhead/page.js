@@ -316,7 +316,7 @@ function SummaryByProject({ data, fmt }) {
     // Build lookup: projectId → batchId → allocation
     const lookup = {};
     for (const b of batches) {
-        for (const a of b.allocations) {
+        for (const a of (b.allocations ?? [])) {
             if (!lookup[a.projectId]) lookup[a.projectId] = {};
             lookup[a.projectId][b.id] = a;
         }
@@ -391,7 +391,7 @@ function SummaryByBatch({ data, fmt }) {
     const lookup = {};
     for (const b of batches) {
         lookup[b.id] = {};
-        for (const a of b.allocations) {
+        for (const a of (b.allocations ?? [])) {
             lookup[b.id][a.projectId] = a;
         }
     }
