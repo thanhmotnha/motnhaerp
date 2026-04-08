@@ -3,7 +3,7 @@ import prisma from '@/lib/prisma';
 import { NextResponse } from 'next/server';
 import { logActivity } from '@/lib/activityLogger';
 
-const FINANCE_ROLES = ['giam_doc', 'pho_gd', 'ke_toan'];
+const FINANCE_ROLES = ['giam_doc', 'ke_toan'];
 
 export const PATCH = withAuth(async (_request, { params }, session) => {
     if (!FINANCE_ROLES.includes(session.user.role)) {

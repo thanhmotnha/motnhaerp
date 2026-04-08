@@ -3,7 +3,7 @@ import prisma from '@/lib/prisma';
 import { NextResponse } from 'next/server';
 import { overheadBatchConfirmSchema } from '@/lib/validations/overhead';
 
-const CONFIRM_ROLES = ['giam_doc', 'pho_gd', 'ke_toan'];
+const CONFIRM_ROLES = ['giam_doc', 'ke_toan'];
 
 export const POST = withAuth(async (request, { params }, session) => {
     if (!CONFIRM_ROLES.includes(session.user.role)) {

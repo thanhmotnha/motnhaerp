@@ -110,4 +110,4 @@ export const POST = withAuth(async () => {
         });
     }
     return NextResponse.json({ success: true, message: 'Templates seeded' });
-}, { roles: ['giam_doc', 'pho_gd', 'ke_toan'] });
+}, { roles: ['giam_doc', 'ke_toan'] });

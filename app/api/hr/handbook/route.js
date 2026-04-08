@@ -19,4 +19,4 @@ export const POST = withAuth(async (request) => {
     const buffer = Buffer.from(await file.arrayBuffer());
     const url = await uploadToR2(buffer, HANDBOOK_KEY, file.type || 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
     return NextResponse.json({ url, success: true });
-}, { roles: ['giam_doc', 'pho_gd', 'ke_toan'] });
+}, { roles: ['giam_doc', 'ke_toan'] });

@@ -3,7 +3,7 @@ import prisma from '@/lib/prisma';
 import { NextResponse } from 'next/server';
 import { correctionCreateSchema } from '@/lib/validations/paymentCorrection';
 
-const FINANCE_ROLES = ['giam_doc', 'pho_gd', 'ke_toan'];
+const FINANCE_ROLES = ['giam_doc', 'ke_toan'];
 
 export const GET = withAuth(async (request, _ctx, session) => {
     if (!FINANCE_ROLES.includes(session.user.role)) {

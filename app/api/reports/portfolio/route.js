@@ -95,4 +95,4 @@ export const GET = withAuth(async (request) => {
         projects: rows,
         benchmark,
     });
-}, { roles: ['giam_doc', 'pho_gd', 'ke_toan'] });
+}, { roles: ['giam_doc', 'ke_toan'] });

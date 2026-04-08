@@ -124,4 +124,4 @@ export const GET = withAuth(async (request, context, session) => {
     };
 
     return NextResponse.json({ data: result, summary });
-}, { roles: ['giam_doc', 'pho_gd', 'ke_toan'] });
+}, { roles: ['giam_doc', 'ke_toan'] });

@@ -64,4 +64,4 @@ export const GET = withAuth(async (request) => {
     });
 
     return NextResponse.json({ year, workshops: kpis });
-}, { roles: ['giam_doc', 'pho_gd', 'ke_toan'] });
+}, { roles: ['giam_doc', 'ke_toan'] });

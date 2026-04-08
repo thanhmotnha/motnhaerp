@@ -42,4 +42,4 @@ export const GET = withAuth(async (request) => {
         ...paginatedResponse(logs, total, { page, limit }),
         entityTypes: entityTypes.map(e => e.entityType),
     });
-}, { roles: ['giam_doc', 'pho_gd'] });
+}, { roles: ['giam_doc'] });

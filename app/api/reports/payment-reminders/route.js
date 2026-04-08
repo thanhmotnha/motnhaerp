@@ -78,4 +78,4 @@ export const GET = withAuth(async (request, context, session) => {
             upcomingAmount: upcoming.reduce((s, x) => s + x.remaining, 0),
         },
     });
-}, { roles: ['giam_doc', 'pho_gd', 'ke_toan'] });
+}, { roles: ['giam_doc', 'ke_toan'] });

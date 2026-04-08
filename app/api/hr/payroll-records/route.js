@@ -83,4 +83,4 @@ export const POST = withAuth(async (request) => {
 
     const result = await prisma.payrollRecord.createMany({ data: records });
     return NextResponse.json({ message: `Đã tạo ${result.count} bảng lương`, created: result.count }, { status: 201 });
-}, { roles: ['giam_doc', 'pho_gd', 'ke_toan'] });
+}, { roles: ['giam_doc', 'ke_toan'] });

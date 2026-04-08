@@ -45,7 +45,7 @@ export const PUT = withAuth(async (request, { params }, session) => {
     const approvalStatuses = ['Đạt', 'Không đạt'];
     if (status && approvalStatuses.includes(status)) {
         const role = session.user?.role;
-        if (!['giam_doc', 'pho_gd'].includes(role)) {
+        if (role !== 'giam_doc') {
             return NextResponse.json({ error: 'Chỉ Giám đốc hoặc Phó GĐ được duyệt biên bản' }, { status: 403 });
         }
     }

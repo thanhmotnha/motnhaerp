@@ -123,4 +123,4 @@ export const GET = withAuth(async (request, context, session) => {
             contractorCount: contractors.length,
         },
     });
-}, { roles: ['giam_doc', 'pho_gd', 'ke_toan'] });
+}, { roles: ['giam_doc', 'ke_toan'] });

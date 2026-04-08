@@ -28,4 +28,4 @@ export const POST = withAuth(async (request) => {
         data: { code, name, address: address || '', phone: phone || '', managerId: managerId || null, capacity: capacity || 0, notes: notes || '' },
     });
     return NextResponse.json(workshop, { status: 201 });
-}, { roles: ['giam_doc', 'pho_gd'] });
+}, { roles: ['giam_doc'] });

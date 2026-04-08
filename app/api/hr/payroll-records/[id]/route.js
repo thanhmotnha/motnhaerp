@@ -55,4 +55,4 @@ export const PUT = withAuth(async (request, { params }) => {
 
     const record = await prisma.payrollRecord.update({ where: { id }, data: updateData });
     return NextResponse.json(record);
-}, { roles: ['giam_doc', 'pho_gd', 'ke_toan'] });
+}, { roles: ['giam_doc', 'ke_toan'] });

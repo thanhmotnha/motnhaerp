@@ -55,4 +55,4 @@ export const POST = withAuth(async (request, _, session) => {
         updated: result.count,
         status,
     });
-}, { roles: ['giam_doc', 'pho_gd'] });
+}, { roles: ['giam_doc'] });

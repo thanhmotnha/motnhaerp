@@ -82,7 +82,7 @@ export const POST = withAuth(async (request) => {
     return NextResponse.json(expense, { status: 201 });
 });
 
-const FINANCE_ROLES = ['giam_doc', 'pho_gd', 'ke_toan'];
+const FINANCE_ROLES = ['giam_doc', 'ke_toan'];
 const APPROVAL_STATUSES = ['Đã duyệt', 'Từ chối', 'Đã chi', 'Hoàn thành'];
 
 export const PUT = withAuth(async (request, context, session) => {
