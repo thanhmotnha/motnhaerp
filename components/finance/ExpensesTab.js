@@ -525,12 +525,12 @@ ${e.proofUrl ? parseProofUrls(e.proofUrl).map(url => `<img src="${url}" style="m
                                     <label className="form-label">Ngày</label>
                                     <input className="form-input" type="date" value={form.date} onChange={e => setForm(f => ({ ...f, date: e.target.value }))} />
                                 </div>
-                                <div>
-                                    <label style={{ fontSize: 12, color: 'var(--text-muted)' }}>Tài khoản</label>
+                                <div className="form-group">
+                                    <label className="form-label">Tài khoản</label>
                                     <select
-                                        className="form-input"
+                                        className="form-select"
                                         value={form.paymentAccount}
-                                        onChange={e => setForm({ ...form, paymentAccount: e.target.value })}
+                                        onChange={e => setForm(f => ({ ...f, paymentAccount: e.target.value }))}
                                     >
                                         <option value="">-- Chọn TK --</option>
                                         <option value="Tiền mặt">Tiền mặt</option>
