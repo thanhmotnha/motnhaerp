@@ -274,7 +274,7 @@ export default function CongNoPage() {
                             Đang tải...
                         </div>
                     ) : (
-                        (activeTab === 'ncc' ? visibleNcc : visibleContractors).map(item => (
+                        (activeTab === 'ncc' ? visibleNcc : activeTab === 'contractor' ? visibleContractors : []).map(item => (
                             <button
                                 key={item.id}
                                 onClick={() => handleSelect(item.id, activeTab)}
@@ -300,7 +300,7 @@ export default function CongNoPage() {
                             </button>
                         ))
                     )}
-                    {!loadingList && (activeTab === 'ncc' ? visibleNcc : visibleContractors).length === 0 && (
+                    {!loadingList && (activeTab === 'ncc' ? visibleNcc : activeTab === 'contractor' ? visibleContractors : []).length === 0 && (
                         <div style={{ padding: 20, textAlign: 'center', color: 'var(--text-muted)', fontSize: 13 }}>
                             Không có kết quả
                         </div>
@@ -309,7 +309,7 @@ export default function CongNoPage() {
             </div>
 
             {/* ── Right panel ────────────────────────────────────── */}
-            <div style={{ flex: 1, overflowY: 'auto', background: 'var(--bg-primary)' }}>
+            {activeTab !== 'project' && <div style={{ flex: 1, overflowY: 'auto', background: 'var(--bg-primary)' }}>
                 {/* View toggle */}
                 {selectedId && (
                     <div style={{ display: 'flex', gap: 6, padding: '16px 24px 0' }}>
@@ -555,7 +555,7 @@ export default function CongNoPage() {
                         </div>
                     </div>
                 ) : null}
-            </div>
+            </div>}
 
             {activeTab === 'project' && (
                 <div style={{ flex: 1, padding: 24, overflowY: 'auto' }}>
