@@ -510,7 +510,7 @@ ${e.proofUrl ? parseProofUrls(e.proofUrl).map(url => `<img src="${url}" style="m
                     <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 560 }}>
                         <div className="modal-header">
                             <h3>{editing ? '✏️ Sửa lệnh chi' : '+ Tạo lệnh chi tiền'}</h3>
-                            <button className="modal-close" onClick={() => { setShowModal(false); setLinkDebt(false); setSelectedDebtId(''); }}×</button>
+                            <button className="modal-close" onClick={() => { setShowModal(false); setLinkDebt(false); setSelectedDebtId(''); }}>×</button>
                         </div>
                                         <div className="modal-body">
                             {/* Type toggle */}
