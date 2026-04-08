@@ -2,6 +2,9 @@ import { describe, it, expect } from 'vitest';
 import { customerCreateSchema } from '@/lib/validations/customer';
 import { projectCreateSchema } from '@/lib/validations/project';
 import { productCreateSchema } from '@/lib/validations/product';
+import { expenseCreateSchema } from '@/lib/validations/expense';
+import { overheadExpenseCreateSchema } from '@/lib/validations/overhead';
+import { transactionCreateSchema } from '@/lib/validations/transaction';
 
 describe('customerCreateSchema', () => {
     it('accepts valid customer data', () => {
@@ -56,5 +59,43 @@ describe('productCreateSchema', () => {
         const data = { name: 'Gạch', category: 'VLXD', unit: 'm2' };
         const result = productCreateSchema.parse(data);
         expect(result.status).toBe('Đang bán');
+    });
+});
+
+describe('paymentAccount field', () => {
+    it('expenseCreateSchema accepts Tiền mặt', () => {
+        const result = expenseCreateSchema.parse({
+            description: 'Test',
+            amount: 100000,
+            paymentAccount: 'Tiền mặt',
+        });
+        expect(result.paymentAccount).toBe('Tiền mặt');
+    });
+
+    it('expenseCreateSchema defaults to empty string', () => {
+        const result = expenseCreateSchema.parse({
+            description: 'Test',
+            amount: 100000,
+        });
+        expect(result.paymentAccount).toBe('');
+    });
+
+    it('overheadExpenseCreateSchema accepts Ngân hàng', () => {
+        const result = overheadExpenseCreateSchema.parse({
+            description: 'Test',
+            amount: 100000,
+            paymentAccount: 'Ngân hàng',
+        });
+        expect(result.paymentAccount).toBe('Ngân hàng');
+    });
+
+    it('transactionCreateSchema accepts paymentAccount', () => {
+        const result = transactionCreateSchema.parse({
+            type: 'Thu',
+            description: 'Test',
+            amount: 100000,
+            paymentAccount: 'Tiền mặt',
+        });
+        expect(result.paymentAccount).toBe('Tiền mặt');
     });
 });
