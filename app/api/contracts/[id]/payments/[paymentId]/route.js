@@ -13,6 +13,7 @@ export const PUT = withAuth(async (request, { params }) => {
     if (data.proofUrl !== undefined) updateData.proofUrl = data.proofUrl;
     if (data.notes !== undefined) updateData.notes = data.notes;
     if (data.paidDate !== undefined) updateData.paidDate = data.paidDate ? new Date(data.paidDate) : null;
+    if (data.paymentAccount !== undefined) updateData.paymentAccount = data.paymentAccount;
 
     // If proofUrl is uploaded, auto-mark as paid with full amount
     if (data.proofUrl && !updateData.status) {

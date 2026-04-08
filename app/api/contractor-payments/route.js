@@ -36,7 +36,7 @@ export const GET = withAuth(async (request) => {
 export const POST = withAuth(async (request) => {
     const body = await request.json();
     const { contractorId, projectId, contractAmount, paidAmount, description, dueDate, status,
-        phase, netAmount, retentionRate, retentionAmount, items } = body;
+        phase, netAmount, retentionRate, retentionAmount, items, paymentAccount } = body;
     if (!contractorId) return NextResponse.json({ error: 'contractorId bắt buộc' }, { status: 400 });
     if (!projectId) return NextResponse.json({ error: 'projectId bắt buộc' }, { status: 400 });
 
@@ -59,6 +59,7 @@ export const POST = withAuth(async (request) => {
                 phase: phase || '',
                 dueDate: dueDate ? new Date(dueDate) : null,
                 status: status || 'pending_technical',
+                paymentAccount: paymentAccount || '',
             },
         });
 

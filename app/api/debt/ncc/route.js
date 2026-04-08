@@ -100,6 +100,7 @@ export const POST = withAuth(async (request, context, session) => {
             amount: Number(amount),
             date: date ? new Date(date) : new Date(),
             notes: notes ?? '',
+            paymentAccount: body.paymentAccount || '',
             createdById: session.user.id,
         },
     });
