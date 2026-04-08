@@ -172,11 +172,12 @@ export default function ExpensesTab() {
         setForm(f => ({
             ...f,
             expenseType: type,
-            projectId: type === 'Công ty' ? null : f.projectId,
-            recipientType: type === 'Công ty' ? '' : f.recipientType,
-            recipientId: type === 'Công ty' ? '' : f.recipientId,
+            projectId: (type === 'Công ty' || type === 'Chi phí chung') ? null : f.projectId,
+            recipientType: (type === 'Công ty' || type === 'Chi phí chung') ? '' : f.recipientType,
+            recipientId: (type === 'Công ty' || type === 'Chi phí chung') ? '' : f.recipientId,
             category: available[0] || '',
         }));
+        if (type === 'Chi phí chung') setAllocations([]);
     };
 
     // ── Submit ─────────────────────────────────────────────────────
@@ -214,7 +215,23 @@ export default function ExpensesTab() {
                 payload.proofUrl = urls.length === 1 ? urls[0] : JSON.stringify(urls);
             }
 
-            if (editing) {
+            if (form.expenseType === 'Chi phí chung') {
+                const ohPayload = {
+                    description: payload.description,
+                    amount: payload.amount,
+                    date: payload.date,
+                    categoryId: payload.categoryId || null,
+                    notes: payload.notes || '',
+                    proofUrl: payload.proofUrl || '',
+                };
+                if (editing) {
+                    await apiFetch(`/api/overhead/expenses/${editing.id}`, { method: 'PUT', body: ohPayload });
+                    toast.success('Đã cập nhật chi phí chung');
+                } else {
+                    await apiFetch('/api/overhead/expenses', { method: 'POST', body: ohPayload });
+                    toast.success('Đã tạo chi phí chung');
+                }
+            } else if (editing) {
                 await apiFetch('/api/project-expenses', { method: 'PUT', body: { id: editing.id, ...payload } });
                 toast.success('Đã cập nhật lệnh chi');
             } else {
@@ -464,7 +481,23 @@ ${e.proofUrl ? parseProofUrls(e.proofUrl).map(url => `<img src="${url}" style="m
                             <button className="modal-close" onClick={() => setShowModal(false)}>×</button>
                         </div>
                                         <div className="modal-body">
+                            {/* Type toggle */}
+                            <div className="form-group">
+                                <label className="form-label">Loại chi phí</label>
+                                <div style={{ display: 'flex', gap: 6 }}>
+                                    {[['Dự án', '🏗️'], ['Công ty', '🏢'], ['Chi phí chung', '📋']].map(([t, icon]) => (
+                                        <button key={t} type="button"
+                                            className={`btn btn-sm${form.expenseType === t ? ' btn-primary' : ''}`}
+                                            onClick={() => setExpenseType(t)}
+                                            style={{ flex: 1 }}>
+                                            {icon} {t}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+
                             {/* Project selector */}
+                            {form.expenseType !== 'Chi phí chung' && (
                             <div className="form-group">
                                 <label className="form-label">Dự án</label>
                                 <select className="form-select" value={form.projectId || ''} onChange={e => setForm(f => ({ ...f, projectId: e.target.value || null }))}>
@@ -472,6 +505,7 @@ ${e.proofUrl ? parseProofUrls(e.proofUrl).map(url => `<img src="${url}" style="m
                                     {projects.map(p => <option key={p.id} value={p.id}>{p.code} — {p.name}</option>)}
                                 </select>
                             </div>
+                            )}
 
                             <div className="form-group">
                                 <label className="form-label">Mô tả chi phí *</label>
@@ -479,6 +513,7 @@ ${e.proofUrl ? parseProofUrls(e.proofUrl).map(url => `<img src="${url}" style="m
                             </div>
 
                             {/* Recipient */}
+                            {form.expenseType !== 'Chi phí chung' && (
                             <div className="form-row">
                                 <div className="form-group">
                                     <label className="form-label">Chi cho</label>
@@ -502,6 +537,7 @@ ${e.proofUrl ? parseProofUrls(e.proofUrl).map(url => `<img src="${url}" style="m
                                     />
                                 )}
                             </div>
+                            )}
 
                             <div className="form-row">
                                 <div className="form-group">
@@ -572,7 +608,7 @@ ${e.proofUrl ? parseProofUrls(e.proofUrl).map(url => `<img src="${url}" style="m
                             </div>
 
                             {/* Phân bổ vào nhiều dự án */}
-                            {(() => {
+                            {form.expenseType !== 'Chi phí chung' && (() => {
                                 const total = Number(form.amount) || 0;
                                 const allocated = allocations.reduce((s, a) => s + (Number(a.amount) || 0), 0);
                                 const remaining = total - allocated;
