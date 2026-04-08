@@ -23,10 +23,10 @@ const menuItems = [
     },
     {
         section: 'Kinh doanh', items: [
-            { href: '/customers', icon: Users, label: 'Khách hàng', roles: ['giam_doc', 'pho_gd', 'ke_toan'] },
-            { href: '/quotations', icon: ClipboardList, label: 'Báo giá', roles: ['giam_doc', 'pho_gd', 'ke_toan'], quick: '/quotations/create' },
-            { href: '/contracts', icon: FileText, label: 'Hợp đồng', roles: ['giam_doc', 'pho_gd', 'ke_toan'], quick: '/contracts/create' },
-            { href: '/warranty', icon: ShieldCheck, label: 'Bảo hành', roles: ['giam_doc', 'pho_gd', 'quan_ly_du_an'] },
+            { href: '/customers', icon: Users, label: 'Khách hàng', roles: ['giam_doc', 'ke_toan', 'kinh_doanh'] },
+            { href: '/quotations', icon: ClipboardList, label: 'Báo giá', roles: ['giam_doc', 'ke_toan', 'kinh_doanh', 'ky_thuat'], quick: '/quotations/create' },
+            { href: '/contracts', icon: FileText, label: 'Hợp đồng', roles: ['giam_doc', 'ke_toan', 'kinh_doanh'], quick: '/contracts/create' },
+            { href: '/warranty', icon: ShieldCheck, label: 'Bảo hành', roles: ['giam_doc', 'quan_ly_du_an'] },
         ]
     },
     {
@@ -38,33 +38,33 @@ const menuItems = [
     {
         section: 'Vật tư', items: [
             { href: '/products', icon: Package, label: 'Sản phẩm' },
-            { href: '/purchasing', icon: ShoppingCart, label: 'Mua sắm', roles: ['giam_doc', 'pho_gd', 'ke_toan'] },
-            { href: '/inventory', icon: Warehouse, label: 'Kho', roles: ['giam_doc', 'pho_gd', 'ke_toan', 'quan_ly_du_an'] },
+            { href: '/purchasing', icon: ShoppingCart, label: 'Mua sắm', roles: ['giam_doc', 'ke_toan', 'kinh_doanh', 'kho', 'ky_thuat'] },
+            { href: '/inventory', icon: Warehouse, label: 'Kho', roles: ['giam_doc', 'ke_toan', 'kho', 'quan_ly_du_an'] },
         ]
     },
     {
         section: 'Tài chính', items: [
-            { href: '/finance', icon: Wallet, label: 'Tổng quan', roles: ['giam_doc', 'pho_gd', 'ke_toan'], exactMatch: true },
-            { href: '/finance?tab=thu_tien', icon: ArrowDownLeft, label: 'Thu tiền', roles: ['giam_doc', 'pho_gd', 'ke_toan'], tab: 'thu_tien' },
-            { href: '/finance?tab=chi_phi', icon: ArrowUpRight, label: 'Chi phí', roles: ['giam_doc', 'pho_gd', 'ke_toan'], tab: 'chi_phi' },
-            { href: '/accounting', icon: BookOpen, label: 'Sổ cái', roles: ['giam_doc', 'pho_gd', 'ke_toan'] },
-            { href: '/cashflow-forecast', icon: Banknote, label: 'Dự báo dòng tiền', roles: ['giam_doc', 'pho_gd', 'ke_toan'] },
-            { href: '/budget', icon: PiggyBank, label: 'Ngân sách', roles: ['giam_doc', 'pho_gd', 'ke_toan', 'quan_ly_du_an'] },
-            { href: '/cong-no', icon: Landmark, label: 'Công nợ', roles: ['giam_doc', 'pho_gd', 'ke_toan'] },
-            { href: '/overhead', icon: Building2, label: 'Chi phí chung', roles: ['giam_doc', 'pho_gd', 'ke_toan'] },
+            { href: '/finance', icon: Wallet, label: 'Tổng quan', roles: ['giam_doc', 'ke_toan'], exactMatch: true },
+            { href: '/finance?tab=thu_tien', icon: ArrowDownLeft, label: 'Thu tiền', roles: ['giam_doc', 'ke_toan'], tab: 'thu_tien' },
+            { href: '/finance?tab=chi_phi', icon: ArrowUpRight, label: 'Chi phí', roles: ['giam_doc', 'ke_toan'], tab: 'chi_phi' },
+            { href: '/accounting', icon: BookOpen, label: 'Sổ cái', roles: ['giam_doc', 'ke_toan'] },
+            { href: '/cashflow-forecast', icon: Banknote, label: 'Dự báo dòng tiền', roles: ['giam_doc', 'ke_toan'] },
+            { href: '/budget', icon: PiggyBank, label: 'Ngân sách', roles: ['giam_doc', 'ke_toan', 'quan_ly_du_an'] },
+            { href: '/cong-no', icon: Landmark, label: 'Công nợ', roles: ['giam_doc', 'ke_toan'] },
+            { href: '/overhead', icon: Building2, label: 'Chi phí chung', roles: ['giam_doc', 'ke_toan'] },
         ]
     },
     {
         section: 'Quản lý', items: [
-            { href: '/hr', icon: UserCog, label: 'Nhân sự', roles: ['giam_doc', 'pho_gd', 'ke_toan'] },
+            { href: '/hr', icon: UserCog, label: 'Nhân sự', roles: ['giam_doc', 'ke_toan'] },
             { href: '/admin/settings', icon: Settings, label: 'Cài đặt', roles: ['giam_doc', 'ke_toan'] },
         ]
     },
     {
         section: 'Báo cáo chi tiết', defaultCollapsed: true, items: [
             { href: '/pipeline', icon: TrendingUp, label: 'Pipeline' },
-            { href: '/reports', icon: BarChart3, label: 'Báo cáo', roles: ['giam_doc', 'pho_gd', 'ke_toan'] },
-            { href: '/reports/pl-by-project', icon: TrendingUp, label: 'P&L Dự án', roles: ['giam_doc', 'pho_gd', 'ke_toan'] },
+            { href: '/reports', icon: BarChart3, label: 'Báo cáo', roles: ['giam_doc', 'ke_toan'] },
+            { href: '/reports/pl-by-project', icon: TrendingUp, label: 'P&L Dự án', roles: ['giam_doc', 'ke_toan'] },
         ]
     },
 ];
