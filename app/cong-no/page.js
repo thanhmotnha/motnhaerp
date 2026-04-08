@@ -36,6 +36,9 @@ export default function CongNoPage() {
     const [debtForm, setDebtForm] = useState({ description: '', invoiceNo: '', totalAmount: '', projectId: '', date: new Date().toISOString().slice(0, 10), notes: '', proofUrl: '' });
     const [payForm, setPayForm] = useState({ amount: '', date: new Date().toISOString().slice(0, 10), notes: '', proofUrl: '' });
     const [debtFilterStatus, setDebtFilterStatus] = useState('open');
+    const [selectedProject, setSelectedProject] = useState('');
+    const [projectDebts, setProjectDebts] = useState({ supplier: [], contractor: [] });
+    const [projectDebtsLoading, setProjectDebtsLoading] = useState(false);
 
     const loadLists = useCallback(async () => {
         setLoadingList(true);
@@ -84,6 +87,19 @@ export default function CongNoPage() {
             console.error(err);
         }
         setDebtsLoading(false);
+    }, []);
+
+    const loadProjectDebts = useCallback(async (projectId) => {
+        if (!projectId) return;
+        setProjectDebtsLoading(true);
+        try {
+            const [ncc, contractor] = await Promise.all([
+                apiFetch(`/api/debts/supplier?projectId=${projectId}`),
+                apiFetch(`/api/debts/contractor?projectId=${projectId}`),
+            ]);
+            setProjectDebts({ supplier: ncc || [], contractor: contractor || [] });
+        } catch (err) { console.error(err); }
+        setProjectDebtsLoading(false);
     }, []);
 
     const handleSelect = (id, type) => {
@@ -225,6 +241,10 @@ export default function CongNoPage() {
                     >
                         Nhà thầu phụ
                     </button>
+                    <button
+                        style={{ padding: '10px 20px', border: 'none', background: 'none', cursor: 'pointer', borderBottom: activeTab === 'project' ? '2px solid var(--primary)' : '2px solid transparent', color: activeTab === 'project' ? 'var(--primary)' : 'var(--text-muted)', fontWeight: activeTab === 'project' ? 600 : 400, marginBottom: -2 }}
+                        onClick={() => setActiveTab('project')}
+                    >🏗️ Theo công trình</button>
                 </div>
 
                 {/* Search + filter */}
@@ -536,6 +556,105 @@ export default function CongNoPage() {
                     </div>
                 ) : null}
             </div>
+
+            {activeTab === 'project' && (
+                <div style={{ flex: 1, padding: 24, overflowY: 'auto' }}>
+                    <div style={{ display: 'flex', gap: 12, alignItems: 'center', marginBottom: 20 }}>
+                        <select className="form-select" value={selectedProject}
+                            onChange={e => { setSelectedProject(e.target.value); if (e.target.value) loadProjectDebts(e.target.value); }}
+                            style={{ maxWidth: 320 }}>
+                            <option value="">— Chọn dự án —</option>
+                            {projects.map(p => <option key={p.id} value={p.id}>{p.code} — {p.name}</option>)}
+                        </select>
+                    </div>
+
+                    {!selectedProject ? (
+                        <div style={{ textAlign: 'center', color: 'var(--text-muted)', padding: 40 }}>Chọn dự án để xem công nợ</div>
+                    ) : projectDebtsLoading ? (
+                        <div style={{ textAlign: 'center', color: 'var(--text-muted)', padding: 40 }}>Đang tải...</div>
+                    ) : (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+                            <div>
+                                <h4 style={{ marginBottom: 8 }}>Công nợ Nhà cung cấp</h4>
+                                <div className="card" style={{ overflow: 'auto' }}>
+                                    <table className="data-table">
+                                        <thead>
+                                            <tr><th>Mã</th><th>NCC</th><th>Mô tả</th><th style={{ textAlign: 'right' }}>Tổng</th><th style={{ textAlign: 'right' }}>Đã trả</th><th style={{ textAlign: 'right' }}>Còn nợ</th><th>TT</th></tr>
+                                        </thead>
+                                        <tbody>
+                                            {projectDebts.supplier.length === 0 ? (
+                                                <tr><td colSpan={7} style={{ textAlign: 'center', color: 'var(--text-muted)', padding: 20 }}>Không có công nợ NCC</td></tr>
+                                            ) : projectDebts.supplier.map(d => {
+                                                const statusColor = { open: '#ef4444', partial: '#f59e0b', paid: '#22c55e' }[d.status] || '#888';
+                                                const statusLabel = { open: 'Còn nợ', partial: 'Trả 1 phần', paid: 'Đã trả' }[d.status] || d.status;
+                                                return (
+                                                    <tr key={d.id}>
+                                                        <td style={{ fontFamily: 'monospace', fontSize: 12 }}>{d.code}</td>
+                                                        <td style={{ fontWeight: 600 }}>{d.supplier?.name}</td>
+                                                        <td>{d.description}</td>
+                                                        <td style={{ textAlign: 'right', fontFamily: 'monospace' }}>{fmtVND(d.totalAmount)}</td>
+                                                        <td style={{ textAlign: 'right', fontFamily: 'monospace', color: '#22c55e' }}>{fmtVND(d.paidAmount)}</td>
+                                                        <td style={{ textAlign: 'right', fontFamily: 'monospace', fontWeight: 700, color: statusColor }}>{fmtVND(d.remaining)}</td>
+                                                        <td><span style={{ fontSize: 11, padding: '2px 6px', borderRadius: 8, background: statusColor + '18', color: statusColor }}>{statusLabel}</span></td>
+                                                    </tr>
+                                                );
+                                            })}
+                                            {projectDebts.supplier.length > 0 && (
+                                                <tr style={{ background: 'var(--bg-secondary)', fontWeight: 600 }}>
+                                                    <td colSpan={5} style={{ textAlign: 'right' }}>Tổng còn nợ NCC:</td>
+                                                    <td style={{ textAlign: 'right', fontFamily: 'monospace', color: '#ef4444' }}>
+                                                        {fmtVND(projectDebts.supplier.reduce((s, d) => s + d.remaining, 0))}
+                                                    </td>
+                                                    <td></td>
+                                                </tr>
+                                            )}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+
+                            <div>
+                                <h4 style={{ marginBottom: 8 }}>Công nợ Thầu phụ</h4>
+                                <div className="card" style={{ overflow: 'auto' }}>
+                                    <table className="data-table">
+                                        <thead>
+                                            <tr><th>Mã</th><th>Thầu phụ</th><th>Mô tả</th><th style={{ textAlign: 'right' }}>Tổng</th><th style={{ textAlign: 'right' }}>Đã trả</th><th style={{ textAlign: 'right' }}>Còn nợ</th><th>TT</th></tr>
+                                        </thead>
+                                        <tbody>
+                                            {projectDebts.contractor.length === 0 ? (
+                                                <tr><td colSpan={7} style={{ textAlign: 'center', color: 'var(--text-muted)', padding: 20 }}>Không có công nợ thầu phụ</td></tr>
+                                            ) : projectDebts.contractor.map(d => {
+                                                const statusColor = { open: '#ef4444', partial: '#f59e0b', paid: '#22c55e' }[d.status] || '#888';
+                                                const statusLabel = { open: 'Còn nợ', partial: 'Trả 1 phần', paid: 'Đã trả' }[d.status] || d.status;
+                                                return (
+                                                    <tr key={d.id}>
+                                                        <td style={{ fontFamily: 'monospace', fontSize: 12 }}>{d.code}</td>
+                                                        <td style={{ fontWeight: 600 }}>{d.contractor?.name}</td>
+                                                        <td>{d.description}</td>
+                                                        <td style={{ textAlign: 'right', fontFamily: 'monospace' }}>{fmtVND(d.totalAmount)}</td>
+                                                        <td style={{ textAlign: 'right', fontFamily: 'monospace', color: '#22c55e' }}>{fmtVND(d.paidAmount)}</td>
+                                                        <td style={{ textAlign: 'right', fontFamily: 'monospace', fontWeight: 700, color: statusColor }}>{fmtVND(d.remaining)}</td>
+                                                        <td><span style={{ fontSize: 11, padding: '2px 6px', borderRadius: 8, background: statusColor + '18', color: statusColor }}>{statusLabel}</span></td>
+                                                    </tr>
+                                                );
+                                            })}
+                                            {projectDebts.contractor.length > 0 && (
+                                                <tr style={{ background: 'var(--bg-secondary)', fontWeight: 600 }}>
+                                                    <td colSpan={5} style={{ textAlign: 'right' }}>Tổng còn nợ thầu phụ:</td>
+                                                    <td style={{ textAlign: 'right', fontFamily: 'monospace', color: '#ef4444' }}>
+                                                        {fmtVND(projectDebts.contractor.reduce((s, d) => s + d.remaining, 0))}
+                                                    </td>
+                                                    <td></td>
+                                                </tr>
+                                            )}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+                </div>
+            )}
 
             {/* ── Modal: Ghi nhận thanh toán ──────────────────────── */}
             {showPaymentModal && (
