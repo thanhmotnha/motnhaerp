@@ -26,6 +26,17 @@ export default function CongNoPage() {
     const [saving, setSaving] = useState(false);
     const [projects, setProjects] = useState([]);
 
+    // Debt view state
+    const [debtView, setDebtView] = useState('debts'); // 'ledger' | 'debts'
+    const [debts, setDebts] = useState([]);
+    const [debtsLoading, setDebtsLoading] = useState(false);
+    const [expandedDebtId, setExpandedDebtId] = useState(null);
+    const [showDebtForm, setShowDebtForm] = useState(false);
+    const [showPayForm, setShowPayForm] = useState(null); // debt object
+    const [debtForm, setDebtForm] = useState({ description: '', invoiceNo: '', totalAmount: '', projectId: '', date: new Date().toISOString().slice(0, 10), notes: '', proofUrl: '' });
+    const [payForm, setPayForm] = useState({ amount: '', date: new Date().toISOString().slice(0, 10), notes: '', proofUrl: '' });
+    const [debtFilterStatus, setDebtFilterStatus] = useState('open');
+
     const loadLists = useCallback(async () => {
         setLoadingList(true);
         try {
@@ -60,15 +71,73 @@ export default function CongNoPage() {
         setLoadingLedger(false);
     }, []);
 
+    const loadDebts = useCallback(async (id, type) => {
+        if (!id) return;
+        setDebtsLoading(true);
+        try {
+            const endpoint = type === 'ncc'
+                ? `/api/debts/supplier?supplierId=${id}`
+                : `/api/debts/contractor?contractorId=${id}`;
+            const res = await apiFetch(endpoint);
+            setDebts(res || []);
+        } catch (err) {
+            console.error(err);
+        }
+        setDebtsLoading(false);
+    }, []);
+
     const handleSelect = (id, type) => {
         setSelectedId(id);
         setSelectedType(type);
+        setExpandedDebtId(null);
         loadLedger(id, type);
+        loadDebts(id, type);
+    };
+
+    const handleCreateDebt = async () => {
+        if (!debtForm.description || !debtForm.totalAmount) return alert('Nhập mô tả và số tiền');
+        try {
+            const isNcc = selectedType === 'ncc';
+            const body = isNcc
+                ? { supplierId: selectedId, ...debtForm, totalAmount: Number(debtForm.totalAmount), projectId: debtForm.projectId || null }
+                : { contractorId: selectedId, ...debtForm, totalAmount: Number(debtForm.totalAmount) };
+            const endpoint = isNcc ? '/api/debts/supplier' : '/api/debts/contractor';
+            await apiFetch(endpoint, { method: 'POST', body });
+            setShowDebtForm(false);
+            setDebtForm({ description: '', invoiceNo: '', totalAmount: '', projectId: '', date: new Date().toISOString().slice(0, 10), notes: '', proofUrl: '' });
+            loadDebts(selectedId, selectedType);
+            loadLists();
+        } catch (err) { alert(err.message); }
+    };
+
+    const handleDeleteDebt = async (debt) => {
+        if (!confirm(`Xóa công nợ "${debt.code}"?`)) return;
+        try {
+            const endpoint = selectedType === 'ncc' ? `/api/debts/supplier/${debt.id}` : `/api/debts/contractor/${debt.id}`;
+            await apiFetch(endpoint, { method: 'DELETE' });
+            loadDebts(selectedId, selectedType);
+            loadLists();
+        } catch (err) { alert(err.message); }
+    };
+
+    const handlePay = async () => {
+        if (!payForm.amount || Number(payForm.amount) <= 0) return alert('Nhập số tiền hợp lệ');
+        try {
+            const debt = showPayForm;
+            const endpoint = selectedType === 'ncc'
+                ? `/api/debts/supplier/${debt.id}/pay`
+                : `/api/debts/contractor/${debt.id}/pay`;
+            await apiFetch(endpoint, { method: 'POST', body: { ...payForm, amount: Number(payForm.amount) } });
+            setShowPayForm(null);
+            setPayForm({ amount: '', date: new Date().toISOString().slice(0, 10), notes: '', proofUrl: '' });
+            loadDebts(selectedId, selectedType);
+            loadLists();
+        } catch (err) { alert(err.message); }
     };
 
     // Load projects when contractor tab active (for payment modal)
     useEffect(() => {
-        if (activeTab === 'contractor' && projects.length === 0) {
+        if (projects.length === 0) {
             apiFetch('/api/projects?limit=200')
                 .then(res => setProjects(res.data || []))
                 .catch(() => {});
@@ -221,17 +290,127 @@ export default function CongNoPage() {
 
             {/* ── Right panel ────────────────────────────────────── */}
             <div style={{ flex: 1, overflowY: 'auto', background: 'var(--bg-primary)' }}>
+                {/* View toggle */}
+                {selectedId && (
+                    <div style={{ display: 'flex', gap: 6, padding: '16px 24px 0' }}>
+                        {[['debts', '📋 Công nợ theo phiếu'], ['ledger', '📊 Sổ cái']].map(([v, label]) => (
+                            <button key={v} className={`btn btn-sm${debtView === v ? ' btn-primary' : ''}`}
+                                onClick={() => setDebtView(v)}>{label}</button>
+                        ))}
+                    </div>
+                )}
                 {!selectedId ? (
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: 'var(--text-muted)', fontSize: 14 }}>
                         Chọn một nhà cung cấp hoặc nhà thầu để xem sổ cái
                     </div>
-                ) : loadingLedger ? (
+                ) : loadingLedger && debtView === 'ledger' ? (
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: 'var(--text-muted)', fontSize: 14 }}>
                         Đang tải sổ cái...
                     </div>
-                ) : ledgerError ? (
+                ) : ledgerError && debtView === 'ledger' ? (
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: 'var(--status-danger)', fontSize: 14 }}>
                         Không thể tải sổ cái. Vui lòng thử lại.
+                    </div>
+                ) : debtView === 'debts' ? (
+                    <div style={{ padding: 24 }}>
+                        {/* Toolbar */}
+                        <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 12, flexWrap: 'wrap' }}>
+                            <select className="form-select" value={debtFilterStatus}
+                                onChange={e => setDebtFilterStatus(e.target.value)} style={{ width: 130 }}>
+                                {[['open', 'Còn nợ'], ['partial', 'Trả 1 phần'], ['paid', 'Đã trả hết'], ['all', 'Tất cả']].map(([v, l]) => (
+                                    <option key={v} value={v}>{l}</option>
+                                ))}
+                            </select>
+                            <button className="btn btn-primary btn-sm" onClick={() => setShowDebtForm(true)}>+ Tạo công nợ</button>
+                        </div>
+
+                        {debtsLoading ? (
+                            <div style={{ padding: 24, textAlign: 'center', color: 'var(--text-muted)' }}>Đang tải...</div>
+                        ) : (
+                            <div className="card" style={{ overflow: 'auto' }}>
+                                <table className="data-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Mã</th>
+                                            <th>Mô tả / Hóa đơn</th>
+                                            <th>Dự án</th>
+                                            <th>Ngày</th>
+                                            <th style={{ textAlign: 'right' }}>Tổng</th>
+                                            <th style={{ textAlign: 'right' }}>Đã trả</th>
+                                            <th style={{ textAlign: 'right' }}>Còn nợ</th>
+                                            <th>TT</th>
+                                            <th></th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {debts.filter(d => debtFilterStatus === 'all' || d.status === debtFilterStatus).map(d => {
+                                            const statusColor = { open: '#ef4444', partial: '#f59e0b', paid: '#22c55e' }[d.status] || '#888';
+                                            const statusLabel = { open: 'Còn nợ', partial: 'Trả 1 phần', paid: 'Đã trả' }[d.status] || d.status;
+                                            const isExpanded = expandedDebtId === d.id;
+                                            return (
+                                                <>
+                                                    <tr key={d.id} onClick={() => setExpandedDebtId(isExpanded ? null : d.id)} style={{ cursor: 'pointer' }}>
+                                                        <td style={{ fontFamily: 'monospace', fontWeight: 600 }}>{d.code}</td>
+                                                        <td>
+                                                            <div>{d.description}</div>
+                                                            {d.invoiceNo && <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>HD: {d.invoiceNo}</div>}
+                                                        </td>
+                                                        <td style={{ fontSize: 12, color: 'var(--text-muted)' }}>{d.project?.code || '—'}</td>
+                                                        <td style={{ fontSize: 12 }}>{d.date ? new Date(d.date).toLocaleDateString('vi-VN') : '—'}</td>
+                                                        <td style={{ textAlign: 'right', fontFamily: 'monospace' }}>{fmtVND(d.totalAmount)}</td>
+                                                        <td style={{ textAlign: 'right', fontFamily: 'monospace', color: '#22c55e' }}>{fmtVND(d.paidAmount)}</td>
+                                                        <td style={{ textAlign: 'right', fontFamily: 'monospace', fontWeight: 700, color: statusColor }}>{fmtVND(d.remaining)}</td>
+                                                        <td><span style={{ fontSize: 11, padding: '2px 6px', borderRadius: 8, background: statusColor + '18', color: statusColor }}>{statusLabel}</span></td>
+                                                        <td>
+                                                            <div style={{ display: 'flex', gap: 4 }}>
+                                                                {d.status !== 'paid' && (
+                                                                    <button className="btn btn-sm btn-primary" style={{ fontSize: 11 }}
+                                                                        onClick={e => { e.stopPropagation(); setShowPayForm(d); setPayForm({ amount: d.remaining, date: new Date().toISOString().slice(0, 10), notes: '', proofUrl: '' }); }}>
+                                                                        + Trả
+                                                                    </button>
+                                                                )}
+                                                                {d.paidAmount === 0 && (
+                                                                    <button className="btn btn-sm" style={{ fontSize: 11, color: '#ef4444' }}
+                                                                        onClick={e => { e.stopPropagation(); handleDeleteDebt(d); }}>
+                                                                        Xóa
+                                                                    </button>
+                                                                )}
+                                                            </div>
+                                                        </td>
+                                                    </tr>
+                                                    {isExpanded && d.payments.length > 0 && (
+                                                        <tr key={`${d.id}-payments`}>
+                                                            <td colSpan={9} style={{ padding: '4px 16px 12px', background: 'var(--bg-secondary)' }}>
+                                                                <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 6, color: 'var(--text-muted)' }}>Lịch sử thanh toán:</div>
+                                                                {d.payments.map(p => (
+                                                                    <div key={p.id} style={{ display: 'flex', gap: 12, padding: '4px 0', borderBottom: '1px solid var(--border)', fontSize: 12 }}>
+                                                                        <span style={{ color: 'var(--text-muted)', minWidth: 80 }}>{new Date(p.date).toLocaleDateString('vi-VN')}</span>
+                                                                        <span style={{ fontFamily: 'monospace', fontWeight: 600, color: '#22c55e' }}>{fmtVND(p.amount)}</span>
+                                                                        <span style={{ color: 'var(--text-muted)', fontFamily: 'monospace', fontSize: 11 }}>{p.code}</span>
+                                                                        {p.notes && <span style={{ color: 'var(--text-muted)' }}>{p.notes}</span>}
+                                                                        {p.proofUrl && <a href={p.proofUrl} target="_blank" rel="noreferrer" style={{ color: 'var(--primary)' }}>📎</a>}
+                                                                    </div>
+                                                                ))}
+                                                            </td>
+                                                        </tr>
+                                                    )}
+                                                    {isExpanded && d.payments.length === 0 && (
+                                                        <tr key={`${d.id}-empty`}>
+                                                            <td colSpan={9} style={{ padding: '8px 16px', background: 'var(--bg-secondary)', fontSize: 12, color: 'var(--text-muted)' }}>
+                                                                Chưa có thanh toán nào
+                                                            </td>
+                                                        </tr>
+                                                    )}
+                                                </>
+                                            );
+                                        })}
+                                        {debts.filter(d => debtFilterStatus === 'all' || d.status === debtFilterStatus).length === 0 && (
+                                            <tr><td colSpan={9} style={{ textAlign: 'center', color: 'var(--text-muted)', padding: 24 }}>Không có công nợ</td></tr>
+                                        )}
+                                    </tbody>
+                                </table>
+                            </div>
+                        )}
                     </div>
                 ) : ledger ? (
                     <div style={{ padding: 24 }}>
@@ -448,6 +627,81 @@ export default function CongNoPage() {
                             <button className="btn btn-primary" onClick={saveOpening} disabled={saving}>
                                 {saving ? 'Đang lưu...' : 'Lưu'}
                             </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+            {/* Modal tạo công nợ */}
+            {showDebtForm && (
+                <div className="modal-overlay" onClick={() => setShowDebtForm(false)}>
+                    <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: 480 }}>
+                        <h3 style={{ marginTop: 0 }}>+ Tạo công nợ {selectedType === 'ncc' ? 'NCC' : 'Thầu phụ'}</h3>
+                        <div className="form-group">
+                            <label className="form-label">Mô tả *</label>
+                            <input className="form-input" value={debtForm.description} onChange={e => setDebtForm({ ...debtForm, description: e.target.value })} placeholder="VD: Xi măng tháng 3..." />
+                        </div>
+                        {selectedType === 'ncc' && (
+                            <div className="form-group">
+                                <label className="form-label">Số hóa đơn</label>
+                                <input className="form-input" value={debtForm.invoiceNo} onChange={e => setDebtForm({ ...debtForm, invoiceNo: e.target.value })} placeholder="INV-001" />
+                            </div>
+                        )}
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                            <div className="form-group">
+                                <label className="form-label">Số tiền *</label>
+                                <input className="form-input" type="number" min="0" value={debtForm.totalAmount} onChange={e => setDebtForm({ ...debtForm, totalAmount: e.target.value })} />
+                            </div>
+                            <div className="form-group">
+                                <label className="form-label">Ngày</label>
+                                <input className="form-input" type="date" value={debtForm.date} onChange={e => setDebtForm({ ...debtForm, date: e.target.value })} />
+                            </div>
+                        </div>
+                        <div className="form-group">
+                            <label className="form-label">Dự án</label>
+                            <select className="form-select" value={debtForm.projectId} onChange={e => setDebtForm({ ...debtForm, projectId: e.target.value })}>
+                                <option value="">— Không gắn —</option>
+                                {projects.map(p => <option key={p.id} value={p.id}>{p.code} — {p.name}</option>)}
+                            </select>
+                        </div>
+                        <div className="form-group">
+                            <label className="form-label">Ghi chú</label>
+                            <input className="form-input" value={debtForm.notes} onChange={e => setDebtForm({ ...debtForm, notes: e.target.value })} />
+                        </div>
+                        <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 16 }}>
+                            <button className="btn" onClick={() => setShowDebtForm(false)}>Hủy</button>
+                            <button className="btn btn-primary" onClick={handleCreateDebt}>Tạo công nợ</button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Modal trả tiền */}
+            {showPayForm && (
+                <div className="modal-overlay" onClick={() => setShowPayForm(null)}>
+                    <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: 420 }}>
+                        <h3 style={{ marginTop: 0 }}>+ Trả tiền — {showPayForm.code}</h3>
+                        <div style={{ marginBottom: 12, padding: '8px 12px', background: 'var(--bg-secondary)', borderRadius: 6, fontSize: 13 }}>
+                            Còn nợ: <strong style={{ color: '#ef4444' }}>{fmtVND(showPayForm.remaining)}</strong>
+                        </div>
+                        <div className="form-group">
+                            <label className="form-label">Số tiền *</label>
+                            <input className="form-input" type="number" min="1" max={showPayForm.remaining} value={payForm.amount} onChange={e => setPayForm({ ...payForm, amount: e.target.value })} />
+                        </div>
+                        <div className="form-group">
+                            <label className="form-label">Ngày</label>
+                            <input className="form-input" type="date" value={payForm.date} onChange={e => setPayForm({ ...payForm, date: e.target.value })} />
+                        </div>
+                        <div className="form-group">
+                            <label className="form-label">Ghi chú</label>
+                            <input className="form-input" value={payForm.notes} onChange={e => setPayForm({ ...payForm, notes: e.target.value })} />
+                        </div>
+                        <div className="form-group">
+                            <label className="form-label">Link chứng từ</label>
+                            <input className="form-input" placeholder="https://..." value={payForm.proofUrl} onChange={e => setPayForm({ ...payForm, proofUrl: e.target.value })} />
+                        </div>
+                        <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 16 }}>
+                            <button className="btn" onClick={() => setShowPayForm(null)}>Hủy</button>
+                            <button className="btn btn-primary" onClick={handlePay}>Xác nhận trả</button>
                         </div>
                     </div>
                 </div>
