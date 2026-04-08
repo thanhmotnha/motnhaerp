@@ -3,6 +3,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useRole } from '@/contexts/RoleContext';
 import { apiFetch } from '@/lib/fetchClient';
 import { useToast } from '@/components/ui/Toast';
+import OverheadExpenseModal from '@/components/finance/OverheadExpenseModal';
 
 const fmt = v => new Intl.NumberFormat('vi-VN').format(v || 0);
 
@@ -278,7 +279,7 @@ export default function OverheadPage() {
             )}
 
             {showExpForm && (
-                <ExpenseForm
+                <OverheadExpenseModal
                     expense={editExpense}
                     categories={categories}
                     onClose={() => { setShowExpForm(false); setEditExpense(null); }}
@@ -448,79 +449,6 @@ function SummaryByBatch({ data, fmt }) {
                     </tr>
                 </tbody>
             </table>
-        </div>
-    );
-}
-
-function ExpenseForm({ expense, categories, onClose, onSuccess, toast }) {
-    const [form, setForm] = useState({
-        description: expense?.description || '',
-        amount: expense?.amount || '',
-        categoryId: expense?.categoryId || '',
-        date: expense?.date ? new Date(expense.date).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
-        proofUrl: expense?.proofUrl || '',
-        notes: expense?.notes || '',
-    });
-    const [saving, setSaving] = useState(false);
-
-    const handleSubmit = async (e) => {
-        e.preventDefault();
-        if (!form.description || !form.amount) return toast.error('Vui lòng điền đủ thông tin');
-        setSaving(true);
-        try {
-            const body = { ...form, amount: parseFloat(form.amount), categoryId: form.categoryId || null };
-            if (expense) {
-                await apiFetch(`/api/overhead/expenses/${expense.id}`, { method: 'PUT', body: JSON.stringify(body) });
-                toast.success('Đã cập nhật');
-            } else {
-                await apiFetch('/api/overhead/expenses', { method: 'POST', body: JSON.stringify(body) });
-                toast.success('Đã thêm chi phí');
-            }
-            onSuccess();
-        } catch (e) { toast.error(e.message); }
-        setSaving(false);
-    };
-
-    return (
-        <div className="modal-overlay" onClick={onClose}>
-            <div className="modal-content" onClick={ev => ev.stopPropagation()} style={{ maxWidth: 520 }}>
-                <h3 style={{ marginTop: 0 }}>{expense ? 'Sửa chi phí' : 'Thêm chi phí chung'}</h3>
-                <form onSubmit={handleSubmit}>
-                    <div className="form-group">
-                        <label className="form-label">Mô tả *</label>
-                        <input className="form-input" value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} required />
-                    </div>
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-                        <div className="form-group">
-                            <label className="form-label">Số tiền *</label>
-                            <input className="form-input" type="number" min="0" value={form.amount} onChange={e => setForm({ ...form, amount: e.target.value })} required />
-                        </div>
-                        <div className="form-group">
-                            <label className="form-label">Ngày</label>
-                            <input className="form-input" type="date" value={form.date} onChange={e => setForm({ ...form, date: e.target.value })} />
-                        </div>
-                    </div>
-                    <div className="form-group">
-                        <label className="form-label">Danh mục</label>
-                        <select className="form-select" value={form.categoryId} onChange={e => setForm({ ...form, categoryId: e.target.value })}>
-                            <option value="">-- Không chọn --</option>
-                            {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                        </select>
-                    </div>
-                    <div className="form-group">
-                        <label className="form-label">Link chứng từ</label>
-                        <input className="form-input" placeholder="https://..." value={form.proofUrl} onChange={e => setForm({ ...form, proofUrl: e.target.value })} />
-                    </div>
-                    <div className="form-group">
-                        <label className="form-label">Ghi chú</label>
-                        <input className="form-input" value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })} />
-                    </div>
-                    <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 16 }}>
-                        <button type="button" className="btn" onClick={onClose}>Hủy</button>
-                        <button type="submit" className="btn btn-primary" disabled={saving}>{saving ? 'Đang lưu...' : (expense ? 'Cập nhật' : 'Thêm')}</button>
-                    </div>
-                </form>
-            </div>
         </div>
     );
 }
