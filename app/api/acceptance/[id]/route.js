@@ -31,7 +31,7 @@ export const GET = withAuth(async (request, { params }) => {
 });
 
 // PUT /api/acceptance/[id] — cập nhật trạng thái, duyệt biên bản
-// Chỉ giam_doc và pho_gd được phép duyệt (Đạt / Không đạt)
+// Chỉ giam_doc được phép duyệt (Đạt / Không đạt)
 export const PUT = withAuth(async (request, { params }, session) => {
     const { id } = await params;
     const body = await request.json();

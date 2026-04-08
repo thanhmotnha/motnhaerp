@@ -38,7 +38,7 @@ export const PUT = withAuth(async (request, { params }, session) => {
     const body = await request.json();
     const { categories, ...validated } = quotationUpdateSchema.parse(body);
 
-    // Permission check: chỉ giam_doc / pho_gd mới được duyệt/từ chối
+    // Permission check: chỉ giam_doc mới được duyệt/từ chối
     const APPROVE_ROLES = ['giam_doc'];
     if (validated.approvalStatus && ['approved', 'rejected'].includes(validated.approvalStatus)) {
         if (!APPROVE_ROLES.includes(session.user.role)) {

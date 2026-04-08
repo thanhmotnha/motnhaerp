@@ -22,4 +22,4 @@ export const POST = withAuth(async (request) => {
     );
 
     return NextResponse.json({ count: tasks.length, message: 'Baseline saved' });
-}, { roles: ['giam_doc', 'pho_gd'] });
+}, { roles: ['giam_doc'] });
