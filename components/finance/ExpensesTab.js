@@ -36,6 +36,7 @@ const emptyForm = (firstCat = 'Vật tư xây dựng') => ({
     projectId: null,
     recipientType: '',
     recipientId: '',
+    paymentAccount: '',
 });
 
 export default function ExpensesTab() {
@@ -151,6 +152,7 @@ export default function ExpensesTab() {
             projectId: e.projectId || null,
             recipientType: e.recipientType || '',
             recipientId: e.recipientId || '',
+            paymentAccount: e.paymentAccount || '',
         });
         setAllocations((e.allocations || []).map(a => ({ projectId: a.projectId, amount: a.amount })));
         setIsHistorical(false);
@@ -418,6 +420,11 @@ ${e.proofUrl ? parseProofUrls(e.proofUrl).map(url => `<img src="${url}" style="m
                                     <td style={{ fontSize: 12, whiteSpace: 'nowrap' }}>{fmtDate(e.date)}</td>
                                     <td style={{ whiteSpace: 'nowrap' }}>
                                         <span className={`badge ${STATUS_BADGE[e.status] || 'muted'}`}>{e.status}</span>
+                                        {e.paymentAccount && (
+                                            <span className="badge muted" style={{ fontSize: 10, marginLeft: 4 }}>
+                                                {e.paymentAccount === 'Tiền mặt' ? 'TM' : 'NH'}
+                                            </span>
+                                        )}
                                         {e.proofUrl && (() => {
                                             const urls = parseProofUrls(e.proofUrl);
                                             return urls.length > 0 && (
@@ -517,6 +524,18 @@ ${e.proofUrl ? parseProofUrls(e.proofUrl).map(url => `<img src="${url}" style="m
                                 <div className="form-group">
                                     <label className="form-label">Ngày</label>
                                     <input className="form-input" type="date" value={form.date} onChange={e => setForm(f => ({ ...f, date: e.target.value }))} />
+                                </div>
+                                <div>
+                                    <label style={{ fontSize: 12, color: 'var(--text-muted)' }}>Tài khoản</label>
+                                    <select
+                                        className="form-input"
+                                        value={form.paymentAccount}
+                                        onChange={e => setForm({ ...form, paymentAccount: e.target.value })}
+                                    >
+                                        <option value="">-- Chọn TK --</option>
+                                        <option value="Tiền mặt">Tiền mặt</option>
+                                        <option value="Ngân hàng">Ngân hàng</option>
+                                    </select>
                                 </div>
                             </div>
 
