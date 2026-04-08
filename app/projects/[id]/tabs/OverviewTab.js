@@ -211,7 +211,6 @@ export default function OverviewTab({ project: p, projectId, onRefresh }) {
                     </div>
                 )}
             </div>
-        </div>
 
             {/* Chi phí chung được phân bổ */}
             <div className="card" style={{ padding: 20 }}>
