@@ -15,8 +15,9 @@ async function main() {
 
   // Also create other users
   const others = [
-    { email: 'pho@motnha.vn', username: 'pho', name: 'Phó Giám đốc', role: 'pho_gd' },
     { email: 'ketoan@motnha.vn', username: 'ketoan', name: 'Kế toán', role: 'ke_toan' },
+    { email: 'kinhdoanh@motnha.vn', username: 'kinhdoanh', name: 'Kinh doanh', role: 'kinh_doanh' },
+    { email: 'kho@motnha.vn', username: 'kho', name: 'Kho', role: 'kho' },
     { email: 'kythuat@motnha.vn', username: 'kythuat', name: 'Kỹ thuật', role: 'ky_thuat' },
   ];
   for (const o of others) {
