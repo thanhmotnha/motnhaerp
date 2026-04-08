@@ -148,7 +148,7 @@ export default function ReceivablesTab() {
 
     // === Thu tiền ===
     const startCollect = (payment) => {
-        setConfirmModal({ payment, file: null, amount: (payment.amount || 0) - (payment.paidAmount || 0) });
+        setConfirmModal({ payment, file: null, amount: (payment.amount || 0) - (payment.paidAmount || 0), paymentAccount: '' });
     };
     const handleProofUpload = (e) => {
         const file = e.target.files?.[0];
@@ -212,7 +212,13 @@ export default function ReceivablesTab() {
             const newPaid = (p.paidAmount || 0) + Number(amount);
             await fetch(`/api/contracts/${p.contractId}/payments/${p.id}`, {
                 method: 'PUT', headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ paidAmount: newPaid, status: newPaid >= p.amount ? 'Đã thu' : 'Thu một phần', proofUrl: uploadJson.url, paidDate: new Date().toISOString() }),
+                body: JSON.stringify({
+                    paidAmount: newPaid,
+                    status: newPaid >= p.amount ? 'Đã thu' : 'Thu một phần',
+                    proofUrl: uploadJson.url,
+                    paidDate: new Date().toISOString(),
+                    paymentAccount: confirmModal.paymentAccount || '',
+                }),
             });
             setConfirmModal(null); fetchAll();
         } catch (e) { alert('Lỗi: ' + e.message); }
@@ -532,6 +538,18 @@ ${[1, 2].map(copy => `
                             <div className="form-group">
                                 <label className="form-label">Số tiền thu * {ocrLoading && <span style={{ color: 'var(--accent-primary)', fontSize: 11, fontWeight: 400 }}>🤖 Đang nhận dạng...</span>}</label>
                                 <input className="form-input" type="number" value={confirmModal.amount} onChange={e => setConfirmModal(prev => ({ ...prev, amount: e.target.value }))} />
+                            </div>
+                            <div className="form-group">
+                                <label className="form-label">Tài khoản thanh toán</label>
+                                <select
+                                    className="form-select"
+                                    value={confirmModal.paymentAccount}
+                                    onChange={e => setConfirmModal(prev => ({ ...prev, paymentAccount: e.target.value }))}
+                                >
+                                    <option value="">-- Chọn TK --</option>
+                                    <option value="Tiền mặt">Tiền mặt</option>
+                                    <option value="Ngân hàng">Ngân hàng</option>
+                                </select>
                             </div>
                             <div className="form-group">
                                 <label className="form-label">📸 Ảnh xác nhận * <span style={{ color: 'var(--status-danger)', fontSize: 11 }}>(Bắt buộc)</span></label>
