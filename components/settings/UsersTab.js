@@ -4,20 +4,19 @@ import { useToast } from '@/components/ui/Toast';
 import { apiFetch } from '@/lib/fetchClient';
 
 const ROLES = [
-    { value: 'giam_doc', label: 'Giám đốc' },
-    { value: 'pho_gd', label: 'Phó GĐ' },
-    { value: 'ke_toan', label: 'Kế toán' },
-    { value: 'quan_ly_du_an', label: 'Quản lý DA' },
-    { value: 'nhan_vien', label: 'Nhân viên' },
-    { value: 'ky_thuat', label: 'Kỹ thuật' },
+    { value: 'giam_doc',   label: 'Giám đốc' },
+    { value: 'ke_toan',    label: 'Kế toán' },
+    { value: 'kinh_doanh', label: 'Kinh doanh' },
+    { value: 'kho',        label: 'Kho' },
+    { value: 'ky_thuat',   label: 'Kỹ thuật' },
 ];
 
 const ROLE_BADGE = {
-    giam_doc: 'success', pho_gd: 'info', ke_toan: 'warning',
-    quan_ly_du_an: 'primary', nhan_vien: 'muted', ky_thuat: 'muted',
+    giam_doc: 'success', ke_toan: 'warning',
+    kinh_doanh: 'primary', kho: 'info', ky_thuat: 'muted',
 };
 
-const emptyForm = { name: '', email: '', username: '', password: '', role: 'nhan_vien' };
+const emptyForm = { name: '', email: '', username: '', password: '', role: 'ky_thuat' };
 
 export default function UsersTab() {
     const toast = useToast();
