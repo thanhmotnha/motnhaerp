@@ -29,6 +29,12 @@ export default function OverheadPage() {
     const [showBatchForm, setShowBatchForm] = useState(false);
     const [viewBatchId, setViewBatchId] = useState(null);
 
+    // Summary tab state
+    const [summaryData, setSummaryData] = useState(null);
+    const [summaryLoading, setSummaryLoading] = useState(false);
+    const [summaryYear, setSummaryYear] = useState(new Date().getFullYear());
+    const [summaryView, setSummaryView] = useState('by-project'); // 'by-project' | 'by-batch'
+
     const fetchExpenses = useCallback(async () => {
         setExpLoading(true);
         try {
@@ -51,8 +57,18 @@ export default function OverheadPage() {
         setBatchLoading(false);
     }, []);
 
+    const fetchSummary = useCallback(async () => {
+        setSummaryLoading(true);
+        try {
+            const res = await apiFetch(`/api/overhead/summary?year=${summaryYear}`);
+            setSummaryData(res);
+        } catch (e) { toast.error(e.message); }
+        setSummaryLoading(false);
+    }, [summaryYear]);
+
     useEffect(() => { fetchExpenses(); }, [fetchExpenses]);
     useEffect(() => { if (activeTab === 'batches') fetchBatches(); }, [activeTab, fetchBatches]);
+    useEffect(() => { if (activeTab === 'summary') fetchSummary(); }, [activeTab, fetchSummary]);
 
     const approveExpense = async (id) => {
         try {
@@ -109,7 +125,7 @@ export default function OverheadPage() {
             </div>
 
             <div style={{ display: 'flex', borderBottom: '2px solid var(--border)', marginBottom: 24 }}>
-                {[['expenses', '📋 Chi phí'], ['batches', '📊 Đợt phân bổ']].map(([key, label]) => (
+                {[['expenses', '📋 Chi phí'], ['batches', '📊 Đợt phân bổ'], ['summary', '📈 Tổng hợp']].map(([key, label]) => (
                     <button key={key} onClick={() => setActiveTab(key)} style={{
                         padding: '8px 20px', border: 'none', background: 'none', cursor: 'pointer',
                         borderBottom: activeTab === key ? '2px solid var(--primary)' : '2px solid transparent',
@@ -232,6 +248,35 @@ export default function OverheadPage() {
                 </div>
             )}
 
+            {activeTab === 'summary' && (
+                <div>
+                    <div style={{ display: 'flex', gap: 12, alignItems: 'center', marginBottom: 20, flexWrap: 'wrap' }}>
+                        <select className="form-select" value={summaryYear}
+                            onChange={e => setSummaryYear(Number(e.target.value))}
+                            style={{ width: 120 }}>
+                            {[0, 1, 2].map(offset => {
+                                const y = new Date().getFullYear() - offset;
+                                return <option key={y} value={y}>Năm {y}</option>;
+                            })}
+                        </select>
+                        <div style={{ display: 'flex', gap: 4 }}>
+                            {[['by-project', '👷 Theo dự án'], ['by-batch', '📦 Theo đợt']].map(([v, label]) => (
+                                <button key={v} className={`btn btn-sm${summaryView === v ? ' btn-primary' : ''}`}
+                                    onClick={() => setSummaryView(v)}>{label}</button>
+                            ))}
+                        </div>
+                    </div>
+
+                    {summaryLoading ? (
+                        <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-muted)' }}>Đang tải...</div>
+                    ) : !summaryData ? null : summaryView === 'by-project' ? (
+                        <SummaryByProject data={summaryData} fmt={fmt} />
+                    ) : (
+                        <SummaryByBatch data={summaryData} fmt={fmt} />
+                    )}
+                </div>
+            )}
+
             {showExpForm && (
                 <ExpenseForm
                     expense={editExpense}
@@ -256,6 +301,153 @@ export default function OverheadPage() {
                     canManage={canManage}
                 />
             )}
+        </div>
+    );
+}
+
+function SummaryByProject({ data, fmt }) {
+    const { batches, projects } = data;
+    if (!batches.length) return (
+        <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-muted)' }}>
+            Chưa có đợt phân bổ nào được xác nhận trong năm này.
+        </div>
+    );
+
+    // Build lookup: projectId → batchId → allocation
+    const lookup = {};
+    for (const b of batches) {
+        for (const a of b.allocations) {
+            if (!lookup[a.projectId]) lookup[a.projectId] = {};
+            lookup[a.projectId][b.id] = a;
+        }
+    }
+
+    return (
+        <div className="card" style={{ overflow: 'auto' }}>
+            <table className="data-table">
+                <thead>
+                    <tr>
+                        <th style={{ minWidth: 180 }}>Dự án</th>
+                        {batches.map(b => (
+                            <th key={b.id} style={{ textAlign: 'right', minWidth: 130 }}>
+                                {b.code}
+                                {b.period && <div style={{ fontWeight: 400, fontSize: 11, color: 'var(--text-muted)' }}>{b.period}</div>}
+                            </th>
+                        ))}
+                        <th style={{ textAlign: 'right', minWidth: 130, color: 'var(--primary)' }}>Tổng cộng</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {projects.map(p => (
+                        <tr key={p.id}>
+                            <td>
+                                <span style={{ fontWeight: 600, color: 'var(--primary)' }}>{p.code}</span>
+                                <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>{p.name}</div>
+                            </td>
+                            {batches.map(b => {
+                                const a = lookup[p.id]?.[b.id];
+                                return (
+                                    <td key={b.id} style={{ textAlign: 'right', fontFamily: 'monospace' }}>
+                                        {a ? (
+                                            <>
+                                                {fmt(a.amount)}đ
+                                                <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{a.ratio}%</div>
+                                            </>
+                                        ) : '—'}
+                                    </td>
+                                );
+                            })}
+                            <td style={{ textAlign: 'right', fontFamily: 'monospace', fontWeight: 700, color: 'var(--primary)' }}>
+                                {fmt(p.totalAllocated)}đ
+                            </td>
+                        </tr>
+                    ))}
+                    <tr style={{ background: 'var(--bg-secondary)', fontWeight: 600 }}>
+                        <td>Tổng đợt</td>
+                        {batches.map(b => (
+                            <td key={b.id} style={{ textAlign: 'right', fontFamily: 'monospace' }}>
+                                {fmt(b.totalAmount)}đ
+                            </td>
+                        ))}
+                        <td style={{ textAlign: 'right', fontFamily: 'monospace', color: 'var(--primary)' }}>
+                            {fmt(batches.reduce((s, b) => s + b.totalAmount, 0))}đ
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    );
+}
+
+function SummaryByBatch({ data, fmt }) {
+    const { batches, projects } = data;
+    if (!batches.length) return (
+        <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-muted)' }}>
+            Chưa có đợt phân bổ nào được xác nhận trong năm này.
+        </div>
+    );
+
+    // Build lookup: batchId → projectId → allocation
+    const lookup = {};
+    for (const b of batches) {
+        lookup[b.id] = {};
+        for (const a of b.allocations) {
+            lookup[b.id][a.projectId] = a;
+        }
+    }
+
+    return (
+        <div className="card" style={{ overflow: 'auto' }}>
+            <table className="data-table">
+                <thead>
+                    <tr>
+                        <th style={{ minWidth: 140 }}>Đợt phân bổ</th>
+                        <th style={{ minWidth: 100 }}>Kỳ</th>
+                        {projects.map(p => (
+                            <th key={p.id} style={{ textAlign: 'right', minWidth: 120 }}>
+                                {p.code}
+                                <div style={{ fontWeight: 400, fontSize: 11, color: 'var(--text-muted)' }}>{p.name.length > 14 ? p.name.slice(0, 14) + '…' : p.name}</div>
+                            </th>
+                        ))}
+                        <th style={{ textAlign: 'right', minWidth: 120, color: 'var(--primary)' }}>Tổng đợt</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {batches.map(b => (
+                        <tr key={b.id}>
+                            <td style={{ fontWeight: 600, color: 'var(--primary)', fontFamily: 'monospace' }}>{b.code}</td>
+                            <td style={{ fontSize: 13, color: 'var(--text-muted)' }}>{b.period || '—'}</td>
+                            {projects.map(p => {
+                                const a = lookup[b.id]?.[p.id];
+                                return (
+                                    <td key={p.id} style={{ textAlign: 'right', fontFamily: 'monospace' }}>
+                                        {a ? (
+                                            <>
+                                                {fmt(a.amount)}đ
+                                                <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{a.ratio}%</div>
+                                            </>
+                                        ) : '—'}
+                                    </td>
+                                );
+                            })}
+                            <td style={{ textAlign: 'right', fontFamily: 'monospace', fontWeight: 700, color: 'var(--primary)' }}>
+                                {fmt(b.totalAmount)}đ
+                            </td>
+                        </tr>
+                    ))}
+                    <tr style={{ background: 'var(--bg-secondary)', fontWeight: 600 }}>
+                        <td colSpan={2}>Tổng theo dự án</td>
+                        {projects.map(p => (
+                            <td key={p.id} style={{ textAlign: 'right', fontFamily: 'monospace', color: 'var(--primary)' }}>
+                                {fmt(p.totalAllocated)}đ
+                            </td>
+                        ))}
+                        <td style={{ textAlign: 'right', fontFamily: 'monospace', color: 'var(--primary)' }}>
+                            {fmt(batches.reduce((s, b) => s + b.totalAmount, 0))}đ
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
         </div>
     );
 }
