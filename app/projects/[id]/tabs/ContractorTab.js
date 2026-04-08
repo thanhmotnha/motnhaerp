@@ -4,7 +4,7 @@ import { fmtVND, fmtDate } from '@/lib/projectUtils';
 
 export default function ContractorTab({ project: p, projectId, onRefresh }) {
     const [showModal, setShowModal] = useState(false);
-    const [form, setForm] = useState({ contractorId: '', contractAmount: '', paidAmount: '0', description: '', dueDate: '', status: 'Chưa TT' });
+    const [form, setForm] = useState({ contractorId: '', contractAmount: '', paidAmount: '0', description: '', dueDate: '', status: 'Chưa TT', paymentAccount: '' });
     const [contractors, setContractors] = useState([]);
     const [editId, setEditId] = useState(null);
     const [editPaid, setEditPaid] = useState('');
@@ -21,7 +21,7 @@ export default function ContractorTab({ project: p, projectId, onRefresh }) {
             const json = await res.json();
             setContractors(json.data || []);
         }
-        setForm({ contractorId: '', contractAmount: '', paidAmount: '0', description: '', dueDate: '', status: 'Chưa TT' });
+        setForm({ contractorId: '', contractAmount: '', paidAmount: '0', description: '', dueDate: '', status: 'Chưa TT', paymentAccount: '' });
         setShowModal(true);
     };
 
@@ -170,6 +170,18 @@ export default function ContractorTab({ project: p, projectId, onRefresh }) {
                                         {['Chưa TT', 'TT một phần', 'Đã TT'].map(s => <option key={s}>{s}</option>)}
                                     </select>
                                 </div>
+                            </div>
+                            <div className="form-group">
+                                <label className="form-label">Tài khoản TT</label>
+                                <select
+                                    className="form-select"
+                                    value={form.paymentAccount}
+                                    onChange={e => setForm(f => ({ ...f, paymentAccount: e.target.value }))}
+                                >
+                                    <option value="">-- Chọn TK --</option>
+                                    <option value="Tiền mặt">Tiền mặt</option>
+                                    <option value="Ngân hàng">Ngân hàng</option>
+                                </select>
                             </div>
                             <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
                                 <button className="btn btn-ghost" onClick={() => setShowModal(false)}>Hủy</button>
