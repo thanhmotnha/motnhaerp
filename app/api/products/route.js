@@ -49,6 +49,8 @@ export const GET = withAuth(async (request) => {
     if (brand) where.brand = brand;
     if (status) where.status = status;
     if (supplyType) where.supplyType = supplyType;
+    const supplierFilter = searchParams.get('supplier');
+    if (supplierFilter) where.supplier = { contains: supplierFilter, mode: 'insensitive' };
     if (stockFilter === 'out') where.stock = 0;
 
     // Cursor-based pagination for infinite scroll

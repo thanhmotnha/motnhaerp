@@ -44,6 +44,7 @@ function PurchasingContent() {
     const [pickerResults, setPickerResults] = useState([]);
     const [pickerLoading, setPickerLoading] = useState(false);
     const [pickerSelected, setPickerSelected] = useState({}); // { productId: { product, qty } }
+    const [pickerFilterBySupplier, setPickerFilterBySupplier] = useState(true);
     const pickerTimer = useRef(null);
 
     // GRN (Goods Receipt Note) state
@@ -219,25 +220,39 @@ function PurchasingContent() {
     };
 
     // Product picker handlers
+    const pickerSupplierName = poForm.supplierId
+        ? (suppliers.find(s => s.id === poForm.supplierId)?.name || '')
+        : '';
+
+    const fetchPickerProducts = (q, filterSupplier) => {
+        clearTimeout(pickerTimer.current);
+        setPickerLoading(true);
+        pickerTimer.current = setTimeout(() => {
+            const params = new URLSearchParams({ limit: '80', sort: 'name_asc' });
+            if (q) params.set('search', q);
+            if (filterSupplier && pickerSupplierName) params.set('supplier', pickerSupplierName);
+            fetch(`/api/products?${params}`)
+                .then(r => r.json())
+                .then(d => { setPickerResults(d.data || []); setPickerLoading(false); });
+        }, q ? 250 : 0);
+    };
+
     const openProductPicker = () => {
         setShowProductPicker(true);
         setPickerSearch('');
         setPickerSelected({});
-        setPickerLoading(true);
-        fetch('/api/products?limit=50&sort=name_asc')
-            .then(r => r.json())
-            .then(d => { setPickerResults(d.data || []); setPickerLoading(false); });
+        setPickerFilterBySupplier(!!pickerSupplierName);
+        fetchPickerProducts('', !!pickerSupplierName);
     };
 
     const handlePickerSearch = (q) => {
         setPickerSearch(q);
-        clearTimeout(pickerTimer.current);
-        setPickerLoading(true);
-        pickerTimer.current = setTimeout(() => {
-            fetch(`/api/products?search=${encodeURIComponent(q)}&limit=50`)
-                .then(r => r.json())
-                .then(d => { setPickerResults(d.data || []); setPickerLoading(false); });
-        }, 250);
+        fetchPickerProducts(q, pickerFilterBySupplier);
+    };
+
+    const handlePickerFilterToggle = (val) => {
+        setPickerFilterBySupplier(val);
+        fetchPickerProducts(pickerSearch, val);
     };
 
     const togglePickerProduct = (product) => {
@@ -584,9 +599,17 @@ function PurchasingContent() {
                             <button className="modal-close" onClick={() => setShowProductPicker(false)}>×</button>
                         </div>
                         <div className="modal-body" style={{ padding: '12px 20px' }}>
-                            <input className="form-input" placeholder="Tìm tên, mã sản phẩm..."
-                                value={pickerSearch} onChange={e => handlePickerSearch(e.target.value)}
-                                autoFocus style={{ marginBottom: 12 }} />
+                            <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 10 }}>
+                                <input className="form-input" placeholder="Tìm tên, mã sản phẩm..."
+                                    value={pickerSearch} onChange={e => handlePickerSearch(e.target.value)}
+                                    autoFocus style={{ flex: 1 }} />
+                                {pickerSupplierName && (
+                                    <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, whiteSpace: 'nowrap', cursor: 'pointer', padding: '6px 10px', borderRadius: 6, border: '1px solid var(--border)', background: pickerFilterBySupplier ? 'var(--primary)' : 'transparent', color: pickerFilterBySupplier ? '#fff' : 'var(--text-secondary)' }}>
+                                        <input type="checkbox" checked={pickerFilterBySupplier} onChange={e => handlePickerFilterToggle(e.target.checked)} style={{ display: 'none' }} />
+                                        {pickerFilterBySupplier ? '✓' : ''} Chỉ SP của {pickerSupplierName}
+                                    </label>
+                                )}
+                            </div>
                             <div style={{ maxHeight: 420, overflowY: 'auto', border: '1px solid var(--border-color)', borderRadius: 6 }}>
                                 <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
                                     <thead style={{ position: 'sticky', top: 0, background: 'var(--bg-secondary, #f8f8f8)', zIndex: 1 }}>
