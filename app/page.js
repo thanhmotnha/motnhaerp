@@ -3,6 +3,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { SkeletonDashboard } from '@/components/ui/Skeleton';
 import { useDashboardWidgets, WidgetConfigurator } from '@/components/dashboard/WidgetConfigurator';
 import NotificationBell from '@/components/ui/NotificationBell';
+import { useRole } from '@/contexts/RoleContext';
 
 const fmt = (n) => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(n || 0);
 const fmtShort = (n) => {
@@ -14,11 +15,11 @@ const fmtShort = (n) => {
 const fmtDate = (d) => d ? new Date(d).toLocaleDateString('vi-VN') : '—';
 const daysDiff = (d) => Math.floor((new Date(d) - new Date()) / 86400000);
 
-function AlertBar({ stats }) {
+function AlertBar({ stats, canViewFinance }) {
     const alerts = [];
     if (stats.openWarranty > 0) alerts.push({ href: '/projects', icon: '🛡️', label: `${stats.openWarranty} bảo hành mở`, color: '#DC2626', bg: 'rgba(220,38,38,0.08)', border: 'rgba(220,38,38,0.2)' });
     if (stats.pendingLeave > 0) alerts.push({ href: '/hr', icon: '🗓️', label: `${stats.pendingLeave} đơn nghỉ chờ duyệt`, color: '#D97706', bg: 'rgba(217,119,6,0.08)', border: 'rgba(217,119,6,0.2)' });
-    if (stats.overdueReceivable > 0) alerts.push({ href: '/reports', icon: '⚠️', label: `Phải thu quá hạn: ${fmtShort(stats.overdueReceivable)}`, color: '#DC2626', bg: 'rgba(220,38,38,0.08)', border: 'rgba(220,38,38,0.2)' });
+    if (canViewFinance && stats.overdueReceivable > 0) alerts.push({ href: '/reports', icon: '⚠️', label: `Phải thu quá hạn: ${fmtShort(stats.overdueReceivable)}`, color: '#DC2626', bg: 'rgba(220,38,38,0.08)', border: 'rgba(220,38,38,0.2)' });
     if (alerts.length === 0) return null;
     return (
         <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
@@ -391,6 +392,9 @@ function DebtPanels({ debtData }) {
 }
 
 export default function Dashboard() {
+    const { permissions } = useRole();
+    const canViewFinance = permissions?.canViewFinance ?? false;
+
     const [data, setData] = useState(null);
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
@@ -402,27 +406,31 @@ export default function Dashboard() {
 
     const load = useCallback((showRefresh = false) => {
         if (showRefresh) setRefreshing(true);
-        Promise.all([
-            fetch('/api/dashboard').then(r => r.json()),
-            fetch('/api/reports/debt').then(r => r.json()),
-            fetch('/api/reports/project-pnl').then(r => r.json()),
-        ]).then(([dashboard, debt, pnl]) => {
+        const requests = [fetch('/api/dashboard').then(r => r.json())];
+        if (canViewFinance) {
+            requests.push(fetch('/api/reports/debt').then(r => r.json()));
+            requests.push(fetch('/api/reports/project-pnl').then(r => r.json()));
+        }
+        Promise.all(requests).then(([dashboard, debt, pnl]) => {
             setData(dashboard);
-            setDebtData(debt);
-            setPnlAlerts((pnl.rows || []).filter(r => r.alert));
+            if (canViewFinance) {
+                setDebtData(debt);
+                setPnlAlerts((pnl.rows || []).filter(r => r.alert));
+            }
             setLoading(false);
             setRefreshing(false);
         }).catch(() => { setLoading(false); setRefreshing(false); });
-    }, []);
+    }, [canViewFinance]);
 
     useEffect(() => { load(); }, [load]);
 
     useEffect(() => {
+        if (!canViewFinance) return;
         fetch(`/api/reports/monthly?year=${selectedYear}`)
             .then(r => r.json())
             .then(setMonthlyData)
             .catch(() => {});
-    }, [selectedYear]);
+    }, [selectedYear, canViewFinance]);
 
     if (loading) return <SkeletonDashboard />;
 
@@ -453,9 +461,11 @@ export default function Dashboard() {
                     <div style={{ background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: 8, padding: '6px 14px', color: '#fff', fontSize: 13 }}>
                         <span style={{ opacity: 0.7, fontSize: 11 }}>DA đang chạy </span><strong>{s.activeProjects}</strong>
                     </div>
-                    <div style={{ background: 'rgba(219,179,94,0.2)', border: '1px solid rgba(219,179,94,0.35)', borderRadius: 8, padding: '6px 14px', color: '#DBB35E', fontSize: 13 }}>
-                        <span style={{ opacity: 0.8, fontSize: 11 }}>Tháng này </span><strong>{fmtShort(s.thisMonthRevenue)}</strong>
-                    </div>
+                    {canViewFinance && (
+                        <div style={{ background: 'rgba(219,179,94,0.2)', border: '1px solid rgba(219,179,94,0.35)', borderRadius: 8, padding: '6px 14px', color: '#DBB35E', fontSize: 13 }}>
+                            <span style={{ opacity: 0.8, fontSize: 11 }}>Tháng này </span><strong>{fmtShort(s.thisMonthRevenue)}</strong>
+                        </div>
+                    )}
                     <button onClick={() => setShowConfig(true)} style={{ background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: 8, padding: '6px 14px', color: '#fff', fontSize: 12, cursor: 'pointer', transition: 'background 0.2s' }} title="Tùy chỉnh Dashboard">
                         ⚙️ Tùy chỉnh
                     </button>
@@ -467,7 +477,7 @@ export default function Dashboard() {
             </div>
 
             {/* Alerts */}
-            <AlertBar stats={s} />
+            <AlertBar stats={s} canViewFinance={canViewFinance} />
 
             {/* Urgent tasks */}
             {data.todayTasks && <TodayTasksWidget tasks={data.todayTasks} />}
@@ -475,8 +485,8 @@ export default function Dashboard() {
             {/* Payment alerts */}
             <PaymentAlertsCard />
 
-            {/* Block 1 — Tài chính tháng này */}
-            {(() => {
+            {/* Block 1 — Tài chính tháng này (chỉ giam_doc + ke_toan) */}
+            {canViewFinance && (() => {
                 const curMonthIdx = new Date().getMonth();
                 const cm = monthlyData?.months?.[curMonthIdx] || { revenue: 0, expense: 0, profit: 0 };
                 const thisMonthExpense = cm.expense;
@@ -518,11 +528,11 @@ export default function Dashboard() {
                 );
             })()}
 
-            {/* Block 3 — Dự án cần chú ý */}
-            <AlertProjectsCard rows={pnlAlerts} />
+            {/* Block 3 — Dự án cần chú ý (chỉ giam_doc + ke_toan) */}
+            {canViewFinance && <AlertProjectsCard rows={pnlAlerts} />}
 
-            {/* Block 4 — Công nợ */}
-            <DebtPanels debtData={debtData} />
+            {/* Block 4 — Công nợ (chỉ giam_doc + ke_toan) */}
+            {canViewFinance && <DebtPanels debtData={debtData} />}
 
             {/* KPI Cards — Tier 2: Operational */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 12, marginBottom: 20 }}>
@@ -571,9 +581,9 @@ export default function Dashboard() {
             )}
 
             {/* Financial + Project Status */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 20 }}>
-                {/* Financial overview */}
-                <div className="card">
+            <div style={{ display: 'grid', gridTemplateColumns: canViewFinance ? '1fr 1fr' : '1fr', gap: 16, marginBottom: 20 }}>
+                {/* Financial overview (chỉ giam_doc + ke_toan) */}
+                {canViewFinance && <div className="card">
                     <div className="card-header" style={{ borderLeft: '4px solid #234093', paddingLeft: 12 }}>
                         <h3>Tài chính tổng quan</h3>
                     </div>
@@ -605,7 +615,7 @@ export default function Dashboard() {
                             <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4, textAlign: 'right' }}>Tỷ lệ thu: <strong style={{ color: '#234093' }}>{collectionRate}%</strong></div>
                         </div>
                     </div>
-                </div>
+                </div>}
 
                 {/* Project status */}
                 <div className="card">
