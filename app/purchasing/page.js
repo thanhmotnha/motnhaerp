@@ -377,7 +377,7 @@ function PurchasingContent() {
                                         </button>
                                     </div>
                                 </div>
-                                <div style={{ border: '1px solid var(--border-color)', borderRadius: 6, overflow: 'hidden' }}>
+                                <div style={{ border: '1px solid var(--border-color)', borderRadius: 6 }}>
                                     <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
                                         <thead>
                                             <tr style={{ background: 'var(--surface-alt)' }}>
@@ -400,14 +400,14 @@ function PurchasingContent() {
                                                             onBlur={() => setTimeout(() => setActiveRowIdx(null), 150)}
                                                             placeholder="Tên sản phẩm (gõ để tìm)..." />
                                                         {activeRowIdx === i && (productResults[i] || []).length > 0 && (
-                                                            <div style={{ position: 'absolute', top: '100%', left: 8, right: 8, zIndex: 100, background: 'var(--bg-card, #fff)', border: '1px solid var(--border-color)', borderRadius: 6, boxShadow: '0 4px 12px rgba(0,0,0,0.15)', maxHeight: 200, overflowY: 'auto' }}>
+                                                            <div style={{ position: 'absolute', top: '100%', left: 0, minWidth: 340, zIndex: 200, background: 'var(--bg-card, #fff)', border: '1px solid var(--border-color)', borderRadius: 6, boxShadow: '0 6px 20px rgba(0,0,0,0.18)', maxHeight: 260, overflowY: 'auto' }}>
                                                                 {(productResults[i] || []).map(p => (
                                                                     <div key={p.id} onMouseDown={() => selectProduct(i, p)}
-                                                                        style={{ padding: '7px 12px', cursor: 'pointer', fontSize: 12, display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--border-light, #eee)' }}
+                                                                        style={{ padding: '9px 14px', cursor: 'pointer', fontSize: 13, display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border-light, #eee)' }}
                                                                         onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-hover, #f5f5f5)'}
                                                                         onMouseLeave={e => e.currentTarget.style.background = ''}>
-                                                                        <span>{p.name} <span style={{ opacity: 0.5, fontSize: 11 }}>{p.code}</span></span>
-                                                                        <span style={{ opacity: 0.6, flexShrink: 0, marginLeft: 8 }}>{p.unit}</span>
+                                                                        <span>{p.name} {p.code && <span style={{ opacity: 0.45, fontSize: 11, marginLeft: 6 }}>{p.code}</span>}</span>
+                                                                        <span style={{ opacity: 0.55, flexShrink: 0, marginLeft: 12, fontSize: 12 }}>{p.unit}</span>
                                                                     </div>
                                                                 ))}
                                                             </div>
