@@ -39,7 +39,7 @@ const menuItems = [
         section: 'Vật tư', items: [
             { href: '/products', icon: Package, label: 'Sản phẩm' },
             { href: '/purchasing', icon: ShoppingCart, label: 'Mua sắm', roles: ['giam_doc', 'ke_toan', 'kinh_doanh', 'kho', 'ky_thuat'] },
-            { href: '/inventory', icon: Warehouse, label: 'Kho', roles: ['giam_doc', 'ke_toan', 'kho', 'quan_ly_du_an'] },
+            { href: '/inventory', icon: Warehouse, label: 'Kho', roles: ['giam_doc', 'ke_toan', 'kho', 'ky_thuat', 'quan_ly_du_an'] },
         ]
     },
     {
