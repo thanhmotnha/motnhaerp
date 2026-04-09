@@ -26,7 +26,7 @@ const menuItems = [
             { href: '/customers', icon: Users, label: 'Khách hàng', roles: ['giam_doc', 'ke_toan', 'kinh_doanh'] },
             { href: '/quotations', icon: ClipboardList, label: 'Báo giá', roles: ['giam_doc', 'ke_toan', 'kinh_doanh', 'ky_thuat'], quick: '/quotations/create' },
             { href: '/contracts', icon: FileText, label: 'Hợp đồng', roles: ['giam_doc', 'ke_toan', 'kinh_doanh'], quick: '/contracts/create' },
-            { href: '/warranty', icon: ShieldCheck, label: 'Bảo hành', roles: ['giam_doc', 'quan_ly_du_an'] },
+            { href: '/warranty', icon: ShieldCheck, label: 'Bảo hành', roles: ['giam_doc', 'ke_toan', 'ky_thuat'] },
         ]
     },
     {
@@ -39,7 +39,7 @@ const menuItems = [
         section: 'Vật tư', items: [
             { href: '/products', icon: Package, label: 'Sản phẩm' },
             { href: '/purchasing', icon: ShoppingCart, label: 'Mua sắm', roles: ['giam_doc', 'ke_toan', 'kinh_doanh', 'kho', 'ky_thuat'] },
-            { href: '/inventory', icon: Warehouse, label: 'Kho', roles: ['giam_doc', 'ke_toan', 'kho', 'ky_thuat', 'quan_ly_du_an'] },
+            { href: '/inventory', icon: Warehouse, label: 'Kho', roles: ['giam_doc', 'ke_toan', 'kho', 'ky_thuat'] },
         ]
     },
     {
@@ -49,7 +49,7 @@ const menuItems = [
             { href: '/finance?tab=chi_phi', icon: ArrowUpRight, label: 'Chi phí', roles: ['giam_doc', 'ke_toan'], tab: 'chi_phi' },
             { href: '/accounting', icon: BookOpen, label: 'Sổ cái', roles: ['giam_doc', 'ke_toan'] },
             { href: '/cashflow-forecast', icon: Banknote, label: 'Dự báo dòng tiền', roles: ['giam_doc', 'ke_toan'] },
-            { href: '/budget', icon: PiggyBank, label: 'Ngân sách', roles: ['giam_doc', 'ke_toan', 'quan_ly_du_an'] },
+            { href: '/budget', icon: PiggyBank, label: 'Ngân sách', roles: ['giam_doc', 'ke_toan'] },
             { href: '/cong-no', icon: Landmark, label: 'Công nợ', roles: ['giam_doc', 'ke_toan'] },
             { href: '/overhead', icon: Building2, label: 'Chi phí chung', roles: ['giam_doc', 'ke_toan'] },
         ]

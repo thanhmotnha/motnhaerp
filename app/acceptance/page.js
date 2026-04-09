@@ -13,7 +13,7 @@ export default function AcceptancePage() {
     const [loading, setLoading] = useState(true);
     const [showForm, setShowForm] = useState(false);
     const [search, setSearch] = useState('');
-    const canManage = ['giam_doc', 'quan_ly_du_an'].includes(role);
+    const canManage = role === 'giam_doc';
 
     const fetchData = useCallback(async () => {
         setLoading(true);

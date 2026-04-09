@@ -12,7 +12,7 @@ export default function DailyLogsPage() {
     const [logs, setLogs] = useState([]);
     const [loading, setLoading] = useState(true);
     const [showForm, setShowForm] = useState(false);
-    const canLog = ['giam_doc', 'quan_ly_du_an', 'giam_sat'].includes(role);
+    const canLog = ['giam_doc', 'ky_thuat'].includes(role);
 
     const fetchData = useCallback(async () => {
         setLoading(true);
