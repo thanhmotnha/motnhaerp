@@ -7,8 +7,10 @@ export const GET = withAuth(async (request) => {
     const { searchParams } = new URL(request.url);
     const { page, limit, skip } = parsePagination(searchParams);
     const search = searchParams.get('search') || '';
+    const projectId = searchParams.get('projectId') || '';
 
     const where = {};
+    if (projectId) where.projectId = projectId;
     if (search) {
         where.OR = [
             { product: { name: { contains: search, mode: 'insensitive' } } },
@@ -21,7 +23,7 @@ export const GET = withAuth(async (request) => {
         prisma.materialPlan.findMany({
             where,
             include: {
-                product: { select: { name: true, code: true, unit: true } },
+                product: { select: { id: true, name: true, code: true, unit: true, salePrice: true } },
                 project: { select: { name: true, code: true } },
             },
             orderBy: { createdAt: 'desc' },

@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect, Suspense } from 'react';
+import { useState, useEffect, useRef, Suspense } from 'react';
 import PoBulkFromQuotationModal from '@/components/PoBulkFromQuotationModal';
 import { useRouter, useSearchParams } from 'next/navigation';
 
@@ -25,6 +25,18 @@ function PurchasingContent() {
     const [poItems, setPoItems] = useState([{ productName: '', unit: 'cái', quantity: 1, unitPrice: 0, amount: 0, productId: null }]);
     const [saving, setSaving] = useState(false);
     const [showBulkModal, setShowBulkModal] = useState(false);
+
+    // Product autocomplete
+    const [productSearches, setProductSearches] = useState({}); // { rowIdx: query }
+    const [productResults, setProductResults] = useState({}); // { rowIdx: [] }
+    const [activeRowIdx, setActiveRowIdx] = useState(null);
+    const searchTimers = useRef({});
+
+    // Budget picker (from dự toán)
+    const [budgetItems, setBudgetItems] = useState([]);
+    const [budgetLoading, setBudgetLoading] = useState(false);
+    const [showBudgetPicker, setShowBudgetPicker] = useState(false);
+    const [selectedBudgetIds, setSelectedBudgetIds] = useState(new Set());
 
     // GRN (Goods Receipt Note) state
     const [grnPO, setGrnPO] = useState(null);
@@ -140,6 +152,63 @@ function PurchasingContent() {
     };
 
     const poTotal = poItems.reduce((s, it) => s + (it.amount || 0), 0);
+
+    // Product autocomplete handlers
+    const handleProductSearch = (rowIdx, query) => {
+        setProductSearches(prev => ({ ...prev, [rowIdx]: query }));
+        updateItem(rowIdx, 'productName', query);
+        clearTimeout(searchTimers.current[rowIdx]);
+        if (!query.trim()) { setProductResults(prev => ({ ...prev, [rowIdx]: [] })); return; }
+        searchTimers.current[rowIdx] = setTimeout(() => {
+            fetch(`/api/products?search=${encodeURIComponent(query)}&limit=10`)
+                .then(r => r.json())
+                .then(d => setProductResults(prev => ({ ...prev, [rowIdx]: d.data || [] })));
+        }, 250);
+    };
+
+    const selectProduct = (rowIdx, product) => {
+        setPoItems(items => items.map((it, idx) => idx !== rowIdx ? it : {
+            ...it,
+            productName: product.name,
+            unit: product.unit || 'cái',
+            unitPrice: product.salePrice || 0,
+            amount: (it.quantity || 1) * (product.salePrice || 0),
+            productId: product.id,
+        }));
+        setProductResults(prev => ({ ...prev, [rowIdx]: [] }));
+        setProductSearches(prev => ({ ...prev, [rowIdx]: '' }));
+        setActiveRowIdx(null);
+    };
+
+    // Budget picker handlers
+    const openBudgetPicker = async () => {
+        if (!poForm.projectId) return alert('Chọn dự án trước');
+        setBudgetLoading(true);
+        setShowBudgetPicker(true);
+        setSelectedBudgetIds(new Set());
+        const res = await fetch(`/api/material-plans?projectId=${poForm.projectId}&limit=500`);
+        const d = await res.json();
+        setBudgetItems(d.data || []);
+        setBudgetLoading(false);
+    };
+
+    const addFromBudget = () => {
+        const selected = budgetItems.filter(m => selectedBudgetIds.has(m.id));
+        const newItems = selected.map(m => ({
+            productName: m.product?.name || m.productName || '',
+            unit: m.product?.unit || 'cái',
+            quantity: Math.max(0, (m.quantity || 0) - (m.orderedQty || 0)),
+            unitPrice: m.unitPrice || m.product?.salePrice || 0,
+            amount: Math.max(0, (m.quantity || 0) - (m.orderedQty || 0)) * (m.unitPrice || m.product?.salePrice || 0),
+            productId: m.productId || null,
+        })).filter(it => it.quantity > 0);
+        if (newItems.length === 0) return alert('Tất cả các mục đã đặt đủ số lượng');
+        setPoItems(prev => {
+            const base = prev.filter(it => it.productName.trim());
+            return base.length ? [...base, ...newItems] : newItems;
+        });
+        setShowBudgetPicker(false);
+    };
 
     const createPO = async () => {
         if (!poForm.supplier.trim()) return alert('Vui lòng nhập nhà cung cấp');
@@ -297,11 +366,16 @@ function PurchasingContent() {
 
                             {/* Items table */}
                             <div style={{ marginTop: 12 }}>
-                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8, flexWrap: 'wrap', gap: 12 }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8, flexWrap: 'wrap', gap: 8 }}>
                                     <label className="form-label" style={{ margin: 0 }}>Danh sách sản phẩm</label>
-                                    <button className="btn btn-ghost btn-sm" onClick={() => setPoItems(it => [...it, { productName: '', unit: 'cái', quantity: 1, unitPrice: 0, amount: 0, productId: null }])}>
-                                        + Thêm dòng
-                                    </button>
+                                    <div style={{ display: 'flex', gap: 6 }}>
+                                        <button className="btn btn-ghost btn-sm" onClick={openBudgetPicker} title="Thêm từ dự toán vật tư của dự án">
+                                            📋 Từ dự toán
+                                        </button>
+                                        <button className="btn btn-ghost btn-sm" onClick={() => setPoItems(it => [...it, { productName: '', unit: 'cái', quantity: 1, unitPrice: 0, amount: 0, productId: null }])}>
+                                            + Thêm dòng
+                                        </button>
+                                    </div>
                                 </div>
                                 <div style={{ border: '1px solid var(--border-color)', borderRadius: 6, overflow: 'hidden' }}>
                                     <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
@@ -318,9 +392,26 @@ function PurchasingContent() {
                                         <tbody>
                                             {poItems.map((it, i) => (
                                                 <tr key={i} style={{ borderTop: '1px solid var(--border-color)' }}>
-                                                    <td style={{ padding: '6px 8px' }}>
-                                                        <input className="form-input" style={{ fontSize: 12, padding: '4px 8px' }} value={it.productName}
-                                                            onChange={e => updateItem(i, 'productName', e.target.value)} placeholder="Tên sản phẩm..." />
+                                                    <td style={{ padding: '6px 8px', position: 'relative' }}>
+                                                        <input className="form-input" style={{ fontSize: 12, padding: '4px 8px' }}
+                                                            value={activeRowIdx === i ? (productSearches[i] ?? it.productName) : it.productName}
+                                                            onChange={e => handleProductSearch(i, e.target.value)}
+                                                            onFocus={() => { setActiveRowIdx(i); setProductSearches(prev => ({ ...prev, [i]: it.productName })); }}
+                                                            onBlur={() => setTimeout(() => setActiveRowIdx(null), 150)}
+                                                            placeholder="Tên sản phẩm (gõ để tìm)..." />
+                                                        {activeRowIdx === i && (productResults[i] || []).length > 0 && (
+                                                            <div style={{ position: 'absolute', top: '100%', left: 8, right: 8, zIndex: 100, background: 'var(--bg-card, #fff)', border: '1px solid var(--border-color)', borderRadius: 6, boxShadow: '0 4px 12px rgba(0,0,0,0.15)', maxHeight: 200, overflowY: 'auto' }}>
+                                                                {(productResults[i] || []).map(p => (
+                                                                    <div key={p.id} onMouseDown={() => selectProduct(i, p)}
+                                                                        style={{ padding: '7px 12px', cursor: 'pointer', fontSize: 12, display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--border-light, #eee)' }}
+                                                                        onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-hover, #f5f5f5)'}
+                                                                        onMouseLeave={e => e.currentTarget.style.background = ''}>
+                                                                        <span>{p.name} <span style={{ opacity: 0.5, fontSize: 11 }}>{p.code}</span></span>
+                                                                        <span style={{ opacity: 0.6, flexShrink: 0, marginLeft: 8 }}>{p.unit}</span>
+                                                                    </div>
+                                                                ))}
+                                                            </div>
+                                                        )}
                                                     </td>
                                                     <td style={{ padding: '6px 4px' }}>
                                                         <input className="form-input" style={{ fontSize: 12, padding: '4px 6px' }} value={it.unit}
@@ -360,6 +451,73 @@ function PurchasingContent() {
                         <div className="modal-footer">
                             <button className="btn btn-ghost" onClick={() => setShowModal(false)}>Hủy</button>
                             <button className="btn btn-primary" onClick={createPO} disabled={saving || suppliers.find(s => s.id === poForm.supplierId)?.isBlacklisted}>{saving ? 'Đang tạo...' : 'Tạo đơn hàng'}</button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Budget picker modal */}
+            {showBudgetPicker && (
+                <div className="modal-overlay" onClick={() => setShowBudgetPicker(false)}>
+                    <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 640, width: '95%' }}>
+                        <div className="modal-header">
+                            <h3>📋 Chọn từ dự toán vật tư</h3>
+                            <button className="modal-close" onClick={() => setShowBudgetPicker(false)}>×</button>
+                        </div>
+                        <div className="modal-body" style={{ maxHeight: 440, overflowY: 'auto' }}>
+                            {budgetLoading ? (
+                                <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-muted)' }}>Đang tải...</div>
+                            ) : budgetItems.length === 0 ? (
+                                <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-muted)' }}>Chưa có dự toán vật tư cho dự án này</div>
+                            ) : (
+                                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+                                    <thead>
+                                        <tr style={{ background: 'var(--surface-alt)' }}>
+                                            <th style={{ padding: '8px 10px', width: 32 }}>
+                                                <input type="checkbox" onChange={e => setSelectedBudgetIds(e.target.checked ? new Set(budgetItems.map(m => m.id)) : new Set())} />
+                                            </th>
+                                            <th style={{ padding: '8px 10px', textAlign: 'left' }}>Sản phẩm</th>
+                                            <th style={{ padding: '8px 8px', textAlign: 'right', width: 80 }}>Kế hoạch</th>
+                                            <th style={{ padding: '8px 8px', textAlign: 'right', width: 80 }}>Đã đặt</th>
+                                            <th style={{ padding: '8px 8px', textAlign: 'right', width: 80 }}>Còn đặt</th>
+                                            <th style={{ padding: '8px 8px', width: 50 }}>ĐVT</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {budgetItems.map(m => {
+                                            const remaining = Math.max(0, (m.quantity || 0) - (m.orderedQty || 0));
+                                            const done = remaining === 0;
+                                            return (
+                                                <tr key={m.id} style={{ borderTop: '1px solid var(--border-color)', opacity: done ? 0.5 : 1 }}>
+                                                    <td style={{ padding: '6px 10px', textAlign: 'center' }}>
+                                                        <input type="checkbox" disabled={done}
+                                                            checked={selectedBudgetIds.has(m.id)}
+                                                            onChange={e => setSelectedBudgetIds(prev => {
+                                                                const next = new Set(prev);
+                                                                e.target.checked ? next.add(m.id) : next.delete(m.id);
+                                                                return next;
+                                                            })} />
+                                                    </td>
+                                                    <td style={{ padding: '6px 10px' }}>
+                                                        <div style={{ fontWeight: 500 }}>{m.product?.name || '—'}</div>
+                                                        {m.product?.code && <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{m.product.code}</div>}
+                                                    </td>
+                                                    <td style={{ padding: '6px 8px', textAlign: 'right' }}>{fmtNum(m.quantity)}</td>
+                                                    <td style={{ padding: '6px 8px', textAlign: 'right', color: 'var(--status-success)' }}>{fmtNum(m.orderedQty)}</td>
+                                                    <td style={{ padding: '6px 8px', textAlign: 'right', fontWeight: 600, color: done ? 'var(--text-muted)' : 'var(--status-danger)' }}>{fmtNum(remaining)}</td>
+                                                    <td style={{ padding: '6px 8px', color: 'var(--text-muted)', fontSize: 12 }}>{m.product?.unit || '—'}</td>
+                                                </tr>
+                                            );
+                                        })}
+                                    </tbody>
+                                </table>
+                            )}
+                        </div>
+                        <div className="modal-footer">
+                            <button className="btn btn-ghost" onClick={() => setShowBudgetPicker(false)}>Hủy</button>
+                            <button className="btn btn-primary" onClick={addFromBudget} disabled={selectedBudgetIds.size === 0}>
+                                Thêm {selectedBudgetIds.size > 0 ? `${selectedBudgetIds.size} mục` : ''} vào PO
+                            </button>
                         </div>
                     </div>
                 </div>
