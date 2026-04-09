@@ -353,12 +353,12 @@ function PurchasingContent() {
             {/* Create PO Modal */}
             {showModal && (
                 <div className="modal-overlay" onClick={() => setShowModal(false)}>
-                    <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 900, width: '95%' }}>
+                    <div onClick={e => e.stopPropagation()} style={{ background: 'var(--bg-modal)', border: '1px solid var(--border-color)', borderRadius: 'var(--border-radius-lg)', width: '95%', maxWidth: 900, maxHeight: '90vh', overflowY: 'auto', boxShadow: 'var(--shadow-lg)' }}>
                         <div className="modal-header">
                             <h3>Tạo đơn mua hàng (PO)</h3>
                             <button className="modal-close" onClick={() => setShowModal(false)}>×</button>
                         </div>
-                        <div className="modal-body" style={{ maxHeight: 'calc(100vh - 180px)', overflowY: 'auto' }}>
+                        <div className="modal-body">
                             <div className="form-row">
                                 <div className="form-group" style={{ flex: 2 }}>
                                     <label className="form-label">Nhà cung cấp *</label>
