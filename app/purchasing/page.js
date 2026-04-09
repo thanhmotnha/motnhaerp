@@ -38,6 +38,14 @@ function PurchasingContent() {
     const [showBudgetPicker, setShowBudgetPicker] = useState(false);
     const [selectedBudgetIds, setSelectedBudgetIds] = useState(new Set());
 
+    // Product picker (chọn nhiều SP từ danh mục)
+    const [showProductPicker, setShowProductPicker] = useState(false);
+    const [pickerSearch, setPickerSearch] = useState('');
+    const [pickerResults, setPickerResults] = useState([]);
+    const [pickerLoading, setPickerLoading] = useState(false);
+    const [pickerSelected, setPickerSelected] = useState({}); // { productId: { product, qty } }
+    const pickerTimer = useRef(null);
+
     // GRN (Goods Receipt Note) state
     const [grnPO, setGrnPO] = useState(null);
     const [grnItems, setGrnItems] = useState([]);
@@ -210,6 +218,52 @@ function PurchasingContent() {
         setShowBudgetPicker(false);
     };
 
+    // Product picker handlers
+    const openProductPicker = () => {
+        setShowProductPicker(true);
+        setPickerSearch('');
+        setPickerSelected({});
+        setPickerLoading(true);
+        fetch('/api/products?limit=50&sort=name_asc')
+            .then(r => r.json())
+            .then(d => { setPickerResults(d.data || []); setPickerLoading(false); });
+    };
+
+    const handlePickerSearch = (q) => {
+        setPickerSearch(q);
+        clearTimeout(pickerTimer.current);
+        setPickerLoading(true);
+        pickerTimer.current = setTimeout(() => {
+            fetch(`/api/products?search=${encodeURIComponent(q)}&limit=50`)
+                .then(r => r.json())
+                .then(d => { setPickerResults(d.data || []); setPickerLoading(false); });
+        }, 250);
+    };
+
+    const togglePickerProduct = (product) => {
+        setPickerSelected(prev => {
+            if (prev[product.id]) { const next = { ...prev }; delete next[product.id]; return next; }
+            return { ...prev, [product.id]: { product, qty: 1 } };
+        });
+    };
+
+    const addFromProductPicker = () => {
+        const newItems = Object.values(pickerSelected).map(({ product, qty }) => ({
+            productName: product.name,
+            unit: product.unit || 'cái',
+            quantity: qty || 1,
+            unitPrice: product.salePrice || 0,
+            amount: (qty || 1) * (product.salePrice || 0),
+            productId: product.id,
+        }));
+        if (!newItems.length) return;
+        setPoItems(prev => {
+            const base = prev.filter(it => it.productName.trim());
+            return base.length ? [...base, ...newItems] : newItems;
+        });
+        setShowProductPicker(false);
+    };
+
     const createPO = async () => {
         if (!poForm.supplier.trim()) return alert('Vui lòng nhập nhà cung cấp');
         if (poItems.every(it => !it.productName.trim())) return alert('Vui lòng nhập ít nhất 1 sản phẩm');
@@ -369,11 +423,14 @@ function PurchasingContent() {
                                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8, flexWrap: 'wrap', gap: 8 }}>
                                     <label className="form-label" style={{ margin: 0 }}>Danh sách sản phẩm</label>
                                     <div style={{ display: 'flex', gap: 6 }}>
+                                        <button className="btn btn-ghost btn-sm" onClick={openProductPicker}>
+                                            🔍 Chọn sản phẩm
+                                        </button>
                                         <button className="btn btn-ghost btn-sm" onClick={openBudgetPicker} title="Thêm từ dự toán vật tư của dự án">
                                             📋 Từ dự toán
                                         </button>
                                         <button className="btn btn-ghost btn-sm" onClick={() => setPoItems(it => [...it, { productName: '', unit: 'cái', quantity: 1, unitPrice: 0, amount: 0, productId: null }])}>
-                                            + Thêm dòng
+                                            + Dòng trống
                                         </button>
                                     </div>
                                 </div>
@@ -517,6 +574,80 @@ function PurchasingContent() {
                             <button className="btn btn-ghost" onClick={() => setShowBudgetPicker(false)}>Hủy</button>
                             <button className="btn btn-primary" onClick={addFromBudget} disabled={selectedBudgetIds.size === 0}>
                                 Thêm {selectedBudgetIds.size > 0 ? `${selectedBudgetIds.size} mục` : ''} vào PO
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Product picker modal */}
+            {showProductPicker && (
+                <div className="modal-overlay" onClick={() => setShowProductPicker(false)}>
+                    <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 700, width: '95%' }}>
+                        <div className="modal-header">
+                            <h3>🔍 Chọn sản phẩm đặt hàng</h3>
+                            <button className="modal-close" onClick={() => setShowProductPicker(false)}>×</button>
+                        </div>
+                        <div className="modal-body" style={{ padding: '12px 20px' }}>
+                            <input className="form-input" placeholder="Tìm tên, mã sản phẩm..."
+                                value={pickerSearch} onChange={e => handlePickerSearch(e.target.value)}
+                                autoFocus style={{ marginBottom: 12 }} />
+                            <div style={{ maxHeight: 420, overflowY: 'auto', border: '1px solid var(--border-color)', borderRadius: 6 }}>
+                                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+                                    <thead style={{ position: 'sticky', top: 0, background: 'var(--bg-secondary, #f8f8f8)', zIndex: 1 }}>
+                                        <tr>
+                                            <th style={{ padding: '8px 10px', width: 36, fontWeight: 600 }}></th>
+                                            <th style={{ padding: '8px 10px', textAlign: 'left', fontWeight: 600 }}>Sản phẩm</th>
+                                            <th style={{ padding: '8px 8px', width: 60, textAlign: 'left', fontWeight: 600 }}>ĐVT</th>
+                                            <th style={{ padding: '8px 8px', width: 110, textAlign: 'right', fontWeight: 600 }}>Đơn giá</th>
+                                            <th style={{ padding: '8px 8px', width: 100, textAlign: 'center', fontWeight: 600 }}>Số lượng</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {pickerLoading ? (
+                                            <tr><td colSpan={5} style={{ padding: 32, textAlign: 'center', color: 'var(--text-muted)' }}>Đang tải...</td></tr>
+                                        ) : pickerResults.length === 0 ? (
+                                            <tr><td colSpan={5} style={{ padding: 32, textAlign: 'center', color: 'var(--text-muted)' }}>Không tìm thấy sản phẩm</td></tr>
+                                        ) : pickerResults.map(p => {
+                                            const sel = pickerSelected[p.id];
+                                            return (
+                                                <tr key={p.id} onClick={() => togglePickerProduct(p)}
+                                                    style={{ borderTop: '1px solid var(--border-color)', cursor: 'pointer', background: sel ? 'var(--bg-accent, #eef5ff)' : '' }}>
+                                                    <td style={{ padding: '8px 10px', textAlign: 'center' }}>
+                                                        <input type="checkbox" readOnly checked={!!sel} style={{ width: 15, height: 15 }} />
+                                                    </td>
+                                                    <td style={{ padding: '8px 10px' }}>
+                                                        <div style={{ fontWeight: sel ? 600 : 400 }}>{p.name}</div>
+                                                        {p.code && <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{p.code}</div>}
+                                                    </td>
+                                                    <td style={{ padding: '8px 8px', color: 'var(--text-muted)' }}>{p.unit || '—'}</td>
+                                                    <td style={{ padding: '8px 8px', textAlign: 'right', fontFamily: 'monospace' }}>
+                                                        {p.salePrice > 0 ? fmt(p.salePrice) : '—'}
+                                                    </td>
+                                                    <td style={{ padding: '6px 8px' }} onClick={e => e.stopPropagation()}>
+                                                        {sel && (
+                                                            <input type="number" className="form-input" min={1} step={1}
+                                                                value={sel.qty}
+                                                                onChange={e => setPickerSelected(prev => ({ ...prev, [p.id]: { ...prev[p.id], qty: Number(e.target.value) || 1 } }))}
+                                                                style={{ textAlign: 'center', padding: '4px 6px', fontSize: 13 }} />
+                                                        )}
+                                                    </td>
+                                                </tr>
+                                            );
+                                        })}
+                                    </tbody>
+                                </table>
+                            </div>
+                            {Object.keys(pickerSelected).length > 0 && (
+                                <div style={{ marginTop: 10, fontSize: 13, color: 'var(--text-muted)' }}>
+                                    Đã chọn <strong style={{ color: 'var(--primary)' }}>{Object.keys(pickerSelected).length}</strong> sản phẩm
+                                </div>
+                            )}
+                        </div>
+                        <div className="modal-footer">
+                            <button className="btn btn-ghost" onClick={() => setShowProductPicker(false)}>Hủy</button>
+                            <button className="btn btn-primary" onClick={addFromProductPicker} disabled={Object.keys(pickerSelected).length === 0}>
+                                Thêm {Object.keys(pickerSelected).length > 0 ? `${Object.keys(pickerSelected).length} sản phẩm` : ''} vào PO
                             </button>
                         </div>
                     </div>
