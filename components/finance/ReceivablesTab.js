@@ -41,7 +41,7 @@ export default function ReceivablesTab() {
             fetch('/api/finance/receivables').then(r => r.json()),
         ]);
         setContracts(cRes);
-        setReceivables(rRes);
+        setReceivables({ payments: [], summary: {}, ...rRes });
         setLoading(false);
     };
 

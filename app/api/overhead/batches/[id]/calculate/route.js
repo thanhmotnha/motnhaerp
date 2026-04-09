@@ -13,21 +13,24 @@ export const POST = withAuth(async (_request, { params }) => {
         return NextResponse.json({ error: 'Đợt đã xác nhận' }, { status: 400 });
     }
 
-    // Get active projects (not cancelled), use paidAmount as revenue base
-    // No ProjectPayment model exists in schema — use project.paidAmount directly
+    // Get active projects (not cancelled), aggregate revenue from Contract model
     const projects = await prisma.project.findMany({
-        where: {
-            deletedAt: null,
-            status: { notIn: ['Hủy'] },
+        where: { deletedAt: null, status: { notIn: ['Hủy'] } },
+        select: {
+            id: true, name: true, code: true,
+            contracts: {
+                where: { deletedAt: null },
+                select: { contractValue: true, paidAmount: true },
+            },
         },
-        select: { id: true, name: true, code: true, contractValue: true, paidAmount: true },
     });
 
-    // Use paidAmount as revenue base; fall back to contractValue if paidAmount is 0
-    const projectsWithRevenue = projects.map(p => ({
-        ...p,
-        revenue: p.paidAmount > 0 ? p.paidAmount : p.contractValue,
-    })).filter(p => p.revenue > 0);
+    // Sum contractValue and paidAmount across all contracts per project
+    const projectsWithRevenue = projects.map(p => {
+        const totalPaid = p.contracts.reduce((s, c) => s + (c.paidAmount || 0), 0);
+        const totalContract = p.contracts.reduce((s, c) => s + (c.contractValue || 0), 0);
+        return { id: p.id, name: p.name, code: p.code, revenue: totalPaid > 0 ? totalPaid : totalContract };
+    }).filter(p => p.revenue > 0);
 
     const totalRevenue = projectsWithRevenue.reduce((s, p) => s + p.revenue, 0);
     if (totalRevenue === 0) {
