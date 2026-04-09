@@ -313,6 +313,8 @@ export default function QuotationPDFPage() {
     const validStr = q.validUntil ? new Date(q.validUntil).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' }) : null;
     const afterDiscount = q.total - (q.total * (q.discount || 0) / 100);
     const vatAmount = afterDiscount * ((q.vat || 0) / 100);
+    const rawGrandTotal = afterDiscount + vatAmount - (q.deductions || []).reduce((s, d) => s + (d.amount || 0), 0);
+    const roundingDiff = q.grandTotal - rawGrandTotal; // grandTotal already stored as rounded value
 
     return (
         <>
@@ -1145,6 +1147,9 @@ export default function QuotationPDFPage() {
                                 </div>
                             ))}
                             <div style={{ fontSize: 8, color: '#888', fontStyle: 'italic', textAlign: 'right', padding: '3px 0' }}>* Đơn giá đã bao gồm VAT</div>
+                            {Math.abs(roundingDiff) >= 1 && (
+                                <div className="mn-sum-row"><span style={{ fontStyle: 'italic' }}>Làm tròn</span><span style={{ color: roundingDiff > 0 ? '#16a34a' : '#dc2626' }}>{roundingDiff > 0 ? '+' : ''}{fmt(roundingDiff)}</span></div>
+                            )}
                             <div className="mn-sum-row total"><span>TỔNG GIÁ TRỊ</span><span>{fmt(q.grandTotal)}</span></div>
                         </div>
                     </div>

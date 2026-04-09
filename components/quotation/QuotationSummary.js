@@ -11,7 +11,7 @@ export default function QuotationSummary({ hook }) {
     const {
         form, setForm,
         directCost, managementFee, adjustmentAmount, total,
-        discountAmount, afterDiscount, vatAmount, totalDeductions, grandTotal,
+        discountAmount, afterDiscount, vatAmount, totalDeductions, grandTotal, roundedGrandTotal, roundingDiff,
         deductions, addDeduction, removeDeduction, updateDeduction,
         products,
     } = hook;
@@ -183,8 +183,18 @@ export default function QuotationSummary({ hook }) {
                         <span className="quotation-summary-value">{fmt(vatAmount)} đ</span>
                     </div>
 
+                    {/* Làm tròn */}
+                    {roundingDiff !== 0 && (
+                        <div className="quotation-summary-row">
+                            <span style={{ fontStyle: 'italic', color: 'var(--text-secondary)' }}>Làm tròn</span>
+                            <span className="quotation-summary-value" style={{ color: roundingDiff > 0 ? 'var(--status-success)' : 'var(--status-danger)' }}>
+                                {roundingDiff > 0 ? '+' : ''}{fmt(roundingDiff)} đ
+                            </span>
+                        </div>
+                    )}
+
                     <div className="quotation-summary-row quotation-summary-grand">
-                        <span>TỔNG GIÁ TRỊ BÁO GIÁ</span><span className="quotation-summary-value">{fmt(grandTotal)} đ</span>
+                        <span>TỔNG GIÁ TRỊ BÁO GIÁ</span><span className="quotation-summary-value">{fmt(roundedGrandTotal)} đ</span>
                     </div>
                 </div>
             </div>
