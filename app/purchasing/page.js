@@ -359,8 +359,9 @@ function PurchasingContent() {
                             <button className="modal-close" onClick={() => setShowModal(false)}>×</button>
                         </div>
                         <div className="modal-body">
-                            <div className="form-row">
-                                <div className="form-group" style={{ flex: 2 }}>
+                            {/* Row 1: NCC + Dự án */}
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
+                                <div className="form-group" style={{ margin: 0 }}>
                                     <label className="form-label">Nhà cung cấp *</label>
                                     <select className="form-select" value={poForm.supplierId || ''} autoFocus
                                         onChange={e => {
@@ -380,42 +381,36 @@ function PurchasingContent() {
                                         const remaining = sup.creditLimit > 0 ? sup.creditLimit - debt : null;
                                         return (
                                             <div style={{ marginTop: 6, display: 'flex', flexDirection: 'column', gap: 4 }}>
-                                                {sup.isBlacklisted && (
-                                                    <div style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid var(--status-danger)', borderRadius: 6, padding: '8px 12px', fontSize: 13, color: 'var(--status-danger)', fontWeight: 600 }}>
-                                                        🚫 NCC này đang trong Blacklist — không thể tạo PO
-                                                    </div>
-                                                )}
-                                                {sup.creditLimit > 0 && (
-                                                    <div style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border)', borderRadius: 6, padding: '6px 12px', fontSize: 12, display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-                                                        <span>Hạn mức: <strong>{new Intl.NumberFormat('vi-VN', { notation: 'compact' }).format(sup.creditLimit)}</strong></span>
-                                                        <span>Đang nợ: <strong style={{ color: 'var(--status-danger)' }}>{new Intl.NumberFormat('vi-VN', { notation: 'compact' }).format(debt)}</strong></span>
-                                                        <span>Còn lại: <strong style={{ color: remaining >= 0 ? 'var(--status-success)' : 'var(--status-danger)' }}>{new Intl.NumberFormat('vi-VN', { notation: 'compact' }).format(remaining)}</strong></span>
-                                                    </div>
-                                                )}
-                                                {sup.creditLimit > 0 && poTotal > (remaining ?? Infinity) && !sup.isBlacklisted && (
-                                                    <div style={{ background: 'rgba(245,158,11,0.1)', border: '1px solid var(--status-warning)', borderRadius: 6, padding: '6px 12px', fontSize: 12, color: '#b45309', fontWeight: 600 }}>
-                                                        ⚠️ Tổng PO vượt hạn mức tín dụng còn lại
-                                                    </div>
-                                                )}
+                                                {sup.isBlacklisted && <div style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid var(--status-danger)', borderRadius: 6, padding: '6px 10px', fontSize: 12, color: 'var(--status-danger)', fontWeight: 600 }}>🚫 NCC này đang trong Blacklist</div>}
+                                                {sup.creditLimit > 0 && <div style={{ background: 'var(--bg-secondary)', borderRadius: 6, padding: '4px 10px', fontSize: 12, display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                                                    <span>Hạn mức: <strong>{new Intl.NumberFormat('vi-VN', { notation: 'compact' }).format(sup.creditLimit)}</strong></span>
+                                                    <span>Nợ: <strong style={{ color: 'var(--status-danger)' }}>{new Intl.NumberFormat('vi-VN', { notation: 'compact' }).format(debt)}</strong></span>
+                                                    <span>Còn: <strong style={{ color: remaining >= 0 ? 'var(--status-success)' : 'var(--status-danger)' }}>{new Intl.NumberFormat('vi-VN', { notation: 'compact' }).format(remaining)}</strong></span>
+                                                </div>}
+                                                {sup.creditLimit > 0 && poTotal > (remaining ?? Infinity) && !sup.isBlacklisted && <div style={{ background: 'rgba(245,158,11,0.1)', border: '1px solid var(--status-warning)', borderRadius: 6, padding: '4px 10px', fontSize: 12, color: '#b45309', fontWeight: 600 }}>⚠️ Vượt hạn mức tín dụng</div>}
                                             </div>
                                         );
                                     })()}
                                 </div>
-                                <div className="form-group" style={{ flex: 2 }}>
-                                    <label className="form-label">Dự án (không bắt buộc)</label>
-                                    <select className="form-select" value={poForm.projectId} onChange={e => setPoForm(f => ({ ...f, projectId: e.target.value }))}>
-                                        <option value="">-- Không gắn dự án --</option>
-                                        {projects.map(p => <option key={p.id} value={p.id}>{p.code} — {p.name}</option>)}
-                                    </select>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                                    <div className="form-group" style={{ margin: 0 }}>
+                                        <label className="form-label">Dự án (không bắt buộc)</label>
+                                        <select className="form-select" value={poForm.projectId} onChange={e => setPoForm(f => ({ ...f, projectId: e.target.value }))}>
+                                            <option value="">-- Không gắn dự án --</option>
+                                            {projects.map(p => <option key={p.id} value={p.id}>{p.code} — {p.name}</option>)}
+                                        </select>
+                                    </div>
+                                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                                        <div className="form-group" style={{ margin: 0 }}>
+                                            <label className="form-label">Ngày giao hàng</label>
+                                            <input className="form-input" type="date" value={poForm.deliveryDate} onChange={e => setPoForm(f => ({ ...f, deliveryDate: e.target.value }))} />
+                                        </div>
+                                        <div className="form-group" style={{ margin: 0 }}>
+                                            <label className="form-label">Ghi chú</label>
+                                            <input className="form-input" value={poForm.notes} onChange={e => setPoForm(f => ({ ...f, notes: e.target.value }))} placeholder="Ghi chú..." />
+                                        </div>
+                                    </div>
                                 </div>
-                                <div className="form-group">
-                                    <label className="form-label">Ngày giao hàng</label>
-                                    <input className="form-input" type="date" value={poForm.deliveryDate} onChange={e => setPoForm(f => ({ ...f, deliveryDate: e.target.value }))} />
-                                </div>
-                            </div>
-                            <div className="form-group">
-                                <label className="form-label">Ghi chú</label>
-                                <input className="form-input" value={poForm.notes} onChange={e => setPoForm(f => ({ ...f, notes: e.target.value }))} placeholder="Yêu cầu đặc biệt, quy cách giao hàng..." />
                             </div>
 
                             {/* Items table */}
@@ -434,7 +429,7 @@ function PurchasingContent() {
                                         </button>
                                     </div>
                                 </div>
-                                <div style={{ border: '1px solid var(--border-color)', borderRadius: 6, minHeight: 200 }}>
+                                <div style={{ border: '1px solid var(--border-color)', borderRadius: 6, minHeight: 280, maxHeight: 380, overflowY: 'auto' }}>
                                     <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
                                         <thead>
                                             <tr style={{ background: 'var(--surface-alt)' }}>
