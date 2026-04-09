@@ -353,12 +353,12 @@ function PurchasingContent() {
             {/* Create PO Modal */}
             {showModal && (
                 <div className="modal-overlay" onClick={() => setShowModal(false)}>
-                    <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 760, width: '95%' }}>
+                    <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 900, width: '95%' }}>
                         <div className="modal-header">
                             <h3>Tạo đơn mua hàng (PO)</h3>
                             <button className="modal-close" onClick={() => setShowModal(false)}>×</button>
                         </div>
-                        <div className="modal-body">
+                        <div className="modal-body" style={{ maxHeight: 'calc(100vh - 180px)', overflowY: 'auto' }}>
                             <div className="form-row">
                                 <div className="form-group" style={{ flex: 2 }}>
                                     <label className="form-label">Nhà cung cấp *</label>
@@ -434,7 +434,7 @@ function PurchasingContent() {
                                         </button>
                                     </div>
                                 </div>
-                                <div style={{ border: '1px solid var(--border-color)', borderRadius: 6 }}>
+                                <div style={{ border: '1px solid var(--border-color)', borderRadius: 6, minHeight: 200 }}>
                                     <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
                                         <thead>
                                             <tr style={{ background: 'var(--surface-alt)' }}>
