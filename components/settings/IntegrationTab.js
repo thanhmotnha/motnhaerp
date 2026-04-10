@@ -16,6 +16,7 @@ export default function IntegrationTab() {
     const [values, setValues] = useState({});
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
+    const [seedingImages, setSeedingImages] = useState(false);
     const { showToast } = useToast();
 
     useEffect(() => {
@@ -48,6 +49,18 @@ export default function IntegrationTab() {
             .map(b => b.toString(16).padStart(2, '0'))
             .join('');
         setValues(prev => ({ ...prev, leadApiKey: newKey }));
+    };
+
+    const handleSeedVanThaiImages = async () => {
+        if (!confirm('Upload toàn bộ ảnh Ván Thái lên R2? Quá trình có thể mất 2-3 phút.')) return;
+        setSeedingImages(true);
+        try {
+            const res = await apiFetch('/api/admin/seed-van-thai-images', { method: 'POST' });
+            showToast(`✅ Upload xong: ${res.uploaded} ảnh, bỏ qua: ${res.skipped}, lỗi: ${res.failed}`, 'success');
+        } catch (e) {
+            showToast(e.message || 'Lỗi upload', 'error');
+        }
+        setSeedingImages(false);
     };
 
     const handleCopy = (text) => {
@@ -115,6 +128,17 @@ export default function IntegrationTab() {
             <button className="btn btn-primary" onClick={handleSave} disabled={saving}>
                 {saving ? '⏳ Đang lưu...' : '💾 Lưu cài đặt'}
             </button>
+
+            <div style={{ marginTop: 32, paddingTop: 24, borderTop: '1px solid var(--border)' }}>
+                <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 8 }}>🖼️ Upload ảnh sản phẩm lên R2</div>
+                <p style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 12 }}>
+                    Tải ảnh Ván Melamin Thái Lan từ nguồn gốc lên Cloudflare R2 để lưu trữ lâu dài.
+                    Chỉ cần chạy 1 lần.
+                </p>
+                <button className="btn btn-secondary" onClick={handleSeedVanThaiImages} disabled={seedingImages}>
+                    {seedingImages ? '⏳ Đang upload... (2-3 phút)' : '☁️ Upload ảnh Ván Thái → R2'}
+                </button>
+            </div>
         </div>
     );
 }
