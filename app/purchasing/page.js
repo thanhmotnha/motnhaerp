@@ -337,10 +337,13 @@ function PurchasingContent() {
                             const rate = pct(o.paidAmount, o.totalAmount);
                             const canReceive = !['Hoàn thành', 'Hủy'].includes(o.status);
                             return (
-                                <tr key={o.id} onClick={() => o.projectId && router.push(`/projects/${o.project?.code || o.projectId}`)} style={{ cursor: o.projectId ? 'pointer' : 'default' }}>
+                                <tr key={o.id}>
                                     <td className="accent">{o.code}</td>
                                     <td className="primary">{o.supplier}</td>
-                                    <td>{o.project ? <span className="badge badge-info">{o.project.code}</span> : <span style={{ opacity: 0.3, fontSize: 12 }}>—</span>}</td>
+                                    <td>{o.project
+                                        ? <span className="badge badge-info" style={{ cursor: 'pointer' }} onClick={() => router.push(`/projects/${o.project.code || o.projectId}`)}>{o.project.code}</span>
+                                        : <span style={{ opacity: 0.3, fontSize: 12 }}>—</span>}
+                                    </td>
                                     <td className="amount">{fmt(o.totalAmount)}</td>
                                     <td>
                                         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -352,7 +355,7 @@ function PurchasingContent() {
                                     <td style={{ fontSize: 12 }}>{fmtDate(o.orderDate)}</td>
                                     <td style={{ fontSize: 12 }}>{fmtDate(o.deliveryDate)}</td>
                                     <td><span className={`badge ${STATUS_BADGE[o.status] || 'badge-default'}`}>{o.status}</span></td>
-                                    <td onClick={e => e.stopPropagation()}>
+                                    <td>
                                         {canReceive && (
                                             <button className="btn btn-ghost btn-sm" style={{ fontSize: 11, whiteSpace: 'nowrap' }}
                                                 onClick={e => openGrn(o.id, e)}>📦 Nhận hàng</button>
