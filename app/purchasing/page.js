@@ -782,67 +782,99 @@ function PurchasingContent() {
             {/* PO Detail Modal */}
             {detailPO && (
                 <div className="modal-overlay" onClick={() => setDetailPO(null)}>
-                    <div onClick={e => e.stopPropagation()} style={{ background: 'var(--bg-modal)', border: '1px solid var(--border-color)', borderRadius: 'var(--border-radius-lg)', width: '95%', maxWidth: 780, maxHeight: '90vh', overflowY: 'auto', boxShadow: 'var(--shadow-lg)', padding: 24 }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-                            <div>
-                                <div style={{ fontSize: 18, fontWeight: 700 }}>{detailPO.code}</div>
-                                <div style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 2 }}>{detailPO.supplier}</div>
-                            </div>
-                            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                                <span className={`badge ${STATUS_BADGE[detailPO.status] || 'badge-default'}`}>{detailPO.status}</span>
-                                <button className="modal-close" onClick={() => setDetailPO(null)}>×</button>
-                            </div>
+                    <div onClick={e => e.stopPropagation()} style={{ background: '#fff', border: '1px solid var(--border-color)', borderRadius: 'var(--border-radius-lg)', width: '95%', maxWidth: 780, maxHeight: '90vh', overflowY: 'auto', boxShadow: 'var(--shadow-lg)' }}>
+                        {/* Header modal (không in) */}
+                        <div style={{ display: 'flex', justifyContent: 'flex-end', padding: '12px 16px 0' }}>
+                            <button className="modal-close" onClick={() => setDetailPO(null)}>×</button>
                         </div>
 
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 12, marginBottom: 20 }}>
-                            {[
-                                { l: 'Dự án', v: detailPO.project ? `${detailPO.project.code} — ${detailPO.project.name}` : '—' },
-                                { l: 'Ngày đặt', v: fmtDate(detailPO.orderDate) },
-                                { l: 'Ngày giao', v: fmtDate(detailPO.deliveryDate) || '—' },
-                                { l: 'Tổng tiền', v: fmt(detailPO.totalAmount) },
-                                { l: 'Đã thanh toán', v: fmt(detailPO.paidAmount) },
-                                { l: 'Còn lại', v: fmt((detailPO.totalAmount || 0) - (detailPO.paidAmount || 0)) },
-                            ].map(({ l, v }) => (
-                                <div key={l} style={{ background: 'var(--bg-secondary)', borderRadius: 8, padding: '10px 14px' }}>
-                                    <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 3 }}>{l}</div>
-                                    <div style={{ fontSize: 13, fontWeight: 600 }}>{v}</div>
+                        {/* Vùng in — id để html2canvas chụp */}
+                        <div id="po-print-area" style={{ padding: '20px 28px 28px', background: '#fff', color: '#111', fontFamily: 'Arial, sans-serif' }}>
+                            {/* Logo + tiêu đề */}
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20, borderBottom: '2px solid #1e3a5f', paddingBottom: 14 }}>
+                                <img src="https://pub-1e1be66737b446708af785e6cc8fe673.r2.dev/assets/motnha-header.jpg" alt="Một Nhà" style={{ height: 48, objectFit: 'contain' }} crossOrigin="anonymous" />
+                                <div style={{ textAlign: 'right' }}>
+                                    <div style={{ fontSize: 20, fontWeight: 800, color: '#1e3a5f', letterSpacing: 1 }}>ĐƠN ĐẶT HÀNG</div>
+                                    <div style={{ fontSize: 14, fontWeight: 700, color: '#e53e3e', marginTop: 2 }}>{detailPO.code}</div>
                                 </div>
-                            ))}
-                        </div>
-
-                        {detailPO.notes && (
-                            <div style={{ marginBottom: 16, padding: '8px 12px', background: 'var(--bg-secondary)', borderRadius: 6, fontSize: 13 }}>
-                                <strong>Ghi chú:</strong> {detailPO.notes}
                             </div>
-                        )}
 
-                        <div style={{ fontWeight: 600, marginBottom: 10, fontSize: 14 }}>Danh sách sản phẩm</div>
-                        <table className="data-table" style={{ marginBottom: 16 }}>
-                            <thead>
-                                <tr>
-                                    <th>Tên sản phẩm</th>
-                                    <th style={{ textAlign: 'center' }}>ĐVT</th>
-                                    <th style={{ textAlign: 'right' }}>SL đặt</th>
-                                    <th style={{ textAlign: 'right' }}>Đã nhận</th>
-                                    <th style={{ textAlign: 'right' }}>Đơn giá</th>
-                                    <th style={{ textAlign: 'right' }}>Thành tiền</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {(detailPO.items || []).map((it, i) => (
-                                    <tr key={i}>
-                                        <td style={{ fontWeight: 500 }}>{it.productName}</td>
-                                        <td style={{ textAlign: 'center', color: 'var(--text-muted)' }}>{it.unit}</td>
-                                        <td style={{ textAlign: 'right' }}>{fmtNum(it.quantity)}</td>
-                                        <td style={{ textAlign: 'right', color: it.receivedQty >= it.quantity ? 'var(--status-success)' : 'var(--text-muted)' }}>{fmtNum(it.receivedQty)}</td>
-                                        <td style={{ textAlign: 'right' }}>{fmtNum(it.unitPrice)}</td>
-                                        <td style={{ textAlign: 'right', fontWeight: 600 }}>{fmt(it.amount || it.quantity * it.unitPrice)}</td>
+                            {/* Thông tin NCC + đơn hàng */}
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, marginBottom: 18 }}>
+                                <div>
+                                    <div style={{ fontSize: 11, color: '#666', marginBottom: 3, textTransform: 'uppercase', letterSpacing: 0.5 }}>Nhà cung cấp</div>
+                                    <div style={{ fontSize: 15, fontWeight: 700 }}>{detailPO.supplier}</div>
+                                    {detailPO.project && <div style={{ fontSize: 12, color: '#555', marginTop: 4 }}>Dự án: <strong>{detailPO.project.code} — {detailPO.project.name}</strong></div>}
+                                    {detailPO.notes && <div style={{ fontSize: 12, color: '#555', marginTop: 4 }}>Ghi chú: {detailPO.notes}</div>}
+                                </div>
+                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                                    {[
+                                        { l: 'Ngày đặt', v: fmtDate(detailPO.orderDate) },
+                                        { l: 'Ngày giao', v: fmtDate(detailPO.deliveryDate) || '—' },
+                                        { l: 'Trạng thái', v: detailPO.status },
+                                    ].map(({ l, v }) => (
+                                        <div key={l} style={{ background: '#f7f9fc', borderRadius: 6, padding: '7px 10px' }}>
+                                            <div style={{ fontSize: 10, color: '#888', marginBottom: 2 }}>{l}</div>
+                                            <div style={{ fontSize: 12, fontWeight: 600 }}>{v}</div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+
+                            {/* Bảng sản phẩm */}
+                            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13, marginBottom: 16 }}>
+                                <thead>
+                                    <tr style={{ background: '#1e3a5f', color: '#fff' }}>
+                                        <th style={{ padding: '8px 10px', textAlign: 'left', fontWeight: 600 }}>Tên sản phẩm</th>
+                                        <th style={{ padding: '8px 10px', textAlign: 'center', fontWeight: 600, width: 55 }}>ĐVT</th>
+                                        <th style={{ padding: '8px 10px', textAlign: 'right', fontWeight: 600, width: 80 }}>Số lượng</th>
+                                        <th style={{ padding: '8px 10px', textAlign: 'right', fontWeight: 600, width: 110 }}>Đơn giá</th>
+                                        <th style={{ padding: '8px 10px', textAlign: 'right', fontWeight: 600, width: 120 }}>Thành tiền</th>
                                     </tr>
-                                ))}
-                            </tbody>
-                        </table>
+                                </thead>
+                                <tbody>
+                                    {(detailPO.items || []).map((it, i) => (
+                                        <tr key={i} style={{ background: i % 2 === 0 ? '#fff' : '#f7f9fc' }}>
+                                            <td style={{ padding: '7px 10px', borderBottom: '1px solid #e8edf2', fontWeight: 500 }}>{it.productName}</td>
+                                            <td style={{ padding: '7px 10px', borderBottom: '1px solid #e8edf2', textAlign: 'center', color: '#555' }}>{it.unit}</td>
+                                            <td style={{ padding: '7px 10px', borderBottom: '1px solid #e8edf2', textAlign: 'right' }}>{fmtNum(it.quantity)}</td>
+                                            <td style={{ padding: '7px 10px', borderBottom: '1px solid #e8edf2', textAlign: 'right' }}>{fmtNum(it.unitPrice)}</td>
+                                            <td style={{ padding: '7px 10px', borderBottom: '1px solid #e8edf2', textAlign: 'right', fontWeight: 600 }}>{fmt(it.amount || it.quantity * it.unitPrice)}</td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                                <tfoot>
+                                    <tr style={{ background: '#1e3a5f', color: '#fff' }}>
+                                        <td colSpan={4} style={{ padding: '9px 10px', fontWeight: 700, textAlign: 'right' }}>TỔNG CỘNG</td>
+                                        <td style={{ padding: '9px 10px', fontWeight: 800, textAlign: 'right', fontSize: 14 }}>{fmt(detailPO.totalAmount)}</td>
+                                    </tr>
+                                </tfoot>
+                            </table>
+
+                            {/* Footer chữ ký */}
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, marginTop: 24 }}>
+                                <div style={{ textAlign: 'center' }}>
+                                    <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 40 }}>Đại diện nhà cung cấp</div>
+                                    <div style={{ borderTop: '1px solid #ccc', paddingTop: 4, fontSize: 11, color: '#888' }}>(Ký, ghi rõ họ tên)</div>
+                                </div>
+                                <div style={{ textAlign: 'center' }}>
+                                    <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 4 }}>Đại diện Một Nhà</div>
+                                    <div style={{ fontSize: 11, color: '#888', marginBottom: 36 }}>Ngày {new Date().toLocaleDateString('vi-VN')}</div>
+                                    <div style={{ borderTop: '1px solid #ccc', paddingTop: 4, fontSize: 11, color: '#888' }}>(Ký, ghi rõ họ tên)</div>
+                                </div>
+                            </div>
+                        </div>
 
                         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+                            <button className="btn btn-ghost btn-sm" onClick={async () => {
+                                const { default: html2canvas } = await import('html2canvas');
+                                const el = document.getElementById('po-print-area');
+                                const canvas = await html2canvas(el, { scale: 2, useCORS: true, backgroundColor: '#ffffff' });
+                                const link = document.createElement('a');
+                                link.download = `${detailPO.code}.jpg`;
+                                link.href = canvas.toDataURL('image/jpeg', 0.95);
+                                link.click();
+                            }}>🖼️ Xuất ảnh JPG</button>
                             {!['Hoàn thành', 'Hủy'].includes(detailPO.status) && (
                                 <button className="btn btn-primary btn-sm" onClick={e => { setDetailPO(null); openGrn(detailPO.id, e); }}>📦 Nhận hàng</button>
                             )}
