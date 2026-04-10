@@ -50,7 +50,7 @@ export default function MaterialTab({ project: p, projectId, onRefresh }) {
             unitPrice: m.unitPrice || 0,
             amount: (m.quantity - m.orderedQty) * (m.unitPrice || 0),
             productId: m.productId,
-            _mpId: m.id,
+            materialPlanId: m.id,
         })));
         setPoForm({ supplier: '', supplierId: '', deliveryDate: '', notes: '', deliveryType: 'Giao thẳng dự án', deliveryAddress: p.address || '' });
         setShowPOModal(true);
@@ -63,7 +63,7 @@ export default function MaterialTab({ project: p, projectId, onRefresh }) {
         try {
             await apiFetch('/api/purchase-orders', {
                 method: 'POST',
-                body: { ...poForm, projectId, items: poItems, materialPlanIds: poItems.map(i => i._mpId) },
+                body: { ...poForm, projectId, items: poItems },
             });
         } catch (err) {
             setSavingPO(false);
