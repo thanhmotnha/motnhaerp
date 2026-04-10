@@ -8,9 +8,39 @@ const STATUS_MAP = {
     changed: { label: 'Đã thay đổi', badge: 'secondary' },
 };
 
+// Config cho từng loại picker vật liệu
+const PICKER_TYPES = {
+    van: {
+        title: '🪵 Chọn màu ván MDF',
+        categories: ['Ván AC', 'Ván Thái'],
+        catLabels: { 'Ván AC': 'An Cường', 'Ván Thái': 'Melamin Thái' },
+        materialName: 'Ván MFC',
+        unit: 'tờ',
+        btnLabel: '🪵 Chọn ván MDF',
+        btnClass: 'btn-primary',
+    },
+    acrylic: {
+        title: '✨ Chọn cánh Acrylic',
+        categories: ['Acrylic'],
+        catLabels: {},
+        materialName: 'Acrylic',
+        unit: 'tờ',
+        btnLabel: '✨ Chọn Acrylic',
+        btnClass: 'btn-ghost',
+    },
+    san_go: {
+        title: '🏠 Chọn sàn gỗ',
+        categories: ['Sàn gỗ'],
+        catLabels: {},
+        materialName: 'Sàn gỗ',
+        unit: 'm²',
+        btnLabel: '🏠 Chọn sàn gỗ',
+        btnClass: 'btn-ghost',
+    },
+};
+
 const QUICK_ADD = [
     { label: '+ Nẹp nhôm', materialName: 'Nẹp nhôm', unit: 'm' },
-    { label: '+ Acrylic', materialName: 'Acrylic', unit: 'tờ' },
     { label: '+ Tay nắm', materialName: 'Tay nắm', unit: 'cái' },
     { label: '+ Bản lề', materialName: 'Bản lề', unit: 'cái' },
     { label: '+ Ray hộp', materialName: 'Ray hộp', unit: 'bộ' },
@@ -22,6 +52,19 @@ const emptyRow = () => ({
     swatchImageUrl: '', applicationArea: '', quantity: 1, unit: 'tờ', notes: '',
 });
 
+// Fetch products from multiple categories in parallel, merge results
+async function fetchFromCategories(categories, search, limit = 30) {
+    const fetches = categories.map(cat => {
+        const params = new URLSearchParams({ category: cat, limit: String(limit) });
+        if (search) params.set('search', search);
+        return apiFetch(`/api/products?${params}`)
+            .then(r => (r.data || []).map(p => ({ ...p, _category: cat })))
+            .catch(() => []);
+    });
+    const results = await Promise.all(fetches);
+    return results.flat();
+}
+
 export default function MaterialSelectionTab({ orderId, order, onRefresh }) {
     const [selections, setSelections] = useState(order.materialSelections || []);
     const [editingId, setEditingId] = useState(null);
@@ -30,15 +73,15 @@ export default function MaterialSelectionTab({ orderId, order, onRefresh }) {
     const [confirming, setConfirming] = useState(false);
     const [creating, setCreating] = useState(false);
 
-    // Ván picker
-    const [vanPicker, setVanPicker] = useState(null); // row index
-    const [vanSearch, setVanSearch] = useState('');
-    const [vanResults, setVanResults] = useState([]);
-    const [vanLoading, setVanLoading] = useState(false);
-    const vanSearchRef = useRef(null);
-    const vanTimer = useRef(null);
+    // Generic picker state
+    const [picker, setPicker] = useState(null); // { rowIdx, type } — type is key of PICKER_TYPES
+    const [pickerSearch, setPickerSearch] = useState('');
+    const [pickerResults, setPickerResults] = useState([]);
+    const [pickerLoading, setPickerLoading] = useState(false);
+    const [pickerCatFilter, setPickerCatFilter] = useState('all'); // 'all' | category name
+    const searchRef = useRef(null);
+    const searchTimer = useRef(null);
 
-    // applicationArea suggestions from order items
     const areaSuggestions = (order.items || []).map(i => i.name).filter(Boolean);
 
     // ── Selections list ──────────────────────────────────────
@@ -74,15 +117,9 @@ export default function MaterialSelectionTab({ orderId, order, onRefresh }) {
         if (editingId === selId) closeEditor();
     };
 
-    // ── Items editing ────────────────────────────────────────
+    // ── Items editing ─────────────────────────────────────────
     const addRow = (template = {}) => {
         setEditForm(f => ({ ...f, items: [...f.items, { ...emptyRow(), ...template }] }));
-    };
-
-    const addVanRow = () => {
-        const idx = editForm.items.length;
-        setEditForm(f => ({ ...f, items: [...f.items, { ...emptyRow(), materialName: 'Ván MFC', unit: 'tờ' }] }));
-        openVanPicker(idx);
     };
 
     const updateItem = (idx, updates) => {
@@ -97,7 +134,6 @@ export default function MaterialSelectionTab({ orderId, order, onRefresh }) {
         setEditForm(f => ({ ...f, items: f.items.filter((_, i) => i !== idx) }));
     };
 
-    // Import từ đơn hàng: add ván rows pre-filled with order item names as applicationArea
     const importFromOrder = () => {
         if (!areaSuggestions.length) return alert('Đơn hàng không có hạng mục nào.');
         const newRows = areaSuggestions.map(name => ({
@@ -106,7 +142,7 @@ export default function MaterialSelectionTab({ orderId, order, onRefresh }) {
         setEditForm(f => ({ ...f, items: [...f.items, ...newRows] }));
     };
 
-    // ── Save/Confirm ──────────────────────────────────────────
+    // ── Save / Confirm ─────────────────────────────────────────
     const saveItems = async () => {
         setSaving(true);
         try {
@@ -123,7 +159,6 @@ export default function MaterialSelectionTab({ orderId, order, onRefresh }) {
         if (!confirm('Chốt vật liệu đợt này? Không thể chỉnh sửa sau khi chốt.')) return;
         setConfirming(true);
         try {
-            // Save items first, then confirm status
             const saved = await apiFetch(
                 `/api/furniture-orders/${orderId}/material-selections/${editingId}`,
                 { method: 'PATCH', body: editForm }
@@ -132,62 +167,71 @@ export default function MaterialSelectionTab({ orderId, order, onRefresh }) {
                 `/api/furniture-orders/${orderId}/material-selections/${editingId}`,
                 { method: 'PUT', body: { status: 'confirmed' } }
             );
-            const final = { ...saved, ...confirmed, items: saved.items };
-            setSelections(prev => prev.map(s => s.id === editingId ? final : s));
+            setSelections(prev => prev.map(s => s.id === editingId ? { ...saved, ...confirmed, items: saved.items } : s));
             closeEditor();
             onRefresh();
         } catch (err) { alert(err.message || 'Lỗi xác nhận'); }
         setConfirming(false);
     };
 
-    // ── Ván picker ───────────────────────────────────────────
-    const openVanPicker = (rowIdx) => {
-        setVanPicker(rowIdx);
-        setVanSearch('');
-        setVanResults([]);
-        setTimeout(() => vanSearchRef.current?.focus(), 100);
+    // ── Generic picker ─────────────────────────────────────────
+    const openPicker = (type, rowIdx) => {
+        // If rowIdx is undefined, add a new row first
+        const actualIdx = rowIdx !== undefined ? rowIdx : editForm.items.length;
+        if (rowIdx === undefined) {
+            const cfg = PICKER_TYPES[type];
+            setEditForm(f => ({ ...f, items: [...f.items, { ...emptyRow(), materialName: cfg.materialName, unit: cfg.unit }] }));
+        }
+        setPicker({ rowIdx: actualIdx, type });
+        setPickerSearch('');
+        setPickerCatFilter('all');
+        setPickerResults([]);
+        setTimeout(() => searchRef.current?.focus(), 100);
     };
 
-    const handleVanSearchChange = (val) => {
-        setVanSearch(val);
-        clearTimeout(vanTimer.current);
-        if (!val.trim()) { setVanResults([]); return; }
-        vanTimer.current = setTimeout(async () => {
-            setVanLoading(true);
-            try {
-                const res = await apiFetch(
-                    `/api/products?category=V%C3%A1n%20Th%C3%A1i&search=${encodeURIComponent(val)}&limit=24`
-                );
-                setVanResults(res.data || []);
-            } catch { setVanResults([]); }
-            setVanLoading(false);
+    const closePicker = () => { setPicker(null); setPickerResults([]); setPickerSearch(''); };
+
+    // Load initial results when picker opens
+    useEffect(() => {
+        if (!picker) return;
+        const cfg = PICKER_TYPES[picker.type];
+        (async () => {
+            setPickerLoading(true);
+            const results = await fetchFromCategories(cfg.categories, '', 30);
+            setPickerResults(results);
+            setPickerLoading(false);
+        })();
+    }, [picker?.type, picker?.rowIdx]); // re-run only when type/rowIdx changes, not on search
+
+    const handleSearchChange = (val) => {
+        setPickerSearch(val);
+        clearTimeout(searchTimer.current);
+        if (!picker) return;
+        const cfg = PICKER_TYPES[picker.type];
+        searchTimer.current = setTimeout(async () => {
+            setPickerLoading(true);
+            const results = await fetchFromCategories(cfg.categories, val.trim(), 30);
+            setPickerResults(results);
+            setPickerLoading(false);
         }, 300);
     };
 
-    // Load all ván initially when picker opens with empty search
-    useEffect(() => {
-        if (vanPicker === null) return;
-        (async () => {
-            setVanLoading(true);
-            try {
-                const res = await apiFetch(`/api/products?category=V%C3%A1n%20Th%C3%A1i&limit=48`);
-                setVanResults(res.data || []);
-            } catch { setVanResults([]); }
-            setVanLoading(false);
-        })();
-    }, [vanPicker]);
-
-    const pickVan = (product) => {
-        if (vanPicker === null) return;
-        updateItem(vanPicker, {
+    const pickProduct = (product) => {
+        if (!picker) return;
+        updateItem(picker.rowIdx, {
             productId: product.id,
             materialName: product.name,
-            colorCode: product.color,
-            colorName: product.color,
-            swatchImageUrl: product.image,
+            colorCode: product.color || product.code,
+            colorName: product.color || '',
+            swatchImageUrl: product.image || '',
         });
-        setVanPicker(null);
+        closePicker();
     };
+
+    const pickerCfg = picker ? PICKER_TYPES[picker.type] : null;
+    const displayedResults = pickerCfg && pickerCatFilter !== 'all'
+        ? pickerResults.filter(p => p._category === pickerCatFilter)
+        : pickerResults;
 
     const editingSel = selections.find(s => s.id === editingId);
     const isConfirmed = editingSel?.status === 'confirmed';
@@ -210,7 +254,7 @@ export default function MaterialSelectionTab({ orderId, order, onRefresh }) {
                     </div>
                 ) : (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 4 }}>
-                        {selections.map((sel, i) => {
+                        {selections.map(sel => {
                             const st = STATUS_MAP[sel.status] || STATUS_MAP.pending;
                             const isOpen = editingId === sel.id;
                             return (
@@ -270,7 +314,6 @@ export default function MaterialSelectionTab({ orderId, order, onRefresh }) {
                         )}
                     </div>
 
-                    {/* Header fields */}
                     {!isConfirmed && (
                         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12, marginBottom: 16 }}>
                             <div>
@@ -284,17 +327,22 @@ export default function MaterialSelectionTab({ orderId, order, onRefresh }) {
                                     onChange={e => setEditForm(f => ({ ...f, presentedBy: e.target.value }))} />
                             </div>
                             <div>
-                                <label style={{ fontSize: 12, color: 'var(--text-muted)' }}>Ghi chú đợt chốt</label>
+                                <label style={{ fontSize: 12, color: 'var(--text-muted)' }}>Ghi chú</label>
                                 <input className="form-input" placeholder="Ghi chú chung..." value={editForm.notes}
                                     onChange={e => setEditForm(f => ({ ...f, notes: e.target.value }))} />
                             </div>
                         </div>
                     )}
 
-                    {/* Action buttons */}
+                    {/* Quick add buttons */}
                     {!isConfirmed && (
                         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 12 }}>
-                            <button className="btn btn-primary btn-sm" onClick={addVanRow}>🎨 Chọn ván màu</button>
+                            {Object.entries(PICKER_TYPES).map(([type, cfg]) => (
+                                <button key={type} className={`btn ${cfg.btnClass} btn-sm`}
+                                    onClick={() => openPicker(type)}>
+                                    {cfg.btnLabel}
+                                </button>
+                            ))}
                             {QUICK_ADD.map(qa => (
                                 <button key={qa.materialName} className="btn btn-ghost btn-sm"
                                     onClick={() => addRow({ materialName: qa.materialName, unit: qa.unit })}>
@@ -303,21 +351,20 @@ export default function MaterialSelectionTab({ orderId, order, onRefresh }) {
                             ))}
                             {areaSuggestions.length > 0 && (
                                 <button className="btn btn-ghost btn-sm" onClick={importFromOrder}
-                                    title="Nhập hạng mục từ đơn hàng làm gợi ý vị trí áp dụng">
+                                    style={{ borderLeft: '1px solid var(--border)', paddingLeft: 12 }}>
                                     📋 Nhập từ đơn hàng ({areaSuggestions.length})
                                 </button>
                             )}
                         </div>
                     )}
 
-                    {/* Items table */}
                     <datalist id="area-list">
                         {areaSuggestions.map(s => <option key={s} value={s} />)}
                     </datalist>
 
                     {editForm.items.length === 0 ? (
                         <div style={{ padding: '24px 0', textAlign: 'center', color: 'var(--text-muted)', fontSize: 13 }}>
-                            Chưa có vật liệu nào. Nhấn "Chọn ván màu" hoặc "+ Thêm" ở trên.
+                            Chưa có vật liệu nào. Nhấn các nút ở trên để thêm.
                         </div>
                     ) : (
                         <div style={{ overflowX: 'auto' }}>
@@ -326,12 +373,12 @@ export default function MaterialSelectionTab({ orderId, order, onRefresh }) {
                                     <tr>
                                         <th style={{ width: 48 }}>Ảnh</th>
                                         <th>Tên vật liệu</th>
-                                        <th style={{ width: 90 }}>Mã màu</th>
+                                        <th style={{ width: 100 }}>Mã màu</th>
                                         <th>Hạng mục áp dụng</th>
                                         <th style={{ width: 70 }}>SL</th>
-                                        <th style={{ width: 70 }}>ĐVT</th>
+                                        <th style={{ width: 65 }}>ĐVT</th>
                                         <th>Ghi chú</th>
-                                        {!isConfirmed && <th style={{ width: 60 }}></th>}
+                                        {!isConfirmed && <th style={{ width: 50 }}></th>}
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -340,9 +387,11 @@ export default function MaterialSelectionTab({ orderId, order, onRefresh }) {
                                             <td>
                                                 {item.swatchImageUrl ? (
                                                     <img src={item.swatchImageUrl} alt={item.colorCode}
-                                                        style={{ width: 40, height: 40, objectFit: 'cover', borderRadius: 4, border: '1px solid var(--border)' }} />
+                                                        style={{ width: 40, height: 40, objectFit: 'cover', borderRadius: 4, border: '1px solid var(--border)', cursor: 'pointer' }}
+                                                        onClick={() => !isConfirmed && openPicker('van', idx)} />
                                                 ) : (
-                                                    <div style={{ width: 40, height: 40, borderRadius: 4, background: 'var(--bg-secondary)', border: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18 }}>
+                                                    <div style={{ width: 40, height: 40, borderRadius: 4, background: 'var(--bg-secondary)', border: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, cursor: isConfirmed ? 'default' : 'pointer' }}
+                                                        onClick={() => !isConfirmed && openPicker('van', idx)}>
                                                         🎨
                                                     </div>
                                                 )}
@@ -351,12 +400,13 @@ export default function MaterialSelectionTab({ orderId, order, onRefresh }) {
                                                 {isConfirmed ? (
                                                     <span>{item.materialName}</span>
                                                 ) : (
-                                                    <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+                                                    <div style={{ display: 'flex', gap: 4 }}>
                                                         <input className="form-input" style={{ fontSize: 12 }}
                                                             value={item.materialName}
                                                             onChange={e => updateItem(idx, { materialName: e.target.value })} />
-                                                        <button className="btn btn-ghost btn-sm" title="Chọn ván từ danh mục"
-                                                            onClick={() => openVanPicker(idx)}>🎨</button>
+                                                        <button className="btn btn-ghost btn-sm" title="Chọn từ danh mục"
+                                                            style={{ flexShrink: 0 }}
+                                                            onClick={() => openPicker('van', idx)}>🔍</button>
                                                     </div>
                                                 )}
                                             </td>
@@ -423,49 +473,91 @@ export default function MaterialSelectionTab({ orderId, order, onRefresh }) {
                 </div>
             )}
 
-            {/* Ván picker modal */}
-            {vanPicker !== null && (
-                <div className="modal-overlay" onClick={() => setVanPicker(null)}>
-                    <div className="modal" style={{ maxWidth: 720, maxHeight: '80vh', display: 'flex', flexDirection: 'column' }}
+            {/* Generic product picker modal */}
+            {picker && pickerCfg && (
+                <div className="modal-overlay" onClick={closePicker}>
+                    <div className="modal" style={{ maxWidth: 760, maxHeight: '82vh', display: 'flex', flexDirection: 'column' }}
                         onClick={e => e.stopPropagation()}>
                         <div className="modal-header">
-                            <h3 className="modal-title">🎨 Chọn màu ván Melamin Thái Lan</h3>
-                            <button className="modal-close" onClick={() => setVanPicker(null)}>×</button>
+                            <h3 className="modal-title">{pickerCfg.title}</h3>
+                            <button className="modal-close" onClick={closePicker}>×</button>
                         </div>
-                        <div style={{ padding: '0 0 12px' }}>
-                            <input ref={vanSearchRef} className="form-input"
-                                placeholder="Tìm theo mã màu (VD: 331, MS 021)..."
-                                value={vanSearch}
-                                onChange={e => handleVanSearchChange(e.target.value)} />
+
+                        {/* Search */}
+                        <div style={{ marginBottom: 10 }}>
+                            <input ref={searchRef} className="form-input"
+                                placeholder="Tìm theo tên, mã màu..."
+                                value={pickerSearch}
+                                onChange={e => handleSearchChange(e.target.value)} />
                         </div>
+
+                        {/* Category tabs (only if multiple categories) */}
+                        {pickerCfg.categories.length > 1 && (
+                            <div style={{ display: 'flex', gap: 4, marginBottom: 12 }}>
+                                <button
+                                    className="btn btn-sm"
+                                    style={{
+                                        background: pickerCatFilter === 'all' ? 'var(--status-info)' : 'var(--bg-secondary)',
+                                        color: pickerCatFilter === 'all' ? '#fff' : 'var(--text-secondary)',
+                                        border: 'none',
+                                    }}
+                                    onClick={() => setPickerCatFilter('all')}>
+                                    Tất cả ({pickerResults.length})
+                                </button>
+                                {pickerCfg.categories.map(cat => {
+                                    const count = pickerResults.filter(p => p._category === cat).length;
+                                    return (
+                                        <button key={cat}
+                                            className="btn btn-sm"
+                                            style={{
+                                                background: pickerCatFilter === cat ? 'var(--status-info)' : 'var(--bg-secondary)',
+                                                color: pickerCatFilter === cat ? '#fff' : 'var(--text-secondary)',
+                                                border: 'none',
+                                            }}
+                                            onClick={() => setPickerCatFilter(cat)}>
+                                            {pickerCfg.catLabels[cat] || cat} ({count})
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        )}
+
+                        {/* Product grid */}
                         <div style={{ overflowY: 'auto', flex: 1 }}>
-                            {vanLoading ? (
-                                <div style={{ textAlign: 'center', padding: 24, color: 'var(--text-muted)' }}>Đang tải...</div>
-                            ) : vanResults.length === 0 ? (
-                                <div style={{ textAlign: 'center', padding: 24, color: 'var(--text-muted)', fontSize: 13 }}>
-                                    {vanSearch ? 'Không tìm thấy màu phù hợp' : 'Nhập mã màu để tìm kiếm'}
+                            {pickerLoading ? (
+                                <div style={{ textAlign: 'center', padding: 32, color: 'var(--text-muted)' }}>Đang tải...</div>
+                            ) : displayedResults.length === 0 ? (
+                                <div style={{ textAlign: 'center', padding: 32, color: 'var(--text-muted)', fontSize: 13 }}>
+                                    {pickerSearch ? 'Không tìm thấy sản phẩm phù hợp' : 'Chưa có sản phẩm trong danh mục này'}
                                 </div>
                             ) : (
                                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(110px, 1fr))', gap: 8 }}>
-                                    {vanResults.map(p => (
-                                        <button key={p.id} onClick={() => pickVan(p)}
+                                    {displayedResults.map(p => (
+                                        <button key={p.id} onClick={() => pickProduct(p)}
                                             style={{
-                                                border: '1px solid var(--border)', borderRadius: 6, padding: 4,
+                                                border: '1px solid var(--border)', borderRadius: 6, padding: 6,
                                                 background: 'var(--bg-primary)', cursor: 'pointer',
                                                 display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4,
-                                                transition: 'border-color 0.15s',
+                                                textAlign: 'center',
                                             }}
                                             onMouseOver={e => e.currentTarget.style.borderColor = 'var(--status-info)'}
                                             onMouseOut={e => e.currentTarget.style.borderColor = 'var(--border)'}>
                                             {p.image ? (
-                                                <img src={p.image} alt={p.color}
+                                                <img src={p.image} alt={p.color || p.code}
                                                     style={{ width: '100%', aspectRatio: '1', objectFit: 'cover', borderRadius: 4 }} />
                                             ) : (
-                                                <div style={{ width: '100%', aspectRatio: '1', background: 'var(--bg-secondary)', borderRadius: 4, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>🎨</div>
+                                                <div style={{ width: '100%', aspectRatio: '1', background: 'var(--bg-secondary)', borderRadius: 4, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20 }}>
+                                                    {pickerCfg.title.charAt(0)}
+                                                </div>
                                             )}
-                                            <span style={{ fontSize: 11, color: 'var(--text-secondary)', textAlign: 'center', lineHeight: 1.2 }}>
+                                            <span style={{ fontSize: 10, color: 'var(--text-secondary)', lineHeight: 1.3, wordBreak: 'break-all' }}>
                                                 {p.color || p.code}
                                             </span>
+                                            {pickerCfg.categories.length > 1 && (
+                                                <span style={{ fontSize: 9, color: 'var(--text-muted)' }}>
+                                                    {pickerCfg.catLabels[p._category] || p._category}
+                                                </span>
+                                            )}
                                         </button>
                                     ))}
                                 </div>
