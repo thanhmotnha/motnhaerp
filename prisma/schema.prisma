@@ -1523,6 +1523,7 @@ model FurnitureOrder {
   materialOrders     FurnitureMaterialOrder[]
   acceptanceCertificates AcceptanceCertificate[]
   files              FurnitureFile[]
+  issues             FurnitureIssue[]
 
   @@index([customerId])
   @@index([projectId])
@@ -1624,6 +1625,28 @@ model FurnitureFile {
   furnitureOrder   FurnitureOrder @relation(fields: [furnitureOrderId], references: [id], onDelete: Cascade)
 
   @@index([furnitureOrderId])
+}
+
+model FurnitureIssue {
+  id               String         @id @default(cuid())
+  furnitureOrderId String
+  code             String         @unique
+  issueType        String         @default("material") // material | repair | other
+  title            String
+  description      String         @default("")
+  status           String         @default("open")    // open | in_progress | resolved
+  priority         String         @default("normal")  // low | normal | high
+  imageUrl         String         @default("")
+  reportedBy       String         @default("")
+  resolvedBy       String         @default("")
+  resolvedAt       DateTime?
+  resolvedNote     String         @default("")
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+  furnitureOrder   FurnitureOrder @relation(fields: [furnitureOrderId], references: [id], onDelete: Cascade)
+
+  @@index([furnitureOrderId])
+  @@index([status])
 }
 
 model FurnitureOrderItem {
