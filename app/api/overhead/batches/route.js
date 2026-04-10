@@ -22,25 +22,17 @@ export const GET = withAuth(async (request) => {
         prisma.overheadBatch.count({ where: { deletedAt: null } }),
     ]);
     return NextResponse.json(paginatedResponse(data, total, { page, limit }));
-});
+}, { roles: ["giam_doc", "ke_toan"] });
 
 export const POST = withAuth(async (request, _ctx, session) => {
     const body = await request.json();
     const { expenseIds, ...batchData } = overheadBatchCreateSchema.parse(body);
 
-    // Auto-generate batch code
+    // Auto-generate batch code (atomic via generateCode to prevent race conditions)
     const period = batchData.period || '';
-    let code;
-    if (period) {
-        // Find how many batches already exist with this period prefix
-        const existing = await prisma.overheadBatch.count({
-            where: { code: { startsWith: `CPGB-${period}` } },
-        });
-        code = existing === 0 ? `CPGB-${period}` : `CPGB-${period}-${existing + 1}`;
-    } else {
-        // Use generateCode for sequential manual batches
-        code = await generateCode('overheadBatch', 'CPGB');
-    }
+    const seqCode = await generateCode('overheadBatch', 'CPGB');
+    const seqNum = seqCode.replace('CPGB-', ''); // e.g., "001"
+    const code = period ? `CPGB-${period}-${seqNum}` : seqCode;
 
     // Fetch selected approved expenses to calculate totalAmount
     const expenses = await prisma.overheadExpense.findMany({
@@ -79,4 +71,4 @@ export const POST = withAuth(async (request, _ctx, session) => {
         actorId: session.user.id,
     });
     return NextResponse.json(batch, { status: 201 });
-});
+}, { roles: ["giam_doc", "ke_toan"] });
