@@ -41,6 +41,11 @@ export const POST = withAuth(async (request) => {
                     minStock: 0,
                     status: 'Đang bán',
                     supplyType: p.supplyType || 'Mua ngoài',
+                    image: p.image || '',
+                    color: p.color || '',
+                    brand: p.brand || '',
+                    origin: p.origin || '',
+                    description: p.description || '',
                 },
                 select: { id: true, name: true }
             });
