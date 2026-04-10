@@ -11,7 +11,7 @@ import {
     Activity, ClipboardCheck, Banknote, Settings, ShieldCheck,
     Shield, Plus, ArrowRightLeft,
     CheckCircle, BookOpen, HardHat, PiggyBank, CalendarDays, Landmark,
-    ArrowDownLeft, ArrowUpRight
+    ArrowDownLeft, ArrowUpRight, Armchair
 } from 'lucide-react';
 import { useRole } from '@/contexts/RoleContext';
 
@@ -33,6 +33,7 @@ const menuItems = [
         section: 'Dự án', items: [
             { href: '/projects', icon: Building2, label: 'Dự án' },
             { href: '/gantt', icon: CalendarDays, label: 'Gantt Chart' },
+            { href: '/noi-that', icon: Armchair, label: 'Nội thất', roles: ['giam_doc', 'ky_thuat', 'kho'] },
         ]
     },
     {

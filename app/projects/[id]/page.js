@@ -9,6 +9,7 @@ import MaterialTab from './tabs/MaterialTab';
 import ContractorTab from './tabs/ContractorTab';
 import DocumentTab from './tabs/DocumentTab';
 import WarrantyTab from './tabs/WarrantyTab';
+import FurnitureTab from './tabs/FurnitureTab';
 
 const PIPELINE = [
     { key: 'Khảo sát', label: 'CRM', icon: '📊' },
@@ -28,6 +29,7 @@ const TABS = [
     { key: 'contractors', label: 'Thầu phụ', icon: '👷', countKey: 'contractorPays' },
     { key: 'documents', label: 'Tài liệu', icon: '📁', countKey: 'documents' },
     { key: 'warranty', label: 'Bảo hành', icon: '🛡️' },
+    { key: 'furniture', label: 'Nội thất', icon: '🪵' },
 ];
 
 export default function ProjectDetailPage() {
@@ -75,6 +77,7 @@ export default function ProjectDetailPage() {
         contractors: <ContractorTab project={p} projectId={p.id} onRefresh={fetchData} />,
         documents: <DocumentTab project={p} projectId={p.id} onRefresh={fetchData} />,
         warranty: <WarrantyTab project={p} projectId={p.id} onRefresh={fetchData} />,
+        furniture: <FurnitureTab projectId={p.id} />,
     };
 
     return (

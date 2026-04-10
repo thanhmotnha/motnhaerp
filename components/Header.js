@@ -27,6 +27,7 @@ const pageTitles = {
     '/cong-no': 'Công nợ',
     '/cong-no/bao-cao': 'Báo cáo công nợ',
     '/overhead': 'Chi phí chung',
+    '/noi-that': 'Đơn hàng Nội thất',
 };
 
 export default function Header({ onMenuToggle, onSearchOpen, onSidebarToggle, sidebarCollapsed }) {

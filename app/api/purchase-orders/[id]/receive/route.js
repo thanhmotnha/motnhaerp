@@ -109,5 +109,27 @@ export const POST = withAuth(async (request, { params }) => {
         include: { items: true },
     });
 
+    // Auto-update FurnitureMaterialOrder status khi nhận hàng PO nội thất
+    if (updatedPO.furnitureOrderId && allReceived) {
+        await prisma.furnitureMaterialOrder.updateMany({
+            where: { purchaseOrderId: id },
+            data: { status: 'RECEIVED' },
+        });
+
+        const furnitureOrderId = updatedPO.furnitureOrderId;
+        const allMaterialOrders = await prisma.furnitureMaterialOrder.findMany({
+            where: { furnitureOrderId },
+        });
+        const allReceived3 = ['VAN', 'NEP', 'ACRYLIC'].every(t =>
+            allMaterialOrders.find(o => o.materialType === t && o.status === 'RECEIVED')
+        );
+        if (allReceived3) {
+            await prisma.furnitureOrder.update({
+                where: { id: furnitureOrderId },
+                data: { status: 'in_production' },
+            });
+        }
+    }
+
     return NextResponse.json(updatedPO);
 });
