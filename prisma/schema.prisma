@@ -257,6 +257,7 @@ model Quotation {
   categories        QuotationCategory[]
   items             QuotationItem[]
   purchaseOrders    PurchaseOrder[]
+  acceptanceCertificates AcceptanceCertificate[]
 
   @@index([customerId])
   @@index([projectId])
@@ -885,6 +886,8 @@ model PurchaseOrder {
   orderDate       DateTime              @default(now())
   deliveryDate    DateTime?
   receivedDate    DateTime?
+  furnitureOrderId String?
+  materialType     String?
   notes           String                @default("")
   projectId       String?
   createdAt       DateTime              @default(now())
@@ -899,6 +902,7 @@ model PurchaseOrder {
   quotation       Quotation?            @relation(fields: [quotationId], references: [id])
   items           PurchaseOrderItem[]
   receipts        GoodsReceipt[]
+  furnitureMaterialOrder FurnitureMaterialOrder?
 
   @@index([projectId])
   @@index([supplierId])
@@ -1496,6 +1500,8 @@ model FurnitureOrder {
   designer           String               @default("")
   expectedDelivery   DateTime?
   deliveredAt        DateTime?
+  cncUploadedAt      DateTime?
+  cncPieceCount      Int                  @default(0)
   publicToken        String?              @unique
   tokenExpiresAt     DateTime?
   createdBy          String               @default("")
@@ -1511,12 +1517,95 @@ model FurnitureOrder {
   materialSelections MaterialSelection[]
   batches            ProductionBatch[]
   warrantyTickets    WarrantyTicket[]
+  cncFiles           FurnitureCncFile[]
+  materialOrders     FurnitureMaterialOrder[]
+  acceptanceCertificates AcceptanceCertificate[]
 
   @@index([customerId])
   @@index([projectId])
   @@index([status])
   @@index([code])
   @@index([publicToken])
+}
+
+model FurnitureCncFile {
+  id               String         @id @default(cuid())
+  furnitureOrderId String
+  fileName         String
+  fileUrl          String
+  pieceCount       Int            @default(0)
+  notes            String         @default("")
+  uploadedAt       DateTime       @default(now())
+  furnitureOrder   FurnitureOrder @relation(fields: [furnitureOrderId], references: [id], onDelete: Cascade)
+
+  @@index([furnitureOrderId])
+}
+
+model FurnitureMaterialOrder {
+  id               String                     @id @default(cuid())
+  furnitureOrderId String
+  materialType     String
+  purchaseOrderId  String?                    @unique
+  status           String                     @default("DRAFT")
+  createdAt        DateTime                   @default(now())
+  updatedAt        DateTime                   @updatedAt
+  furnitureOrder   FurnitureOrder             @relation(fields: [furnitureOrderId], references: [id], onDelete: Cascade)
+  purchaseOrder    PurchaseOrder?             @relation(fields: [purchaseOrderId], references: [id])
+  items            FurnitureMaterialOrderItem[]
+
+  @@unique([furnitureOrderId, materialType])
+  @@index([furnitureOrderId])
+  @@index([purchaseOrderId])
+}
+
+model FurnitureMaterialOrderItem {
+  id                       String                 @id @default(cuid())
+  furnitureMaterialOrderId String
+  name                     String
+  colorCode                String                 @default("")
+  imageUrl                 String                 @default("")
+  thickness                Float?
+  quantity                 Float                  @default(0)
+  unit                     String                 @default("")
+  unitPrice                Float                  @default(0)
+  notes                    String                 @default("")
+  furnitureMaterialOrder   FurnitureMaterialOrder @relation(fields: [furnitureMaterialOrderId], references: [id], onDelete: Cascade)
+
+  @@index([furnitureMaterialOrderId])
+}
+
+model AcceptanceCertificate {
+  id               String                      @id @default(cuid())
+  code             String                      @unique
+  furnitureOrderId String
+  quotationId      String?
+  status           String                      @default("DRAFT")
+  publicToken      String?                     @unique
+  customerName     String                      @default("")
+  customerSignatureUrl String                  @default("")
+  signedAt         DateTime?
+  createdAt        DateTime                    @default(now())
+  updatedAt        DateTime                    @updatedAt
+  furnitureOrder   FurnitureOrder              @relation(fields: [furnitureOrderId], references: [id], onDelete: Cascade)
+  quotation        Quotation?                  @relation(fields: [quotationId], references: [id])
+  items            AcceptanceCertificateItem[]
+
+  @@index([furnitureOrderId])
+  @@index([publicToken])
+}
+
+model AcceptanceCertificateItem {
+  id            String                @id @default(cuid())
+  certificateId String
+  itemName      String
+  quantity      Float                 @default(0)
+  unit          String                @default("")
+  amount        Float                 @default(0)
+  acceptedAt    DateTime?
+  notes         String                @default("")
+  certificate   AcceptanceCertificate @relation(fields: [certificateId], references: [id], onDelete: Cascade)
+
+  @@index([certificateId])
 }
 
 model FurnitureOrderItem {
