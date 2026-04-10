@@ -8,7 +8,7 @@ import { readdir, readFile } from 'fs/promises';
 import { join, basename } from 'path';
 
 const LOCAL_DIR = join(process.cwd(), 'public', 'uploads', 'products');
-const PROD_URL = 'https://admin.tiktak.vn';
+const PROD_URL = 'https://erp.motnha.vn';
 
 // You need a valid session cookie or API key
 // Get this from browser DevTools > Application > Cookies > next-auth.session-token
