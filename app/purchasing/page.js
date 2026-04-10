@@ -148,7 +148,7 @@ function PurchasingContent() {
 
     const totalValue = orders.reduce((s, o) => s + o.totalAmount, 0);
     const totalPaid = orders.reduce((s, o) => s + o.paidAmount, 0);
-    const statuses = ['Nháp', 'Đang đặt', 'Đã xác nhận', 'Đang giao', 'Đã giao', 'Đã thanh toán'];
+    const statuses = ['Chờ duyệt', 'Chờ duyệt vượt định mức', 'Nháp', 'Đang đặt', 'Đã xác nhận', 'Đang giao', 'Đã giao', 'Đã thanh toán'];
     const filtered = filterStatus ? orders.filter(o => o.status === filterStatus) : orders;
 
     const updateItem = (i, field, value) => {
@@ -298,6 +298,7 @@ function PurchasingContent() {
         setShowModal(false);
         setPoForm({ supplier: '', supplierId: null, projectId: '', deliveryDate: '', notes: '' });
         setPoItems([{ productName: '', unit: 'cái', quantity: 1, unitPrice: 0, amount: 0, productId: null }]);
+        setFilterStatus('');
         fetchOrders();
     };
 
