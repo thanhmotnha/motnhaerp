@@ -25,9 +25,10 @@ function FurnitureOrderListContent() {
     const [search, setSearch] = useState('');
     const [filterStatus, setFilterStatus] = useState('');
     const [showCreateModal, setShowCreateModal] = useState(false);
-    const [createForm, setCreateForm] = useState({ name: '', customerId: '', projectId: searchParams.get('projectId') || '' });
+    const [createForm, setCreateForm] = useState({ name: '', customerId: '', projectId: searchParams.get('projectId') || '', quotationId: '' });
     const [customers, setCustomers] = useState([]);
     const [projects, setProjects] = useState([]);
+    const [quotations, setQuotations] = useState([]);
 
     const fetchOrders = useCallback(async () => {
         setLoading(true);
@@ -50,8 +51,20 @@ function FurnitureOrderListContent() {
         const fetches = [];
         if (customers.length === 0) fetches.push(apiFetch('/api/customers?limit=500').then(d => setCustomers(d.data || [])));
         if (projects.length === 0) fetches.push(apiFetch('/api/projects?limit=500').then(d => setProjects(d.data || [])));
+        if (quotations.length === 0) fetches.push(apiFetch('/api/quotations?limit=500').then(d => setQuotations(d.data || [])));
         await Promise.all(fetches);
         setShowCreateModal(true);
+    };
+
+    const pickQuotation = (quotationId) => {
+        const q = quotations.find(q => q.id === quotationId);
+        setCreateForm(f => ({
+            ...f,
+            quotationId,
+            customerId: q?.customerId || f.customerId,
+            projectId: q?.projectId || f.projectId,
+            name: q ? `Nội thất — ${q.code}` : f.name,
+        }));
     };
 
     const createOrder = async () => {
@@ -60,7 +73,12 @@ function FurnitureOrderListContent() {
         try {
             const order = await apiFetch('/api/furniture-orders', {
                 method: 'POST',
-                body: { name: createForm.name, customerId: createForm.customerId, projectId: createForm.projectId || null },
+                body: {
+                    name: createForm.name,
+                    customerId: createForm.customerId,
+                    projectId: createForm.projectId || null,
+                    quotationId: createForm.quotationId || null,
+                },
             });
             setShowCreateModal(false);
             router.push(`/noi-that/${order.id}`);
@@ -133,6 +151,14 @@ function FurnitureOrderListContent() {
                             <button className="modal-close" onClick={() => setShowCreateModal(false)}>×</button>
                         </div>
                         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                            <div>
+                                <label style={{ fontSize: 12, color: 'var(--text-muted)' }}>Từ Báo giá (nếu có)</label>
+                                <select className="form-input" value={createForm.quotationId}
+                                    onChange={e => pickQuotation(e.target.value)}>
+                                    <option value="">-- Không chọn --</option>
+                                    {quotations.map(q => <option key={q.id} value={q.id}>{q.code}{q.customer?.name ? ` — ${q.customer.name}` : ''}</option>)}
+                                </select>
+                            </div>
                             <div>
                                 <label style={{ fontSize: 12, color: 'var(--text-muted)' }}>Tên đơn hàng *</label>
                                 <input className="form-input" placeholder="VD: Nội thất biệt thự Vinhomes" value={createForm.name}
