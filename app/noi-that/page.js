@@ -25,6 +25,7 @@ function FurnitureOrderListContent() {
     const [showCreateModal, setShowCreateModal] = useState(false);
     const [createForm, setCreateForm] = useState({ name: '', customerId: '', projectId: searchParams.get('projectId') || '' });
     const [customers, setCustomers] = useState([]);
+    const [projects, setProjects] = useState([]);
 
     const fetchOrders = useCallback(async () => {
         setLoading(true);
@@ -44,10 +45,10 @@ function FurnitureOrderListContent() {
     useEffect(() => { fetchOrders(); }, [fetchOrders]);
 
     const openCreateModal = async () => {
-        if (customers.length === 0) {
-            const d = await apiFetch('/api/customers?limit=500');
-            setCustomers(d.data || []);
-        }
+        const fetches = [];
+        if (customers.length === 0) fetches.push(apiFetch('/api/customers?limit=500').then(d => setCustomers(d.data || [])));
+        if (projects.length === 0) fetches.push(apiFetch('/api/projects?limit=500').then(d => setProjects(d.data || [])));
+        await Promise.all(fetches);
         setShowCreateModal(true);
     };
 
@@ -141,6 +142,14 @@ function FurnitureOrderListContent() {
                                     onChange={e => setCreateForm({ ...createForm, customerId: e.target.value })}>
                                     <option value="">-- Chọn khách hàng --</option>
                                     {customers.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                                </select>
+                            </div>
+                            <div>
+                                <label style={{ fontSize: 12, color: 'var(--text-muted)' }}>Dự án (nếu có)</label>
+                                <select className="form-input" value={createForm.projectId}
+                                    onChange={e => setCreateForm({ ...createForm, projectId: e.target.value })}>
+                                    <option value="">-- Không gắn dự án --</option>
+                                    {projects.map(p => <option key={p.id} value={p.id}>{p.code} — {p.name}</option>)}
                                 </select>
                             </div>
                             <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 8 }}>
