@@ -47,6 +47,9 @@ function PurchasingContent() {
     const [pickerFilterBySupplier, setPickerFilterBySupplier] = useState(true);
     const pickerTimer = useRef(null);
 
+    // PO detail modal
+    const [detailPO, setDetailPO] = useState(null);
+
     // GRN (Goods Receipt Note) state
     const [grnPO, setGrnPO] = useState(null);
     const [grnItems, setGrnItems] = useState([]);
@@ -337,7 +340,7 @@ function PurchasingContent() {
                             const rate = pct(o.paidAmount, o.totalAmount);
                             const canReceive = !['Hoàn thành', 'Hủy'].includes(o.status);
                             return (
-                                <tr key={o.id}>
+                                <tr key={o.id} style={{ cursor: 'pointer' }} onClick={() => setDetailPO(o)}>
                                     <td className="accent">{o.code}</td>
                                     <td className="primary">{o.supplier}</td>
                                     <td>{o.project
@@ -354,7 +357,7 @@ function PurchasingContent() {
                                     <td>{o.items?.length || 0}</td>
                                     <td style={{ fontSize: 12 }}>{fmtDate(o.orderDate)}</td>
                                     <td style={{ fontSize: 12 }}>{fmtDate(o.deliveryDate)}</td>
-                                    <td onClick={e => e.stopPropagation()}>
+                                    <td onClick={e => e.stopPropagation()} style={{ minWidth: 150 }}>
                                         <select
                                             value={o.status}
                                             className={`badge ${STATUS_BADGE[o.status] || 'badge-default'}`}
@@ -775,6 +778,79 @@ function PurchasingContent() {
                 prefillProjectId={null}
                 onSuccess={() => { setShowBulkModal(false); fetchOrders(); }}
             />
+
+            {/* PO Detail Modal */}
+            {detailPO && (
+                <div className="modal-overlay" onClick={() => setDetailPO(null)}>
+                    <div onClick={e => e.stopPropagation()} style={{ background: 'var(--bg-modal)', border: '1px solid var(--border-color)', borderRadius: 'var(--border-radius-lg)', width: '95%', maxWidth: 780, maxHeight: '90vh', overflowY: 'auto', boxShadow: 'var(--shadow-lg)', padding: 24 }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+                            <div>
+                                <div style={{ fontSize: 18, fontWeight: 700 }}>{detailPO.code}</div>
+                                <div style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 2 }}>{detailPO.supplier}</div>
+                            </div>
+                            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                                <span className={`badge ${STATUS_BADGE[detailPO.status] || 'badge-default'}`}>{detailPO.status}</span>
+                                <button className="modal-close" onClick={() => setDetailPO(null)}>×</button>
+                            </div>
+                        </div>
+
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 12, marginBottom: 20 }}>
+                            {[
+                                { l: 'Dự án', v: detailPO.project ? `${detailPO.project.code} — ${detailPO.project.name}` : '—' },
+                                { l: 'Ngày đặt', v: fmtDate(detailPO.orderDate) },
+                                { l: 'Ngày giao', v: fmtDate(detailPO.deliveryDate) || '—' },
+                                { l: 'Tổng tiền', v: fmt(detailPO.totalAmount) },
+                                { l: 'Đã thanh toán', v: fmt(detailPO.paidAmount) },
+                                { l: 'Còn lại', v: fmt((detailPO.totalAmount || 0) - (detailPO.paidAmount || 0)) },
+                            ].map(({ l, v }) => (
+                                <div key={l} style={{ background: 'var(--bg-secondary)', borderRadius: 8, padding: '10px 14px' }}>
+                                    <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 3 }}>{l}</div>
+                                    <div style={{ fontSize: 13, fontWeight: 600 }}>{v}</div>
+                                </div>
+                            ))}
+                        </div>
+
+                        {detailPO.notes && (
+                            <div style={{ marginBottom: 16, padding: '8px 12px', background: 'var(--bg-secondary)', borderRadius: 6, fontSize: 13 }}>
+                                <strong>Ghi chú:</strong> {detailPO.notes}
+                            </div>
+                        )}
+
+                        <div style={{ fontWeight: 600, marginBottom: 10, fontSize: 14 }}>Danh sách sản phẩm</div>
+                        <table className="data-table" style={{ marginBottom: 16 }}>
+                            <thead>
+                                <tr>
+                                    <th>Tên sản phẩm</th>
+                                    <th style={{ textAlign: 'center' }}>ĐVT</th>
+                                    <th style={{ textAlign: 'right' }}>SL đặt</th>
+                                    <th style={{ textAlign: 'right' }}>Đã nhận</th>
+                                    <th style={{ textAlign: 'right' }}>Đơn giá</th>
+                                    <th style={{ textAlign: 'right' }}>Thành tiền</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {(detailPO.items || []).map((it, i) => (
+                                    <tr key={i}>
+                                        <td style={{ fontWeight: 500 }}>{it.productName}</td>
+                                        <td style={{ textAlign: 'center', color: 'var(--text-muted)' }}>{it.unit}</td>
+                                        <td style={{ textAlign: 'right' }}>{fmtNum(it.quantity)}</td>
+                                        <td style={{ textAlign: 'right', color: it.receivedQty >= it.quantity ? 'var(--status-success)' : 'var(--text-muted)' }}>{fmtNum(it.receivedQty)}</td>
+                                        <td style={{ textAlign: 'right' }}>{fmtNum(it.unitPrice)}</td>
+                                        <td style={{ textAlign: 'right', fontWeight: 600 }}>{fmt(it.amount || it.quantity * it.unitPrice)}</td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+
+                        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+                            {!['Hoàn thành', 'Hủy'].includes(detailPO.status) && (
+                                <button className="btn btn-primary btn-sm" onClick={e => { setDetailPO(null); openGrn(detailPO.id, e); }}>📦 Nhận hàng</button>
+                            )}
+                            <button className="btn btn-ghost" onClick={() => setDetailPO(null)}>Đóng</button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
