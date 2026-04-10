@@ -3,8 +3,9 @@ import { apiFetch } from '@/lib/fetchClient';
 
 const NEXT_ACTION = {
     draft: { label: 'Xác nhận đơn hàng', targetStatus: 'confirmed' },
+    confirmed: { label: 'Chốt vật liệu', targetStatus: 'material_confirmed' },
     in_production: { label: 'Bắt đầu lắp đặt', targetStatus: 'installing' },
-    installing: { label: 'Hoàn thành', targetStatus: 'completed' },
+    installing: { label: 'Bàn giao & Bảo hành', targetStatus: 'warranty' },
 };
 
 export default function OverviewTab({ order, onRefresh }) {

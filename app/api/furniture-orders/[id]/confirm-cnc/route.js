@@ -12,13 +12,13 @@ export const POST = withAuth(async (_req, { params }) => {
     if (order.cncFiles.length === 0) {
         return NextResponse.json({ error: 'Cần upload ít nhất 1 file CNC' }, { status: 400 });
     }
-    if (order.status !== 'confirmed') {
-        return NextResponse.json({ error: `Trạng thái "${order.status}" không thể chuyển sang cnc_ready` }, { status: 400 });
+    if (order.status !== 'cnc_ready') {
+        return NextResponse.json({ error: `Cần đặt và nhận vật liệu trước khi xác nhận CNC` }, { status: 400 });
     }
 
     const updated = await prisma.furnitureOrder.update({
         where: { id },
-        data: { status: 'cnc_ready', cncUploadedAt: new Date() },
+        data: { status: 'in_production', cncUploadedAt: new Date() },
     });
     return NextResponse.json(updated);
 });

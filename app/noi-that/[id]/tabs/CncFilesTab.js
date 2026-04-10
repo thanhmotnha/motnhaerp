@@ -54,7 +54,8 @@ export default function CncFilesTab({ orderId, order, onRefresh }) {
     };
 
     const totalPieces = files.reduce((s, f) => s + f.pieceCount, 0);
-    const canConfirm = order.status === 'confirmed' && files.length > 0;
+    // CNC confirm chỉ khả dụng khi vật liệu đã về (status=cnc_ready) và có file
+    const canConfirm = order.status === 'cnc_ready' && files.length > 0;
 
     return (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>

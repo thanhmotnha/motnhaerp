@@ -125,10 +125,10 @@ export const POST = withAuth(async (request, { params }) => {
         );
         if (allReceived3) {
             const fo = await prisma.furnitureOrder.findUnique({ where: { id: furnitureOrderId }, select: { status: true } });
-            if (fo && !['in_production', 'installing', 'completed', 'cancelled'].includes(fo.status)) {
+            if (fo && fo.status === 'material_ordered') {
                 await prisma.furnitureOrder.update({
                     where: { id: furnitureOrderId },
-                    data: { status: 'in_production' },
+                    data: { status: 'cnc_ready' },
                 });
             }
         }

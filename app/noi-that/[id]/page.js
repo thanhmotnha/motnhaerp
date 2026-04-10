@@ -17,11 +17,12 @@ const TABS = [
 const STATUS_STEPS = [
     { key: 'draft', label: 'Nháp' },
     { key: 'confirmed', label: 'Xác nhận' },
-    { key: 'cnc_ready', label: 'CNC OK' },
+    { key: 'material_confirmed', label: 'Chốt VL' },
     { key: 'material_ordered', label: 'Đặt VL' },
+    { key: 'cnc_ready', label: 'CNC' },
     { key: 'in_production', label: 'Sản xuất' },
     { key: 'installing', label: 'Lắp đặt' },
-    { key: 'completed', label: 'Hoàn thành' },
+    { key: 'warranty', label: 'Bảo hành' },
 ];
 
 export default function FurnitureOrderDetailPage() {

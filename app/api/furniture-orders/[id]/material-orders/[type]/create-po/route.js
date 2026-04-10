@@ -16,6 +16,9 @@ export const POST = withAuth(async (request, { params }) => {
 
     const furnitureOrder = await prisma.furnitureOrder.findUnique({ where: { id } });
     if (!furnitureOrder) return NextResponse.json({ error: 'Không tìm thấy' }, { status: 404 });
+    if (!['material_confirmed', 'material_ordered'].includes(furnitureOrder.status)) {
+        return NextResponse.json({ error: 'Cần chốt vật liệu trước khi tạo PO' }, { status: 400 });
+    }
 
     const materialOrder = await prisma.furnitureMaterialOrder.findUnique({
         where: { furnitureOrderId_materialType: { furnitureOrderId: id, materialType: type } },
@@ -68,7 +71,7 @@ export const POST = withAuth(async (request, { params }) => {
     // Check if all 3 types ORDERED → update FurnitureOrder status
     const allOrders = await prisma.furnitureMaterialOrder.findMany({ where: { furnitureOrderId: id } });
     const allOrdered = VALID_TYPES.every(t => allOrders.find(o => o.materialType === t && o.status !== 'DRAFT'));
-    if (allOrdered && furnitureOrder.status === 'cnc_ready') {
+    if (allOrdered && furnitureOrder.status === 'material_confirmed') {
         await prisma.furnitureOrder.update({ where: { id }, data: { status: 'material_ordered' } });
     }
 

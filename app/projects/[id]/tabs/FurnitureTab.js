@@ -3,14 +3,16 @@ import { useState, useEffect } from 'react';
 import { apiFetch } from '@/lib/fetchClient';
 
 const STATUS_LABEL = {
-    draft: 'Nháp', confirmed: 'Xác nhận', cnc_ready: 'Có CNC',
-    material_ordered: 'Đặt VL', in_production: 'Sản xuất',
-    installing: 'Lắp đặt', completed: 'Hoàn thành', cancelled: 'Hủy',
+    draft: 'Nháp', confirmed: 'Xác nhận', material_confirmed: 'Chốt VL',
+    material_ordered: 'Đặt VL', cnc_ready: 'CNC',
+    in_production: 'Sản xuất', installing: 'Lắp đặt',
+    warranty: 'Bảo hành', cancelled: 'Hủy',
 };
 const STATUS_BADGE = {
-    draft: 'secondary', confirmed: 'warning', cnc_ready: 'info',
-    material_ordered: 'info', in_production: 'warning',
-    installing: 'warning', completed: 'success', cancelled: 'danger',
+    draft: 'secondary', confirmed: 'warning', material_confirmed: 'info',
+    material_ordered: 'info', cnc_ready: 'info',
+    in_production: 'warning', installing: 'warning',
+    warranty: 'success', cancelled: 'danger',
 };
 
 export default function FurnitureTab({ projectId }) {
