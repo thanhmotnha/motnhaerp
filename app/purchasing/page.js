@@ -69,15 +69,15 @@ function PurchasingContent() {
         const [poRes, receiptsRes, whRes] = await Promise.all([
             fetch(`/api/purchase-orders/${poId}`),
             fetch(`/api/inventory/receipts?poId=${poId}`),
-            fetch('/api/warehouses'),
+            fetch('/api/inventory?limit=1'),
         ]);
         const po = await poRes.json();
-        const receipts = await receiptsRes.json();
-        const whs = await whRes.json();
-        setWarehouses(whs.data || whs || []);
-        setPoReceipts(Array.isArray(receipts) ? receipts : []);
+        const receipts = await receiptsRes.json().catch(() => []);
+        const whData = await whRes.json().catch(() => ({}));
+        setWarehouses(whData.warehouses || []);
+        setPoReceipts(Array.isArray(receipts) ? receipts : (receipts?.data || []));
         setGrnPO(po);
-        const defaultWh = (whs.data || whs || [])[0];
+        const defaultWh = (whData.warehouses || [])[0];
         setGrnWarehouseId(defaultWh?.id || '');
         setGrnItems((po.items || []).map(it => ({
             id: it.id,
@@ -364,12 +364,12 @@ function PurchasingContent() {
                                             style={{ border: 'none', cursor: 'pointer', fontWeight: 600, fontSize: 11, padding: '2px 6px', borderRadius: 12 }}
                                             onChange={async e => {
                                                 const newStatus = e.target.value;
+                                                setOrders(prev => prev.map(x => x.id === o.id ? { ...x, status: newStatus } : x));
                                                 await fetch(`/api/purchase-orders/${o.id}`, {
                                                     method: 'PUT',
                                                     headers: { 'Content-Type': 'application/json' },
                                                     body: JSON.stringify({ status: newStatus }),
                                                 });
-                                                fetchOrders();
                                             }}>
                                             {statuses.map(s => <option key={s} value={s}>{s}</option>)}
                                         </select>
