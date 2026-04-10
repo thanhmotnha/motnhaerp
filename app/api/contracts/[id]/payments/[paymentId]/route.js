@@ -15,29 +15,33 @@ export const PUT = withAuth(async (request, { params }) => {
     if (data.paidDate !== undefined) updateData.paidDate = data.paidDate ? new Date(data.paidDate) : null;
     if (data.paymentAccount !== undefined) updateData.paymentAccount = data.paymentAccount;
 
-    // If proofUrl is uploaded, auto-mark as paid with full amount
-    if (data.proofUrl && !updateData.status) {
-        const payment = await prisma.contractPayment.findUnique({ where: { id: paymentId } });
-        if (payment) {
-            updateData.paidAmount = payment.amount;
-            updateData.status = 'Đã thu';
-            updateData.paidDate = new Date();
+    const updated = await prisma.$transaction(async (tx) => {
+        // If proofUrl is uploaded, auto-mark as paid with full amount
+        if (data.proofUrl && !updateData.status) {
+            const payment = await tx.contractPayment.findUnique({ where: { id: paymentId } });
+            if (payment) {
+                updateData.paidAmount = payment.amount;
+                updateData.status = 'Đã thu';
+                updateData.paidDate = new Date();
+            }
         }
-    }
 
-    const updated = await prisma.contractPayment.update({
-        where: { id: paymentId },
-        data: updateData,
-    });
+        const result = await tx.contractPayment.update({
+            where: { id: paymentId },
+            data: updateData,
+        });
 
-    // Recalc contract paidAmount
-    const total = await prisma.contractPayment.aggregate({
-        where: { contractId: id },
-        _sum: { paidAmount: true },
-    });
-    await prisma.contract.update({
-        where: { id },
-        data: { paidAmount: total._sum.paidAmount || 0 },
+        // Recalc contract paidAmount atomically
+        const total = await tx.contractPayment.aggregate({
+            where: { contractId: id },
+            _sum: { paidAmount: true },
+        });
+        await tx.contract.update({
+            where: { id },
+            data: { paidAmount: total._sum.paidAmount || 0 },
+        });
+
+        return result;
     });
 
     return NextResponse.json(updated);

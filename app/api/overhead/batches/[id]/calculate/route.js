@@ -49,4 +49,4 @@ export const POST = withAuth(async (_request, { params }) => {
     }));
 
     return NextResponse.json({ totalAmount: batch.totalAmount, totalRevenue, suggestions });
-});
+}, { roles: ["giam_doc", "ke_toan"] });

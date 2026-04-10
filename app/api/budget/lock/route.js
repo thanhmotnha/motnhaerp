@@ -43,4 +43,4 @@ export const POST = withAuth(async (request) => {
     await prisma.$transaction([...updates, projectUpdate]);
 
     return NextResponse.json({ success: true, budgetTotal, lockedPlans: plans.length });
-});
+}, { roles: ['giam_doc', 'ke_toan'] });

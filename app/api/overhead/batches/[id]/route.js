@@ -18,7 +18,7 @@ export const GET = withAuth(async (_request, { params }) => {
     });
     if (!batch) return NextResponse.json({ error: 'Không tìm thấy' }, { status: 404 });
     return NextResponse.json(batch);
-});
+, { roles: ["giam_doc", "ke_toan"] });
 
 export const PUT = withAuth(async (request, { params }) => {
     const { id } = await params;
@@ -52,7 +52,7 @@ export const PUT = withAuth(async (request, { params }) => {
         });
     });
     return NextResponse.json(batch);
-});
+, { roles: ["giam_doc", "ke_toan"] });
 
 export const DELETE = withAuth(async (_request, { params }) => {
     const { id } = await params;
@@ -63,4 +63,4 @@ export const DELETE = withAuth(async (_request, { params }) => {
     }
     await prisma.overheadBatch.update({ where: { id }, data: { deletedAt: new Date() } });
     return NextResponse.json({ success: true });
-});
+, { roles: ["giam_doc", "ke_toan"] });

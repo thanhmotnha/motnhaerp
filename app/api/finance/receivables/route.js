@@ -38,4 +38,4 @@ export const GET = withAuth(async (request) => {
         payments: activePayments,
         summary: { totalReceivable, totalReceived, outstanding },
     });
-});
+}, { roles: ['giam_doc', 'ke_toan'] });

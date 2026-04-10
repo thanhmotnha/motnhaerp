@@ -16,7 +16,7 @@ export const GET = withAuth(async (request) => {
     });
 
     return NextResponse.json(categories);
-});
+}, { roles: ['giam_doc', 'ke_toan'] });
 
 export const POST = withAuth(async (request) => {
     const body = await request.json();
@@ -38,4 +38,4 @@ export const POST = withAuth(async (request) => {
     });
 
     return NextResponse.json(cat, { status: 201 });
-});
+}, { roles: ['giam_doc', 'ke_toan'] });

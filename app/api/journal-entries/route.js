@@ -14,7 +14,7 @@ export const GET = withAuth(async (request) => {
         orderBy: { createdAt: 'desc' },
     });
     return NextResponse.json(entries);
-});
+}, { roles: ['giam_doc', 'ke_toan'] });
 
 export const POST = withAuth(async (request) => {
     const body = await request.json();
@@ -63,4 +63,4 @@ export const POST = withAuth(async (request) => {
     });
 
     return NextResponse.json(entry);
-});
+}, { roles: ['giam_doc', 'ke_toan'] });

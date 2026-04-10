@@ -224,4 +224,4 @@ export const GET = withAuth(async (request, context, session) => {
             grandTotal,
         },
     });
-});
+}, { roles: ['giam_doc', 'ke_toan'] });

@@ -122,4 +122,4 @@ export const GET = withAuth(async (request) => {
         summary: { totalThu, totalChi, net: totalThu - totalChi },
         months,
     });
-});
+}, { roles: ['giam_doc', 'ke_toan'] });

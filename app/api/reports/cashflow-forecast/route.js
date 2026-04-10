@@ -100,4 +100,4 @@ export const GET = withAuth(async (req) => {
     const totalOutflow = result.reduce((s, w) => s + w.outflow, 0);
 
     return NextResponse.json({ weeks: result, totalInflow, totalOutflow, netCashflow: totalInflow - totalOutflow, monthlyPayroll });
-});
+}, { roles: ['giam_doc', 'ke_toan'] });

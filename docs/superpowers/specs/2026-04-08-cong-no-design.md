@@ -1,4 +1,4 @@
-# Hệ thống Công nợ NCC & Thầu phụ — Design Spec
+pha# Hệ thống Công nợ NCC & Thầu phụ — Design Spec
 
 **Date:** 2026-04-08
 **Status:** Approved

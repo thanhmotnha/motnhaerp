@@ -18,6 +18,16 @@ export const POST = withAuth(async (request, { params }, session) => {
 
     const { allocations } = overheadBatchConfirmSchema.parse(await request.json());
 
+    // Validate tổng phân bổ phải khớp với tổng batch
+    const allocationTotal = allocations.reduce((sum, a) => sum + Number(a.amount), 0);
+    const diff = Math.abs(allocationTotal - Number(existing.totalAmount));
+    if (diff > 0.01) {
+        return NextResponse.json(
+            { error: `Tổng phân bổ (${allocationTotal.toLocaleString('vi-VN')}) không khớp với tổng batch (${Number(existing.totalAmount).toLocaleString('vi-VN')})` },
+            { status: 400 }
+        );
+    }
+
     const batch = await prisma.$transaction(async (tx) => {
         const projectIds = allocations.map(a => a.projectId);
         const validProjects = await tx.project.findMany({

@@ -26,7 +26,7 @@ export const PUT = withAuth(async (request, { params }, session) => {
         actorId: session.user.id,
     });
     return NextResponse.json(updated);
-});
+, { roles: ["giam_doc", "ke_toan"] });
 
 export const DELETE = withAuth(async (_request, { params }, session) => {
     const { id } = await params;
@@ -45,4 +45,4 @@ export const DELETE = withAuth(async (_request, { params }, session) => {
         actorId: session.user.id,
     });
     return NextResponse.json({ success: true });
-});
+, { roles: ["giam_doc", "ke_toan"] });

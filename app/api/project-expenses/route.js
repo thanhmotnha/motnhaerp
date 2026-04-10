@@ -132,4 +132,4 @@ export const DELETE = withAuth(async (request) => {
     if (!id) return NextResponse.json({ error: 'Missing id' }, { status: 400 });
     await prisma.projectExpense.delete({ where: { id } });
     return NextResponse.json({ success: true });
-});
+}, { roles: ['giam_doc', 'ke_toan'] });

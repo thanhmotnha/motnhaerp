@@ -36,7 +36,7 @@ export const GET = withAuth(async (request) => {
         ...paginatedResponse(data, total, { page, limit }),
         departments,
     });
-});
+}, { roles: ['giam_doc', 'ke_toan'] });
 
 export const POST = withAuth(async (request) => {
     const body = await request.json();

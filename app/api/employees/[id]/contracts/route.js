@@ -9,7 +9,7 @@ export const GET = withAuth(async (req, { params }) => {
         orderBy: { startDate: 'desc' },
     });
     return NextResponse.json(contracts);
-});
+, { roles: ["giam_doc", "ke_toan"] });
 
 export const POST = withAuth(async (req, { params }) => {
     const { id } = await params;
@@ -37,7 +37,7 @@ export const POST = withAuth(async (req, { params }) => {
     });
 
     return NextResponse.json(contract, { status: 201 });
-});
+, { roles: ["giam_doc", "ke_toan"] });
 
 export const PATCH = withAuth(async (req, { params }) => {
     const { id } = await params;
@@ -47,7 +47,7 @@ export const PATCH = withAuth(async (req, { params }) => {
         data: { status },
     });
     return NextResponse.json(updated);
-});
+, { roles: ["giam_doc", "ke_toan"] });
 
 export const DELETE = withAuth(async (req, { params }) => {
     const { id } = await params;
@@ -55,4 +55,4 @@ export const DELETE = withAuth(async (req, { params }) => {
     const contractId = searchParams.get('contractId');
     await prisma.employeeContract.delete({ where: { id: contractId, employeeId: id } });
     return NextResponse.json({ success: true });
-});
+, { roles: ["giam_doc", "ke_toan"] });

@@ -71,4 +71,4 @@ export const GET = withAuth(async (request) => {
             'Content-Disposition': `attachment; filename="bang-luong-VP-T${month}-${year}.xlsx"`,
         },
     });
-});
+}, { roles: ["giam_doc", "ke_toan"] });

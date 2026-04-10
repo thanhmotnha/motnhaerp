@@ -11,7 +11,7 @@ export const POST = withAuth(async (request, { params }, session) => {
 
     const debt = await prisma.contractorDebt.findUnique({
         where: { id },
-        select: { id: true, totalAmount: true, paidAmount: true },
+        select: { id: true, contractorId: true, totalAmount: true, paidAmount: true },
     });
     if (!debt) return NextResponse.json({ error: 'Không tìm thấy công nợ' }, { status: 404 });
 
@@ -20,7 +20,10 @@ export const POST = withAuth(async (request, { params }, session) => {
         return NextResponse.json({ error: `Số tiền vượt quá còn nợ (${remaining.toLocaleString('vi-VN')}đ)` }, { status: 400 });
     }
 
-    const code = await generateCode('contractorDebtPayment', 'TTTH');
+    const [code, logCode] = await Promise.all([
+        generateCode('contractorDebtPayment', 'TTTH'),
+        generateCode('contractorPaymentLog', 'CP'),
+    ]);
 
     const payment = await prisma.$transaction(async (tx) => {
         const current = await tx.contractorDebt.findUnique({
@@ -38,9 +41,20 @@ export const POST = withAuth(async (request, { params }, session) => {
                 where: { id },
                 data: { paidAmount: newPaid, status: newStatus },
             }),
+            // Đồng bộ sổ cái: tạo ContractorPaymentLog để /api/debt/contractors phản ánh khoản trả này
+            tx.contractorPaymentLog.create({
+                data: {
+                    code: logCode,
+                    contractorId: debt.contractorId,
+                    amount: data.amount,
+                    date: data.date ? new Date(data.date) : new Date(),
+                    notes: data.notes ?? '',
+                    createdById: session.user.id,
+                },
+            }),
         ]);
         return p;
     });
 
     return NextResponse.json(payment, { status: 201 });
-});
+}, { roles: ['giam_doc', 'ke_toan'] });

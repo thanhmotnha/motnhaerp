@@ -84,4 +84,4 @@ export const GET = withAuth(async (request) => {
     }
 
     return NextResponse.json({ data: events, count: events.length });
-});
+}, { roles: ['giam_doc', 'ke_toan'] });

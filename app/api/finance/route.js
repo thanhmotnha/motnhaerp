@@ -97,7 +97,7 @@ export const GET = withAuth(async (request) => {
                 - (payables._sum.paidAmount || 0) - totalExpensePaid - (expense._sum.amount || 0),
         },
     });
-});
+}, { roles: ['giam_doc', 'ke_toan'] });
 
 export const POST = withAuth(async (request) => {
     const body = await request.json();
@@ -116,4 +116,4 @@ export const POST = withAuth(async (request) => {
         },
     });
     return NextResponse.json(tx, { status: 201 });
-});
+}, { roles: ['giam_doc', 'ke_toan'] });

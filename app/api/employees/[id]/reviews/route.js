@@ -18,7 +18,7 @@ export const GET = withAuth(async (request, { params }) => {
         orderBy: { createdAt: 'desc' },
     });
     return NextResponse.json(reviews);
-});
+, { roles: ["giam_doc", "ke_toan"] });
 
 // POST — create new review
 export const POST = withAuth(async (request, { params }, session) => {
@@ -50,4 +50,4 @@ export const POST = withAuth(async (request, { params }, session) => {
     });
 
     return NextResponse.json(review, { status: 201 });
-});
+, { roles: ["giam_doc", "ke_toan"] });

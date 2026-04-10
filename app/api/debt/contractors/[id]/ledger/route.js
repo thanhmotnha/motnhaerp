@@ -98,4 +98,4 @@ export const GET = withAuth(async (request, context, session) => {
             closingBalance,
         },
     });
-});
+}, { roles: ["giam_doc", "ke_toan"] });

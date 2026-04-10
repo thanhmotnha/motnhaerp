@@ -101,5 +101,5 @@ export const GET = withAuth(async (request) => {
             cpi: d.actual > 0 ? Math.round((d.budget / d.actual) * 100) / 100 : null,
         })),
     });
-});
+}, { roles: ['giam_doc', 'ke_toan'] });
 

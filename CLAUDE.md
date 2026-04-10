@@ -92,13 +92,14 @@ const res = await apiFetch('/api/customers?page=1&limit=20');
 
 All schemas in `lib/validations/` use Zod with `.strict()` to reject unknown fields. Always import from the appropriate validation file, never inline validation logic.
 
-### Role-Based Access Control (4 Tiers)
+### Role-Based Access Control (5 Roles)
 
 Roles defined in `contexts/RoleContext.js` with granular permissions:
 - `giam_doc` — Full access (Giám đốc / Director)
-- `pho_gd` — Full except cannot delete expenses (Phó Giám đốc / Vice Director)
 - `ke_toan` — Finance, expenses, suppliers; no approve/reject (Kế toán / Accountant)
-- `ky_thuat` — Read-only projects, no finance/expenses (Kỹ thuật / Technical) — this is the default fallback role
+- `kinh_doanh` — Customers, quotations, contracts; no finance/warehouse (Kinh doanh / Sales)
+- `kho` — Purchasing, inventory/warehouse; no finance (Kho / Warehouse)
+- `ky_thuat` — Projects, purchasing, inventory; no finance (Kỹ thuật / Technical) — default fallback role
 
 Check roles in API routes via `session.user.role`; in UI via `useRole()` hook which returns `{ role, permissions }`. Permissions are boolean flags like `canApprove`, `canCreateExpense`, `canViewFinance`, etc.
 

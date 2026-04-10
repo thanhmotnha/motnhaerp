@@ -82,4 +82,4 @@ export const GET = withAuth(async (request) => {
     const grandTotal = Object.values(brackets).reduce((s, b) => s + b.total, 0);
 
     return NextResponse.json({ brackets, grandTotal, asOf: today });
-});
+}, { roles: ['giam_doc', 'ke_toan'] });

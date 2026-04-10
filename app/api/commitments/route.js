@@ -17,7 +17,7 @@ export const GET = withAuth(async (request) => {
         orderBy: [{ status: 'asc' }, { deadline: 'asc' }, { createdAt: 'desc' }],
     });
     return NextResponse.json(commitments);
-});
+}, { roles: ['giam_doc', 'ke_toan'] });
 
 export const POST = withAuth(async (request) => {
     const body = await request.json();
@@ -39,4 +39,4 @@ export const POST = withAuth(async (request) => {
         },
     });
     return NextResponse.json(commitment);
-});
+}, { roles: ['giam_doc', 'ke_toan'] });

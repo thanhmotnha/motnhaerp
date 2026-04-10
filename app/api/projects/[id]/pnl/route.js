@@ -118,4 +118,4 @@ export const GET = withAuth(async (request, { params }) => {
             cashProfit,
         },
     });
-});
+}, { roles: ['giam_doc', 'ke_toan'] });

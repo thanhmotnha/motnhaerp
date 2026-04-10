@@ -58,4 +58,4 @@ export const GET = withAuth(async (request, { params }) => {
             'Content-Disposition': `attachment; filename="${encodeURIComponent(filename)}"`,
         },
     });
-});
+}, { roles: ['giam_doc', 'ke_toan'] });

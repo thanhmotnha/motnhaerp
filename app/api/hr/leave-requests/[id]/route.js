@@ -61,10 +61,10 @@ export const PUT = withAuth(async (req, { params }) => {
     }
 
     return NextResponse.json(leaveRequest);
-});
+}, { roles: ['giam_doc', 'ke_toan'] });
 
 export const DELETE = withAuth(async (req, { params }) => {
     const { id } = await params;
     await prisma.leaveRequest.delete({ where: { id } });
     return NextResponse.json({ ok: true });
-});
+}, { roles: ['giam_doc', 'ke_toan'] });

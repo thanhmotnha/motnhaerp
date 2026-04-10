@@ -75,4 +75,4 @@ export const GET = withAuth(async (request) => {
         },
         budgetLockedAt: project.budgetLockedAt,
     });
-});
+}, { roles: ['giam_doc', 'ke_toan'] });

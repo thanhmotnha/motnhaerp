@@ -50,7 +50,7 @@ export const GET = withAuth(async (request, { params }) => {
         attendanceSummary,
         leaveTakenThisYear: leaveThisYear._sum.days || 0,
     });
-});
+}, { roles: ['giam_doc', 'ke_toan'] });
 
 export const PUT = withAuth(async (request, { params }) => {
     const { id } = await params;
@@ -58,10 +58,10 @@ export const PUT = withAuth(async (request, { params }) => {
     const data = employeeUpdateSchema.parse(body);
     const employee = await prisma.employee.update({ where: { id }, data });
     return NextResponse.json(employee);
-});
+}, { roles: ['giam_doc', 'ke_toan'] });
 
 export const DELETE = withAuth(async (request, { params }) => {
     const { id } = await params;
     await prisma.employee.update({ where: { id }, data: { deletedAt: new Date(), status: 'Nghỉ việc' } });
     return NextResponse.json({ success: true });
-});
+}, { roles: ['giam_doc', 'ke_toan'] });

@@ -30,73 +30,79 @@ export const POST = withAuth(async (request, _ctx, session) => {
     const body = await request.json();
     const data = stockIssueCreateSchema.parse(body);
 
-    // Validate tồn kho đủ cho từng item
-    for (const item of data.items) {
-        if (!item.productId) continue;
-        const product = await prisma.product.findUnique({
-            where: { id: item.productId },
-            select: { stock: true, name: true },
-        });
-        if (!product) return NextResponse.json({ error: 'Sản phẩm không tồn tại' }, { status: 400 });
-        if ((product.stock || 0) < item.qty) {
-            return NextResponse.json(
-                { error: `${item.productName}: tồn kho không đủ (tồn: ${product.stock}, cần: ${item.qty})` },
-                { status: 400 }
-            );
-        }
-    }
-
     const code = await generateCode('stockIssue', 'PXK');
 
-    const issue = await prisma.$transaction(async (tx) => {
-        const si = await tx.stockIssue.create({
-            data: {
-                code,
-                warehouseId: data.warehouseId,
-                projectId: data.projectId,
-                issuedDate: data.issuedDate || new Date(),
-                issuedBy: data.issuedBy || '',
-                notes: data.notes || '',
-                createdById: session.user.id,
-                items: {
-                    create: data.items.map(it => ({
-                        productId: it.productId,
-                        productName: it.productName,
-                        unit: it.unit,
-                        qty: it.qty,
-                        unitPrice: it.unitPrice,
-                    })),
-                },
-            },
-            include: { items: true },
-        });
-
-        for (const item of si.items) {
-            if (item.productId) {
-                await tx.product.update({
+    let issue;
+    try {
+        issue = await prisma.$transaction(async (tx) => {
+            // Validate tồn kho đủ bên trong transaction để tránh race condition
+            for (const item of data.items) {
+                if (!item.productId) continue;
+                const product = await tx.product.findUnique({
                     where: { id: item.productId },
-                    data: { stock: { decrement: item.qty } },
+                    select: { stock: true, name: true },
                 });
-
-                const txCode = await generateCode('inventoryTransaction', 'XK');
-                await tx.inventoryTransaction.create({
-                    data: {
-                        code: txCode,
-                        type: 'Xuất',
-                        quantity: item.qty,
-                        unit: item.unit,
-                        note: `Phiếu xuất ${si.code}`,
-                        productId: item.productId,
-                        warehouseId: data.warehouseId,
-                        projectId: data.projectId || null,
-                        date: data.issuedDate || new Date(),
-                    },
-                });
+                if (!product) throw Object.assign(new Error('Sản phẩm không tồn tại'), { status: 400 });
+                if ((product.stock || 0) < item.qty) {
+                    throw Object.assign(
+                        new Error(`${item.productName}: tồn kho không đủ (tồn: ${product.stock}, cần: ${item.qty})`),
+                        { status: 400 }
+                    );
+                }
             }
-        }
 
-        return si;
-    });
+            const si = await tx.stockIssue.create({
+                data: {
+                    code,
+                    warehouseId: data.warehouseId,
+                    projectId: data.projectId,
+                    issuedDate: data.issuedDate || new Date(),
+                    issuedBy: data.issuedBy || '',
+                    notes: data.notes || '',
+                    createdById: session.user.id,
+                    items: {
+                        create: data.items.map(it => ({
+                            productId: it.productId,
+                            productName: it.productName,
+                            unit: it.unit,
+                            qty: it.qty,
+                            unitPrice: it.unitPrice,
+                        })),
+                    },
+                },
+                include: { items: true },
+            });
+
+            for (const item of si.items) {
+                if (item.productId) {
+                    await tx.product.update({
+                        where: { id: item.productId },
+                        data: { stock: { decrement: item.qty } },
+                    });
+
+                    const txCode = await generateCode('inventoryTransaction', 'XK');
+                    await tx.inventoryTransaction.create({
+                        data: {
+                            code: txCode,
+                            type: 'Xuất',
+                            quantity: item.qty,
+                            unit: item.unit,
+                            note: `Phiếu xuất ${si.code}`,
+                            productId: item.productId,
+                            warehouseId: data.warehouseId,
+                            projectId: data.projectId || null,
+                            date: data.issuedDate || new Date(),
+                        },
+                    });
+                }
+            }
+
+            return si;
+        });
+    } catch (e) {
+        if (e.status === 400) return NextResponse.json({ error: e.message }, { status: 400 });
+        throw e;
+    }
 
     return NextResponse.json(issue, { status: 201 });
 });

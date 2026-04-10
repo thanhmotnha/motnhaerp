@@ -16,10 +16,10 @@ export const PUT = withAuth(async (request, { params }) => {
         include: { commitments: true },
     });
     return NextResponse.json(entry);
-});
+}, { roles: ['giam_doc', 'ke_toan'] });
 
 export const DELETE = withAuth(async (request, { params }) => {
     const { id } = await params;
     await prisma.journalEntry.delete({ where: { id } });
     return NextResponse.json({ success: true });
-});
+}, { roles: ['giam_doc', 'ke_toan'] });

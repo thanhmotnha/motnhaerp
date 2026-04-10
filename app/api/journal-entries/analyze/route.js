@@ -18,4 +18,4 @@ export const POST = withAuth(async (request) => {
     } catch (err) {
         return NextResponse.json({ error: err.message }, { status: 500 });
     }
-});
+}, { roles: ['giam_doc', 'ke_toan'] });

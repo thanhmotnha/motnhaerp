@@ -66,4 +66,4 @@ export const GET = withAuth(async () => {
     const totalOutstanding = rows.reduce((s, r) => s + r.outstanding, 0);
 
     return NextResponse.json({ rows, bucketTotals, totalOutstanding, BUCKETS });
-});
+}, { roles: ['giam_doc', 'ke_toan'] });

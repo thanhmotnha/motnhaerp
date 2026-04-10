@@ -37,4 +37,4 @@ export const PUT = withAuth(async (request, { params }) => {
 
     const updated = await prisma.contractorPayment.update({ where: { id }, data, include: { items: true } });
     return NextResponse.json(updated);
-});
+}, { roles: ['giam_doc', 'ke_toan'] });

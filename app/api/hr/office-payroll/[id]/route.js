@@ -63,4 +63,4 @@ export const PATCH = withAuth(async (request, { params }) => {
     });
 
     return NextResponse.json(updated);
-});
+}, { roles: ["giam_doc", "ke_toan"] });

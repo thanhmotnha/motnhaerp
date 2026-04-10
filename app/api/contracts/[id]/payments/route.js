@@ -33,7 +33,7 @@ export const POST = withAuth(async (request, { params }) => {
     });
 
     return NextResponse.json(payment);
-});
+, { roles: ["giam_doc", "ke_toan"] });
 
 // PATCH — update a single payment (proof, paidAmount, paidDate, status)
 export const PATCH = withAuth(async (request, { params }) => {
@@ -60,7 +60,7 @@ export const PATCH = withAuth(async (request, { params }) => {
     });
 
     return NextResponse.json(payment);
-});
+, { roles: ["giam_doc", "ke_toan"] });
 
 // PUT — batch replace all payment phases
 export const PUT = withAuth(async (request, { params }) => {
@@ -139,4 +139,4 @@ export const PUT = withAuth(async (request, { params }) => {
         orderBy: { createdAt: 'asc' },
     });
     return NextResponse.json(payments);
-});
+, { roles: ["giam_doc", "ke_toan"] });

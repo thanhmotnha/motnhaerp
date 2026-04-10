@@ -111,4 +111,4 @@ export const GET = withAuth(async (request) => {
             totalProfit: totalRevenue - totalExpense,
         },
     });
-});
+}, { roles: ['giam_doc', 'ke_toan'] });

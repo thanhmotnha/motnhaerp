@@ -52,7 +52,7 @@ export const GET = withAuth(async (request) => {
     });
 
     return NextResponse.json({ month, year, totalWorkdays, employees: result });
-});
+}, { roles: ['giam_doc', 'ke_toan'] });
 
 export const POST = withAuth(async (request) => {
     const body = await request.json();
@@ -64,7 +64,7 @@ export const POST = withAuth(async (request) => {
         create: { employeeId, month, year, workDays, leaveDays, unpaidDays, overtimeHrs, bonus, deduction, netSalary, notes },
     });
     return NextResponse.json(att);
-});
+}, { roles: ['giam_doc', 'ke_toan'] });
 
 function getWorkdaysInMonth(year, month) {
     const days = new Date(year, month, 0).getDate(); // total days

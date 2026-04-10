@@ -95,4 +95,4 @@ export const GET = withAuth(async (request) => {
         })),
         projects: Object.values(projectMap).sort((a, b) => b.totalAllocated - a.totalAllocated),
     });
-});
+}, { roles: ["giam_doc", "ke_toan"] });

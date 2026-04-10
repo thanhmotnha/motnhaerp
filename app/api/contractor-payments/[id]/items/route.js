@@ -36,4 +36,4 @@ export const POST = withAuth(async (request, { params }) => {
     });
 
     return NextResponse.json(item, { status: 201 });
-});
+}, { roles: ['giam_doc', 'ke_toan'] });

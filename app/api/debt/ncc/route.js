@@ -77,7 +77,7 @@ export const GET = withAuth(async (request, context, session) => {
     const totalSoDu = filtered.reduce((acc, s) => acc + s.soDu, 0);
 
     return NextResponse.json({ suppliers: filtered, totalSoDu });
-});
+}, { roles: ['giam_doc', 'ke_toan'] });
 
 // POST — Record supplier payment
 export const POST = withAuth(async (request, context, session) => {
@@ -106,7 +106,7 @@ export const POST = withAuth(async (request, context, session) => {
     });
 
     return NextResponse.json(payment, { status: 201 });
-});
+}, { roles: ['giam_doc', 'ke_toan'] });
 
 // PATCH — Update supplier openingBalance
 export const PATCH = withAuth(async (request, context, session) => {
@@ -129,4 +129,4 @@ export const PATCH = withAuth(async (request, context, session) => {
     });
 
     return NextResponse.json(updated);
-});
+}, { roles: ['giam_doc', 'ke_toan'] });

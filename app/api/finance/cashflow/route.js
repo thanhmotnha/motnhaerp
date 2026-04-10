@@ -112,4 +112,4 @@ export const GET = withAuth(async (request) => {
             net: result.reduce((s, m) => s + m.net, 0),
         },
     });
-});
+}, { roles: ['giam_doc', 'ke_toan'] });

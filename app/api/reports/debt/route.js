@@ -64,4 +64,4 @@ export const GET = withAuth(async () => {
     const contractorAging = Object.fromEntries(BUCKETS.map(b => [b, topContractors.reduce((s, x) => s + (x.aging[b] || 0), 0)]));
 
     return NextResponse.json({ supplierTotal, contractorTotal, supplierAging, contractorAging, topSuppliers, topContractors });
-});
+}, { roles: ['giam_doc', 'ke_toan'] });

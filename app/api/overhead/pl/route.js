@@ -72,4 +72,4 @@ export const GET = withAuth(async (request) => {
         projects: projectPL,
         batches,
     });
-});
+}, { roles: ["giam_doc", "ke_toan"] });

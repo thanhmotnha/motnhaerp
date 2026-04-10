@@ -12,7 +12,7 @@ export const GET = withAuth(async (request) => {
         orderBy: { createdAt: 'desc' },
     });
     return NextResponse.json(orders);
-});
+}, { roles: ['giam_doc', 'ke_toan'] });
 
 export const POST = withAuth(async (request) => {
     const body = await request.json();
@@ -35,4 +35,4 @@ export const POST = withAuth(async (request) => {
         },
     });
     return NextResponse.json(order);
-});
+}, { roles: ['giam_doc', 'ke_toan'] });

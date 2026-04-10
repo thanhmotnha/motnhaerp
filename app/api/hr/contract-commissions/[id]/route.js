@@ -7,4 +7,4 @@ export const DELETE = withAuth(async (request, { params }) => {
     const { id } = await params;
     await prisma.contractCommission.delete({ where: { id } });
     return NextResponse.json({ success: true });
-});
+}, { roles: ["giam_doc", "ke_toan"] });

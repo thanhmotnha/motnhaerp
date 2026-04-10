@@ -109,7 +109,7 @@ export const GET = withAuth(async (request, context, session) => {
     const totalGiuLai = filtered.reduce((acc, c) => acc + c.giuLai, 0);
 
     return NextResponse.json({ contractors: filtered, totalSoDu, totalGiuLai });
-});
+}, { roles: ['giam_doc', 'ke_toan'] });
 
 // POST — Record contractor payment
 export const POST = withAuth(async (request, context, session) => {
@@ -138,7 +138,7 @@ export const POST = withAuth(async (request, context, session) => {
     });
 
     return NextResponse.json(log, { status: 201 });
-});
+}, { roles: ['giam_doc', 'ke_toan'] });
 
 // PATCH — Update contractor openingBalance
 export const PATCH = withAuth(async (request, context, session) => {
@@ -161,4 +161,4 @@ export const PATCH = withAuth(async (request, context, session) => {
     });
 
     return NextResponse.json(updated);
-});
+}, { roles: ['giam_doc', 'ke_toan'] });

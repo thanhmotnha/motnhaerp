@@ -108,4 +108,4 @@ export const GET = withAuth(async () => {
     };
 
     return NextResponse.json({ rows, summary });
-});
+}, { roles: ["giam_doc", "ke_toan"] });

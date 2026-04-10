@@ -61,4 +61,4 @@ export const GET = withAuth(async (request) => {
             budgetTotal: p.quantity * (p.budgetUnitPrice || p.unitPrice),
         })),
     });
-});
+}, { roles: ['giam_doc', 'ke_toan'] });

@@ -118,4 +118,4 @@ export const GET = withAuth(async (request) => {
             projectEnd: endDate,
         },
     });
-});
+}, { roles: ['giam_doc', 'ke_toan'] });

@@ -11,7 +11,7 @@ export const POST = withAuth(async (request, { params }, session) => {
 
     const debt = await prisma.supplierDebt.findUnique({
         where: { id },
-        select: { id: true, totalAmount: true, paidAmount: true, status: true },
+        select: { id: true, supplierId: true, totalAmount: true, paidAmount: true, status: true },
     });
     if (!debt) return NextResponse.json({ error: 'Không tìm thấy công nợ' }, { status: 404 });
 
@@ -20,7 +20,10 @@ export const POST = withAuth(async (request, { params }, session) => {
         return NextResponse.json({ error: `Số tiền vượt quá còn nợ (${remaining.toLocaleString('vi-VN')}đ)` }, { status: 400 });
     }
 
-    const code = await generateCode('supplierDebtPayment', 'TTNCC');
+    const [code, spCode] = await Promise.all([
+        generateCode('supplierDebtPayment', 'TTNCC'),
+        generateCode('supplierPayment', 'SP'),
+    ]);
 
     const payment = await prisma.$transaction(async (tx) => {
         const current = await tx.supplierDebt.findUnique({
@@ -38,9 +41,21 @@ export const POST = withAuth(async (request, { params }, session) => {
                 where: { id },
                 data: { paidAmount: newPaid, status: newStatus },
             }),
+            // Đồng bộ sổ cái: tạo SupplierPayment để /api/debt/ncc phản ánh khoản trả này
+            tx.supplierPayment.create({
+                data: {
+                    code: spCode,
+                    supplierId: debt.supplierId,
+                    amount: data.amount,
+                    date: data.date ? new Date(data.date) : new Date(),
+                    notes: data.notes ?? '',
+                    paymentAccount: data.paymentAccount || '',
+                    createdById: session.user.id,
+                },
+            }),
         ]);
         return p;
     });
 
     return NextResponse.json(payment, { status: 201 });
-});
+}, { roles: ['giam_doc', 'ke_toan'] });

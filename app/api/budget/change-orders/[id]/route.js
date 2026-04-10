@@ -38,10 +38,10 @@ export const PUT = withAuth(async (request, { params }) => {
         data: { status, approvedBy },
     });
     return NextResponse.json(updated);
-});
+}, { roles: ['giam_doc', 'ke_toan'] });
 
 export const DELETE = withAuth(async (request, { params }) => {
     const { id } = await params;
     await prisma.budgetChangeOrder.delete({ where: { id } });
     return NextResponse.json({ success: true });
-});
+}, { roles: ['giam_doc', 'ke_toan'] });

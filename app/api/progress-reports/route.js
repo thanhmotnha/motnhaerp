@@ -23,7 +23,7 @@ export const GET = withAuth(async (request) => {
     });
 
     return NextResponse.json(reports);
-});
+}, { roles: ['giam_doc', 'ke_toan'] });
 
 /**
  * POST /api/progress-reports
@@ -118,4 +118,4 @@ export const POST = withAuth(async (request) => {
     }
 
     return NextResponse.json(result, { status: 201 });
-});
+}, { roles: ['giam_doc', 'ke_toan'] });

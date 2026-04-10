@@ -17,4 +17,4 @@ export const DELETE = withAuth(async (request, { params }) => {
     });
 
     return NextResponse.json({ success: true });
-});
+}, { roles: ['giam_doc', 'ke_toan'] });

@@ -23,4 +23,4 @@ export const GET = withAuth(async () => {
         ],
         details: qByStatus,
     });
-});
+}, { roles: ['giam_doc', 'ke_toan'] });

@@ -36,7 +36,7 @@ export const GET = withAuth(async (request) => {
     };
 
     return NextResponse.json({ data: records, summary });
-});
+, { roles: ["giam_doc", "ke_toan"] });
 
 export const POST = withAuth(async (request) => {
     const { month, year } = await request.json();
@@ -152,4 +152,4 @@ export const POST = withAuth(async (request) => {
     }
 
     return NextResponse.json({ data: records, count: records.length }, { status: 201 });
-});
+, { roles: ["giam_doc", "ke_toan"] });
