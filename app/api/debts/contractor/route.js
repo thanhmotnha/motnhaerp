@@ -29,7 +29,7 @@ export const GET = withAuth(async (request) => {
         ...d,
         remaining: d.totalAmount - d.paidAmount,
     })));
-, { roles: ["giam_doc", "ke_toan"] });
+}, { roles: ["giam_doc", "ke_toan"] });
 
 export const POST = withAuth(async (request, _ctx, session) => {
     const body = await request.json();
@@ -44,4 +44,4 @@ export const POST = withAuth(async (request, _ctx, session) => {
         },
     });
     return NextResponse.json({ ...debt, remaining: debt.totalAmount - debt.paidAmount }, { status: 201 });
-, { roles: ["giam_doc", "ke_toan"] });
+}, { roles: ["giam_doc", "ke_toan"] });

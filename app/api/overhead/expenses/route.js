@@ -34,7 +34,7 @@ export const GET = withAuth(async (request) => {
         prisma.overheadExpense.count({ where }),
     ]);
     return NextResponse.json(paginatedResponse(data, total, { page, limit }));
-, { roles: ["giam_doc", "ke_toan"] });
+}, { roles: ["giam_doc", "ke_toan"] });
 
 export const POST = withAuth(async (request, _ctx, session) => {
     const body = await request.json();
@@ -53,4 +53,4 @@ export const POST = withAuth(async (request, _ctx, session) => {
         actorId: session.user.id,
     });
     return NextResponse.json(expense, { status: 201 });
-, { roles: ["giam_doc", "ke_toan"] });
+}, { roles: ["giam_doc", "ke_toan"] });

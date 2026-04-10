@@ -15,7 +15,7 @@ export const GET = withAuth(async (request, { params }) => {
     });
     if (!debt) return NextResponse.json({ error: 'Không tìm thấy' }, { status: 404 });
     return NextResponse.json({ ...debt, remaining: debt.totalAmount - debt.paidAmount });
-, { roles: ["giam_doc", "ke_toan"] });
+}, { roles: ["giam_doc", "ke_toan"] });
 
 export const PUT = withAuth(async (request, { params }) => {
     const { id } = await params;
@@ -23,7 +23,7 @@ export const PUT = withAuth(async (request, { params }) => {
     const data = supplierDebtUpdateSchema.parse(body);
     const debt = await prisma.supplierDebt.update({ where: { id }, data });
     return NextResponse.json({ ...debt, remaining: debt.totalAmount - debt.paidAmount });
-, { roles: ["giam_doc", "ke_toan"] });
+}, { roles: ["giam_doc", "ke_toan"] });
 
 export const DELETE = withAuth(async (request, { params }) => {
     const { id } = await params;
@@ -32,4 +32,4 @@ export const DELETE = withAuth(async (request, { params }) => {
     if (debt.paidAmount > 0) return NextResponse.json({ error: 'Không thể xóa — đã có thanh toán' }, { status: 400 });
     await prisma.supplierDebt.delete({ where: { id } });
     return NextResponse.json({ success: true });
-, { roles: ["giam_doc", "ke_toan"] });
+}, { roles: ["giam_doc", "ke_toan"] });

@@ -34,7 +34,7 @@ export const GET = withAuth(async (request) => {
     });
 
     return NextResponse.json({ data: records, count: records.length });
-, { roles: ["giam_doc", "ke_toan"] });
+}, { roles: ["giam_doc", "ke_toan"] });
 
 // POST /api/hr/daily-attendance — upsert chấm công ngày
 export const POST = withAuth(async (request) => {
@@ -68,4 +68,4 @@ export const POST = withAuth(async (request) => {
     });
 
     return NextResponse.json(record);
-, { roles: ["giam_doc", "ke_toan"] });
+}, { roles: ["giam_doc", "ke_toan"] });

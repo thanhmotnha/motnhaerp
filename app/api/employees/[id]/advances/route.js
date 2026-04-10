@@ -10,7 +10,7 @@ export const GET = withAuth(async (request, { params }) => {
         orderBy: { requestDate: 'desc' },
     });
     return NextResponse.json(advances);
-, { roles: ["giam_doc", "ke_toan"] });
+}, { roles: ["giam_doc", "ke_toan"] });
 
 // POST — create salary advance request
 export const POST = withAuth(async (request, { params }) => {
@@ -32,7 +32,7 @@ export const POST = withAuth(async (request, { params }) => {
     });
 
     return NextResponse.json(advance, { status: 201 });
-, { roles: ["giam_doc", "ke_toan"] });
+}, { roles: ["giam_doc", "ke_toan"] });
 
 // PATCH — approve/reject advance (from body: { id, status, approvedBy })
 export const PATCH = withAuth(async (request, { params }) => {
@@ -55,4 +55,4 @@ export const PATCH = withAuth(async (request, { params }) => {
     });
 
     return NextResponse.json(advance);
-, { roles: ["giam_doc", "ke_toan"] });
+}, { roles: ["giam_doc", "ke_toan"] });
