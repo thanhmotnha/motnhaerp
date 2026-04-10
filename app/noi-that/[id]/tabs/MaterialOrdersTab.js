@@ -24,14 +24,20 @@ export default function MaterialOrdersTab({ orderId, order, onRefresh }) {
     const [editType, setEditType] = useState(null);
     const [editItems, setEditItems] = useState([]);
     const [saving, setSaving] = useState(false);
+
+    // Import từ Chốt VL
     const [showImportModal, setShowImportModal] = useState(false);
-    const [importRows, setImportRows] = useState([]); // { ...item, assignedType }
+    const [importRows, setImportRows] = useState([]);
     const [importing, setImporting] = useState(false);
-    const [showPoModal, setShowPoModal] = useState(false);
-    const [poType, setPoType] = useState(null);
-    const [poForm, setPoForm] = useState({ supplier: '', deliveryDate: '', notes: '', deliveryAddress: '' });
+
+    // Bulk PO
+    const [showBulkModal, setShowBulkModal] = useState(false);
     const [suppliers, setSuppliers] = useState([]);
-    const [creatingPo, setCreatingPo] = useState(false);
+    const [bulkSuppliers, setBulkSuppliers] = useState({ VAN: '', NEP: '', ACRYLIC: '' });
+    const [bulkShared, setBulkShared] = useState({ deliveryDate: '', deliveryAddress: '', notes: '' });
+    const [stockMap, setStockMap] = useState({}); // colorCode → stock number
+    const [stockLoading, setStockLoading] = useState(false);
+    const [creatingBulk, setCreatingBulk] = useState(false);
 
     const fetchMaterialOrders = useCallback(async () => {
         const data = await apiFetch(`/api/furniture-orders/${orderId}/material-orders`);
@@ -40,6 +46,7 @@ export default function MaterialOrdersTab({ orderId, order, onRefresh }) {
 
     useEffect(() => { fetchMaterialOrders(); }, [fetchMaterialOrders]);
 
+    // ── Edit items ──────────────────────────────────────────────────
     const startEdit = (type) => {
         const mo = materialOrders[type];
         setEditItems(mo?.items?.length > 0 ? mo.items.map(i => ({ ...i })) : [emptyItem()]);
@@ -62,34 +69,10 @@ export default function MaterialOrdersTab({ orderId, order, onRefresh }) {
         }
     };
 
-    const openPoModal = async (type) => {
-        if (suppliers.length === 0) {
-            const d = await apiFetch('/api/suppliers?limit=500');
-            setSuppliers(d.data || []);
-        }
-        setPoType(type);
-        setPoForm({ supplier: '', deliveryDate: '', notes: '', deliveryAddress: order.deliveryAddress || '' });
-        setShowPoModal(true);
-    };
+    const updateItem = (idx, field, value) =>
+        setEditItems(prev => { const n = [...prev]; n[idx] = { ...n[idx], [field]: value }; return n; });
 
-    const createPo = async () => {
-        if (!poForm.supplier.trim()) return alert('Nhập tên nhà cung cấp!');
-        setCreatingPo(true);
-        try {
-            await apiFetch(`/api/furniture-orders/${orderId}/material-orders/${poType}/create-po`, {
-                method: 'POST',
-                body: poForm,
-            });
-            setShowPoModal(false);
-            await fetchMaterialOrders();
-            onRefresh();
-        } catch (err) {
-            alert(err.message || 'Lỗi tạo PO');
-        } finally {
-            setCreatingPo(false);
-        }
-    };
-
+    // ── Import từ Chốt VL ──────────────────────────────────────────
     const openImportModal = () => {
         const allItems = (order.materialSelections || [])
             .flatMap(sel => sel.items || [])
@@ -120,8 +103,7 @@ export default function MaterialOrdersTab({ orderId, order, onRefresh }) {
                     .filter(([, items]) => items.length > 0)
                     .map(([type, items]) =>
                         apiFetch(`/api/furniture-orders/${orderId}/material-orders/${type}`, {
-                            method: 'PUT',
-                            body: { items },
+                            method: 'PUT', body: { items },
                         })
                     )
             );
@@ -134,20 +116,92 @@ export default function MaterialOrdersTab({ orderId, order, onRefresh }) {
         }
     };
 
-    const updateItem = (idx, field, value) =>
-        setEditItems(prev => { const n = [...prev]; n[idx] = { ...n[idx], [field]: value }; return n; });
+    // ── Bulk PO ────────────────────────────────────────────────────
+    const openBulkModal = async () => {
+        if (suppliers.length === 0) {
+            const d = await apiFetch('/api/suppliers?limit=500');
+            setSuppliers(d.data || []);
+        }
+        setBulkSuppliers({ VAN: '', NEP: '', ACRYLIC: '' });
+        setBulkShared({ deliveryDate: '', deliveryAddress: order.deliveryAddress || '', notes: '' });
 
+        // Fetch stock cho tất cả items VAN
+        const vanItems = materialOrders.VAN?.items || [];
+        const codes = [...new Set(vanItems.map(i => i.colorCode).filter(Boolean))];
+        if (codes.length > 0) {
+            setStockLoading(true);
+            const map = {};
+            await Promise.all(codes.map(async (code) => {
+                try {
+                    const res = await apiFetch(`/api/products?search=${encodeURIComponent(code)}&limit=1`);
+                    const p = res.data?.[0];
+                    map[code] = p ? p.stock : null;
+                } catch { map[code] = null; }
+            }));
+            setStockMap(map);
+            setStockLoading(false);
+        } else {
+            setStockMap({});
+        }
+
+        setShowBulkModal(true);
+    };
+
+    const createAllPo = async () => {
+        // Validate: tất cả type có items phải có supplier
+        const typesWithItems = Object.entries(materialOrders)
+            .filter(([, mo]) => mo?.items?.length > 0 && !mo?.purchaseOrderId);
+        const missing = typesWithItems.filter(([type]) => !bulkSuppliers[type]?.trim());
+        if (missing.length > 0) {
+            return alert(`Cần nhập nhà cung cấp cho: ${missing.map(([t]) => TYPE_CONFIG[t].label).join(', ')}`);
+        }
+
+        setCreatingBulk(true);
+        try {
+            for (const [type] of typesWithItems) {
+                await apiFetch(`/api/furniture-orders/${orderId}/material-orders/${type}/create-po`, {
+                    method: 'POST',
+                    body: {
+                        supplier: bulkSuppliers[type],
+                        deliveryDate: bulkShared.deliveryDate || undefined,
+                        deliveryAddress: bulkShared.deliveryAddress,
+                        notes: bulkShared.notes,
+                    },
+                });
+            }
+            setShowBulkModal(false);
+            await fetchMaterialOrders();
+            onRefresh();
+        } catch (err) {
+            alert(err.message || 'Lỗi tạo PO');
+        } finally {
+            setCreatingBulk(false);
+        }
+    };
+
+    // ── Derived state ──────────────────────────────────────────────
     const hasSelectionItems = (order.materialSelections || []).some(s => (s.items || []).length > 0);
+    const typesWithItems = Object.entries(materialOrders).filter(([, mo]) => mo?.items?.length > 0);
+    const typesNeedingPo = typesWithItems.filter(([, mo]) => !mo?.purchaseOrderId);
+    const canOrderAll = typesNeedingPo.length > 0 && editType === null;
 
     return (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-            {hasSelectionItems && (
-                <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+            {/* Toolbar */}
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+                {hasSelectionItems && (
                     <button className="btn btn-ghost btn-sm" onClick={openImportModal}>
                         📥 Import từ Chốt VL
                     </button>
-                </div>
-            )}
+                )}
+                {canOrderAll && (
+                    <button className="btn btn-primary btn-sm" onClick={openBulkModal}>
+                        🛒 Đặt hàng vật liệu ({typesNeedingPo.length} loại)
+                    </button>
+                )}
+            </div>
+
+            {/* Type cards */}
             {Object.entries(TYPE_CONFIG).map(([type, cfg]) => {
                 const mo = materialOrders[type];
                 const isEditing = editType === type;
@@ -162,7 +216,7 @@ export default function MaterialOrdersTab({ orderId, order, onRefresh }) {
                                     </span>
                                 )}
                                 {mo?.purchaseOrder && (
-                                    <a href={`/purchasing`} style={{ fontSize: 12, color: 'var(--status-info)' }} title={mo.purchaseOrder.code}>
+                                    <a href="/purchasing" style={{ fontSize: 12, color: 'var(--status-info)' }} title={mo.purchaseOrder.code}>
                                         📋 {mo.purchaseOrder.code}
                                     </a>
                                 )}
@@ -170,11 +224,6 @@ export default function MaterialOrdersTab({ orderId, order, onRefresh }) {
                                     <button className="btn btn-ghost btn-sm"
                                         onClick={() => isEditing ? saveItems() : startEdit(type)}>
                                         {isEditing ? (saving ? 'Đang lưu...' : '💾 Lưu') : '✏️ Sửa'}
-                                    </button>
-                                )}
-                                {!mo?.purchaseOrderId && mo?.items?.length > 0 && !isEditing && (
-                                    <button className="btn btn-primary btn-sm" onClick={() => openPoModal(type)}>
-                                        🛒 Tạo PO
                                     </button>
                                 )}
                             </div>
@@ -233,6 +282,7 @@ export default function MaterialOrdersTab({ orderId, order, onRefresh }) {
                 );
             })}
 
+            {/* Modal: Import từ Chốt VL */}
             {showImportModal && (
                 <div className="modal-overlay" onClick={() => setShowImportModal(false)}>
                     <div className="modal" style={{ maxWidth: 780, maxHeight: '85vh', overflowY: 'auto' }} onClick={e => e.stopPropagation()}>
@@ -279,40 +329,93 @@ export default function MaterialOrdersTab({ orderId, order, onRefresh }) {
                 </div>
             )}
 
-            {showPoModal && (
-                <div className="modal-overlay" onClick={() => setShowPoModal(false)}>
-                    <div className="modal" style={{ maxWidth: 480 }} onClick={e => e.stopPropagation()}>
+            {/* Modal: Đặt hàng vật liệu (bulk) */}
+            {showBulkModal && (
+                <div className="modal-overlay" onClick={() => setShowBulkModal(false)}>
+                    <div className="modal" style={{ maxWidth: 680, maxHeight: '90vh', overflowY: 'auto' }} onClick={e => e.stopPropagation()}>
                         <div className="modal-header">
-                            <h3 className="modal-title">Tạo PO — {TYPE_CONFIG[poType]?.label}</h3>
-                            <button className="modal-close" onClick={() => setShowPoModal(false)}>×</button>
+                            <h3 className="modal-title">🛒 Đặt hàng nguyên vật liệu</h3>
+                            <button className="modal-close" onClick={() => setShowBulkModal(false)}>×</button>
                         </div>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                            <div>
-                                <label style={{ fontSize: 12, color: 'var(--text-muted)' }}>Nhà cung cấp *</label>
-                                <input className="form-input" placeholder="Tên nhà cung cấp" value={poForm.supplier}
-                                    onChange={e => setPoForm({ ...poForm, supplier: e.target.value })} list="ncc-list" />
-                                <datalist id="ncc-list">
-                                    {suppliers.map(s => <option key={s.id} value={s.name} />)}
-                                </datalist>
-                            </div>
+
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                            {/* Thông tin giao hàng chung */}
                             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
                                 <div>
                                     <label style={{ fontSize: 12, color: 'var(--text-muted)' }}>Ngày giao</label>
-                                    <input type="date" className="form-input" value={poForm.deliveryDate}
-                                        onChange={e => setPoForm({ ...poForm, deliveryDate: e.target.value })} />
+                                    <input type="date" className="form-input" value={bulkShared.deliveryDate}
+                                        onChange={e => setBulkShared(f => ({ ...f, deliveryDate: e.target.value }))} />
                                 </div>
                                 <div>
                                     <label style={{ fontSize: 12, color: 'var(--text-muted)' }}>Địa chỉ giao</label>
-                                    <input className="form-input" value={poForm.deliveryAddress}
-                                        onChange={e => setPoForm({ ...poForm, deliveryAddress: e.target.value })} />
+                                    <input className="form-input" value={bulkShared.deliveryAddress}
+                                        onChange={e => setBulkShared(f => ({ ...f, deliveryAddress: e.target.value }))} />
                                 </div>
                             </div>
-                            <textarea className="form-input" rows={2} placeholder="Ghi chú..." value={poForm.notes}
-                                onChange={e => setPoForm({ ...poForm, notes: e.target.value })} />
+                            <div>
+                                <label style={{ fontSize: 12, color: 'var(--text-muted)' }}>Ghi chú chung</label>
+                                <input className="form-input" value={bulkShared.notes}
+                                    onChange={e => setBulkShared(f => ({ ...f, notes: e.target.value }))} placeholder="Ghi chú..." />
+                            </div>
+
+                            {/* Supplier + items per type */}
+                            {typesNeedingPo.map(([type, mo]) => (
+                                <div key={type} style={{ border: '1px solid var(--border)', borderRadius: 8, padding: 12 }}>
+                                    <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 10 }}>
+                                        <span style={{ fontWeight: 600, fontSize: 13 }}>{TYPE_CONFIG[type].icon} {TYPE_CONFIG[type].label}</span>
+                                        <div style={{ flex: 1 }}>
+                                            <input className="form-input" style={{ fontSize: 12 }}
+                                                placeholder="Nhà cung cấp *" value={bulkSuppliers[type]}
+                                                onChange={e => setBulkSuppliers(f => ({ ...f, [type]: e.target.value }))}
+                                                list={`ncc-${type}`} />
+                                            <datalist id={`ncc-${type}`}>
+                                                {suppliers.map(s => <option key={s.id} value={s.name} />)}
+                                            </datalist>
+                                        </div>
+                                    </div>
+                                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+                                        <thead>
+                                            <tr style={{ borderBottom: '1px solid var(--border)', color: 'var(--text-muted)' }}>
+                                                <th style={{ textAlign: 'left', padding: '4px 6px' }}>Vật liệu</th>
+                                                <th style={{ textAlign: 'left', padding: '4px 6px' }}>Mã màu</th>
+                                                <th style={{ textAlign: 'right', padding: '4px 6px' }}>SL cần</th>
+                                                {type === 'VAN' && <th style={{ textAlign: 'right', padding: '4px 6px', color: 'var(--status-info)' }}>Tồn kho</th>}
+                                                {type === 'VAN' && <th style={{ textAlign: 'right', padding: '4px 6px', color: 'var(--status-warning)' }}>Cần đặt</th>}
+                                                <th style={{ textAlign: 'left', padding: '4px 6px' }}>ĐVT</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {mo.items.map(item => {
+                                                const stock = type === 'VAN' ? (stockMap[item.colorCode] ?? null) : null;
+                                                const needOrder = stock !== null ? Math.max(0, item.quantity - stock) : item.quantity;
+                                                return (
+                                                    <tr key={item.id} style={{ borderBottom: '1px solid var(--border)' }}>
+                                                        <td style={{ padding: '4px 6px', fontWeight: 500 }}>{item.name}</td>
+                                                        <td style={{ padding: '4px 6px', color: 'var(--text-muted)' }}>{item.colorCode || '—'}</td>
+                                                        <td style={{ padding: '4px 6px', textAlign: 'right' }}>{item.quantity}</td>
+                                                        {type === 'VAN' && (
+                                                            <td style={{ padding: '4px 6px', textAlign: 'right', color: 'var(--status-info)' }}>
+                                                                {stockLoading ? '...' : stock === null ? <span style={{ color: 'var(--text-muted)' }}>—</span> : stock}
+                                                            </td>
+                                                        )}
+                                                        {type === 'VAN' && (
+                                                            <td style={{ padding: '4px 6px', textAlign: 'right', fontWeight: 700, color: needOrder > 0 ? 'var(--status-danger)' : 'var(--status-success)' }}>
+                                                                {stockLoading ? '...' : needOrder > 0 ? needOrder : '✓'}
+                                                            </td>
+                                                        )}
+                                                        <td style={{ padding: '4px 6px', color: 'var(--text-muted)' }}>{item.unit || TYPE_CONFIG[type].unit}</td>
+                                                    </tr>
+                                                );
+                                            })}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            ))}
+
                             <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-                                <button className="btn btn-ghost" onClick={() => setShowPoModal(false)}>Hủy</button>
-                                <button className="btn btn-primary" onClick={createPo} disabled={creatingPo}>
-                                    {creatingPo ? 'Đang tạo...' : '🛒 Tạo PO'}
+                                <button className="btn btn-ghost" onClick={() => setShowBulkModal(false)}>Hủy</button>
+                                <button className="btn btn-primary" onClick={createAllPo} disabled={creatingBulk}>
+                                    {creatingBulk ? 'Đang tạo...' : `🛒 Tạo ${typesNeedingPo.length} PO`}
                                 </button>
                             </div>
                         </div>
