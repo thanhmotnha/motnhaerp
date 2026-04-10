@@ -8,6 +8,13 @@ const NEXT_ACTION = {
     installing: { label: 'Bàn giao & Bảo hành', targetStatus: 'warranty' },
 };
 
+const guessType = (applicationArea, materialName) => {
+    const s = ((applicationArea || '') + ' ' + (materialName || '')).toLowerCase();
+    if (s.includes('acrylic')) return 'ACRYLIC';
+    if (s.includes('nẹp') || s.includes('nep')) return 'NEP';
+    return 'VAN';
+};
+
 export default function OverviewTab({ order, onRefresh }) {
     const action = NEXT_ACTION[order.status];
 
@@ -19,6 +26,35 @@ export default function OverviewTab({ order, onRefresh }) {
                 method: 'PUT',
                 body: { status: action.targetStatus },
             });
+
+            // Khi chốt vật liệu: tự import MaterialSelection → FurnitureMaterialOrder
+            if (action.targetStatus === 'material_confirmed') {
+                const allItems = (order.materialSelections || []).flatMap(s => s.items || []);
+                if (allItems.length > 0) {
+                    const byType = { VAN: [], NEP: [], ACRYLIC: [] };
+                    allItems.forEach(it => {
+                        const type = guessType(it.applicationArea, it.materialName);
+                        byType[type].push({
+                            name: it.materialName || it.colorName || '',
+                            colorCode: it.colorCode || '',
+                            quantity: it.quantity || 0,
+                            unit: it.unit || '',
+                            unitPrice: it.unitPrice || 0,
+                            notes: it.applicationArea || '',
+                        });
+                    });
+                    await Promise.all(
+                        Object.entries(byType)
+                            .filter(([, items]) => items.length > 0)
+                            .map(([type, items]) =>
+                                apiFetch(`/api/furniture-orders/${order.id}/material-orders/${type}`, {
+                                    method: 'PUT', body: { items },
+                                })
+                            )
+                    );
+                }
+            }
+
             onRefresh();
         } catch (err) {
             alert(err.message || 'Lỗi cập nhật');
