@@ -32,11 +32,13 @@ export const PUT = withAuth(async (request, { params }) => {
 
     let materialOrder;
     if (existing) {
-        await prisma.furnitureMaterialOrderItem.deleteMany({ where: { furnitureMaterialOrderId: existing.id } });
-        materialOrder = await prisma.furnitureMaterialOrder.update({
-            where: { id: existing.id },
-            data: { items: { create: items } },
-            include: { items: true },
+        materialOrder = await prisma.$transaction(async (tx) => {
+            await tx.furnitureMaterialOrderItem.deleteMany({ where: { furnitureMaterialOrderId: existing.id } });
+            return tx.furnitureMaterialOrder.update({
+                where: { id: existing.id },
+                data: { items: { create: items } },
+                include: { items: true },
+            });
         });
     } else {
         materialOrder = await prisma.furnitureMaterialOrder.create({

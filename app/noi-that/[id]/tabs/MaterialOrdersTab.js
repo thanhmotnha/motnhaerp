@@ -99,7 +99,7 @@ export default function MaterialOrdersTab({ orderId, order, onRefresh }) {
                                     </span>
                                 )}
                                 {mo?.purchaseOrder && (
-                                    <a href="/purchasing" style={{ fontSize: 12, color: 'var(--status-info)' }}>
+                                    <a href={`/purchasing`} style={{ fontSize: 12, color: 'var(--status-info)' }} title={mo.purchaseOrder.code}>
                                         📋 {mo.purchaseOrder.code}
                                     </a>
                                 )}

@@ -11,7 +11,7 @@ export default function CncFilesTab({ orderId, order, onRefresh }) {
 
     const fetchFiles = async () => {
         setLoading(true);
-        const res = await fetch(`/api/furniture-orders/${orderId}/cnc-files`);
+        const res = await fetch(`/api/furniture-orders/${orderId}/cnc-files`, { credentials: 'include' });
         setFiles(await res.json());
         setLoading(false);
     };
@@ -27,7 +27,7 @@ export default function CncFilesTab({ orderId, order, onRefresh }) {
             formData.append('file', file);
             formData.append('pieceCount', pieceCount);
             formData.append('notes', notes);
-            const res = await fetch(`/api/furniture-orders/${orderId}/cnc-files`, { method: 'POST', body: formData });
+            const res = await fetch(`/api/furniture-orders/${orderId}/cnc-files`, { method: 'POST', body: formData, credentials: 'include' });
             if (!res.ok) throw new Error((await res.json()).error || 'Lỗi upload');
             fileRef.current.value = '';
             setPieceCount(0);
@@ -42,13 +42,13 @@ export default function CncFilesTab({ orderId, order, onRefresh }) {
 
     const deleteFile = async (fid) => {
         if (!confirm('Xóa file này?')) return;
-        await fetch(`/api/furniture-orders/${orderId}/cnc-files/${fid}`, { method: 'DELETE' });
+        await fetch(`/api/furniture-orders/${orderId}/cnc-files/${fid}`, { method: 'DELETE', credentials: 'include' });
         await fetchFiles();
     };
 
     const confirmCnc = async () => {
         if (!confirm('Xác nhận CNC hoàn tất? Trạng thái chuyển sang "Có CNC".')) return;
-        const res = await fetch(`/api/furniture-orders/${orderId}/confirm-cnc`, { method: 'POST' });
+        const res = await fetch(`/api/furniture-orders/${orderId}/confirm-cnc`, { method: 'POST', credentials: 'include' });
         if (!res.ok) { const d = await res.json(); return alert(d.error || 'Lỗi'); }
         onRefresh();
     };

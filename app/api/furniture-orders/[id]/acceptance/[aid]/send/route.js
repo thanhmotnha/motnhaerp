@@ -11,6 +11,7 @@ export const POST = withAuth(async (_req, { params }) => {
     });
     if (!cert) return NextResponse.json({ error: 'Không tìm thấy' }, { status: 404 });
     if (!cert.items?.length) return NextResponse.json({ error: 'Biên bản chưa có hạng mục' }, { status: 400 });
+    if (cert.status === 'SIGNED') return NextResponse.json({ error: 'Biên bản đã được ký, không thể gửi lại' }, { status: 400 });
 
     const token = cert.publicToken || randomUUID();
     const updated = await prisma.acceptanceCertificate.update({

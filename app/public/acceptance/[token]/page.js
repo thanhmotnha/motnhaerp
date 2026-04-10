@@ -62,7 +62,9 @@ export default function PublicAcceptancePage() {
         if (signatureMode === 'draw') {
             const canvas = canvasRef.current;
             const data = canvas.getContext('2d').getImageData(0, 0, canvas.width, canvas.height).data;
-            if (!data.some(v => v !== 0)) return alert('Vui lòng ký tên vào ô chữ ký!');
+            // Kiểm tra alpha channel (index 3, 7, 11, ...) — canvas trắng có alpha=0
+            const hasDrawing = Array.from({ length: data.length / 4 }, (_, i) => data[i * 4 + 3]).some(a => a > 0);
+            if (!hasDrawing) return alert('Vui lòng ký tên vào ô chữ ký!');
             signatureUrl = canvas.toDataURL('image/png');
         } else {
             const file = uploadRef.current?.files?.[0];
