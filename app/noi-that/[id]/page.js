@@ -6,9 +6,11 @@ import OverviewTab from './tabs/OverviewTab';
 import CncFilesTab from './tabs/CncFilesTab';
 import MaterialOrdersTab from './tabs/MaterialOrdersTab';
 import AcceptanceTab from './tabs/AcceptanceTab';
+import HoSoTab from './tabs/HoSoTab';
 
 const TABS = [
     { key: 'overview', label: 'Tổng quan', icon: '📋' },
+    { key: 'hoso', label: 'Hồ sơ & Công năng', icon: '📐' },
     { key: 'cnc', label: 'File CNC', icon: '🔧' },
     { key: 'materials', label: 'Vật liệu', icon: '📦' },
     { key: 'acceptance', label: 'Nghiệm thu', icon: '✅' },
@@ -96,6 +98,7 @@ export default function FurnitureOrderDetailPage() {
             </div>
 
             {tab === 'overview' && <OverviewTab order={order} onRefresh={fetchOrder} />}
+            {tab === 'hoso' && <HoSoTab orderId={id} order={order} onRefresh={fetchOrder} />}
             {tab === 'cnc' && <CncFilesTab orderId={id} order={order} onRefresh={fetchOrder} />}
             {tab === 'materials' && <MaterialOrdersTab orderId={id} order={order} onRefresh={fetchOrder} />}
             {tab === 'acceptance' && <AcceptanceTab orderId={id} order={order} onRefresh={fetchOrder} />}

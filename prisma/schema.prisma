@@ -1518,9 +1518,11 @@ model FurnitureOrder {
   materialSelections MaterialSelection[]
   batches            ProductionBatch[]
   warrantyTickets    WarrantyTicket[]
+  constructionSpec   Json?
   cncFiles           FurnitureCncFile[]
   materialOrders     FurnitureMaterialOrder[]
   acceptanceCertificates AcceptanceCertificate[]
+  files              FurnitureFile[]
 
   @@index([customerId])
   @@index([projectId])
@@ -1608,6 +1610,20 @@ model AcceptanceCertificateItem {
   certificate   AcceptanceCertificate @relation(fields: [certificateId], references: [id], onDelete: Cascade)
 
   @@index([certificateId])
+}
+
+model FurnitureFile {
+  id               String         @id @default(cuid())
+  furnitureOrderId String
+  fileName         String
+  fileUrl          String
+  fileType         String         @default("other") // image | pdf | 3d | other
+  description      String         @default("")
+  uploadedBy       String         @default("")
+  createdAt        DateTime       @default(now())
+  furnitureOrder   FurnitureOrder @relation(fields: [furnitureOrderId], references: [id], onDelete: Cascade)
+
+  @@index([furnitureOrderId])
 }
 
 model FurnitureOrderItem {
