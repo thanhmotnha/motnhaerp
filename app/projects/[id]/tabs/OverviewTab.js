@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react';
 import { fmtDate } from '@/lib/projectUtils';
 import { apiFetch } from '@/lib/fetchClient';
+import ProjectDashboard from './ProjectDashboard';
 
 const LOG_TYPES = ['Điện thoại', 'Gặp mặt', 'Email', 'Zalo', 'Ghi chú'];
 const fmtNum = v => new Intl.NumberFormat('vi-VN').format(v || 0);
@@ -27,6 +28,13 @@ export default function OverviewTab({ project: p, projectId, onRefresh }) {
     const [overheadData, setOverheadData] = useState(null);
     const [overheadYear, setOverheadYear] = useState(new Date().getFullYear());
     const [overheadLoading, setOverheadLoading] = useState(false);
+    const [scheduleTasks, setScheduleTasks] = useState([]);
+
+    useEffect(() => {
+        apiFetch(`/api/schedule-tasks?projectId=${projectId}`)
+            .then(res => setScheduleTasks(res.flat || []))
+            .catch(() => setScheduleTasks([]));
+    }, [projectId]);
 
     const addLog = async () => {
         if (!form.content.trim()) return alert('Nhập nội dung nhật ký!');
@@ -70,6 +78,8 @@ export default function OverviewTab({ project: p, projectId, onRefresh }) {
 
     return (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+            <ProjectDashboard project={p} scheduleTasks={scheduleTasks} />
+
             {/* Thông tin dự án */}
             <div className="card" style={{ padding: 20 }}>
                 <div className="card-header" style={{ marginBottom: 16 }}>
