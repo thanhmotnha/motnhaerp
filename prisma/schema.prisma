@@ -907,6 +907,7 @@ model PurchaseOrder {
   @@index([projectId])
   @@index([supplierId])
   @@index([quotationId])
+  @@index([furnitureOrderId])
 }
 
 model PurchaseOrderItem {
@@ -1592,6 +1593,7 @@ model AcceptanceCertificate {
 
   @@index([furnitureOrderId])
   @@index([publicToken])
+  @@index([quotationId])
 }
 
 model AcceptanceCertificateItem {
