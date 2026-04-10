@@ -8,7 +8,7 @@ const fmtNum = (n) => new Intl.NumberFormat('vi-VN').format(n || 0);
 const fmtDate = (d) => d ? new Date(d).toLocaleDateString('vi-VN') : '—';
 const pct = (a, b) => b > 0 ? Math.round((a / b) * 100) : 0;
 
-const STATUS_BADGE = { 'Đã thanh toán': 'badge-success', 'Đã giao': 'badge-info', 'Đang giao': 'badge-warning', 'Nháp': 'badge-default' };
+const STATUS_BADGE = { 'Đã thanh toán': 'badge-success', 'Đã giao': 'badge-info', 'Đang giao': 'badge-warning', 'Nháp': 'badge-default', 'Chờ duyệt': 'badge-warning', 'Chờ duyệt vượt định mức': 'badge-danger', 'Đã xác nhận': 'badge-info', 'Đang đặt': 'badge-info', 'Hoàn thành': 'badge-success', 'Hủy': 'badge-default' };
 
 function PurchasingContent() {
     const router = useRouter();
@@ -354,7 +354,23 @@ function PurchasingContent() {
                                     <td>{o.items?.length || 0}</td>
                                     <td style={{ fontSize: 12 }}>{fmtDate(o.orderDate)}</td>
                                     <td style={{ fontSize: 12 }}>{fmtDate(o.deliveryDate)}</td>
-                                    <td><span className={`badge ${STATUS_BADGE[o.status] || 'badge-default'}`}>{o.status}</span></td>
+                                    <td onClick={e => e.stopPropagation()}>
+                                        <select
+                                            value={o.status}
+                                            className={`badge ${STATUS_BADGE[o.status] || 'badge-default'}`}
+                                            style={{ border: 'none', cursor: 'pointer', fontWeight: 600, fontSize: 11, padding: '2px 6px', borderRadius: 12 }}
+                                            onChange={async e => {
+                                                const newStatus = e.target.value;
+                                                await fetch(`/api/purchase-orders/${o.id}`, {
+                                                    method: 'PUT',
+                                                    headers: { 'Content-Type': 'application/json' },
+                                                    body: JSON.stringify({ status: newStatus }),
+                                                });
+                                                fetchOrders();
+                                            }}>
+                                            {statuses.map(s => <option key={s} value={s}>{s}</option>)}
+                                        </select>
+                                    </td>
                                     <td>
                                         {canReceive && (
                                             <button className="btn btn-ghost btn-sm" style={{ fontSize: 11, whiteSpace: 'nowrap' }}
