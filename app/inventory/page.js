@@ -428,6 +428,12 @@ export default function InventoryPage() {
                                                 <div style={{ display: 'flex', gap: 4 }}>
                                                     <button className="btn btn-ghost btn-sm" onClick={() => setViewReceipt(r)}>Xem</button>
                                                     <button className="btn btn-ghost btn-sm" onClick={() => printReceipt(r)}>🖨️ In</button>
+                                                    <button className="btn btn-ghost btn-sm" style={{ color: 'var(--status-danger)' }} onClick={async () => {
+                                                        if (!confirm(`Xóa phiếu nhập kho ${r.code}? Tồn kho sẽ được hoàn lại.`)) return;
+                                                        const res = await fetch(`/api/inventory/receipts/${r.id}`, { method: 'DELETE' });
+                                                        if (!res.ok) { const e = await res.json(); return alert(e.error || 'Lỗi xóa'); }
+                                                        fetchReceipts(); fetchStock();
+                                                    }}>🗑️</button>
                                                 </div>
                                             </td>
                                         </tr>
@@ -477,6 +483,12 @@ export default function InventoryPage() {
                                                     <div style={{ display: 'flex', gap: 4 }}>
                                                         <button className="btn btn-ghost btn-sm" onClick={() => setViewIssue(si)}>Xem</button>
                                                         <button className="btn btn-ghost btn-sm" onClick={() => printIssue(si)}>🖨️ In</button>
+                                                        <button className="btn btn-ghost btn-sm" style={{ color: 'var(--status-danger)' }} onClick={async () => {
+                                                            if (!confirm(`Xóa phiếu xuất kho ${si.code}? Tồn kho sẽ được hoàn lại.`)) return;
+                                                            const res = await fetch(`/api/inventory/issues/${si.id}`, { method: 'DELETE' });
+                                                            if (!res.ok) { const e = await res.json(); return alert(e.error || 'Lỗi xóa'); }
+                                                            fetchIssues(); fetchStock();
+                                                        }}>🗑️</button>
                                                     </div>
                                                 </td>
                                             </tr>

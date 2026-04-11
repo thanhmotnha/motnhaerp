@@ -49,6 +49,11 @@ function PurchasingContent() {
 
     // PO detail modal
     const [detailPO, setDetailPO] = useState(null);
+    const [poEditMode, setPoEditMode] = useState(false);
+    const [poEditItems, setPoEditItems] = useState([]);
+    const [poEditSupplier, setPoEditSupplier] = useState('');
+    const [poEditNotes, setPoEditNotes] = useState('');
+    const [poEditSaving, setPoEditSaving] = useState(false);
 
     // GRN (Goods Receipt Note) state
     const [grnPO, setGrnPO] = useState(null);
@@ -303,6 +308,39 @@ function PurchasingContent() {
         setPoItems([{ productName: '', unit: 'cái', quantity: 1, unitPrice: 0, amount: 0, productId: null }]);
         setFilterStatus('');
         fetchOrders();
+    };
+
+    const openPoEdit = () => {
+        setPoEditItems((detailPO.items || []).map(it => ({
+            productName: it.productName,
+            unit: it.unit,
+            quantity: it.quantity,
+            unitPrice: it.unitPrice,
+            productId: it.productId || null,
+            budgetItemId: it.budgetItemId || null,
+        })));
+        setPoEditSupplier(detailPO.supplier || '');
+        setPoEditNotes(detailPO.notes || '');
+        setPoEditMode(true);
+    };
+
+    const savePoEdit = async () => {
+        const items = poEditItems.filter(it => it.productName.trim() && Number(it.quantity) > 0);
+        if (!items.length) return alert('Thêm ít nhất 1 sản phẩm');
+        setPoEditSaving(true);
+        try {
+            const res = await fetch(`/api/purchase-orders/${detailPO.id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ supplier: poEditSupplier, notes: poEditNotes, items }),
+            });
+            if (!res.ok) { const e = await res.json(); throw new Error(e.error || 'Lỗi lưu'); }
+            const updated = await res.json();
+            setDetailPO(updated);
+            setPoEditMode(false);
+            fetchOrders();
+        } catch (e) { alert(e.message); }
+        setPoEditSaving(false);
     };
 
     return (
@@ -822,34 +860,81 @@ function PurchasingContent() {
                             </div>
 
                             {/* Bảng sản phẩm */}
-                            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13, marginBottom: 16 }}>
-                                <thead>
-                                    <tr style={{ background: '#1e3a5f', color: '#fff' }}>
-                                        <th style={{ padding: '8px 10px', textAlign: 'left', fontWeight: 600 }}>Tên sản phẩm</th>
-                                        <th style={{ padding: '8px 10px', textAlign: 'center', fontWeight: 600, width: 55 }}>ĐVT</th>
-                                        <th style={{ padding: '8px 10px', textAlign: 'right', fontWeight: 600, width: 80 }}>Số lượng</th>
-                                        <th style={{ padding: '8px 10px', textAlign: 'right', fontWeight: 600, width: 110 }}>Đơn giá</th>
-                                        <th style={{ padding: '8px 10px', textAlign: 'right', fontWeight: 600, width: 120 }}>Thành tiền</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {(detailPO.items || []).map((it, i) => (
-                                        <tr key={i} style={{ background: i % 2 === 0 ? '#fff' : '#f7f9fc' }}>
-                                            <td style={{ padding: '7px 10px', borderBottom: '1px solid #e8edf2', fontWeight: 500 }}>{it.productName}</td>
-                                            <td style={{ padding: '7px 10px', borderBottom: '1px solid #e8edf2', textAlign: 'center', color: '#555' }}>{it.unit}</td>
-                                            <td style={{ padding: '7px 10px', borderBottom: '1px solid #e8edf2', textAlign: 'right' }}>{fmtNum(it.quantity)}</td>
-                                            <td style={{ padding: '7px 10px', borderBottom: '1px solid #e8edf2', textAlign: 'right' }}>{fmtNum(it.unitPrice)}</td>
-                                            <td style={{ padding: '7px 10px', borderBottom: '1px solid #e8edf2', textAlign: 'right', fontWeight: 600 }}>{fmt(it.amount || it.quantity * it.unitPrice)}</td>
+                            {poEditMode ? (
+                                <div style={{ marginBottom: 16 }}>
+                                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 10 }}>
+                                        <div>
+                                            <div style={{ fontSize: 11, color: '#666', marginBottom: 3 }}>Nhà cung cấp</div>
+                                            <input className="form-input" value={poEditSupplier} onChange={e => setPoEditSupplier(e.target.value)} />
+                                        </div>
+                                        <div>
+                                            <div style={{ fontSize: 11, color: '#666', marginBottom: 3 }}>Ghi chú</div>
+                                            <input className="form-input" value={poEditNotes} onChange={e => setPoEditNotes(e.target.value)} />
+                                        </div>
+                                    </div>
+                                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13, marginBottom: 8 }}>
+                                        <thead>
+                                            <tr style={{ background: '#1e3a5f', color: '#fff' }}>
+                                                <th style={{ padding: '7px 8px', textAlign: 'left' }}>Tên sản phẩm</th>
+                                                <th style={{ padding: '7px 8px', width: 55 }}>ĐVT</th>
+                                                <th style={{ padding: '7px 8px', width: 80, textAlign: 'right' }}>SL</th>
+                                                <th style={{ padding: '7px 8px', width: 110, textAlign: 'right' }}>Đơn giá</th>
+                                                <th style={{ padding: '7px 8px', width: 110, textAlign: 'right' }}>Thành tiền</th>
+                                                <th style={{ width: 28 }}></th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {poEditItems.map((it, i) => (
+                                                <tr key={i}>
+                                                    <td style={{ padding: '4px 4px' }}><input className="form-input" style={{ fontSize: 12 }} value={it.productName} onChange={e => setPoEditItems(prev => prev.map((x, j) => j === i ? { ...x, productName: e.target.value } : x))} /></td>
+                                                    <td style={{ padding: '4px 4px' }}><input className="form-input" style={{ fontSize: 12, textAlign: 'center' }} value={it.unit} onChange={e => setPoEditItems(prev => prev.map((x, j) => j === i ? { ...x, unit: e.target.value } : x))} /></td>
+                                                    <td style={{ padding: '4px 4px' }}><input className="form-input" type="number" style={{ fontSize: 12, textAlign: 'right' }} value={it.quantity} onChange={e => setPoEditItems(prev => prev.map((x, j) => j === i ? { ...x, quantity: e.target.value } : x))} /></td>
+                                                    <td style={{ padding: '4px 4px' }}><input className="form-input" type="number" style={{ fontSize: 12, textAlign: 'right' }} value={it.unitPrice} onChange={e => setPoEditItems(prev => prev.map((x, j) => j === i ? { ...x, unitPrice: e.target.value } : x))} /></td>
+                                                    <td style={{ padding: '4px 8px', textAlign: 'right', fontWeight: 600, fontSize: 12 }}>{fmt((Number(it.quantity) || 0) * (Number(it.unitPrice) || 0))}</td>
+                                                    <td style={{ padding: '4px 4px', textAlign: 'center' }}><button style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#e53e3e', fontSize: 16 }} onClick={() => setPoEditItems(prev => prev.filter((_, j) => j !== i))}>×</button></td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                        <tfoot>
+                                            <tr style={{ background: '#1e3a5f', color: '#fff' }}>
+                                                <td colSpan={4} style={{ padding: '8px 10px', fontWeight: 700, textAlign: 'right' }}>TỔNG CỘNG</td>
+                                                <td style={{ padding: '8px 10px', fontWeight: 800, textAlign: 'right', fontSize: 14 }}>{fmt(poEditItems.reduce((s, it) => s + (Number(it.quantity) || 0) * (Number(it.unitPrice) || 0), 0))}</td>
+                                                <td></td>
+                                            </tr>
+                                        </tfoot>
+                                    </table>
+                                    <button className="btn btn-ghost btn-sm" onClick={() => setPoEditItems(prev => [...prev, { productName: '', unit: 'cái', quantity: 1, unitPrice: 0, productId: null }])}>+ Thêm dòng</button>
+                                </div>
+                            ) : (
+                                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13, marginBottom: 16 }}>
+                                    <thead>
+                                        <tr style={{ background: '#1e3a5f', color: '#fff' }}>
+                                            <th style={{ padding: '8px 10px', textAlign: 'left', fontWeight: 600 }}>Tên sản phẩm</th>
+                                            <th style={{ padding: '8px 10px', textAlign: 'center', fontWeight: 600, width: 55 }}>ĐVT</th>
+                                            <th style={{ padding: '8px 10px', textAlign: 'right', fontWeight: 600, width: 80 }}>Số lượng</th>
+                                            <th style={{ padding: '8px 10px', textAlign: 'right', fontWeight: 600, width: 110 }}>Đơn giá</th>
+                                            <th style={{ padding: '8px 10px', textAlign: 'right', fontWeight: 600, width: 120 }}>Thành tiền</th>
                                         </tr>
-                                    ))}
-                                </tbody>
-                                <tfoot>
-                                    <tr style={{ background: '#1e3a5f', color: '#fff' }}>
-                                        <td colSpan={4} style={{ padding: '9px 10px', fontWeight: 700, textAlign: 'right' }}>TỔNG CỘNG</td>
-                                        <td style={{ padding: '9px 10px', fontWeight: 800, textAlign: 'right', fontSize: 14 }}>{fmt(detailPO.totalAmount)}</td>
-                                    </tr>
-                                </tfoot>
-                            </table>
+                                    </thead>
+                                    <tbody>
+                                        {(detailPO.items || []).map((it, i) => (
+                                            <tr key={i} style={{ background: i % 2 === 0 ? '#fff' : '#f7f9fc' }}>
+                                                <td style={{ padding: '7px 10px', borderBottom: '1px solid #e8edf2', fontWeight: 500 }}>{it.productName}</td>
+                                                <td style={{ padding: '7px 10px', borderBottom: '1px solid #e8edf2', textAlign: 'center', color: '#555' }}>{it.unit}</td>
+                                                <td style={{ padding: '7px 10px', borderBottom: '1px solid #e8edf2', textAlign: 'right' }}>{fmtNum(it.quantity)}</td>
+                                                <td style={{ padding: '7px 10px', borderBottom: '1px solid #e8edf2', textAlign: 'right' }}>{fmtNum(it.unitPrice)}</td>
+                                                <td style={{ padding: '7px 10px', borderBottom: '1px solid #e8edf2', textAlign: 'right', fontWeight: 600 }}>{fmt(it.amount || it.quantity * it.unitPrice)}</td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                    <tfoot>
+                                        <tr style={{ background: '#1e3a5f', color: '#fff' }}>
+                                            <td colSpan={4} style={{ padding: '9px 10px', fontWeight: 700, textAlign: 'right' }}>TỔNG CỘNG</td>
+                                            <td style={{ padding: '9px 10px', fontWeight: 800, textAlign: 'right', fontSize: 14 }}>{fmt(detailPO.totalAmount)}</td>
+                                        </tr>
+                                    </tfoot>
+                                </table>
+                            )}
 
                             {/* Footer chữ ký */}
                             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, marginTop: 24 }}>
@@ -865,20 +950,34 @@ function PurchasingContent() {
                             </div>
                         </div>
 
-                        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
-                            <button className="btn btn-ghost btn-sm" onClick={async () => {
-                                const { default: html2canvas } = await import('html2canvas');
-                                const el = document.getElementById('po-print-area');
-                                const canvas = await html2canvas(el, { scale: 2, useCORS: true, backgroundColor: '#ffffff' });
-                                const link = document.createElement('a');
-                                link.download = `${detailPO.code}.jpg`;
-                                link.href = canvas.toDataURL('image/jpeg', 0.95);
-                                link.click();
-                            }}>🖼️ Xuất ảnh JPG</button>
-                            {!['Hoàn thành', 'Hủy'].includes(detailPO.status) && (
-                                <button className="btn btn-primary btn-sm" onClick={e => { setDetailPO(null); openGrn(detailPO.id, e); }}>📦 Nhận hàng</button>
+                        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, flexWrap: 'wrap' }}>
+                            {poEditMode ? (
+                                <>
+                                    <button className="btn btn-ghost btn-sm" onClick={() => setPoEditMode(false)}>Hủy</button>
+                                    <button className="btn btn-primary btn-sm" onClick={savePoEdit} disabled={poEditSaving}>
+                                        {poEditSaving ? '⏳ Đang lưu...' : '💾 Lưu thay đổi'}
+                                    </button>
+                                </>
+                            ) : (
+                                <>
+                                    <button className="btn btn-ghost btn-sm" onClick={async () => {
+                                        const { default: html2canvas } = await import('html2canvas');
+                                        const el = document.getElementById('po-print-area');
+                                        const canvas = await html2canvas(el, { scale: 2, useCORS: true, backgroundColor: '#ffffff' });
+                                        const link = document.createElement('a');
+                                        link.download = `${detailPO.code}.jpg`;
+                                        link.href = canvas.toDataURL('image/jpeg', 0.95);
+                                        link.click();
+                                    }}>🖼️ Xuất ảnh JPG</button>
+                                    {!['Hoàn thành', 'Hủy'].includes(detailPO.status) && (
+                                        <>
+                                            <button className="btn btn-ghost btn-sm" onClick={openPoEdit}>✏️ Sửa</button>
+                                            <button className="btn btn-primary btn-sm" onClick={e => { setDetailPO(null); openGrn(detailPO.id, e); }}>📦 Nhận hàng</button>
+                                        </>
+                                    )}
+                                    <button className="btn btn-ghost" onClick={() => { setDetailPO(null); setPoEditMode(false); }}>Đóng</button>
+                                </>
                             )}
-                            <button className="btn btn-ghost" onClick={() => setDetailPO(null)}>Đóng</button>
                         </div>
                     </div>
                 </div>
