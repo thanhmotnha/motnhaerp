@@ -14,6 +14,7 @@ export const GET = withAuth(async (_req, { params }) => {
             items: { orderBy: { sortOrder: 'asc' }, include: { product: { select: { id: true, code: true, name: true } } } },
             designs: { orderBy: { versionNumber: 'desc' } },
             materialSelections: { include: { items: true }, orderBy: { selectionRound: 'desc' } },
+            materialOrders: true,
             batches: { include: { workshop: { select: { id: true, code: true, name: true } }, batchItems: true }, orderBy: { createdAt: 'desc' } },
             payments: { orderBy: { paidAt: 'desc' } },
         },
