@@ -1497,7 +1497,7 @@ model FurnitureOrder {
   cancelledAmount    Float                @default(0)
   depositAmount      Float                @default(0)
   paidAmount         Float                @default(0)
-  status             String               @default("draft")
+  status             String               @default("Xác nhận")
   salesperson        String               @default("")
   designer           String               @default("")
   expectedDelivery   DateTime?
@@ -1722,8 +1722,10 @@ model MaterialSelection {
   confirmedAt      DateTime?
   confirmedByName  String                  @default("")
   confirmedIp      String                  @default("")
-  confirmationNote String                  @default("")
-  createdAt        DateTime                @default(now())
+  confirmationNote  String                  @default("")
+  confirmationToken String?                @unique
+  selTokenExpiresAt DateTime?
+  createdAt         DateTime               @default(now())
   updatedAt        DateTime                @updatedAt
   furnitureOrder   FurnitureOrder          @relation(fields: [furnitureOrderId], references: [id], onDelete: Cascade)
   items            MaterialSelectionItem[]
