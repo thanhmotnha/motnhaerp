@@ -68,12 +68,5 @@ export const POST = withAuth(async (request, { params }) => {
         data: { purchaseOrderId: po.id, status: 'ORDERED' },
     });
 
-    // Check if all 3 types ORDERED → update FurnitureOrder status
-    const allOrders = await prisma.furnitureMaterialOrder.findMany({ where: { furnitureOrderId: id } });
-    const allOrdered = VALID_TYPES.every(t => allOrders.find(o => o.materialType === t && o.status !== 'DRAFT'));
-    if (allOrdered && furnitureOrder.status === 'material_confirmed') {
-        await prisma.furnitureOrder.update({ where: { id }, data: { status: 'material_ordered' } });
-    }
-
     return NextResponse.json(po, { status: 201 });
 });
