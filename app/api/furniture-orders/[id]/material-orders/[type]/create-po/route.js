@@ -16,7 +16,7 @@ export const POST = withAuth(async (request, { params }) => {
 
     const furnitureOrder = await prisma.furnitureOrder.findUnique({ where: { id } });
     if (!furnitureOrder) return NextResponse.json({ error: 'Không tìm thấy' }, { status: 404 });
-    if (!['material_confirmed', 'material_ordered'].includes(furnitureOrder.status)) {
+    if (furnitureOrder.status !== 'Chốt & Đặt VL') {
         return NextResponse.json({ error: 'Cần chốt vật liệu trước khi tạo PO' }, { status: 400 });
     }
 
