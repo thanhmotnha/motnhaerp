@@ -144,7 +144,7 @@ export default function ProjectDetailPage() {
                     {[
                         { v: `${Number(p.area) || 0}m²`, l: 'Diện tích' },
                         { v: `${p.floors || 0} tầng`, l: 'Số tầng' },
-                        { v: fmtVND(p.contractValue), l: 'Giá trị HĐ' },
+                        { v: fmtVND(p.contractValue), l: p.variationAmount > 0 ? `Giá trị HĐ (+${fmtVND(p.variationAmount)} PS)` : 'Giá trị HĐ' },
                         { v: fmtVND(p.paidAmount), l: 'Đã thu' },
                         { v: fmtVND(pnl.debtFromCustomer), l: 'KH còn nợ', c: (pnl.debtFromCustomer || 0) > 0 ? 'var(--status-danger)' : 'var(--status-success)' },
                     ].map(s => (

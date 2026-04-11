@@ -49,15 +49,19 @@ export default function ContractTab({ project: p, projectId, onRefresh }) {
 
     const contracts = p.contracts || [];
     const totalContract = contracts.reduce((s, c) => s + (Number(c.contractValue) || 0), 0);
+    const totalVariation = contracts.reduce((s, c) => s + (Number(c.variationAmount) || 0), 0);
+    const totalAll = totalContract + totalVariation;
     const totalPaid = contracts.reduce((s, c) => s + (c.payments || []).filter(ph => ph.status === 'Đã thanh toán').reduce((a, ph) => a + (Number(ph.amount) || 0), 0), 0);
 
     return (
         <div>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, flexWrap: 'wrap', gap: 12 }}>
-                <div style={{ display: 'flex', gap: 24, fontSize: 13 }}>
+                <div style={{ display: 'flex', gap: 20, fontSize: 13, flexWrap: 'wrap' }}>
                     <span>Tổng HĐ: <strong>{fmtVND(totalContract)}</strong></span>
+                    {totalVariation > 0 && <span>Phát sinh: <strong style={{ color: 'var(--status-warning)' }}>+{fmtVND(totalVariation)}</strong></span>}
+                    {totalVariation > 0 && <span>Tổng cộng: <strong style={{ color: 'var(--accent-primary)' }}>{fmtVND(totalAll)}</strong></span>}
                     <span>Đã thu: <strong style={{ color: 'var(--status-success)' }}>{fmtVND(totalPaid)}</strong></span>
-                    <span>Còn lại: <strong style={{ color: 'var(--status-danger)' }}>{fmtVND(totalContract - totalPaid)}</strong></span>
+                    <span>Còn lại: <strong style={{ color: 'var(--status-danger)' }}>{fmtVND(totalAll - totalPaid)}</strong></span>
                 </div>
                 <button className="btn btn-primary btn-sm" onClick={() => setShowModal(true)}>+ Thêm hợp đồng</button>
             </div>
@@ -75,6 +79,12 @@ export default function ContractTab({ project: p, projectId, onRefresh }) {
                                     <div style={{ fontWeight: 700, fontSize: 15 }}>{c.name}</div>
                                     <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4 }}>
                                         {c.code} • Ký: {fmtDate(c.signDate)} • Giá trị: <strong>{fmtVND(c.contractValue)}</strong>
+                                        {(c.variationAmount > 0) && (
+                                            <span style={{ marginLeft: 8, color: 'var(--status-warning)' }}>
+                                                + Phát sinh: <strong>{fmtVND(c.variationAmount)}</strong>
+                                                {' '}= <strong style={{ color: 'var(--accent-primary)' }}>{fmtVND(c.contractValue + c.variationAmount)}</strong>
+                                            </span>
+                                        )}
                                     </div>
                                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 8 }}>
                                         <div style={{ flex: 1, maxWidth: 200, height: 6, background: 'var(--bg-secondary)', borderRadius: 3 }}>

@@ -100,8 +100,10 @@ export const GET = withAuth(async (_request, { params }, session) => {
         budget: project.budget ?? 0,
         spent: project.spent ?? 0,
         progress: msProgress,
-        // Sync from contracts — real computed values
-        contractValue: totalContractValue || project.contractValue || 0,
+        // Sync from contracts — real computed values (base + variation)
+        contractValue: totalA || project.contractValue || 0,
+        baseContractValue: totalContractValue,
+        variationAmount: totalVariation,
         paidAmount: totalCollected,
         pnl: { income, expense, profit, profitMargin, debtFromCustomer, debtToContractors },
         settlement,
