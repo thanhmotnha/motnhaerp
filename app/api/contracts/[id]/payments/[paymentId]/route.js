@@ -11,6 +11,7 @@ export const PUT = withAuth(async (request, { params }) => {
     if (data.paidAmount !== undefined) updateData.paidAmount = Number(data.paidAmount) || 0;
     if (data.status) updateData.status = data.status;
     if (data.proofUrl !== undefined) updateData.proofUrl = data.proofUrl;
+    if (data.proofFiles !== undefined) updateData.proofFiles = data.proofFiles;
     if (data.notes !== undefined) updateData.notes = data.notes;
     if (data.paidDate !== undefined) updateData.paidDate = data.paidDate ? new Date(data.paidDate) : null;
     if (data.paymentAccount !== undefined) updateData.paymentAccount = data.paymentAccount;

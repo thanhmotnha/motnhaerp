@@ -38,11 +38,12 @@ export const POST = withAuth(async (request, { params }) => {
 // PATCH — update a single payment (proof, paidAmount, paidDate, status)
 export const PATCH = withAuth(async (request, { params }) => {
     const { id } = await params;
-    const { paymentId, proofUrl, paidAmount, paidDate, status } = await request.json();
+    const { paymentId, proofUrl, proofFiles, paidAmount, paidDate, status } = await request.json();
     if (!paymentId) return NextResponse.json({ error: 'Missing paymentId' }, { status: 400 });
 
     const data = {};
     if (proofUrl !== undefined) data.proofUrl = proofUrl;
+    if (proofFiles !== undefined) data.proofFiles = proofFiles;
     if (paidAmount !== undefined) data.paidAmount = Number(paidAmount) || 0;
     if (paidDate !== undefined) data.paidDate = paidDate ? new Date(paidDate) : null;
     if (status !== undefined) data.status = status;
@@ -114,6 +115,7 @@ export const PUT = withAuth(async (request, { params }) => {
                         status: prev?.status || p.status || 'Chưa thu',
                         notes: prev?.notes || p.notes || '',
                         proofUrl: prev?.proofUrl || '',
+                        proofFiles: prev?.proofFiles || [],
                         paidDate: prev?.paidDate || null,
                         dueDate: p.dueDate ? new Date(p.dueDate) : prev?.dueDate || null,
                         retentionRate: Number(p.retentionRate) || 0,

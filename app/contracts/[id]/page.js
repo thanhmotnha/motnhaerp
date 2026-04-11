@@ -261,34 +261,51 @@ export default function ContractDetailPage() {
         } finally { setCreatingProject(false); }
     };
 
+    const uploadFileToR2 = async (file) => {
+        const fd = new FormData();
+        fd.append('file', file);
+        fd.append('type', 'proofs');
+        const r = await fetch('/api/upload', { method: 'POST', body: fd });
+        if (!r.ok) throw new Error('Upload thất bại');
+        const { url } = await r.json();
+        return { url, name: file.name, type: file.type };
+    };
+
+    const addProofFiles = (fileList) => {
+        const allowed = Array.from(fileList).filter(f => f.size <= 5 * 1024 * 1024);
+        setProofModal(m => ({ ...m, pendingFiles: [...(m.pendingFiles || []), ...allowed] }));
+    };
+
     const saveProof = async () => {
         if (!proofModal) return;
         setProofModal(m => ({ ...m, saving: true }));
-        let proofUrl = proofModal.payment.proofUrl || '';
-        if (proofModal.file) {
-            proofUrl = await new Promise((resolve) => {
-                const reader = new FileReader();
-                reader.onload = () => resolve(reader.result);
-                reader.readAsDataURL(proofModal.file);
+        try {
+            // Upload any pending new files
+            const uploaded = await Promise.all((proofModal.pendingFiles || []).map(uploadFileToR2));
+            const allFiles = [...(proofModal.existingFiles || []), ...uploaded];
+            const proofUrl = allFiles[0]?.url || proofModal.payment.proofUrl || '';
+            const res = await fetch(`/api/contracts/${id}/payments`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    paymentId: proofModal.payment.id,
+                    proofUrl,
+                    proofFiles: allFiles,
+                    paidAmount: Number(proofModal.paidAmount) || 0,
+                    paidDate: proofModal.paidDate || null,
+                    status: Number(proofModal.paidAmount) >= proofModal.payment.amount ? 'Đã thu' : 'Thu một phần',
+                }),
             });
-        }
-        const res = await fetch(`/api/contracts/${id}/payments`, {
-            method: 'PATCH',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                paymentId: proofModal.payment.id,
-                proofUrl,
-                paidAmount: Number(proofModal.paidAmount) || 0,
-                paidDate: proofModal.paidDate || null,
-                status: Number(proofModal.paidAmount) >= proofModal.payment.amount ? 'Đã thu' : 'Thu một phần',
-            }),
-        });
-        if (res.ok) {
-            const updated = await res.json();
-            setData(prev => ({ ...prev, payments: prev.payments.map(p => p.id === updated.id ? updated : p) }));
-            setProofModal(null);
-        } else {
-            alert('Lỗi lưu chứng từ');
+            if (res.ok) {
+                const updated = await res.json();
+                setData(prev => ({ ...prev, payments: prev.payments.map(p => p.id === updated.id ? updated : p) }));
+                setProofModal(null);
+            } else {
+                alert('Lỗi lưu chứng từ');
+                setProofModal(m => ({ ...m, saving: false }));
+            }
+        } catch {
+            alert('Lỗi upload file');
             setProofModal(m => ({ ...m, saving: false }));
         }
     };
@@ -610,11 +627,19 @@ export default function ContractDetailPage() {
                                                                         <td style={{ fontSize: 12 }}>{p.paidDate ? fmtDateVN(p.paidDate) : '—'}</td>
                                                                         <td>
                                                                             <span className={`badge ${p.status === 'Đã thu' ? 'success' : p.status === 'Thu một phần' ? 'warning' : 'muted'}`}>{p.status}</span>
-                                                                            {p.proofUrl && <a href={p.proofUrl} target="_blank" rel="noreferrer" style={{ marginLeft: 4 }}>📸</a>}
+                                                                            {(Array.isArray(p.proofFiles) && p.proofFiles.length > 0) ? (
+    <span style={{ marginLeft: 4 }}>
+        {p.proofFiles.map((f, fi) => (
+            <a key={fi} href={f.url} target="_blank" rel="noreferrer" style={{ marginRight: 2, fontSize: 16 }} title={f.name}>
+                {f.type?.startsWith('image/') || f.url?.match(/\.(jpg|jpeg|png|webp|gif)$/i) ? '🖼️' : '📄'}
+            </a>
+        ))}
+    </span>
+) : p.proofUrl ? <a href={p.proofUrl} target="_blank" rel="noreferrer" style={{ marginLeft: 4 }}>📸</a> : null}
                                                                         </td>
                                                                         <td>
                                                                             <button className="btn btn-ghost btn-sm" style={{ fontSize: 11 }}
-                                                                                onClick={() => setProofModal({ payment: p, paidAmount: p.paidAmount || p.amount, paidDate: p.paidDate ? fmtDate(p.paidDate) : new Date().toISOString().slice(0, 10), file: null, preview: null, saving: false })}>
+                                                                                onClick={() => setProofModal({ payment: p, paidAmount: p.paidAmount || p.amount, paidDate: p.paidDate ? fmtDate(p.paidDate) : new Date().toISOString().slice(0, 10), existingFiles: Array.isArray(p.proofFiles) ? p.proofFiles : (p.proofUrl ? [{ url: p.proofUrl, name: 'chứng từ', type: 'image/jpeg' }] : []), pendingFiles: [], saving: false })}>
                                                                                 📎 Thu
                                                                             </button>
                                                                         </td>
@@ -662,11 +687,19 @@ export default function ContractDetailPage() {
                                                                         <td style={{ fontSize: 12 }}>{p.paidDate ? fmtDateVN(p.paidDate) : '—'}</td>
                                                                         <td>
                                                                             <span className={`badge ${p.status === 'Đã thu' ? 'success' : p.status === 'Thu một phần' ? 'warning' : 'muted'}`}>{p.status}</span>
-                                                                            {p.proofUrl && <a href={p.proofUrl} target="_blank" rel="noreferrer" style={{ marginLeft: 4 }}>📸</a>}
+                                                                            {(Array.isArray(p.proofFiles) && p.proofFiles.length > 0) ? (
+    <span style={{ marginLeft: 4 }}>
+        {p.proofFiles.map((f, fi) => (
+            <a key={fi} href={f.url} target="_blank" rel="noreferrer" style={{ marginRight: 2, fontSize: 16 }} title={f.name}>
+                {f.type?.startsWith('image/') || f.url?.match(/\.(jpg|jpeg|png|webp|gif)$/i) ? '🖼️' : '📄'}
+            </a>
+        ))}
+    </span>
+) : p.proofUrl ? <a href={p.proofUrl} target="_blank" rel="noreferrer" style={{ marginLeft: 4 }}>📸</a> : null}
                                                                         </td>
                                                                         <td>
                                                                             <button className="btn btn-ghost btn-sm" style={{ fontSize: 11 }}
-                                                                                onClick={() => setProofModal({ payment: p, paidAmount: p.paidAmount || p.amount, paidDate: p.paidDate ? fmtDate(p.paidDate) : new Date().toISOString().slice(0, 10), file: null, preview: null, saving: false })}>
+                                                                                onClick={() => setProofModal({ payment: p, paidAmount: p.paidAmount || p.amount, paidDate: p.paidDate ? fmtDate(p.paidDate) : new Date().toISOString().slice(0, 10), existingFiles: Array.isArray(p.proofFiles) ? p.proofFiles : (p.proofUrl ? [{ url: p.proofUrl, name: 'chứng từ', type: 'image/jpeg' }] : []), pendingFiles: [], saving: false })}>
                                                                                 📎 Thu
                                                                             </button>
                                                                         </td>
@@ -846,7 +879,7 @@ export default function ContractDetailPage() {
             )}
         {proofModal && (
             <div className="modal-overlay" onClick={() => !proofModal.saving && setProofModal(null)}>
-                <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 460 }}>
+                <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 520 }}>
                     <div className="modal-header">
                         <h3>📎 Thu tiền — {proofModal.payment.phase}</h3>
                         <button className="modal-close" onClick={() => setProofModal(null)}>×</button>
@@ -870,21 +903,43 @@ export default function ContractDetailPage() {
                             </div>
                         </div>
                         <div className="form-group">
-                            <label className="form-label">Chứng từ (ảnh chuyển khoản)</label>
+                            <label className="form-label">Chứng từ ({(proofModal.existingFiles?.length || 0) + (proofModal.pendingFiles?.length || 0)} file)</label>
+                            {/* Existing + pending thumbnails */}
+                            {((proofModal.existingFiles?.length || 0) + (proofModal.pendingFiles?.length || 0)) > 0 && (
+                                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 10 }}>
+                                    {(proofModal.existingFiles || []).map((f, i) => (
+                                        <div key={i} style={{ position: 'relative', width: 80, height: 80 }}>
+                                            {f.type?.startsWith('image/') || f.url?.match(/\.(jpg|jpeg|png|webp|gif)$/i)
+                                                ? <img src={f.url} alt={f.name} style={{ width: 80, height: 80, objectFit: 'cover', borderRadius: 6, border: '1px solid var(--border)' }} />
+                                                : <a href={f.url} target="_blank" rel="noreferrer" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 80, height: 80, background: 'var(--bg-secondary)', borderRadius: 6, border: '1px solid var(--border)', fontSize: 11, color: 'var(--text-muted)', textDecoration: 'none', textAlign: 'center', padding: 4 }}>📄 {f.name?.split('.').pop()?.toUpperCase()}</a>
+                                            }
+                                            <button onClick={() => setProofModal(m => ({ ...m, existingFiles: m.existingFiles.filter((_, j) => j !== i) }))}
+                                                style={{ position: 'absolute', top: -6, right: -6, background: 'var(--status-danger)', color: '#fff', border: 'none', borderRadius: '50%', width: 18, height: 18, cursor: 'pointer', fontSize: 11, lineHeight: '18px', padding: 0 }}>×</button>
+                                        </div>
+                                    ))}
+                                    {(proofModal.pendingFiles || []).map((f, i) => (
+                                        <div key={`p${i}`} style={{ position: 'relative', width: 80, height: 80 }}>
+                                            {f.type?.startsWith('image/')
+                                                ? <img src={URL.createObjectURL(f)} alt={f.name} style={{ width: 80, height: 80, objectFit: 'cover', borderRadius: 6, border: '2px dashed var(--accent-primary)' }} />
+                                                : <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 80, height: 80, background: 'var(--bg-secondary)', borderRadius: 6, border: '2px dashed var(--accent-primary)', fontSize: 11, color: 'var(--text-muted)', textAlign: 'center', padding: 4 }}>📄 {f.name?.split('.').pop()?.toUpperCase()}</div>
+                                            }
+                                            <button onClick={() => setProofModal(m => ({ ...m, pendingFiles: m.pendingFiles.filter((_, j) => j !== i) }))}
+                                                style={{ position: 'absolute', top: -6, right: -6, background: 'var(--status-danger)', color: '#fff', border: 'none', borderRadius: '50%', width: 18, height: 18, cursor: 'pointer', fontSize: 11, lineHeight: '18px', padding: 0 }}>×</button>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                            {/* Drop zone */}
                             <div
-                                onPaste={e => { const f = e.clipboardData?.items?.[0]?.getAsFile(); if (f?.type.startsWith('image/')) setProofModal(m => ({ ...m, file: f, preview: URL.createObjectURL(f) })); }}
-                                onDrop={e => { e.preventDefault(); const f = e.dataTransfer?.files?.[0]; if (f?.type.startsWith('image/')) setProofModal(m => ({ ...m, file: f, preview: URL.createObjectURL(f) })); }}
+                                onPaste={e => { const files = Array.from(e.clipboardData?.items || []).map(it => it.getAsFile()).filter(Boolean); if (files.length) addProofFiles(files); }}
+                                onDrop={e => { e.preventDefault(); if (e.dataTransfer?.files?.length) addProofFiles(e.dataTransfer.files); }}
                                 onDragOver={e => e.preventDefault()}
                                 onClick={() => document.getElementById('proof-file-input').click()}
-                                style={{ border: '2px dashed var(--border)', borderRadius: 8, padding: 20, textAlign: 'center', cursor: 'pointer', minHeight: 80 }}>
-                                <input id="proof-file-input" type="file" accept="image/*" style={{ display: 'none' }}
-                                    onChange={e => { const f = e.target.files?.[0]; if (f) setProofModal(m => ({ ...m, file: f, preview: URL.createObjectURL(f) })); }} />
-                                {proofModal.preview
-                                    ? <img src={proofModal.preview} alt="preview" style={{ maxWidth: '100%', maxHeight: 160, borderRadius: 6 }} />
-                                    : proofModal.payment.proofUrl
-                                        ? <div><img src={proofModal.payment.proofUrl} alt="current" style={{ maxWidth: '100%', maxHeight: 120, borderRadius: 6, marginBottom: 6 }} /><div style={{ fontSize: 12, color: 'var(--text-muted)' }}>Đã có chứng từ — paste/chọn ảnh mới để thay</div></div>
-                                        : <div style={{ color: 'var(--text-muted)', fontSize: 13 }}>📋 <strong>Ctrl+V</strong> paste &nbsp;|&nbsp; 📁 Click chọn file &nbsp;|&nbsp; 🖱️ Kéo thả</div>
-                                }
+                                style={{ border: '2px dashed var(--border)', borderRadius: 8, padding: 14, textAlign: 'center', cursor: 'pointer', color: 'var(--text-muted)', fontSize: 13 }}>
+                                <input id="proof-file-input" type="file" accept="image/*,application/pdf,.doc,.docx,.xls,.xlsx" multiple style={{ display: 'none' }}
+                                    onChange={e => { if (e.target.files?.length) addProofFiles(e.target.files); e.target.value = ''; }} />
+                                📋 <strong>Ctrl+V</strong> paste &nbsp;|&nbsp; 📁 Click chọn file &nbsp;|&nbsp; 🖱️ Kéo thả
+                                <div style={{ fontSize: 11, marginTop: 4 }}>Hỗ trợ: ảnh, PDF, Word, Excel (tối đa 5MB/file)</div>
                             </div>
                         </div>
                     </div>
