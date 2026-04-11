@@ -5,8 +5,8 @@ import { apiFetch } from '@/lib/fetchClient';
 const PICKER_TYPES = {
     van: {
         title: '🪵 Chọn màu ván MDF',
-        categories: ['Ván AC', 'Ván Thái'],
-        catLabels: { 'Ván AC': 'An Cường', 'Ván Thái': 'Melamin Thái' },
+        categories: ['MDF AC', 'MDF Thái'],
+        catLabels: { 'MDF AC': 'An Cường', 'MDF Thái': 'Melamin Thái' },
         materialName: 'Ván MFC',
         unit: 'tờ',
     },
@@ -38,6 +38,17 @@ const emptyRow = () => ({
     productId: null, materialName: '', colorCode: '', colorName: '',
     swatchImageUrl: '', applicationArea: '', quantity: 1, unit: 'tờ', notes: '',
 });
+
+function getShortLabel(p) {
+    if (p.color) return p.color;
+    if (p.code && !p.code.startsWith('SP-')) return p.code;
+    return p.name
+        .replace(/^Ván gỗ MDF An Cường\s*/i, '')
+        .replace(/^Ván Melamin Thái Lan\s*/i, '')
+        .replace(/^Acrylic An Cường\s*/i, '')
+        .replace(/^Sàn gỗ An Cường\s*/i, '')
+        .trim() || p.name;
+}
 
 async function fetchFromCategories(categories, search, limit = 30) {
     const fetches = categories.map(cat => {
@@ -241,12 +252,13 @@ export default function MaterialSelectionTab({ orderId, order, onRefresh }) {
 
     const selectProduct = (p) => {
         const cfg = PICKER_TYPES[picker.type];
+        const shortLabel = getShortLabel(p);
         updateItem(picker.rowIdx, {
             productId: p.id,
-            materialName: p.name || cfg.materialName,
-            colorName: p.colorName || p.name,
-            colorCode: p.colorCode || p.code || '',
-            swatchImageUrl: p.imageUrl || p.swatchImageUrl || '',
+            materialName: cfg.materialName,
+            colorName: shortLabel,
+            colorCode: p.code || '',
+            swatchImageUrl: p.image || p.imageUrl || '',
             unit: cfg.unit,
         });
         setPicker(null);
@@ -600,15 +612,14 @@ export default function MaterialSelectionTab({ orderId, order, onRefresh }) {
                                     onMouseEnter={e => e.currentTarget.style.borderColor = '#1d4ed8'}
                                     onMouseLeave={e => e.currentTarget.style.borderColor = 'transparent'}
                                 >
-                                    {(p.imageUrl || p.swatchImageUrl) ? (
-                                        <img src={p.imageUrl || p.swatchImageUrl} alt={p.name}
+                                    {(p.image || p.imageUrl || p.swatchImageUrl) ? (
+                                        <img src={p.image || p.imageUrl || p.swatchImageUrl} alt={p.name}
                                             style={{ width: '100%', aspectRatio: '1', objectFit: 'cover', display: 'block' }} />
                                     ) : (
                                         <div style={{ width: '100%', aspectRatio: '1', background: '#e5e7eb', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20 }}>🎨</div>
                                     )}
                                     <div style={{ padding: '4px 5px', background: '#fff' }}>
-                                        <div style={{ fontSize: 10, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: '#374151' }}>{p.name}</div>
-                                        {p.colorCode && <div style={{ fontSize: 9, color: '#9ca3af', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.colorCode}</div>}
+                                        <div style={{ fontSize: 10, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: '#374151' }}>{getShortLabel(p)}</div>
                                     </div>
                                 </div>
                             ))}
