@@ -29,6 +29,7 @@ export const GET = withAuth(async (_request, { params }, session) => {
             requisitions: { orderBy: { createdAt: 'desc' } },
             purchaseOrders: { include: { items: true, supplierRel: { select: { name: true, phone: true, address: true, taxCode: true, bankAccount: true, bankName: true } } }, orderBy: { createdAt: 'desc' } },
             expenses: { where: { deletedAt: null }, orderBy: { date: 'desc' } },
+            stockIssues: { include: { items: true } },
             trackingLogs: { orderBy: { createdAt: 'desc' } },
             documents: { where: { parentDocumentId: null }, orderBy: { createdAt: 'desc' }, include: { folder: { select: { name: true } }, _count: { select: { versions: true } } } },
             documentFolders: { where: { parentId: null }, orderBy: { order: 'asc' }, include: { _count: { select: { documents: true } }, children: { orderBy: { order: 'asc' }, include: { _count: { select: { documents: true } } } } } },
@@ -49,6 +50,8 @@ export const GET = withAuth(async (_request, { params }, session) => {
 
     // Settlement (Quyet toan) — allocation-aware expense totals
     const totalPurchase = project.purchaseOrders.reduce((s, po) => s + (po.totalAmount ?? 0), 0);
+    const totalStockIssue = project.stockIssues.reduce((s, si) =>
+        s + si.items.reduce((is, item) => is + (item.qty * item.unitPrice), 0), 0);
     const totalContractorCost = project.contractorPays.reduce((s, p) => s + (p.contractAmount ?? 0), 0);
 
     // Fetch allocation-aware expense totals in parallel
@@ -64,7 +67,7 @@ export const GET = withAuth(async (_request, { params }, session) => {
     ]);
     const totalExpenses = Number(directExpenseAgg._sum.amount || 0) + Number(allocatedExpenseAgg._sum.amount || 0);
 
-    const totalCostB = totalPurchase + totalExpenses + totalContractorCost;
+    const totalCostB = totalPurchase + totalStockIssue + totalExpenses + totalContractorCost;
 
     // P&L — uses actual collected + live cost totals (not stale project.spent)
     const income = totalCollected;
@@ -79,7 +82,7 @@ export const GET = withAuth(async (_request, { params }, session) => {
 
     const settlement = {
         sideA: { contractValue: totalContractValue, variation: totalVariation, total: totalA, collected: totalCollected, remaining: totalA - totalCollected, rate: totalA > 0 ? ((totalCollected / totalA) * 100).toFixed(1) : 0 },
-        sideB: { purchase: totalPurchase, expenses: totalExpenses, contractor: totalContractorCost, total: totalCostB, paid: totalPaidB, remaining: totalCostB - totalPaidB },
+        sideB: { purchase: totalPurchase, stockIssue: totalStockIssue, expenses: totalExpenses, contractor: totalContractorCost, total: totalCostB, paid: totalPaidB, remaining: totalCostB - totalPaidB },
         profit: totalCollected - totalCostB,
         profitRate: totalCollected > 0 ? (((totalCollected - totalCostB) / totalCollected) * 100).toFixed(1) : 0,
     };

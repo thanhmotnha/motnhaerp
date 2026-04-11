@@ -22,6 +22,7 @@ export const GET = withAuth(async () => {
             },
             contractorPays: { select: { paidAmount: true } },
             purchaseOrders: { select: { paidAmount: true } },
+            stockIssues: { select: { items: { select: { qty: true, unitPrice: true } } } },
         },
         orderBy: { createdAt: 'desc' },
     });
@@ -65,8 +66,10 @@ export const GET = withAuth(async () => {
 
         const contractorCost = p.contractorPays.reduce((s, cp) => s + (cp.paidAmount || 0), 0);
         const poCost = p.purchaseOrders.reduce((s, po) => s + (po.paidAmount || 0), 0);
+        const stockIssueCost = p.stockIssues.reduce((s, si) =>
+            s + si.items.reduce((is, it) => is + (it.qty * it.unitPrice), 0), 0);
         const expenseCost = expenseMap[p.id] || 0;
-        const totalCost = contractorCost + poCost + expenseCost;
+        const totalCost = contractorCost + poCost + stockIssueCost + expenseCost;
 
         const grossProfit = paidByCustomer - totalCost;
         const margin = contractValue > 0 ? Math.round((grossProfit / contractValue) * 100) : 0;
@@ -90,6 +93,7 @@ export const GET = withAuth(async () => {
             remainReceivable,
             contractorCost,
             poCost,
+            stockIssueCost,
             expenseCost,
             totalCost,
             grossProfit,

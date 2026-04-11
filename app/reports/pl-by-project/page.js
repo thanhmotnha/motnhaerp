@@ -158,7 +158,7 @@ export default function PLByProjectPage() {
                                     <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
                                         <thead style={{ background: '#f9fafb' }}>
                                             <tr>
-                                                <th style={th}>Mã / Dự án</th>
+                                                <th style={th}>Dự án / Mã</th>
                                                 <th style={th}>Khách hàng</th>
                                                 <th style={th}>Trạng thái</th>
                                                 <th style={{ ...th, textAlign: 'right' }}><SortBtn field="contractValue" label="Giá trị HĐ" /></th>
@@ -177,8 +177,8 @@ export default function PLByProjectPage() {
                                                 return (
                                                     <tr key={r.id} style={{ background: rowBg, borderTop: '1px solid #f3f4f6' }}>
                                                         <td style={{ ...td, cursor: 'pointer' }} onClick={() => setDrawerProjectId(r.id)} title="Xem chi tiết tài chính">
-                                                            <div style={{ fontWeight: 600, fontSize: 12.5, color: '#2563eb' }}>{r.code || '—'}</div>
-                                                            <div style={{ color: '#374151', maxWidth: 220, textDecoration: 'underline', textDecorationColor: '#bfdbfe' }}>{r.name}</div>
+                                                            <div style={{ fontWeight: 600, fontSize: 13, color: '#111827' }}>{r.name || '—'}</div>
+                                                            <div style={{ color: '#2563eb', fontSize: 11.5 }}>{r.code}</div>
                                                             {r.alert && <div style={{ display: 'flex', alignItems: 'center', gap: 4, color: '#b45309', fontSize: 11, marginTop: 2 }}><AlertTriangle size={11} /> Margin thấp</div>}
                                                         </td>
                                                         <td style={td}>{r.customerName || '—'}</td>
