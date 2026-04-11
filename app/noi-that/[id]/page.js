@@ -57,16 +57,27 @@ export default function FurnitureOrderDetailPage() {
     return (
         <div style={{ padding: '20px 24px' }}>
             <div style={{ marginBottom: 20 }}>
-                <a href="/noi-that" style={{ fontSize: 13, color: 'var(--text-muted)', textDecoration: 'none' }}>← Danh sách</a>
+                <div style={{ fontSize: 13, color: 'var(--text-muted)', display: 'flex', gap: 6, alignItems: 'center' }}>
+                    <a href="/noi-that" style={{ color: 'var(--text-muted)', textDecoration: 'none' }}>← Nội thất</a>
+                    {order.project && (
+                        <>
+                            <span>·</span>
+                            <a href={`/projects/${order.project.code || order.projectId}`}
+                                style={{ color: 'var(--text-muted)', textDecoration: 'none' }}>
+                                Dự án {order.project.code}
+                            </a>
+                        </>
+                    )}
+                </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 8 }}>
                     <h1 style={{ fontSize: 22, fontWeight: 700, margin: 0 }}>🪵 {order.name}</h1>
                     <code style={{ fontSize: 13, color: 'var(--text-muted)' }}>{order.code}</code>
+                    {!order.project && (
+                        <span style={{ fontSize: 12, color: 'var(--status-warning)', background: 'var(--bg-secondary)', padding: '2px 8px', borderRadius: 4 }}>
+                            Chưa gắn dự án
+                        </span>
+                    )}
                 </div>
-                {order.project && (
-                    <div style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 4 }}>
-                        Dự án: <a href={`/projects/${order.projectId}`}>{order.project.name}</a>
-                    </div>
-                )}
             </div>
 
             {/* Step indicator */}

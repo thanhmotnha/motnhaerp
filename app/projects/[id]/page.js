@@ -77,7 +77,7 @@ export default function ProjectDetailPage() {
         contractors: <ContractorTab project={p} projectId={p.id} onRefresh={fetchData} />,
         documents: <DocumentTab project={p} projectId={p.id} onRefresh={fetchData} />,
         warranty: <WarrantyTab project={p} projectId={p.id} onRefresh={fetchData} />,
-        furniture: <FurnitureTab projectId={p.id} />,
+        furniture: <FurnitureTab projectId={p.id} project={p} />,
     };
 
     return (
