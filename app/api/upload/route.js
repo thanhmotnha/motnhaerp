@@ -5,7 +5,6 @@ import { NextResponse } from 'next/server';
 import { writeFile, mkdir } from 'fs/promises';
 import path from 'path';
 import { isR2Configured, uploadToR2 } from '@/lib/r2';
-import sharp from 'sharp';
 
 const ALLOWED_MIME_TYPES = [
     'image/jpeg',
@@ -40,11 +39,11 @@ const THUMBNAIL_MIME = ['image/jpeg', 'image/png', 'image/webp'];
 async function generateThumbnail(buffer, mimeType) {
     if (!THUMBNAIL_MIME.includes(mimeType)) return null;
     try {
-        const thumbBuffer = await sharp(buffer)
+        const { default: sharp } = await import('sharp');
+        return await sharp(buffer)
             .resize({ width: 480, height: 270, fit: 'cover', position: 'center' })
             .jpeg({ quality: 70, progressive: true })
             .toBuffer();
-        return thumbBuffer;
     } catch {
         return null;
     }
