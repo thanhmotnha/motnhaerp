@@ -93,9 +93,16 @@ function printSelection(sel, orderName) {
 
 export default function MaterialSelectionTab({ orderId, order, onRefresh }) {
     const [selections, setSelections] = useState(order.materialSelections || []);
-    const [editingId, setEditingId] = useState(null);
-    const [editForm, setEditForm] = useState(null);
+    const firstEmpty = (order.materialSelections || []).find(s => !s.items?.length && s.status !== 'confirmed');
+    const [editingId, setEditingId] = useState(firstEmpty?.id ?? null);
+    const [editForm, setEditForm] = useState(firstEmpty ? {
+        title: firstEmpty.title || '',
+        presentedBy: firstEmpty.presentedBy || '',
+        notes: firstEmpty.notes || '',
+        items: [],
+    } : null);
     const [saving, setSaving] = useState(false);
+    const [confirming, setConfirming] = useState(false);
     const [creating, setCreating] = useState(false);
     const [sendingLink, setSendingLink] = useState({});
     const [confirmLink, setConfirmLink] = useState(null);
@@ -177,6 +184,25 @@ export default function MaterialSelectionTab({ orderId, order, onRefresh }) {
             setSelections(prev => prev.map(s => s.id === editingId ? updated : s));
         } catch (err) { alert(err.message || 'Lỗi lưu'); }
         setSaving(false);
+    };
+
+    const saveAndConfirm = async () => {
+        if (!editForm.items.length) return alert('Chưa có vật liệu nào để chốt.');
+        setConfirming(true);
+        try {
+            await apiFetch(
+                `/api/furniture-orders/${orderId}/material-selections/${editingId}`,
+                { method: 'PATCH', body: editForm }
+            );
+            const confirmed = await apiFetch(
+                `/api/furniture-orders/${orderId}/material-selections/${editingId}`,
+                { method: 'PUT', body: { status: 'confirmed' } }
+            );
+            setSelections(prev => prev.map(s => s.id === editingId ? confirmed : s));
+            closeEditor();
+            onRefresh?.();
+        } catch (err) { alert(err.message || 'Lỗi chốt vật liệu'); }
+        setConfirming(false);
     };
 
     const sendConfirmationLink = async (selId) => {
@@ -487,19 +513,24 @@ export default function MaterialSelectionTab({ orderId, order, onRefresh }) {
                                             {qa.label}
                                         </button>
                                     ))}
-                                    {areaSuggestions.length > 0 && (
-                                        <button onClick={importFromOrder}
-                                            style={{ fontSize: 11, padding: '4px 8px', border: '1px dashed #d1d5db', borderRadius: 4, cursor: 'pointer', background: '#fff', color: '#6b7280' }}>
-                                            Import từ hạng mục đơn hàng
-                                        </button>
-                                    )}
+                                    <button onClick={importFromOrder}
+                                        style={{ fontSize: 11, padding: '4px 8px', border: '1px dashed #d1d5db', borderRadius: 4, cursor: 'pointer', background: '#fff', color: '#6b7280' }}>
+                                        Import từ hạng mục đơn hàng
+                                    </button>
                                 </div>
 
-                                <div style={{ display: 'flex', gap: 8 }}>
-                                    <button onClick={saveItems} disabled={saving} className="btn btn-primary" style={{ fontSize: 13 }}>
-                                        {saving ? 'Đang lưu...' : 'Lưu vật liệu'}
+                                <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                                    <button
+                                        onClick={saveAndConfirm}
+                                        disabled={confirming || saving}
+                                        style={{ fontSize: 13, padding: '8px 18px', background: '#16a34a', color: '#fff', border: 'none', borderRadius: 6, cursor: 'pointer', fontWeight: 600 }}
+                                    >
+                                        {confirming ? 'Đang chốt...' : '✓ Chốt vật liệu'}
                                     </button>
-                                    <button onClick={closeEditor} className="btn btn-ghost" style={{ fontSize: 13 }}>Hủy</button>
+                                    <button onClick={saveItems} disabled={saving || confirming} className="btn btn-ghost" style={{ fontSize: 13 }}>
+                                        {saving ? 'Đang lưu...' : 'Lưu nháp'}
+                                    </button>
+                                    <button onClick={closeEditor} className="btn btn-ghost" style={{ fontSize: 13, color: 'var(--text-muted)' }}>Hủy</button>
                                 </div>
                             </div>
                         )}
@@ -526,7 +557,7 @@ export default function MaterialSelectionTab({ orderId, order, onRefresh }) {
                     display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000,
                 }}>
                     <div onClick={e => e.stopPropagation()} style={{
-                        background: '#fff', borderRadius: 10, width: 540, maxHeight: '80vh',
+                        background: '#fff', borderRadius: 10, width: 680, maxHeight: '80vh',
                         display: 'flex', flexDirection: 'column', overflow: 'hidden',
                     }}>
                         <div style={{ padding: '14px 16px', borderBottom: '1px solid var(--border)' }}>
@@ -556,26 +587,32 @@ export default function MaterialSelectionTab({ orderId, order, onRefresh }) {
                                 </div>
                             )}
                         </div>
-                        <div style={{ overflowY: 'auto', flex: 1, padding: '8px 0' }}>
+                        <div style={{ overflowY: 'auto', flex: 1, padding: 16 }}>
                             {pickerLoading && <p style={{ textAlign: 'center', color: 'var(--text-muted)', padding: 20 }}>Đang tải...</p>}
                             {!pickerLoading && filteredResults.length === 0 && (
                                 <p style={{ textAlign: 'center', color: 'var(--text-muted)', padding: 20 }}>Không có kết quả</p>
                             )}
+                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(80px, 1fr))', gap: 10 }}>
                             {filteredResults.map(p => (
                                 <div key={p.id} onClick={() => selectProduct(p)}
-                                    style={{ padding: '10px 16px', cursor: 'pointer', display: 'flex', gap: 10, alignItems: 'center' }}
-                                    onMouseEnter={e => e.currentTarget.style.background = '#f3f4f6'}
-                                    onMouseLeave={e => e.currentTarget.style.background = ''}
+                                    title={`${p.name}${p.colorCode ? ` — ${p.colorCode}` : ''}`}
+                                    style={{ cursor: 'pointer', borderRadius: 8, overflow: 'hidden', border: '2px solid transparent', transition: 'border-color 0.15s' }}
+                                    onMouseEnter={e => e.currentTarget.style.borderColor = '#1d4ed8'}
+                                    onMouseLeave={e => e.currentTarget.style.borderColor = 'transparent'}
                                 >
-                                    {(p.imageUrl || p.swatchImageUrl) && (
-                                        <img src={p.imageUrl || p.swatchImageUrl} alt="" style={{ width: 36, height: 36, borderRadius: 4, objectFit: 'cover', flexShrink: 0 }} />
+                                    {(p.imageUrl || p.swatchImageUrl) ? (
+                                        <img src={p.imageUrl || p.swatchImageUrl} alt={p.name}
+                                            style={{ width: '100%', aspectRatio: '1', objectFit: 'cover', display: 'block' }} />
+                                    ) : (
+                                        <div style={{ width: '100%', aspectRatio: '1', background: '#e5e7eb', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20 }}>🎨</div>
                                     )}
-                                    <div>
-                                        <div style={{ fontWeight: 600, fontSize: 13 }}>{p.name}</div>
-                                        {p.colorCode && <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{p.colorCode}</div>}
+                                    <div style={{ padding: '4px 5px', background: '#fff' }}>
+                                        <div style={{ fontSize: 10, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: '#374151' }}>{p.name}</div>
+                                        {p.colorCode && <div style={{ fontSize: 9, color: '#9ca3af', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.colorCode}</div>}
                                     </div>
                                 </div>
                             ))}
+                            </div>
                         </div>
                         <div style={{ padding: '10px 16px', borderTop: '1px solid var(--border)' }}>
                             <button onClick={() => setPicker(null)} className="btn btn-ghost" style={{ fontSize: 13 }}>Đóng</button>
