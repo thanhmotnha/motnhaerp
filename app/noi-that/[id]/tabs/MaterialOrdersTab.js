@@ -47,8 +47,26 @@ export default function MaterialOrdersTab({ orderId, order, onRefresh }) {
     const handleCreatePO = async (type) => {
         const supplierId = selectedSuppliers[type];
         if (!supplierId) return alert('Vui lòng chọn nhà cung cấp');
+        const items = itemsByType[type];
+        if (items.length === 0) return alert('Không có vật liệu loại này để tạo PO');
         setCreating(prev => ({ ...prev, [type]: true }));
         try {
+            // Sync items from confirmed selection into FurnitureMaterialOrder
+            await apiFetch(`/api/furniture-orders/${orderId}/material-orders/${type}`, {
+                method: 'PUT',
+                body: {
+                    items: items.map(it => ({
+                        name: it.materialName,
+                        colorCode: it.colorCode || '',
+                        imageUrl: it.swatchImageUrl || '',
+                        quantity: it.quantity || 0,
+                        unit: it.unit || '',
+                        unitPrice: it.unitPrice || 0,
+                        notes: it.colorName ? `Màu: ${it.colorName}` : (it.notes || ''),
+                    })),
+                },
+            });
+            // Now create the PO
             await apiFetch(
                 `/api/furniture-orders/${orderId}/material-orders/${type}/create-po`,
                 {

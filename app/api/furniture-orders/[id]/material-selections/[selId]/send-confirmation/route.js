@@ -5,9 +5,10 @@ import { NextResponse } from 'next/server';
 export const POST = withAuth(async (request, { params }) => {
     const { selId } = await params;
 
+    const { id } = await params;
     const sel = await prisma.materialSelection.findUnique({
-        where: { id: selId },
-        select: { id: true, furnitureOrderId: true },
+        where: { id: selId, furnitureOrderId: id },
+        select: { id: true },
     });
     if (!sel) return NextResponse.json({ error: 'Không tìm thấy' }, { status: 404 });
 
