@@ -50,7 +50,7 @@ function getShortLabel(p) {
         .trim() || p.name;
 }
 
-async function fetchFromCategories(categories, search, limit = 30) {
+async function fetchFromCategories(categories, search, limit = 200) {
     const fetches = categories.map(cat => {
         const params = new URLSearchParams({ category: cat, limit: String(limit) });
         if (search) params.set('search', search);
@@ -569,7 +569,7 @@ export default function MaterialSelectionTab({ orderId, order, onRefresh }) {
                     display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000,
                 }}>
                     <div onClick={e => e.stopPropagation()} style={{
-                        background: '#fff', borderRadius: 10, width: 680, maxHeight: '80vh',
+                        background: '#fff', borderRadius: 10, width: 820, maxHeight: '85vh',
                         display: 'flex', flexDirection: 'column', overflow: 'hidden',
                     }}>
                         <div style={{ padding: '14px 16px', borderBottom: '1px solid var(--border)' }}>
@@ -604,7 +604,7 @@ export default function MaterialSelectionTab({ orderId, order, onRefresh }) {
                             {!pickerLoading && filteredResults.length === 0 && (
                                 <p style={{ textAlign: 'center', color: 'var(--text-muted)', padding: 20 }}>Không có kết quả</p>
                             )}
-                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(80px, 1fr))', gap: 10 }}>
+                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(110px, 1fr))', gap: 12 }}>
                             {filteredResults.map(p => (
                                 <div key={p.id} onClick={() => selectProduct(p)}
                                     title={`${p.name}${p.colorCode ? ` — ${p.colorCode}` : ''}`}
