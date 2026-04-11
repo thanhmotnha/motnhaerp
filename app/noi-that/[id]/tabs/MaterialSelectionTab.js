@@ -2,13 +2,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { apiFetch } from '@/lib/fetchClient';
 
-const STATUS_MAP = {
-    pending: { label: 'Chờ chốt', badge: 'warning' },
-    confirmed: { label: 'Đã chốt', badge: 'success' },
-    changed: { label: 'Đã thay đổi', badge: 'secondary' },
-};
-
-// Config cho từng loại picker vật liệu
 const PICKER_TYPES = {
     van: {
         title: '🪵 Chọn màu ván MDF',
@@ -16,8 +9,6 @@ const PICKER_TYPES = {
         catLabels: { 'Ván AC': 'An Cường', 'Ván Thái': 'Melamin Thái' },
         materialName: 'Ván MFC',
         unit: 'tờ',
-        btnLabel: '🪵 Chọn ván MDF',
-        btnClass: 'btn-primary',
     },
     acrylic: {
         title: '✨ Chọn cánh Acrylic',
@@ -25,8 +16,6 @@ const PICKER_TYPES = {
         catLabels: {},
         materialName: 'Acrylic',
         unit: 'tờ',
-        btnLabel: '✨ Chọn Acrylic',
-        btnClass: 'btn-ghost',
     },
     san_go: {
         title: '🏠 Chọn sàn gỗ',
@@ -34,8 +23,6 @@ const PICKER_TYPES = {
         catLabels: {},
         materialName: 'Sàn gỗ',
         unit: 'm²',
-        btnLabel: '🏠 Chọn sàn gỗ',
-        btnClass: 'btn-ghost',
     },
 };
 
@@ -52,7 +39,6 @@ const emptyRow = () => ({
     swatchImageUrl: '', applicationArea: '', quantity: 1, unit: 'tờ', notes: '',
 });
 
-// Fetch products from multiple categories in parallel, merge results
 async function fetchFromCategories(categories, search, limit = 30) {
     const fetches = categories.map(cat => {
         const params = new URLSearchParams({ category: cat, limit: String(limit) });
@@ -65,36 +51,76 @@ async function fetchFromCategories(categories, search, limit = 30) {
     return results.flat();
 }
 
+const STATUS_CONFIG = {
+    pending:   { label: 'Chờ xác nhận', bg: '#fef9c3', color: '#92400e' },
+    confirmed: { label: '✓ Đã xác nhận', bg: '#dcfce7', color: '#16a34a' },
+    changed:   { label: 'Đã thay đổi', bg: '#f3f4f6', color: '#6b7280' },
+};
+
+function printSelection(sel, orderName) {
+    const rows = (sel.items || []).map(it => `
+        <tr>
+            <td>${it.materialName}</td>
+            <td>${it.colorName || ''}${it.colorCode ? ` (${it.colorCode})` : ''}</td>
+            <td>${it.applicationArea || ''}</td>
+            <td style="text-align:right">${it.quantity} ${it.unit}</td>
+        </tr>`).join('');
+
+    const html = `<!DOCTYPE html><html><head><meta charset="utf-8">
+    <title>Vật liệu ${sel.title}</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; font-size: 13px; }
+        h2 { margin-bottom: 4px; }
+        p { color: #666; margin: 0 0 16px; }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { padding: 8px 10px; border: 1px solid #e5e7eb; }
+        th { background: #f9fafb; font-weight: 600; text-align: left; }
+    </style></head><body>
+    <h2>${orderName} — ${sel.title}</h2>
+    <p>Vòng ${sel.selectionRound} · ${sel.items?.length || 0} loại vật liệu</p>
+    <table>
+        <thead><tr><th>Vật liệu</th><th>Màu / Mã</th><th>Khu vực</th><th>Số lượng</th></tr></thead>
+        <tbody>${rows}</tbody>
+    </table>
+    <p style="margin-top:20px;color:#999;font-size:11px">In ngày ${new Date().toLocaleDateString('vi-VN')}</p>
+    </body></html>`;
+
+    const win = window.open('', '_blank');
+    win.document.write(html);
+    win.document.close();
+    win.onload = () => { win.print(); };
+}
+
 export default function MaterialSelectionTab({ orderId, order, onRefresh }) {
     const [selections, setSelections] = useState(order.materialSelections || []);
     const [editingId, setEditingId] = useState(null);
     const [editForm, setEditForm] = useState(null);
     const [saving, setSaving] = useState(false);
-    const [confirming, setConfirming] = useState(false);
     const [creating, setCreating] = useState(false);
+    const [sendingLink, setSendingLink] = useState({});
+    const [confirmLink, setConfirmLink] = useState(null);
 
-    // Generic picker state
-    const [picker, setPicker] = useState(null); // { rowIdx, type } — type is key of PICKER_TYPES
+    const [picker, setPicker] = useState(null);
     const [pickerSearch, setPickerSearch] = useState('');
     const [pickerResults, setPickerResults] = useState([]);
     const [pickerLoading, setPickerLoading] = useState(false);
-    const [pickerCatFilter, setPickerCatFilter] = useState('all'); // 'all' | category name
+    const [pickerCatFilter, setPickerCatFilter] = useState('all');
     const searchRef = useRef(null);
     const searchTimer = useRef(null);
 
     const areaSuggestions = (order.items || []).map(i => i.name).filter(Boolean);
 
-    // ── Selections list ──────────────────────────────────────
     const createNew = async () => {
         setCreating(true);
         try {
             const round = selections.length + 1;
             const sel = await apiFetch(`/api/furniture-orders/${orderId}/material-selections`, {
-                method: 'POST', body: { title: `Đợt chốt vật liệu ${round}`, items: [] },
+                method: 'POST',
+                body: { title: `Vật liệu vòng ${round}`, items: [] },
             });
-            setSelections(prev => [sel, ...prev]);
+            setSelections(prev => [...prev, sel]);
             openEditor(sel);
-        } catch (err) { alert(err.message || 'Lỗi tạo đợt chốt'); }
+        } catch (err) { alert(err.message || 'Lỗi tạo vòng chốt'); }
         setCreating(false);
     };
 
@@ -111,13 +137,12 @@ export default function MaterialSelectionTab({ orderId, order, onRefresh }) {
     const closeEditor = () => { setEditingId(null); setEditForm(null); };
 
     const deleteSel = async (selId) => {
-        if (!confirm('Xóa đợt chốt này?')) return;
+        if (!confirm('Xóa vòng chốt này?')) return;
         await apiFetch(`/api/furniture-orders/${orderId}/material-selections/${selId}`, { method: 'DELETE' });
         setSelections(prev => prev.filter(s => s.id !== selId));
         if (editingId === selId) closeEditor();
     };
 
-    // ── Items editing ─────────────────────────────────────────
     const addRow = (template = {}) => {
         setEditForm(f => ({ ...f, items: [...f.items, { ...emptyRow(), ...template }] }));
     };
@@ -142,7 +167,6 @@ export default function MaterialSelectionTab({ orderId, order, onRefresh }) {
         setEditForm(f => ({ ...f, items: [...f.items, ...newRows] }));
     };
 
-    // ── Save / Confirm ─────────────────────────────────────────
     const saveItems = async () => {
         setSaving(true);
         try {
@@ -155,413 +179,406 @@ export default function MaterialSelectionTab({ orderId, order, onRefresh }) {
         setSaving(false);
     };
 
-    const confirmSelection = async () => {
-        if (!confirm('Chốt vật liệu đợt này? Không thể chỉnh sửa sau khi chốt.')) return;
-        setConfirming(true);
+    const sendConfirmationLink = async (selId) => {
+        setSendingLink(prev => ({ ...prev, [selId]: true }));
         try {
-            const saved = await apiFetch(
-                `/api/furniture-orders/${orderId}/material-selections/${editingId}`,
-                { method: 'PATCH', body: editForm }
+            const result = await apiFetch(
+                `/api/furniture-orders/${orderId}/material-selections/${selId}/send-confirmation`,
+                { method: 'POST', body: {} }
             );
-            const confirmed = await apiFetch(
-                `/api/furniture-orders/${orderId}/material-selections/${editingId}`,
-                { method: 'PUT', body: { status: 'confirmed' } }
-            );
-            setSelections(prev => prev.map(s => s.id === editingId ? { ...saved, ...confirmed, items: saved.items } : s));
-            closeEditor();
-            onRefresh();
-        } catch (err) { alert(err.message || 'Lỗi xác nhận'); }
-        setConfirming(false);
+            const fullUrl = window.location.origin + result.url;
+            setConfirmLink({ url: fullUrl, selId });
+            await navigator.clipboard.writeText(fullUrl).catch(() => {});
+        } catch (err) { alert(err.message || 'Lỗi tạo link'); }
+        setSendingLink(prev => ({ ...prev, [selId]: false }));
     };
 
-    // ── Generic picker ─────────────────────────────────────────
-    const openPicker = (type, rowIdx) => {
-        // If rowIdx is undefined, add a new row first
-        const actualIdx = rowIdx !== undefined ? rowIdx : editForm.items.length;
-        if (rowIdx === undefined) {
-            const cfg = PICKER_TYPES[type];
-            setEditForm(f => ({ ...f, items: [...f.items, { ...emptyRow(), materialName: cfg.materialName, unit: cfg.unit }] }));
-        }
-        setPicker({ rowIdx: actualIdx, type });
+    const openPicker = (rowIdx, type) => {
+        setPicker({ rowIdx, type });
         setPickerSearch('');
-        setPickerCatFilter('all');
         setPickerResults([]);
-        setTimeout(() => searchRef.current?.focus(), 100);
+        setPickerCatFilter('all');
+        setTimeout(() => searchRef.current?.focus(), 50);
     };
 
-    const closePicker = () => { setPicker(null); setPickerResults([]); setPickerSearch(''); };
-
-    // Load initial results when picker opens
     useEffect(() => {
         if (!picker) return;
         const cfg = PICKER_TYPES[picker.type];
-        (async () => {
-            setPickerLoading(true);
-            const results = await fetchFromCategories(cfg.categories, '', 30);
-            setPickerResults(results);
-            setPickerLoading(false);
-        })();
-    }, [picker?.type, picker?.rowIdx]); // re-run only when type/rowIdx changes, not on search
-
-    const handleSearchChange = (val) => {
-        setPickerSearch(val);
         clearTimeout(searchTimer.current);
-        if (!picker) return;
-        const cfg = PICKER_TYPES[picker.type];
         searchTimer.current = setTimeout(async () => {
             setPickerLoading(true);
-            const results = await fetchFromCategories(cfg.categories, val.trim(), 30);
+            const results = await fetchFromCategories(cfg.categories, pickerSearch);
             setPickerResults(results);
             setPickerLoading(false);
-        }, 300);
-    };
+        }, 200);
+    }, [picker, pickerSearch]);
 
-    const pickProduct = (product) => {
-        if (!picker) return;
+    const selectProduct = (p) => {
+        const cfg = PICKER_TYPES[picker.type];
         updateItem(picker.rowIdx, {
-            productId: product.id,
-            materialName: product.name,
-            colorCode: product.color || product.code,
-            colorName: product.color || '',
-            swatchImageUrl: product.image || '',
+            productId: p.id,
+            materialName: p.name || cfg.materialName,
+            colorName: p.colorName || p.name,
+            colorCode: p.colorCode || p.code || '',
+            swatchImageUrl: p.imageUrl || p.swatchImageUrl || '',
+            unit: cfg.unit,
         });
-        closePicker();
+        setPicker(null);
     };
 
-    const pickerCfg = picker ? PICKER_TYPES[picker.type] : null;
-    const displayedResults = pickerCfg && pickerCatFilter !== 'all'
-        ? pickerResults.filter(p => p._category === pickerCatFilter)
-        : pickerResults;
-
-    const editingSel = selections.find(s => s.id === editingId);
-    const isConfirmed = editingSel?.status === 'confirmed';
+    const filteredResults = pickerCatFilter === 'all'
+        ? pickerResults
+        : pickerResults.filter(p => p._category === pickerCatFilter);
 
     return (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-
-            {/* Selection list */}
-            <div className="card">
-                <div className="card-header">
-                    <span className="card-title">🎨 Chốt vật liệu</span>
-                    <button className="btn btn-primary btn-sm" onClick={createNew} disabled={creating}>
-                        {creating ? '⏳...' : '+ Tạo đợt chốt'}
-                    </button>
-                </div>
-
-                {selections.length === 0 ? (
-                    <div style={{ padding: '24px 0', textAlign: 'center', color: 'var(--text-muted)', fontSize: 13 }}>
-                        Chưa có đợt chốt vật liệu nào
+        <div>
+            {confirmLink && (
+                <div onClick={() => setConfirmLink(null)} style={{
+                    position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000,
+                }}>
+                    <div onClick={e => e.stopPropagation()} style={{
+                        background: '#fff', borderRadius: 10, padding: 24, maxWidth: 480, width: '90%',
+                    }}>
+                        <h3 style={{ margin: '0 0 12px', fontSize: 16 }}>✉️ Link xác nhận đã tạo</h3>
+                        <p style={{ fontSize: 13, color: '#6b7280', margin: '0 0 12px' }}>
+                            Link đã được copy vào clipboard. Gửi cho khách hàng để họ xem và xác nhận vật liệu.
+                        </p>
+                        <div style={{
+                            background: '#f3f4f6', borderRadius: 6, padding: '10px 12px',
+                            fontSize: 12, wordBreak: 'break-all', marginBottom: 16, color: '#374151',
+                        }}>
+                            {confirmLink.url}
+                        </div>
+                        <div style={{ display: 'flex', gap: 8 }}>
+                            <button
+                                onClick={() => navigator.clipboard.writeText(confirmLink.url)}
+                                style={{ flex: 1, padding: '8px', background: '#1d4ed8', color: '#fff', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 13 }}
+                            >
+                                📋 Copy lại
+                            </button>
+                            <button
+                                onClick={() => setConfirmLink(null)}
+                                style={{ flex: 1, padding: '8px', background: '#f3f4f6', color: '#374151', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 13 }}
+                            >
+                                Đóng
+                            </button>
+                        </div>
                     </div>
-                ) : (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 4 }}>
-                        {selections.map(sel => {
-                            const st = STATUS_MAP[sel.status] || STATUS_MAP.pending;
-                            const isOpen = editingId === sel.id;
-                            return (
-                                <div key={sel.id} style={{
-                                    display: 'flex', alignItems: 'center', gap: 12, padding: '10px 12px',
-                                    background: isOpen ? 'var(--bg-secondary)' : 'transparent',
-                                    borderRadius: 6, border: isOpen ? '1px solid var(--border)' : '1px solid transparent',
-                                }}>
-                                    <div style={{ flex: 1, minWidth: 0 }}>
-                                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                                            <span style={{ fontWeight: 600, fontSize: 14 }}>
-                                                Đợt {sel.selectionRound}: {sel.title}
-                                            </span>
-                                            <span className={`badge ${st.badge}`}>{st.label}</span>
-                                        </div>
-                                        <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>
-                                            {sel.items?.length || 0} vật liệu
-                                            {sel.confirmedAt && ` · Chốt: ${new Date(sel.confirmedAt).toLocaleDateString('vi-VN')}`}
-                                        </div>
-                                    </div>
-                                    <div style={{ display: 'flex', gap: 6 }}>
-                                        {isOpen ? (
-                                            <button className="btn btn-ghost btn-sm" onClick={closeEditor}>✕ Đóng</button>
-                                        ) : (
-                                            <button className="btn btn-ghost btn-sm" onClick={() => openEditor(sel)}>
-                                                {sel.status === 'confirmed' ? '👁 Xem' : '✏️ Sửa'}
-                                            </button>
-                                        )}
-                                        {sel.status !== 'confirmed' && (
-                                            <button className="btn btn-ghost btn-sm" style={{ color: 'var(--status-danger)' }}
-                                                onClick={() => deleteSel(sel.id)}>Xóa</button>
-                                        )}
-                                    </div>
-                                </div>
-                            );
-                        })}
-                    </div>
-                )}
-            </div>
-
-            {/* Editor */}
-            {editForm && (
-                <div className="card">
-                    <div className="card-header">
-                        <span className="card-title">
-                            {isConfirmed ? '👁 Xem vật liệu đã chốt' : '✏️ Chỉnh sửa đợt chốt'}
-                        </span>
-                        {!isConfirmed && (
-                            <div style={{ display: 'flex', gap: 8 }}>
-                                <button className="btn btn-ghost btn-sm" onClick={saveItems} disabled={saving}>
-                                    {saving ? '⏳...' : '💾 Lưu'}
-                                </button>
-                                <button className="btn btn-primary btn-sm" onClick={confirmSelection} disabled={confirming || saving}>
-                                    {confirming ? '⏳...' : '✅ Chốt vật liệu'}
-                                </button>
-                            </div>
-                        )}
-                    </div>
-
-                    {!isConfirmed && (
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12, marginBottom: 16 }}>
-                            <div>
-                                <label style={{ fontSize: 12, color: 'var(--text-muted)' }}>Tên đợt chốt</label>
-                                <input className="form-input" value={editForm.title}
-                                    onChange={e => setEditForm(f => ({ ...f, title: e.target.value }))} />
-                            </div>
-                            <div>
-                                <label style={{ fontSize: 12, color: 'var(--text-muted)' }}>Người trình bày</label>
-                                <input className="form-input" placeholder="Tên KTV / thiết kế" value={editForm.presentedBy}
-                                    onChange={e => setEditForm(f => ({ ...f, presentedBy: e.target.value }))} />
-                            </div>
-                            <div>
-                                <label style={{ fontSize: 12, color: 'var(--text-muted)' }}>Ghi chú</label>
-                                <input className="form-input" placeholder="Ghi chú chung..." value={editForm.notes}
-                                    onChange={e => setEditForm(f => ({ ...f, notes: e.target.value }))} />
-                            </div>
-                        </div>
-                    )}
-
-                    {/* Quick add buttons */}
-                    {!isConfirmed && (
-                        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 12 }}>
-                            {Object.entries(PICKER_TYPES).map(([type, cfg]) => (
-                                <button key={type} className={`btn ${cfg.btnClass} btn-sm`}
-                                    onClick={() => openPicker(type)}>
-                                    {cfg.btnLabel}
-                                </button>
-                            ))}
-                            {QUICK_ADD.map(qa => (
-                                <button key={qa.materialName} className="btn btn-ghost btn-sm"
-                                    onClick={() => addRow({ materialName: qa.materialName, unit: qa.unit })}>
-                                    {qa.label}
-                                </button>
-                            ))}
-                            {areaSuggestions.length > 0 && (
-                                <button className="btn btn-ghost btn-sm" onClick={importFromOrder}
-                                    style={{ borderLeft: '1px solid var(--border)', paddingLeft: 12 }}>
-                                    📋 Nhập từ đơn hàng ({areaSuggestions.length})
-                                </button>
-                            )}
-                        </div>
-                    )}
-
-                    <datalist id="area-list">
-                        {areaSuggestions.map(s => <option key={s} value={s} />)}
-                    </datalist>
-
-                    {editForm.items.length === 0 ? (
-                        <div style={{ padding: '24px 0', textAlign: 'center', color: 'var(--text-muted)', fontSize: 13 }}>
-                            Chưa có vật liệu nào. Nhấn các nút ở trên để thêm.
-                        </div>
-                    ) : (
-                        <div style={{ overflowX: 'auto' }}>
-                            <table className="data-table" style={{ fontSize: 13 }}>
-                                <thead>
-                                    <tr>
-                                        <th style={{ width: 48 }}>Ảnh</th>
-                                        <th>Tên vật liệu</th>
-                                        <th style={{ width: 100 }}>Mã màu</th>
-                                        <th>Hạng mục áp dụng</th>
-                                        <th style={{ width: 70 }}>SL</th>
-                                        <th style={{ width: 65 }}>ĐVT</th>
-                                        <th>Ghi chú</th>
-                                        {!isConfirmed && <th style={{ width: 50 }}></th>}
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {editForm.items.map((item, idx) => (
-                                        <tr key={idx}>
-                                            <td>
-                                                {item.swatchImageUrl ? (
-                                                    <img src={item.swatchImageUrl} alt={item.colorCode}
-                                                        style={{ width: 40, height: 40, objectFit: 'cover', borderRadius: 4, border: '1px solid var(--border)', cursor: 'pointer' }}
-                                                        onClick={() => !isConfirmed && openPicker('van', idx)} />
-                                                ) : (
-                                                    <div style={{ width: 40, height: 40, borderRadius: 4, background: 'var(--bg-secondary)', border: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, cursor: isConfirmed ? 'default' : 'pointer' }}
-                                                        onClick={() => !isConfirmed && openPicker('van', idx)}>
-                                                        🎨
-                                                    </div>
-                                                )}
-                                            </td>
-                                            <td>
-                                                {isConfirmed ? (
-                                                    <span>{item.materialName}</span>
-                                                ) : (
-                                                    <div style={{ display: 'flex', gap: 4 }}>
-                                                        <input className="form-input" style={{ fontSize: 12 }}
-                                                            value={item.materialName}
-                                                            onChange={e => updateItem(idx, { materialName: e.target.value })} />
-                                                        <button className="btn btn-ghost btn-sm" title="Chọn từ danh mục"
-                                                            style={{ flexShrink: 0 }}
-                                                            onClick={() => openPicker('van', idx)}>🔍</button>
-                                                    </div>
-                                                )}
-                                            </td>
-                                            <td>
-                                                {isConfirmed ? (
-                                                    <span style={{ fontWeight: 600, color: 'var(--status-info)' }}>{item.colorCode}</span>
-                                                ) : (
-                                                    <input className="form-input" style={{ fontSize: 12 }}
-                                                        value={item.colorCode}
-                                                        onChange={e => updateItem(idx, { colorCode: e.target.value })} />
-                                                )}
-                                            </td>
-                                            <td>
-                                                {isConfirmed ? (
-                                                    <span>{item.applicationArea}</span>
-                                                ) : (
-                                                    <input className="form-input" style={{ fontSize: 12 }}
-                                                        list="area-list"
-                                                        placeholder="VD: Tủ bếp trên..."
-                                                        value={item.applicationArea}
-                                                        onChange={e => updateItem(idx, { applicationArea: e.target.value })} />
-                                                )}
-                                            </td>
-                                            <td>
-                                                {isConfirmed ? (
-                                                    <span>{item.quantity}</span>
-                                                ) : (
-                                                    <input className="form-input" type="number" style={{ fontSize: 12 }}
-                                                        value={item.quantity}
-                                                        onChange={e => updateItem(idx, { quantity: e.target.value })} />
-                                                )}
-                                            </td>
-                                            <td>
-                                                {isConfirmed ? (
-                                                    <span>{item.unit}</span>
-                                                ) : (
-                                                    <input className="form-input" style={{ fontSize: 12 }}
-                                                        value={item.unit}
-                                                        onChange={e => updateItem(idx, { unit: e.target.value })} />
-                                                )}
-                                            </td>
-                                            <td>
-                                                {isConfirmed ? (
-                                                    <span style={{ color: 'var(--text-muted)' }}>{item.notes}</span>
-                                                ) : (
-                                                    <input className="form-input" style={{ fontSize: 12 }}
-                                                        value={item.notes}
-                                                        onChange={e => updateItem(idx, { notes: e.target.value })} />
-                                                )}
-                                            </td>
-                                            {!isConfirmed && (
-                                                <td>
-                                                    <button className="btn btn-ghost btn-sm"
-                                                        style={{ color: 'var(--status-danger)' }}
-                                                        onClick={() => removeItem(idx)}>✕</button>
-                                                </td>
-                                            )}
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
-                        </div>
-                    )}
                 </div>
             )}
 
-            {/* Generic product picker modal */}
-            {picker && pickerCfg && (
-                <div className="modal-overlay" onClick={closePicker}>
-                    <div className="modal" style={{ maxWidth: 760, maxHeight: '82vh', display: 'flex', flexDirection: 'column' }}
-                        onClick={e => e.stopPropagation()}>
-                        <div className="modal-header">
-                            <h3 className="modal-title">{pickerCfg.title}</h3>
-                            <button className="modal-close" onClick={closePicker}>×</button>
-                        </div>
+            {selections.length === 0 && !editingId && (
+                <div style={{ textAlign: 'center', padding: '40px 0', color: 'var(--text-muted)' }}>
+                    Chưa có vòng chốt vật liệu nào.
+                </div>
+            )}
 
-                        {/* Search */}
-                        <div style={{ marginBottom: 10 }}>
-                            <input ref={searchRef} className="form-input"
-                                placeholder="Tìm theo tên, mã màu..."
-                                value={pickerSearch}
-                                onChange={e => handleSearchChange(e.target.value)} />
-                        </div>
+            {selections.map(sel => {
+                const sc = STATUS_CONFIG[sel.status] || STATUS_CONFIG.pending;
+                const isEditing = editingId === sel.id;
 
-                        {/* Category tabs (only if multiple categories) */}
-                        {pickerCfg.categories.length > 1 && (
-                            <div style={{ display: 'flex', gap: 4, marginBottom: 12 }}>
+                return (
+                    <div key={sel.id} style={{
+                        background: '#fff', border: '1px solid var(--border)',
+                        borderRadius: 8, marginBottom: 16, overflow: 'hidden',
+                    }}>
+                        <div style={{
+                            padding: '10px 16px',
+                            display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                            borderBottom: '1px solid var(--border)', background: '#fafafa',
+                        }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                                <span style={{ fontWeight: 700, fontSize: 14 }}>
+                                    Vòng {sel.selectionRound} — {sel.title}
+                                </span>
+                                <span style={{
+                                    background: sc.bg, color: sc.color,
+                                    padding: '2px 8px', borderRadius: 8, fontSize: 11, fontWeight: 600,
+                                }}>
+                                    {sc.label}
+                                </span>
+                                {sel.confirmedAt && (
+                                    <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+                                        — {new Date(sel.confirmedAt).toLocaleDateString('vi-VN')}
+                                    </span>
+                                )}
+                            </div>
+                            <div style={{ display: 'flex', gap: 6 }}>
                                 <button
-                                    className="btn btn-sm"
-                                    style={{
-                                        background: pickerCatFilter === 'all' ? 'var(--status-info)' : 'var(--bg-secondary)',
-                                        color: pickerCatFilter === 'all' ? '#fff' : 'var(--text-secondary)',
-                                        border: 'none',
-                                    }}
-                                    onClick={() => setPickerCatFilter('all')}>
-                                    Tất cả ({pickerResults.length})
+                                    onClick={() => printSelection(sel, order.name)}
+                                    style={{ background: 'var(--bg-secondary)', border: 'none', padding: '4px 10px', borderRadius: 4, fontSize: 12, cursor: 'pointer' }}
+                                >
+                                    📄 Xuất PDF
                                 </button>
-                                {pickerCfg.categories.map(cat => {
-                                    const count = pickerResults.filter(p => p._category === cat).length;
-                                    return (
-                                        <button key={cat}
-                                            className="btn btn-sm"
-                                            style={{
-                                                background: pickerCatFilter === cat ? 'var(--status-info)' : 'var(--bg-secondary)',
-                                                color: pickerCatFilter === cat ? '#fff' : 'var(--text-secondary)',
-                                                border: 'none',
-                                            }}
-                                            onClick={() => setPickerCatFilter(cat)}>
-                                            {pickerCfg.catLabels[cat] || cat} ({count})
-                                        </button>
-                                    );
-                                })}
+                                <button
+                                    onClick={() => sendConfirmationLink(sel.id)}
+                                    disabled={sendingLink[sel.id]}
+                                    style={{ background: 'var(--bg-secondary)', border: 'none', padding: '4px 10px', borderRadius: 4, fontSize: 12, cursor: 'pointer' }}
+                                >
+                                    {sendingLink[sel.id] ? 'Đang tạo...' : '✉️ Gửi KH xác nhận'}
+                                </button>
+                                {!isEditing && sel.status !== 'confirmed' && (
+                                    <button
+                                        onClick={() => openEditor(sel)}
+                                        style={{ background: 'none', border: '1px solid var(--border)', padding: '4px 10px', borderRadius: 4, fontSize: 12, cursor: 'pointer' }}
+                                    >
+                                        Sửa
+                                    </button>
+                                )}
+                                <button
+                                    onClick={() => deleteSel(sel.id)}
+                                    style={{ background: 'none', border: '1px solid #fca5a5', color: '#dc2626', padding: '4px 10px', borderRadius: 4, fontSize: 12, cursor: 'pointer' }}
+                                >
+                                    Xóa
+                                </button>
+                            </div>
+                        </div>
+
+                        {!isEditing && (
+                            <div style={{ padding: '8px 16px' }}>
+                                {(!sel.items || sel.items.length === 0) ? (
+                                    <p style={{ color: 'var(--text-muted)', fontSize: 13, margin: '8px 0' }}>Chưa có vật liệu nào.</p>
+                                ) : (
+                                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+                                        <thead>
+                                            <tr style={{ color: 'var(--text-muted)', borderBottom: '1px solid var(--border)' }}>
+                                                <th style={{ textAlign: 'left', padding: '6px 0', fontWeight: 600 }}>Loại</th>
+                                                <th style={{ textAlign: 'left', padding: '6px 0', fontWeight: 600 }}>Màu / Mã</th>
+                                                <th style={{ textAlign: 'left', padding: '6px 0', fontWeight: 600 }}>Khu vực</th>
+                                                <th style={{ textAlign: 'right', padding: '6px 0', fontWeight: 600 }}>SL</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {sel.items.map((it, i) => (
+                                                <tr key={i} style={{ borderBottom: '1px solid #f9fafb' }}>
+                                                    <td style={{ padding: '6px 0' }}>{it.materialName}</td>
+                                                    <td style={{ padding: '6px 0' }}>
+                                                        {it.swatchImageUrl && (
+                                                            <img src={it.swatchImageUrl} alt="" style={{ width: 16, height: 16, borderRadius: 3, verticalAlign: 'middle', marginRight: 4, objectFit: 'cover' }} />
+                                                        )}
+                                                        {it.colorName}{it.colorCode ? ` (${it.colorCode})` : ''}
+                                                    </td>
+                                                    <td style={{ padding: '6px 0', color: 'var(--text-muted)' }}>{it.applicationArea || '—'}</td>
+                                                    <td style={{ padding: '6px 0', textAlign: 'right' }}>{it.quantity} {it.unit}</td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                )}
                             </div>
                         )}
 
-                        {/* Product grid */}
-                        <div style={{ overflowY: 'auto', flex: 1 }}>
-                            {pickerLoading ? (
-                                <div style={{ textAlign: 'center', padding: 32, color: 'var(--text-muted)' }}>Đang tải...</div>
-                            ) : displayedResults.length === 0 ? (
-                                <div style={{ textAlign: 'center', padding: 32, color: 'var(--text-muted)', fontSize: 13 }}>
-                                    {pickerSearch ? 'Không tìm thấy sản phẩm phù hợp' : 'Chưa có sản phẩm trong danh mục này'}
+                        {isEditing && editForm && (
+                            <div style={{ padding: 16 }}>
+                                <div style={{ display: 'flex', gap: 12, marginBottom: 12 }}>
+                                    <div style={{ flex: 2 }}>
+                                        <label style={{ fontSize: 12, color: 'var(--text-muted)', display: 'block', marginBottom: 4 }}>Tên vòng</label>
+                                        <input
+                                            value={editForm.title}
+                                            onChange={e => setEditForm(f => ({ ...f, title: e.target.value }))}
+                                            className="form-input"
+                                            style={{ width: '100%' }}
+                                        />
+                                    </div>
+                                    <div style={{ flex: 1 }}>
+                                        <label style={{ fontSize: 12, color: 'var(--text-muted)', display: 'block', marginBottom: 4 }}>Trình bày bởi</label>
+                                        <input
+                                            value={editForm.presentedBy}
+                                            onChange={e => setEditForm(f => ({ ...f, presentedBy: e.target.value }))}
+                                            className="form-input"
+                                            style={{ width: '100%' }}
+                                        />
+                                    </div>
                                 </div>
-                            ) : (
-                                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(110px, 1fr))', gap: 8 }}>
-                                    {displayedResults.map(p => (
-                                        <button key={p.id} onClick={() => pickProduct(p)}
-                                            style={{
-                                                border: '1px solid var(--border)', borderRadius: 6, padding: 6,
-                                                background: 'var(--bg-primary)', cursor: 'pointer',
-                                                display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4,
-                                                textAlign: 'center',
-                                            }}
-                                            onMouseOver={e => e.currentTarget.style.borderColor = 'var(--status-info)'}
-                                            onMouseOut={e => e.currentTarget.style.borderColor = 'var(--border)'}>
-                                            {p.image ? (
-                                                <img src={p.image} alt={p.color || p.code}
-                                                    style={{ width: '100%', aspectRatio: '1', objectFit: 'cover', borderRadius: 4 }} />
-                                            ) : (
-                                                <div style={{ width: '100%', aspectRatio: '1', background: 'var(--bg-secondary)', borderRadius: 4, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20 }}>
-                                                    {pickerCfg.title.charAt(0)}
-                                                </div>
-                                            )}
-                                            <span style={{ fontSize: 10, color: 'var(--text-secondary)', lineHeight: 1.3, wordBreak: 'break-all' }}>
-                                                {p.color || p.code}
-                                            </span>
-                                            {pickerCfg.categories.length > 1 && (
-                                                <span style={{ fontSize: 9, color: 'var(--text-muted)' }}>
-                                                    {pickerCfg.catLabels[p._category] || p._category}
-                                                </span>
-                                            )}
+
+                                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12, marginBottom: 8 }}>
+                                    <thead>
+                                        <tr style={{ color: 'var(--text-muted)', borderBottom: '1px solid var(--border)' }}>
+                                            <th style={{ width: 120, padding: '4px 6px 4px 0', textAlign: 'left' }}>Vật liệu</th>
+                                            <th style={{ width: 130, padding: '4px 6px', textAlign: 'left' }}>Màu / Picker</th>
+                                            <th style={{ padding: '4px 6px', textAlign: 'left' }}>Khu vực</th>
+                                            <th style={{ width: 60, padding: '4px 6px', textAlign: 'right' }}>SL</th>
+                                            <th style={{ width: 50, padding: '4px 6px', textAlign: 'left' }}>Đvt</th>
+                                            <th style={{ width: 28 }}></th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {editForm.items.map((it, idx) => (
+                                            <tr key={idx} style={{ borderBottom: '1px solid #f9fafb' }}>
+                                                <td style={{ padding: '4px 6px 4px 0' }}>
+                                                    <input
+                                                        value={it.materialName}
+                                                        onChange={e => updateItem(idx, { materialName: e.target.value })}
+                                                        className="form-input"
+                                                        style={{ width: '100%', fontSize: 12 }}
+                                                        placeholder="Tên vật liệu"
+                                                    />
+                                                </td>
+                                                <td style={{ padding: '4px 6px' }}>
+                                                    <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+                                                        {it.swatchImageUrl && (
+                                                            <img src={it.swatchImageUrl} alt="" style={{ width: 20, height: 20, borderRadius: 3, objectFit: 'cover', flexShrink: 0 }} />
+                                                        )}
+                                                        <input
+                                                            value={it.colorName}
+                                                            onChange={e => updateItem(idx, { colorName: e.target.value })}
+                                                            className="form-input"
+                                                            style={{ flex: 1, fontSize: 12 }}
+                                                            placeholder="Màu"
+                                                        />
+                                                        {Object.keys(PICKER_TYPES).map(type => (
+                                                            <button
+                                                                key={type}
+                                                                onClick={() => openPicker(idx, type)}
+                                                                title={PICKER_TYPES[type].title}
+                                                                style={{ padding: '2px 5px', fontSize: 10, border: '1px solid var(--border)', borderRadius: 3, cursor: 'pointer', background: '#fff', flexShrink: 0 }}
+                                                            >
+                                                                {type === 'van' ? '🪵' : type === 'acrylic' ? '✨' : '🏠'}
+                                                            </button>
+                                                        ))}
+                                                    </div>
+                                                </td>
+                                                <td style={{ padding: '4px 6px' }}>
+                                                    <input
+                                                        list={`areas-${sel.id}-${idx}`}
+                                                        value={it.applicationArea}
+                                                        onChange={e => updateItem(idx, { applicationArea: e.target.value })}
+                                                        className="form-input"
+                                                        style={{ width: '100%', fontSize: 12 }}
+                                                        placeholder="Khu vực áp dụng"
+                                                    />
+                                                    <datalist id={`areas-${sel.id}-${idx}`}>
+                                                        {areaSuggestions.map((a, i) => <option key={i} value={a} />)}
+                                                    </datalist>
+                                                </td>
+                                                <td style={{ padding: '4px 6px' }}>
+                                                    <input
+                                                        type="number"
+                                                        value={it.quantity}
+                                                        onChange={e => updateItem(idx, { quantity: Number(e.target.value) })}
+                                                        className="form-input"
+                                                        style={{ width: '100%', fontSize: 12, textAlign: 'right' }}
+                                                    />
+                                                </td>
+                                                <td style={{ padding: '4px 6px' }}>
+                                                    <input
+                                                        value={it.unit}
+                                                        onChange={e => updateItem(idx, { unit: e.target.value })}
+                                                        className="form-input"
+                                                        style={{ width: '100%', fontSize: 12 }}
+                                                    />
+                                                </td>
+                                                <td style={{ padding: '4px 0' }}>
+                                                    <button onClick={() => removeItem(idx)} style={{ background: 'none', border: 'none', color: '#dc2626', cursor: 'pointer', fontSize: 16 }}>×</button>
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+
+                                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 12 }}>
+                                    <button onClick={() => addRow()} style={{ fontSize: 11, padding: '4px 8px', border: '1px dashed var(--border)', borderRadius: 4, cursor: 'pointer', background: '#fff' }}>
+                                        + Thêm dòng
+                                    </button>
+                                    {QUICK_ADD.map((qa, i) => (
+                                        <button key={i} onClick={() => addRow({ materialName: qa.materialName, unit: qa.unit })}
+                                            style={{ fontSize: 11, padding: '4px 8px', border: '1px dashed #d1d5db', borderRadius: 4, cursor: 'pointer', background: '#fff', color: '#6b7280' }}>
+                                            {qa.label}
                                         </button>
+                                    ))}
+                                    {areaSuggestions.length > 0 && (
+                                        <button onClick={importFromOrder}
+                                            style={{ fontSize: 11, padding: '4px 8px', border: '1px dashed #d1d5db', borderRadius: 4, cursor: 'pointer', background: '#fff', color: '#6b7280' }}>
+                                            Import từ hạng mục đơn hàng
+                                        </button>
+                                    )}
+                                </div>
+
+                                <div style={{ display: 'flex', gap: 8 }}>
+                                    <button onClick={saveItems} disabled={saving} className="btn btn-primary" style={{ fontSize: 13 }}>
+                                        {saving ? 'Đang lưu...' : 'Lưu vật liệu'}
+                                    </button>
+                                    <button onClick={closeEditor} className="btn btn-ghost" style={{ fontSize: 13 }}>Hủy</button>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                );
+            })}
+
+            <button
+                onClick={createNew}
+                disabled={creating}
+                style={{
+                    width: '100%', background: '#fff',
+                    border: '1.5px dashed var(--border)', borderRadius: 8,
+                    padding: '12px', color: 'var(--text-muted)', fontSize: 13,
+                    cursor: 'pointer',
+                }}
+            >
+                {creating ? 'Đang tạo...' : '+ Thêm vòng chốt mới (khi KH thay đổi)'}
+            </button>
+
+            {picker && (
+                <div onClick={() => setPicker(null)} style={{
+                    position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000,
+                }}>
+                    <div onClick={e => e.stopPropagation()} style={{
+                        background: '#fff', borderRadius: 10, width: 540, maxHeight: '80vh',
+                        display: 'flex', flexDirection: 'column', overflow: 'hidden',
+                    }}>
+                        <div style={{ padding: '14px 16px', borderBottom: '1px solid var(--border)' }}>
+                            <h3 style={{ margin: 0, fontSize: 15 }}>{PICKER_TYPES[picker.type].title}</h3>
+                        </div>
+                        <div style={{ padding: '10px 16px', borderBottom: '1px solid #f3f4f6' }}>
+                            <input
+                                ref={searchRef}
+                                value={pickerSearch}
+                                onChange={e => setPickerSearch(e.target.value)}
+                                placeholder="Tìm kiếm..."
+                                className="form-input"
+                                style={{ width: '100%' }}
+                            />
+                            {Object.keys(PICKER_TYPES[picker.type].catLabels).length > 0 && (
+                                <div style={{ display: 'flex', gap: 6, marginTop: 8 }}>
+                                    <button
+                                        onClick={() => setPickerCatFilter('all')}
+                                        style={{ padding: '3px 10px', fontSize: 11, borderRadius: 4, border: 'none', cursor: 'pointer', background: pickerCatFilter === 'all' ? '#1d4ed8' : '#f3f4f6', color: pickerCatFilter === 'all' ? '#fff' : '#374151' }}
+                                    >Tất cả</button>
+                                    {PICKER_TYPES[picker.type].categories.map(cat => (
+                                        <button key={cat}
+                                            onClick={() => setPickerCatFilter(cat)}
+                                            style={{ padding: '3px 10px', fontSize: 11, borderRadius: 4, border: 'none', cursor: 'pointer', background: pickerCatFilter === cat ? '#1d4ed8' : '#f3f4f6', color: pickerCatFilter === cat ? '#fff' : '#374151' }}
+                                        >{PICKER_TYPES[picker.type].catLabels[cat] || cat}</button>
                                     ))}
                                 </div>
                             )}
+                        </div>
+                        <div style={{ overflowY: 'auto', flex: 1, padding: '8px 0' }}>
+                            {pickerLoading && <p style={{ textAlign: 'center', color: 'var(--text-muted)', padding: 20 }}>Đang tải...</p>}
+                            {!pickerLoading && filteredResults.length === 0 && (
+                                <p style={{ textAlign: 'center', color: 'var(--text-muted)', padding: 20 }}>Không có kết quả</p>
+                            )}
+                            {filteredResults.map(p => (
+                                <div key={p.id} onClick={() => selectProduct(p)}
+                                    style={{ padding: '10px 16px', cursor: 'pointer', display: 'flex', gap: 10, alignItems: 'center' }}
+                                    onMouseEnter={e => e.currentTarget.style.background = '#f3f4f6'}
+                                    onMouseLeave={e => e.currentTarget.style.background = ''}
+                                >
+                                    {(p.imageUrl || p.swatchImageUrl) && (
+                                        <img src={p.imageUrl || p.swatchImageUrl} alt="" style={{ width: 36, height: 36, borderRadius: 4, objectFit: 'cover', flexShrink: 0 }} />
+                                    )}
+                                    <div>
+                                        <div style={{ fontWeight: 600, fontSize: 13 }}>{p.name}</div>
+                                        {p.colorCode && <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{p.colorCode}</div>}
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                        <div style={{ padding: '10px 16px', borderTop: '1px solid var(--border)' }}>
+                            <button onClick={() => setPicker(null)} className="btn btn-ghost" style={{ fontSize: 13 }}>Đóng</button>
                         </div>
                     </div>
                 </div>
