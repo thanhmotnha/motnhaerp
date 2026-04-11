@@ -1,0 +1,105 @@
+<h2>Layout trang chi tiết đơn nội thất</h2>
+<p class="subtitle">Chọn layout phù hợp nhất với cách team bạn làm việc</p>
+
+<div class="cards">
+
+  <div class="card" data-choice="A" onclick="toggleSelect(this)">
+    <div class="card-image" style="padding: 16px; background: #f8fafc; border-radius: 8px; font-family: monospace; font-size: 11px;">
+      <!-- Layout A mockup -->
+      <div style="background:#1e40af;color:#fff;padding:10px 14px;border-radius:6px 6px 0 0;display:flex;justify-content:space-between;align-items:center;">
+        <span style="font-weight:700;">📦 NT-001 — Phòng ngủ Master</span>
+        <span style="background:#22c55e;padding:2px 10px;border-radius:20px;font-size:10px;">● Chốt & Đặt VL</span>
+      </div>
+      <!-- Step bar -->
+      <div style="background:#dbeafe;padding:8px 14px;display:flex;gap:0;font-size:9px;">
+        <div style="flex:1;text-align:center;color:#6b7280;">✓<br>Xác nhận</div>
+        <div style="flex:1;text-align:center;background:#1e40af;color:#fff;border-radius:4px;padding:2px;">●<br>Chốt VL</div>
+        <div style="flex:1;text-align:center;color:#9ca3af;">○<br>CNC</div>
+        <div style="flex:1;text-align:center;color:#9ca3af;">○<br>Sản xuất</div>
+        <div style="flex:1;text-align:center;color:#9ca3af;">○<br>Lắp đặt</div>
+        <div style="flex:1;text-align:center;color:#9ca3af;">○<br>Bảo hành</div>
+      </div>
+      <!-- Action banner -->
+      <div style="background:#fef9c3;border-left:3px solid #f59e0b;padding:8px 14px;font-size:10px;display:flex;justify-content:space-between;align-items:center;">
+        <span>⚡ Bước tiếp theo: Xác nhận vật liệu → Tạo PO đặt hàng</span>
+        <button style="background:#f59e0b;color:#fff;border:none;padding:4px 10px;border-radius:4px;font-size:9px;">Làm ngay →</button>
+      </div>
+      <!-- Content area with tabs -->
+      <div style="display:flex;gap:0;border-bottom:1px solid #e5e7eb;background:#fff;padding: 0 14px;">
+        <span style="padding:6px 10px;font-size:9px;border-bottom:2px solid #1e40af;color:#1e40af;font-weight:700;">Chốt & Đặt VL ●</span>
+        <span style="padding:6px 10px;font-size:9px;color:#6b7280;">Hồ sơ</span>
+        <span style="padding:6px 10px;font-size:9px;color:#6b7280;">CNC</span>
+        <span style="padding:6px 10px;font-size:9px;color:#6b7280;">Phát sinh</span>
+        <span style="padding:6px 10px;font-size:9px;color:#6b7280;">Nghiệm thu</span>
+      </div>
+      <!-- Tab content -->
+      <div style="background:#fff;padding:10px 14px;display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:9px;">
+        <div style="border:1px solid #e5e7eb;border-radius:6px;padding:8px;">
+          <div style="font-weight:700;margin-bottom:4px;color:#374151;">Vòng 1 — Vật liệu chính</div>
+          <div style="color:#6b7280;">Ván MDF: Trắng bóng W01 ✓</div>
+          <div style="color:#6b7280;">Acrylic: Ghi đậm AC-05 ✓</div>
+          <div style="color:#6b7280;">Nẹp: Trắng 1mm ✓</div>
+          <div style="margin-top:6px;"><button style="background:#1e40af;color:#fff;border:none;padding:3px 8px;border-radius:4px;font-size:8px;width:100%;">Tạo PO đặt hàng</button></div>
+        </div>
+        <div style="border:1px dashed #d1d5db;border-radius:6px;padding:8px;color:#9ca3af;text-align:center;">
+          <div style="margin-top:8px;">+ Thêm vòng chốt</div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>A — "Action-First"</h3>
+      <p>Step bar + banner "Bước tiếp theo" nổi bật → tab tự động focus vào bước hiện tại. Người dùng không cần đoán phải làm gì.</p>
+    </div>
+  </div>
+
+  <div class="card" data-choice="B" onclick="toggleSelect(this)">
+    <div class="card-image" style="padding: 16px; background: #f8fafc; border-radius: 8px; font-family: monospace; font-size: 11px;">
+      <!-- Layout B mockup -->
+      <div style="background:#1e40af;color:#fff;padding:10px 14px;border-radius:6px 6px 0 0;display:flex;justify-content:space-between;align-items:center;">
+        <span style="font-weight:700;">📦 NT-001 — Phòng ngủ Master</span>
+        <span style="background:#22c55e;padding:2px 10px;border-radius:20px;font-size:10px;">● Chốt & Đặt VL</span>
+      </div>
+      <!-- 2-column layout -->
+      <div style="display:grid;grid-template-columns:2fr 1fr;background:#fff;">
+        <!-- Left: tabs -->
+        <div>
+          <div style="display:flex;gap:0;border-bottom:1px solid #e5e7eb;padding:0 10px;background:#f9fafb;">
+            <span style="padding:6px 10px;font-size:9px;border-bottom:2px solid #1e40af;color:#1e40af;font-weight:700;">Vật liệu</span>
+            <span style="padding:6px 10px;font-size:9px;color:#6b7280;">Hồ sơ</span>
+            <span style="padding:6px 10px;font-size:9px;color:#6b7280;">CNC</span>
+            <span style="padding:6px 10px;font-size:9px;color:#6b7280;">Phát sinh</span>
+          </div>
+          <div style="padding:10px;font-size:9px;">
+            <div style="border:1px solid #e5e7eb;border-radius:6px;padding:8px;margin-bottom:6px;">
+              <div style="font-weight:700;color:#374151;">Vòng 1 — Vật liệu chính</div>
+              <div style="color:#6b7280;margin-top:2px;">Ván MDF: Trắng bóng W01 ✓</div>
+              <div style="color:#6b7280;">Acrylic: Ghi đậm AC-05 ✓</div>
+            </div>
+            <button style="background:#1e40af;color:#fff;border:none;padding:4px 10px;border-radius:4px;font-size:8px;">+ Thêm vòng chốt</button>
+          </div>
+        </div>
+        <!-- Right: summary panel -->
+        <div style="border-left:1px solid #e5e7eb;padding:10px;font-size:9px;background:#f9fafb;">
+          <div style="font-weight:700;color:#374151;margin-bottom:6px;">📋 Tóm tắt</div>
+          <div style="margin-bottom:4px;"><span style="color:#6b7280;">KH:</span> Nguyễn Văn A</div>
+          <div style="margin-bottom:4px;"><span style="color:#6b7280;">Giao:</span> 30/05/2026</div>
+          <div style="margin-bottom:8px;"><span style="color:#6b7280;">Tiền:</span> <strong>85,000,000đ</strong></div>
+          <div style="border-top:1px solid #e5e7eb;padding-top:6px;font-weight:700;margin-bottom:4px;">Checklist</div>
+          <div style="color:#22c55e;">✓ Hồ sơ thiết kế</div>
+          <div style="color:#22c55e;">✓ Vật liệu vòng 1</div>
+          <div style="color:#f59e0b;">⚡ Tạo PO đặt VL</div>
+          <div style="color:#d1d5db;">○ Upload CNC</div>
+          <div style="color:#d1d5db;">○ Sản xuất</div>
+          <div style="margin-top:8px;"><button style="background:#f59e0b;color:#fff;border:none;padding:4px 8px;border-radius:4px;font-size:8px;width:100%;">⚡ Tạo PO →</button></div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>B — "Panel + Checklist"</h3>
+      <p>Sidebar phải luôn hiển thị: thông tin KH, tiền, checklist tiến độ. Tab bên trái cho thao tác. Không cần action banner — checklist sidebar đã đủ định hướng.</p>
+    </div>
+  </div>
+
+</div>
+
+<p class="subtitle" style="margin-top:16px;">Click để chọn layout, hoặc nói trong terminal nếu muốn mix cả hai.</p>
