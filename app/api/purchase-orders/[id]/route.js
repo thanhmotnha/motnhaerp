@@ -67,4 +67,4 @@ export const PUT = withAuth(async (request, { params }) => {
         include: { items: true },
     });
     return NextResponse.json(po);
-});
+}, { roles: ['giam_doc', 'ke_toan', 'kho', 'ky_thuat'] });

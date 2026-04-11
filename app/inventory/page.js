@@ -826,11 +826,11 @@ export default function InventoryPage() {
 
             {/* Modal sửa phiếu nhập kho */}
             {editReceipt && (
-                <div className="modal-overlay" onClick={() => setEditReceipt(null)}>
+                <div className="modal-overlay" onClick={() => !editReceiptSaving && setEditReceipt(null)}>
                     <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 700, width: '95%' }}>
                         <div className="modal-header">
                             <h3>✏️ Sửa phiếu nhập kho — {editReceipt.code}</h3>
-                            <button className="modal-close" onClick={() => setEditReceipt(null)}>×</button>
+                            <button className="modal-close" onClick={() => !editReceiptSaving && setEditReceipt(null)}>×</button>
                         </div>
                         <div className="modal-body">
                             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10, marginBottom: 12 }}>
@@ -896,11 +896,11 @@ export default function InventoryPage() {
 
             {/* Modal sửa phiếu xuất kho */}
             {editIssue && (
-                <div className="modal-overlay" onClick={() => setEditIssue(null)}>
+                <div className="modal-overlay" onClick={() => !editIssueSaving && setEditIssue(null)}>
                     <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 700, width: '95%' }}>
                         <div className="modal-header">
                             <h3>✏️ Sửa phiếu xuất kho — {editIssue.code}</h3>
-                            <button className="modal-close" onClick={() => setEditIssue(null)}>×</button>
+                            <button className="modal-close" onClick={() => !editIssueSaving && setEditIssue(null)}>×</button>
                         </div>
                         <div className="modal-body">
                             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 12 }}>

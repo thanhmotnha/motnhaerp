@@ -1,0 +1,86 @@
+<h2>Thiết kế lại module Kho</h2>
+<p class="subtitle">Cách A — GRN từ PO + Phiếu xuất kho đơn giản</p>
+
+<div class="section">
+  <h3>📋 Luồng nhập kho (từ PO)</h3>
+  <div style="background:#f8faff;border:1px solid #c7d7f5;border-radius:10px;padding:16px 20px;margin:12px 0;font-size:14px;line-height:2">
+    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+      <span style="background:#234093;color:#fff;border-radius:8px;padding:4px 12px;font-weight:600">Tạo PO</span>
+      <span style="color:#888">→</span>
+      <span style="background:#e8f5e9;color:#2e7d32;border-radius:8px;padding:4px 12px;font-weight:600">Duyệt PO</span>
+      <span style="color:#888">→</span>
+      <span style="background:#fff3e0;color:#e65100;border-radius:8px;padding:4px 12px;font-weight:600">Nhận hàng (GRN)</span>
+      <span style="color:#888">→</span>
+      <span style="background:#ede9fe;color:#6d28d9;border-radius:8px;padding:4px 12px;font-weight:600">Tự động cộng tồn kho</span>
+    </div>
+    <div style="margin-top:10px;font-size:13px;color:#555">
+      ✅ Nhận từng phần: 1 PO có thể tạo nhiều GRN (giao 3 đợt = 3 phiếu nhập)<br>
+      ✅ GRN tự điền sản phẩm từ PO, chỉ cần nhập SL thực nhận<br>
+      ✅ In phiếu nhập kho có mã GRN, tên NCC, danh sách hàng, chữ ký
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>📤 Luồng xuất kho</h3>
+  <div style="background:#f8faff;border:1px solid #c7d7f5;border-radius:10px;padding:16px 20px;margin:12px 0;font-size:14px;line-height:2">
+    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+      <span style="background:#234093;color:#fff;border-radius:8px;padding:4px 12px;font-weight:600">Tạo phiếu xuất</span>
+      <span style="color:#888">→</span>
+      <span style="background:#ede9fe;color:#6d28d9;border-radius:8px;padding:4px 12px;font-weight:600">Tự động trừ tồn kho</span>
+      <span style="color:#888">→</span>
+      <span style="background:#e8f5e9;color:#2e7d32;border-radius:8px;padding:4px 12px;font-weight:600">In phiếu xuất</span>
+    </div>
+    <div style="margin-top:10px;font-size:13px;color:#555">
+      ✅ Kỹ thuật tạo phiếu xuất: chọn vật tư, số lượng, gắn dự án<br>
+      ✅ Không cần duyệt — xuất ngay, ghi lịch sử ai xuất<br>
+      ✅ In phiếu có mã, ngày, người nhận, công trình
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>🗂️ Tab mới trong /inventory</h3>
+  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;margin:12px 0">
+    <div style="background:#fff;border:2px solid #234093;border-radius:10px;padding:14px;text-align:center">
+      <div style="font-size:22px">📊</div>
+      <div style="font-weight:700;margin:4px 0">Tồn kho</div>
+      <div style="font-size:12px;color:#888">Hiện tại (giữ nguyên)</div>
+    </div>
+    <div style="background:#fff;border:2px solid #22c55e;border-radius:10px;padding:14px;text-align:center">
+      <div style="font-size:22px">📥</div>
+      <div style="font-weight:700;margin:4px 0">Phiếu nhập (GRN)</div>
+      <div style="font-size:12px;color:#888">Tab mới — từ PO</div>
+    </div>
+    <div style="background:#fff;border:2px solid #f59e0b;border-radius:10px;padding:14px;text-align:center">
+      <div style="font-size:22px">📤</div>
+      <div style="font-weight:700;margin:4px 0">Phiếu xuất</div>
+      <div style="font-size:12px;color:#888">Tab mới</div>
+    </div>
+    <div style="background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:14px;text-align:center;opacity:0.7">
+      <div style="font-size:22px">📋</div>
+      <div style="font-weight:700;margin:4px 0">Lịch sử</div>
+      <div style="font-size:12px;color:#888">Giữ nguyên</div>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>🗄️ Data model mới</h3>
+  <div style="background:#1e293b;color:#e2e8f0;border-radius:10px;padding:16px 20px;font-family:monospace;font-size:13px;line-height:1.8">
+    <span style="color:#94a3b8">// Phiếu nhập kho từ PO</span><br>
+    <span style="color:#7dd3fc">GoodsReceipt</span> {<br>
+    &nbsp;&nbsp;code, purchaseOrderId, warehouseId<br>
+    &nbsp;&nbsp;receivedDate, receivedBy, notes<br>
+    &nbsp;&nbsp;items: <span style="color:#7dd3fc">GoodsReceiptItem</span>[] { productId, qtyOrdered, qtyReceived }<br>
+    }<br><br>
+    <span style="color:#94a3b8">// Phiếu xuất kho</span><br>
+    <span style="color:#7dd3fc">StockIssue</span> {<br>
+    &nbsp;&nbsp;code, warehouseId, projectId<br>
+    &nbsp;&nbsp;issuedDate, issuedBy, notes<br>
+    &nbsp;&nbsp;items: <span style="color:#7dd3fc">StockIssueItem</span>[] { productId, qty, unit }<br>
+    }
+  </div>
+</div>
+
+<p class="subtitle" style="margin-top:20px">Nhìn ổn không? Hay cần điều chỉnh gì?</p>

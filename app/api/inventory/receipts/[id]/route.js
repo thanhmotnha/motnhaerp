@@ -1,5 +1,6 @@
 import { withAuth } from '@/lib/apiHandler';
 import prisma from '@/lib/prisma';
+import { generateCode } from '@/lib/generateCode';
 import { NextResponse } from 'next/server';
 
 export const GET = withAuth(async (request, { params }) => {
@@ -16,6 +17,19 @@ export const GET = withAuth(async (request, { params }) => {
     return NextResponse.json(receipt);
 });
 
+// Helper: recalculate PO status from all its items' receivedQty
+async function recalcPoStatus(tx, purchaseOrderId) {
+    const items = await tx.purchaseOrderItem.findMany({ where: { purchaseOrderId } });
+    if (items.length === 0) return;
+    const allReceived = items.every(i => i.receivedQty >= i.quantity);
+    const anyReceived = items.some(i => i.receivedQty > 0);
+    const newStatus = allReceived ? 'Hoàn thành' : anyReceived ? 'Nhận một phần' : 'Chờ nhận';
+    await tx.purchaseOrder.update({
+        where: { id: purchaseOrderId },
+        data: { status: newStatus, receivedDate: allReceived ? new Date() : null },
+    });
+}
+
 export const PATCH = withAuth(async (request, { params }) => {
     const { id } = await params;
     const body = await request.json();
@@ -28,7 +42,7 @@ export const PATCH = withAuth(async (request, { params }) => {
     if (!existing) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
     const receipt = await prisma.$transaction(async (tx) => {
-        // 1. Hoàn lại tồn kho cũ
+        // 1. Reversal: hoàn lại tồn kho + receivedQty trên PO items + xóa InventoryTransactions cũ
         for (const old of existing.items) {
             if (old.productId && old.qtyReceived > 0) {
                 await tx.product.update({
@@ -36,11 +50,21 @@ export const PATCH = withAuth(async (request, { params }) => {
                     data: { stock: { decrement: old.qtyReceived } },
                 });
             }
+            if (old.purchaseOrderItemId && old.qtyReceived > 0) {
+                await tx.purchaseOrderItem.update({
+                    where: { id: old.purchaseOrderItemId },
+                    data: { receivedQty: { decrement: old.qtyReceived } },
+                });
+            }
         }
+        await tx.inventoryTransaction.deleteMany({
+            where: { note: { contains: `Phiếu nhập ${existing.code}` } },
+        });
+
         // 2. Xóa items cũ
         await tx.goodsReceiptItem.deleteMany({ where: { receiptId: id } });
 
-        // 3. Tạo items mới + tính lại bình quân gia quyền
+        // 3. Tạo items mới + tính lại bình quân gia quyền + tạo InventoryTransaction + cập nhật PO receivedQty
         for (const it of (items || [])) {
             if (!it.productId || !(it.qtyReceived > 0)) continue;
             await tx.goodsReceiptItem.create({
@@ -70,9 +94,35 @@ export const PATCH = withAuth(async (request, { params }) => {
                 where: { id: it.productId },
                 data: { stock: { increment: newQty }, importPrice: Math.round(avgPrice) },
             });
+
+            const txCode = await generateCode('inventoryTransaction', 'NK');
+            await tx.inventoryTransaction.create({
+                data: {
+                    code: txCode,
+                    type: 'Nhập',
+                    quantity: newQty,
+                    unit: it.unit || '',
+                    note: `Phiếu nhập ${existing.code}`,
+                    productId: it.productId,
+                    warehouseId: existing.warehouseId,
+                    date: receivedDate ? new Date(receivedDate) : existing.receivedDate,
+                },
+            });
+
+            if (it.purchaseOrderItemId) {
+                await tx.purchaseOrderItem.update({
+                    where: { id: it.purchaseOrderItemId },
+                    data: { receivedQty: { increment: newQty } },
+                });
+            }
         }
 
-        // 4. Cập nhật metadata
+        // 4. Recalc PO status
+        if (existing.purchaseOrderId) {
+            await recalcPoStatus(tx, existing.purchaseOrderId);
+        }
+
+        // 5. Cập nhật metadata
         return tx.goodsReceipt.update({
             where: { id },
             data: {
@@ -96,7 +146,7 @@ export const DELETE = withAuth(async (request, { params }) => {
     if (!receipt) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
     await prisma.$transaction(async (tx) => {
-        // Hoàn lại tồn kho (đảo ngược việc nhập)
+        // Reversal: hoàn tồn kho + receivedQty PO items + xóa InventoryTransactions
         for (const item of receipt.items) {
             if (item.productId && item.qtyReceived > 0) {
                 await tx.product.update({
@@ -104,7 +154,22 @@ export const DELETE = withAuth(async (request, { params }) => {
                     data: { stock: { decrement: item.qtyReceived } },
                 });
             }
+            if (item.purchaseOrderItemId && item.qtyReceived > 0) {
+                await tx.purchaseOrderItem.update({
+                    where: { id: item.purchaseOrderItemId },
+                    data: { receivedQty: { decrement: item.qtyReceived } },
+                });
+            }
         }
+        await tx.inventoryTransaction.deleteMany({
+            where: { note: { contains: `Phiếu nhập ${receipt.code}` } },
+        });
+
+        // Recalc PO status
+        if (receipt.purchaseOrderId) {
+            await recalcPoStatus(tx, receipt.purchaseOrderId);
+        }
+
         await tx.goodsReceipt.delete({ where: { id } });
     });
 

@@ -272,8 +272,10 @@ export default function ContractDetailPage() {
     };
 
     const addProofFiles = (fileList) => {
-        const allowed = Array.from(fileList).filter(f => f.size <= 5 * 1024 * 1024);
-        setProofModal(m => ({ ...m, pendingFiles: [...(m.pendingFiles || []), ...allowed] }));
+        const newEntries = Array.from(fileList)
+            .filter(f => f.size <= 5 * 1024 * 1024)
+            .map(f => ({ file: f, previewUrl: f.type.startsWith('image/') ? URL.createObjectURL(f) : null }));
+        setProofModal(m => ({ ...m, pendingFiles: [...(m.pendingFiles || []), ...newEntries] }));
     };
 
     const saveProof = async () => {
@@ -281,7 +283,7 @@ export default function ContractDetailPage() {
         setProofModal(m => ({ ...m, saving: true }));
         try {
             // Upload any pending new files
-            const uploaded = await Promise.all((proofModal.pendingFiles || []).map(uploadFileToR2));
+            const uploaded = await Promise.all((proofModal.pendingFiles || []).map(entry => uploadFileToR2(entry.file)));
             const allFiles = [...(proofModal.existingFiles || []), ...uploaded];
             const proofUrl = allFiles[0]?.url || proofModal.payment.proofUrl || '';
             const res = await fetch(`/api/contracts/${id}/payments`, {
@@ -878,7 +880,7 @@ export default function ContractDetailPage() {
                 </div>
             )}
         {proofModal && (
-            <div className="modal-overlay" onClick={() => !proofModal.saving && setProofModal(null)}>
+            <div className="modal-overlay" onClick={() => { if (!proofModal.saving) { (proofModal.pendingFiles || []).forEach(e => { if (e.previewUrl) URL.revokeObjectURL(e.previewUrl); }); setProofModal(null); } }}>
                 <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 520 }}>
                     <div className="modal-header">
                         <h3>📎 Thu tiền — {proofModal.payment.phase}</h3>
@@ -917,13 +919,13 @@ export default function ContractDetailPage() {
                                                 style={{ position: 'absolute', top: -6, right: -6, background: 'var(--status-danger)', color: '#fff', border: 'none', borderRadius: '50%', width: 18, height: 18, cursor: 'pointer', fontSize: 11, lineHeight: '18px', padding: 0 }}>×</button>
                                         </div>
                                     ))}
-                                    {(proofModal.pendingFiles || []).map((f, i) => (
+                                    {(proofModal.pendingFiles || []).map((entry, i) => (
                                         <div key={`p${i}`} style={{ position: 'relative', width: 80, height: 80 }}>
-                                            {f.type?.startsWith('image/')
-                                                ? <img src={URL.createObjectURL(f)} alt={f.name} style={{ width: 80, height: 80, objectFit: 'cover', borderRadius: 6, border: '2px dashed var(--accent-primary)' }} />
-                                                : <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 80, height: 80, background: 'var(--bg-secondary)', borderRadius: 6, border: '2px dashed var(--accent-primary)', fontSize: 11, color: 'var(--text-muted)', textAlign: 'center', padding: 4 }}>📄 {f.name?.split('.').pop()?.toUpperCase()}</div>
+                                            {entry.previewUrl
+                                                ? <img src={entry.previewUrl} alt={entry.file.name} style={{ width: 80, height: 80, objectFit: 'cover', borderRadius: 6, border: '2px dashed var(--accent-primary)' }} />
+                                                : <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 80, height: 80, background: 'var(--bg-secondary)', borderRadius: 6, border: '2px dashed var(--accent-primary)', fontSize: 11, color: 'var(--text-muted)', textAlign: 'center', padding: 4 }}>📄 {entry.file.name?.split('.').pop()?.toUpperCase()}</div>
                                             }
-                                            <button onClick={() => setProofModal(m => ({ ...m, pendingFiles: m.pendingFiles.filter((_, j) => j !== i) }))}
+                                            <button onClick={() => { if (entry.previewUrl) URL.revokeObjectURL(entry.previewUrl); setProofModal(m => ({ ...m, pendingFiles: m.pendingFiles.filter((_, j) => j !== i) })); }}
                                                 style={{ position: 'absolute', top: -6, right: -6, background: 'var(--status-danger)', color: '#fff', border: 'none', borderRadius: '50%', width: 18, height: 18, cursor: 'pointer', fontSize: 11, lineHeight: '18px', padding: 0 }}>×</button>
                                         </div>
                                     ))}
@@ -944,7 +946,7 @@ export default function ContractDetailPage() {
                         </div>
                     </div>
                     <div className="modal-footer">
-                        <button className="btn btn-ghost" onClick={() => setProofModal(null)} disabled={proofModal.saving}>Hủy</button>
+                        <button className="btn btn-ghost" onClick={() => { (proofModal.pendingFiles || []).forEach(e => { if (e.previewUrl) URL.revokeObjectURL(e.previewUrl); }); setProofModal(null); }} disabled={proofModal.saving}>Hủy</button>
                         <button className="btn btn-primary" onClick={saveProof} disabled={proofModal.saving}>
                             {proofModal.saving ? '⏳ Đang lưu...' : '💾 Lưu'}
                         </button>

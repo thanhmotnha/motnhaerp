@@ -1,0 +1,40 @@
+<h2>Tab "Tài chính" trong trang dự án</h2>
+<p class="subtitle">Chọn cách tổ chức thông tin thu – chi – lợi nhuận trong từng dự án</p>
+
+<div class="options">
+  <div class="option" data-choice="A" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content">
+      <h3>KPI Cards + Bảng chi tiết</h3>
+      <p>Hàng đầu: 4 thẻ số lớn (Doanh thu HĐ, Đã thu, Tổng chi phí, Lợi nhuận). Bên dưới: 3 bảng gộp — <strong>Thu từ khách</strong>, <strong>Chi phí</strong> (expense + PO + thầu phụ gộp), <strong>Phân bổ chi phí chung</strong>.</p>
+      <div class="pros-cons" style="margin-top:10px">
+        <div class="pros"><h4>Ưu</h4><ul><li>Nhìn ngay ra số lãi/lỗ</li><li>Gọn, 1 màn hình</li></ul></div>
+        <div class="cons"><h4>Nhược</h4><ul><li>Không tách nguồn chi tiết</li></ul></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="B" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content">
+      <h3>Hai cột Thu / Chi song song</h3>
+      <p>Trái: Bên A (Hợp đồng → Đã thu → Còn nợ). Phải: Bên B (PO + Thầu phụ + Chi phí + Phân bổ → Đã chi → Còn phải trả). Cuối trang: thanh lợi nhuận lớn.</p>
+      <div class="pros-cons" style="margin-top:10px">
+        <div class="pros"><h4>Ưu</h4><ul><li>Đúng format quyết toán A/B</li><li>Dễ so sánh thu vs chi</li></ul></div>
+        <div class="cons"><h4>Nhược</h4><ul><li>Cần màn hình rộng</li></ul></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="C" onclick="toggleSelect(this)">
+    <div class="letter">C</div>
+    <div class="content">
+      <h3>Sub-tabs: Tổng quan / Thu / Chi / Phân tích</h3>
+      <p>Tổng quan: KPI + biểu đồ donut. Thu: timeline thanh toán từng đợt. Chi: bảng tách PO / Thầu phụ / Chi phí / Phân bổ. Phân tích: biểu đồ cột so sánh ngân sách vs thực tế.</p>
+      <div class="pros-cons" style="margin-top:10px">
+        <div class="pros"><h4>Ưu</h4><ul><li>Đầy đủ nhất, drill-down sâu</li></ul></div>
+        <div class="cons"><h4>Nhược</h4><ul><li>Phức tạp hơn, build lâu hơn</li></ul></div>
+      </div>
+    </div>
+  </div>
+</div>

@@ -78,7 +78,8 @@ export const GET = withAuth(async (_request, { params }, session) => {
     const debtToContractors = project.contractorPays.reduce((s, p) => s + ((p.contractAmount ?? 0) - (p.paidAmount ?? 0)), 0);
     const totalPaidB = project.purchaseOrders.reduce((s, po) => s + (po.paidAmount ?? 0), 0)
         + project.expenses.reduce((s, e) => s + (e.paidAmount ?? 0), 0)
-        + project.contractorPays.reduce((s, p) => s + (p.paidAmount ?? 0), 0);
+        + project.contractorPays.reduce((s, p) => s + (p.paidAmount ?? 0), 0)
+        + totalStockIssue; // vật tư xuất kho: đã thanh toán khi nhập kho
 
     const settlement = {
         sideA: { contractValue: totalContractValue, variation: totalVariation, total: totalA, collected: totalCollected, remaining: totalA - totalCollected, rate: totalA > 0 ? ((totalCollected / totalA) * 100).toFixed(1) : 0 },

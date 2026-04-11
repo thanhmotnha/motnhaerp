@@ -1,0 +1,86 @@
+<h2>Sidebar Toggle — Layout Design</h2>
+<p class="subtitle">Nút toggle ở đâu? Màn hình trông như thế nào khi sidebar ẩn?</p>
+
+<div class="section">
+  <h3>Vị trí nút toggle</h3>
+  <div class="split">
+    <div class="mockup" data-choice="header-btn" onclick="toggleSelect(this)" style="cursor:pointer">
+      <div class="mockup-header">A — Nút trong Header (bên trái)</div>
+      <div class="mockup-body" style="padding:0">
+        <div style="display:flex;height:160px">
+          <div style="width:90px;background:linear-gradient(180deg,#234093,#152A6D);display:flex;flex-direction:column;padding:8px 6px;gap:4px">
+            <div style="height:8px;background:rgba(255,255,255,0.7);border-radius:2px;width:70%"></div>
+            <div style="height:6px;background:rgba(255,255,255,0.3);border-radius:2px;width:90%;margin-top:8px"></div>
+            <div style="height:6px;background:rgba(255,255,255,0.3);border-radius:2px;width:80%"></div>
+            <div style="height:6px;background:rgba(255,255,255,0.3);border-radius:2px;width:85%"></div>
+          </div>
+          <div style="flex:1;display:flex;flex-direction:column">
+            <div style="height:32px;background:#f5f7fa;border-bottom:1px solid #e2e8f0;display:flex;align-items:center;padding:0 10px;gap:8px">
+              <div style="width:18px;height:18px;border:1.5px solid #234093;border-radius:3px;display:flex;align-items:center;justify-content:center;font-size:9px;color:#234093;font-weight:700">☰</div>
+              <div style="height:5px;background:#e2e8f0;border-radius:2px;flex:1;max-width:120px"></div>
+              <div style="height:5px;background:#e2e8f0;border-radius:2px;width:50px;margin-left:auto"></div>
+            </div>
+            <div style="flex:1;padding:10px;display:flex;flex-direction:column;gap:6px">
+              <div style="height:7px;background:#e2e8f0;border-radius:2px;width:60%"></div>
+              <div style="height:7px;background:#e2e8f0;border-radius:2px;width:80%"></div>
+            </div>
+          </div>
+        </div>
+        <div style="padding:8px 10px;font-size:11px;color:#666">Nút ☰ nằm góc trái header — quen tay, dễ bấm</div>
+      </div>
+    </div>
+
+    <div class="mockup" data-choice="sidebar-btn" onclick="toggleSelect(this)" style="cursor:pointer">
+      <div class="mockup-header">B — Nút cuối sidebar (phía dưới)</div>
+      <div class="mockup-body" style="padding:0">
+        <div style="display:flex;height:160px">
+          <div style="width:90px;background:linear-gradient(180deg,#234093,#152A6D);display:flex;flex-direction:column;padding:8px 6px;gap:4px;position:relative">
+            <div style="height:8px;background:rgba(255,255,255,0.7);border-radius:2px;width:70%"></div>
+            <div style="height:6px;background:rgba(255,255,255,0.3);border-radius:2px;width:90%;margin-top:8px"></div>
+            <div style="height:6px;background:rgba(255,255,255,0.3);border-radius:2px;width:80%"></div>
+            <div style="flex:1"></div>
+            <div style="height:20px;background:rgba(255,255,255,0.1);border-radius:3px;display:flex;align-items:center;justify-content:center;font-size:9px;color:rgba(255,255,255,0.7)">◀ Ẩn</div>
+          </div>
+          <div style="flex:1;display:flex;flex-direction:column">
+            <div style="height:32px;background:#f5f7fa;border-bottom:1px solid #e2e8f0;display:flex;align-items:center;padding:0 10px">
+              <div style="height:5px;background:#e2e8f0;border-radius:2px;flex:1;max-width:120px"></div>
+              <div style="height:5px;background:#e2e8f0;border-radius:2px;width:50px;margin-left:auto"></div>
+            </div>
+            <div style="flex:1;padding:10px;display:flex;flex-direction:column;gap:6px">
+              <div style="height:7px;background:#e2e8f0;border-radius:2px;width:60%"></div>
+            </div>
+          </div>
+        </div>
+        <div style="padding:8px 10px;font-size:11px;color:#666">Nút "◀ Ẩn sidebar" nằm cuối thanh sidebar</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>Khi sidebar đã ẩn</h3>
+  <div class="mockup">
+    <div class="mockup-header">Màn hình khi sidebar hidden — nội dung chiếm full width</div>
+    <div class="mockup-body" style="padding:0">
+      <div style="display:flex;height:180px">
+        <div style="flex:1;display:flex;flex-direction:column">
+          <div style="height:32px;background:#f5f7fa;border-bottom:1px solid #e2e8f0;display:flex;align-items:center;padding:0 10px;gap:8px">
+            <div style="width:18px;height:18px;border:1.5px solid #234093;border-radius:3px;display:flex;align-items:center;justify-content:center;font-size:9px;color:#234093;font-weight:700">▶</div>
+            <span style="font-size:10px;font-weight:600;color:#234093">HomeERP</span>
+            <div style="height:5px;background:#e2e8f0;border-radius:2px;width:100px;margin-left:8px"></div>
+            <div style="height:5px;background:#e2e8f0;border-radius:2px;width:50px;margin-left:auto"></div>
+          </div>
+          <div style="flex:1;padding:12px;display:grid;grid-template-columns:repeat(4,1fr);gap:8px;align-content:start">
+            <div style="background:#f0f4ff;border-radius:6px;padding:8px;height:40px"></div>
+            <div style="background:#f0f4ff;border-radius:6px;padding:8px;height:40px"></div>
+            <div style="background:#f0f4ff;border-radius:6px;padding:8px;height:40px"></div>
+            <div style="background:#f0f4ff;border-radius:6px;padding:8px;height:40px"></div>
+          </div>
+        </div>
+      </div>
+      <div style="padding:8px 10px;font-size:11px;color:#666">Header hiện logo + nút ▶ để mở lại sidebar. Nội dung full width.</div>
+    </div>
+  </div>
+</div>
+
+<p class="subtitle">Bấm chọn vị trí nút toggle bạn thích (A hoặc B), hoặc gõ vào terminal.</p>
