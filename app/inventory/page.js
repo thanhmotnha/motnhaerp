@@ -35,6 +35,18 @@ export default function InventoryPage() {
     const [issueItems, setIssueItems] = useState([{ productId: '', productName: '', unit: '', qty: '', unitPrice: 0, stock: 0 }]);
     const [issueSaving, setIssueSaving] = useState(false);
 
+    // Edit receipt
+    const [editReceipt, setEditReceipt] = useState(null);
+    const [editReceiptItems, setEditReceiptItems] = useState([]);
+    const [editReceiptMeta, setEditReceiptMeta] = useState({ receivedBy: '', notes: '', receivedDate: '' });
+    const [editReceiptSaving, setEditReceiptSaving] = useState(false);
+
+    // Edit issue
+    const [editIssue, setEditIssue] = useState(null);
+    const [editIssueItems, setEditIssueItems] = useState([]);
+    const [editIssueMeta, setEditIssueMeta] = useState({ warehouseId: '', projectId: '', issuedBy: '', notes: '', issuedDate: '' });
+    const [editIssueSaving, setEditIssueSaving] = useState(false);
+
     const fetchTx = async () => {
         setLoading(true);
         const p = new URLSearchParams({ limit: 200 });
@@ -205,6 +217,76 @@ export default function InventoryPage() {
         setShowModal(false);
         fetchStock();
         if (activeTab === 'history') fetchTx();
+    };
+
+    const openEditReceipt = (r) => {
+        setEditReceiptItems((r.items || []).map(it => ({
+            productId: it.productId || '',
+            productName: it.productName,
+            unit: it.unit,
+            qtyOrdered: it.qtyOrdered,
+            qtyReceived: it.qtyReceived,
+            unitPrice: it.unitPrice,
+            purchaseOrderItemId: it.purchaseOrderItemId || null,
+        })));
+        setEditReceiptMeta({
+            receivedBy: r.receivedBy || '',
+            notes: r.notes || '',
+            receivedDate: r.receivedDate ? r.receivedDate.slice(0, 10) : new Date().toISOString().slice(0, 10),
+        });
+        setEditReceipt(r);
+    };
+
+    const saveEditReceipt = async () => {
+        const items = editReceiptItems.filter(it => it.productId && Number(it.qtyReceived) > 0);
+        if (!items.length) return alert('Cần ít nhất 1 sản phẩm');
+        setEditReceiptSaving(true);
+        try {
+            const res = await fetch(`/api/inventory/receipts/${editReceipt.id}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ items, ...editReceiptMeta }),
+            });
+            if (!res.ok) { const e = await res.json(); throw new Error(e.error || 'Lỗi lưu'); }
+            setEditReceipt(null);
+            fetchReceipts(); fetchStock();
+        } catch (e) { alert(e.message); }
+        setEditReceiptSaving(false);
+    };
+
+    const openEditIssue = (si) => {
+        setEditIssueItems((si.items || []).map(it => ({
+            productId: it.productId || '',
+            productName: it.productName,
+            unit: it.unit,
+            qty: it.qty,
+            unitPrice: it.unitPrice,
+        })));
+        setEditIssueMeta({
+            warehouseId: si.warehouseId || '',
+            projectId: si.projectId || '',
+            issuedBy: si.issuedBy || '',
+            notes: si.notes || '',
+            issuedDate: si.issuedDate ? si.issuedDate.slice(0, 10) : new Date().toISOString().slice(0, 10),
+        });
+        setEditIssue(si);
+    };
+
+    const saveEditIssue = async () => {
+        const items = editIssueItems.filter(it => it.productId && Number(it.qty) > 0);
+        if (!items.length) return alert('Cần ít nhất 1 sản phẩm');
+        setEditIssueSaving(true);
+        try {
+            const res = await fetch(`/api/inventory/issues/${editIssue.id}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ items, ...editIssueMeta }),
+            });
+            if (!res.ok) { const e = await res.json(); throw new Error(e.error || 'Lỗi lưu'); }
+            setEditIssue(null);
+            fetchIssues(); fetchStock();
+        } catch (e) { alert(e.message); }
+        setEditIssueSaving(false);
     };
 
     const stockFiltered = stockData.products.filter(p =>
@@ -428,6 +510,7 @@ export default function InventoryPage() {
                                                 <div style={{ display: 'flex', gap: 4 }}>
                                                     <button className="btn btn-ghost btn-sm" onClick={() => setViewReceipt(r)}>Xem</button>
                                                     <button className="btn btn-ghost btn-sm" onClick={() => printReceipt(r)}>🖨️ In</button>
+                                                    <button className="btn btn-ghost btn-sm" onClick={() => openEditReceipt(r)}>✏️</button>
                                                     <button className="btn btn-ghost btn-sm" style={{ color: 'var(--status-danger)' }} onClick={async () => {
                                                         if (!confirm(`Xóa phiếu nhập kho ${r.code}? Tồn kho sẽ được hoàn lại.`)) return;
                                                         const res = await fetch(`/api/inventory/receipts/${r.id}`, { method: 'DELETE' });
@@ -483,6 +566,7 @@ export default function InventoryPage() {
                                                     <div style={{ display: 'flex', gap: 4 }}>
                                                         <button className="btn btn-ghost btn-sm" onClick={() => setViewIssue(si)}>Xem</button>
                                                         <button className="btn btn-ghost btn-sm" onClick={() => printIssue(si)}>🖨️ In</button>
+                                                        <button className="btn btn-ghost btn-sm" onClick={() => openEditIssue(si)}>✏️</button>
                                                         <button className="btn btn-ghost btn-sm" style={{ color: 'var(--status-danger)' }} onClick={async () => {
                                                             if (!confirm(`Xóa phiếu xuất kho ${si.code}? Tồn kho sẽ được hoàn lại.`)) return;
                                                             const res = await fetch(`/api/inventory/issues/${si.id}`, { method: 'DELETE' });
@@ -735,6 +819,161 @@ export default function InventoryPage() {
                         </div>
                         <div className="modal-footer">
                             <button className="btn btn-ghost" onClick={() => setViewIssue(null)}>Đóng</button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Modal sửa phiếu nhập kho */}
+            {editReceipt && (
+                <div className="modal-overlay" onClick={() => setEditReceipt(null)}>
+                    <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 700, width: '95%' }}>
+                        <div className="modal-header">
+                            <h3>✏️ Sửa phiếu nhập kho — {editReceipt.code}</h3>
+                            <button className="modal-close" onClick={() => setEditReceipt(null)}>×</button>
+                        </div>
+                        <div className="modal-body">
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10, marginBottom: 12 }}>
+                                <div>
+                                    <label style={{ fontSize: 12, color: 'var(--text-muted)' }}>Ngày nhận</label>
+                                    <input className="form-input" type="date" value={editReceiptMeta.receivedDate}
+                                        onChange={e => setEditReceiptMeta(m => ({ ...m, receivedDate: e.target.value }))} />
+                                </div>
+                                <div>
+                                    <label style={{ fontSize: 12, color: 'var(--text-muted)' }}>Người nhận</label>
+                                    <input className="form-input" value={editReceiptMeta.receivedBy}
+                                        onChange={e => setEditReceiptMeta(m => ({ ...m, receivedBy: e.target.value }))} />
+                                </div>
+                                <div>
+                                    <label style={{ fontSize: 12, color: 'var(--text-muted)' }}>Ghi chú</label>
+                                    <input className="form-input" value={editReceiptMeta.notes}
+                                        onChange={e => setEditReceiptMeta(m => ({ ...m, notes: e.target.value }))} />
+                                </div>
+                            </div>
+                            <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 8 }}>Danh sách hàng nhận:</div>
+                            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13, marginBottom: 8 }}>
+                                <thead>
+                                    <tr style={{ background: 'var(--bg-secondary)' }}>
+                                        <th style={{ padding: '6px 8px', textAlign: 'left' }}>Sản phẩm</th>
+                                        <th style={{ padding: '6px 8px', width: 55 }}>ĐVT</th>
+                                        <th style={{ padding: '6px 8px', width: 80, textAlign: 'right' }}>SL nhận</th>
+                                        <th style={{ padding: '6px 8px', width: 110, textAlign: 'right' }}>Đơn giá</th>
+                                        <th style={{ width: 28 }}></th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {editReceiptItems.map((it, i) => (
+                                        <tr key={i}>
+                                            <td style={{ padding: '3px 4px' }}>
+                                                <select className="form-select" style={{ fontSize: 12 }} value={it.productId}
+                                                    onChange={e => {
+                                                        const p = stockData.products.find(p => p.id === e.target.value);
+                                                        setEditReceiptItems(prev => prev.map((x, j) => j === i ? { ...x, productId: e.target.value, productName: p?.name || x.productName, unit: p?.unit || x.unit } : x));
+                                                    }}>
+                                                    <option value="">— Chọn —</option>
+                                                    {stockData.products.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                                                </select>
+                                            </td>
+                                            <td style={{ padding: '3px 4px' }}><input className="form-input" style={{ fontSize: 12 }} value={it.unit} onChange={e => setEditReceiptItems(prev => prev.map((x, j) => j === i ? { ...x, unit: e.target.value } : x))} /></td>
+                                            <td style={{ padding: '3px 4px' }}><input className="form-input" type="number" style={{ fontSize: 12, textAlign: 'right' }} value={it.qtyReceived} onChange={e => setEditReceiptItems(prev => prev.map((x, j) => j === i ? { ...x, qtyReceived: e.target.value } : x))} /></td>
+                                            <td style={{ padding: '3px 4px' }}><input className="form-input" type="number" style={{ fontSize: 12, textAlign: 'right' }} value={it.unitPrice} onChange={e => setEditReceiptItems(prev => prev.map((x, j) => j === i ? { ...x, unitPrice: e.target.value } : x))} /></td>
+                                            <td style={{ padding: '3px 4px' }}><button style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--status-danger)', fontSize: 16 }} onClick={() => setEditReceiptItems(prev => prev.filter((_, j) => j !== i))}>×</button></td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                            <button className="btn btn-ghost btn-sm" onClick={() => setEditReceiptItems(prev => [...prev, { productId: '', productName: '', unit: '', qtyOrdered: 0, qtyReceived: '', unitPrice: 0 }])}>+ Thêm dòng</button>
+                        </div>
+                        <div className="modal-footer">
+                            <button className="btn btn-ghost" onClick={() => setEditReceipt(null)}>Hủy</button>
+                            <button className="btn btn-primary" onClick={saveEditReceipt} disabled={editReceiptSaving}>
+                                {editReceiptSaving ? '⏳ Đang lưu...' : '💾 Lưu thay đổi'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Modal sửa phiếu xuất kho */}
+            {editIssue && (
+                <div className="modal-overlay" onClick={() => setEditIssue(null)}>
+                    <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 700, width: '95%' }}>
+                        <div className="modal-header">
+                            <h3>✏️ Sửa phiếu xuất kho — {editIssue.code}</h3>
+                            <button className="modal-close" onClick={() => setEditIssue(null)}>×</button>
+                        </div>
+                        <div className="modal-body">
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 12 }}>
+                                <div>
+                                    <label style={{ fontSize: 12, color: 'var(--text-muted)' }}>Kho</label>
+                                    <select className="form-select" value={editIssueMeta.warehouseId}
+                                        onChange={e => setEditIssueMeta(m => ({ ...m, warehouseId: e.target.value }))}>
+                                        {txData.warehouses.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}
+                                    </select>
+                                </div>
+                                <div>
+                                    <label style={{ fontSize: 12, color: 'var(--text-muted)' }}>Dự án</label>
+                                    <select className="form-select" value={editIssueMeta.projectId}
+                                        onChange={e => setEditIssueMeta(m => ({ ...m, projectId: e.target.value }))}>
+                                        <option value="">— Không gắn —</option>
+                                        {projects.map(p => <option key={p.id} value={p.id}>{p.code} — {p.name}</option>)}
+                                    </select>
+                                </div>
+                                <div>
+                                    <label style={{ fontSize: 12, color: 'var(--text-muted)' }}>Ngày xuất</label>
+                                    <input className="form-input" type="date" value={editIssueMeta.issuedDate}
+                                        onChange={e => setEditIssueMeta(m => ({ ...m, issuedDate: e.target.value }))} />
+                                </div>
+                                <div>
+                                    <label style={{ fontSize: 12, color: 'var(--text-muted)' }}>Người lập</label>
+                                    <input className="form-input" value={editIssueMeta.issuedBy}
+                                        onChange={e => setEditIssueMeta(m => ({ ...m, issuedBy: e.target.value }))} />
+                                </div>
+                                <div style={{ gridColumn: '1 / -1' }}>
+                                    <label style={{ fontSize: 12, color: 'var(--text-muted)' }}>Ghi chú</label>
+                                    <input className="form-input" value={editIssueMeta.notes}
+                                        onChange={e => setEditIssueMeta(m => ({ ...m, notes: e.target.value }))} />
+                                </div>
+                            </div>
+                            <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 8 }}>Danh sách vật tư xuất:</div>
+                            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13, marginBottom: 8 }}>
+                                <thead>
+                                    <tr style={{ background: 'var(--bg-secondary)' }}>
+                                        <th style={{ padding: '6px 8px', textAlign: 'left' }}>Vật tư (tồn kho)</th>
+                                        <th style={{ padding: '6px 8px', width: 55 }}>ĐVT</th>
+                                        <th style={{ padding: '6px 8px', width: 80, textAlign: 'right' }}>SL</th>
+                                        <th style={{ padding: '6px 8px', width: 110, textAlign: 'right' }}>Đơn giá</th>
+                                        <th style={{ width: 28 }}></th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {editIssueItems.map((it, i) => (
+                                        <tr key={i}>
+                                            <td style={{ padding: '3px 4px' }}>
+                                                <select className="form-select" style={{ fontSize: 12 }} value={it.productId}
+                                                    onChange={e => {
+                                                        const p = stockData.products.find(p => p.id === e.target.value);
+                                                        setEditIssueItems(prev => prev.map((x, j) => j === i ? { ...x, productId: e.target.value, productName: p?.name || '', unit: p?.unit || x.unit, unitPrice: p?.importPrice || x.unitPrice } : x));
+                                                    }}>
+                                                    <option value="">— Chọn —</option>
+                                                    {stockData.products.map(p => <option key={p.id} value={p.id}>{p.name} (tồn: {p.stock} {p.unit})</option>)}
+                                                </select>
+                                            </td>
+                                            <td style={{ padding: '3px 4px' }}><input className="form-input" style={{ fontSize: 12 }} value={it.unit} onChange={e => setEditIssueItems(prev => prev.map((x, j) => j === i ? { ...x, unit: e.target.value } : x))} /></td>
+                                            <td style={{ padding: '3px 4px' }}><input className="form-input" type="number" style={{ fontSize: 12, textAlign: 'right' }} value={it.qty} onChange={e => setEditIssueItems(prev => prev.map((x, j) => j === i ? { ...x, qty: e.target.value } : x))} /></td>
+                                            <td style={{ padding: '3px 4px' }}><input className="form-input" type="number" style={{ fontSize: 12, textAlign: 'right' }} value={it.unitPrice} onChange={e => setEditIssueItems(prev => prev.map((x, j) => j === i ? { ...x, unitPrice: e.target.value } : x))} /></td>
+                                            <td style={{ padding: '3px 4px' }}><button style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--status-danger)', fontSize: 16 }} onClick={() => setEditIssueItems(prev => prev.filter((_, j) => j !== i))}>×</button></td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                            <button className="btn btn-ghost btn-sm" onClick={() => setEditIssueItems(prev => [...prev, { productId: '', productName: '', unit: '', qty: '', unitPrice: 0 }])}>+ Thêm dòng</button>
+                        </div>
+                        <div className="modal-footer">
+                            <button className="btn btn-ghost" onClick={() => setEditIssue(null)}>Hủy</button>
+                            <button className="btn btn-primary" onClick={saveEditIssue} disabled={editIssueSaving}>
+                                {editIssueSaving ? '⏳ Đang lưu...' : '💾 Lưu thay đổi'}
+                            </button>
                         </div>
                     </div>
                 </div>
