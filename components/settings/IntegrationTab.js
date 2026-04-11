@@ -17,6 +17,7 @@ export default function IntegrationTab() {
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [seedingImages, setSeedingImages] = useState(false);
+    const [seedingVanThai, setSeedingVanThai] = useState(false);
     const { showToast } = useToast();
 
     useEffect(() => {
@@ -61,6 +62,18 @@ export default function IntegrationTab() {
             showToast(e.message || 'Lỗi upload', 'error');
         }
         setSeedingImages(false);
+    };
+
+    const handleSeedVanThai = async () => {
+        if (!confirm('Seed 217 sản phẩm Ván Thái vào database? Sản phẩm đã có sẽ bị bỏ qua.')) return;
+        setSeedingVanThai(true);
+        try {
+            const res = await apiFetch('/api/admin/seed-van-thai', { method: 'POST' });
+            showToast(`✅ Seed xong: tạo ${res.created}, bỏ qua ${res.skipped} / tổng ${res.total}`, 'success');
+        } catch (e) {
+            showToast(e.message || 'Lỗi seed', 'error');
+        }
+        setSeedingVanThai(false);
     };
 
     const handleCopy = (text) => {
@@ -137,6 +150,17 @@ export default function IntegrationTab() {
                 </p>
                 <button className="btn btn-secondary" onClick={handleSeedVanThaiImages} disabled={seedingImages}>
                     {seedingImages ? '⏳ Đang upload... (2-3 phút)' : '☁️ Upload ảnh Ván Thái → R2'}
+                </button>
+            </div>
+
+            <div style={{ marginTop: 24, paddingTop: 24, borderTop: '1px solid var(--border)' }}>
+                <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 8 }}>🌿 Seed dữ liệu sản phẩm vào DB</div>
+                <p style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 12 }}>
+                    Tạo 217 sản phẩm Ván Melamin Thái Lan (danh mục "Ván Thái") vào database. Chỉ cần chạy 1 lần trên production.
+                    Các sản phẩm đã tồn tại sẽ bị bỏ qua.
+                </p>
+                <button className="btn btn-secondary" onClick={handleSeedVanThai} disabled={seedingVanThai}>
+                    {seedingVanThai ? '⏳ Đang seed...' : '🌿 Seed Ván Thái → DB'}
                 </button>
             </div>
         </div>

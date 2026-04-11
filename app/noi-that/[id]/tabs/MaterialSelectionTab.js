@@ -30,7 +30,7 @@ const PICKER_TYPES = {
     },
     san_go: {
         title: '🏠 Chọn sàn gỗ',
-        categories: ['Sàn gỗ'],
+        categories: ['Sàn gỗ AC'],
         catLabels: {},
         materialName: 'Sàn gỗ',
         unit: 'm²',
