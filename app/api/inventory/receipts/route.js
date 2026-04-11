@@ -67,9 +67,25 @@ export const POST = withAuth(async (request, _ctx, session) => {
 
         for (const item of grn.items) {
             if (item.productId) {
+                // Tính giá bình quân gia quyền
+                const product = await tx.product.findUnique({
+                    where: { id: item.productId },
+                    select: { stock: true, importPrice: true },
+                });
+                const oldStock = product?.stock ?? 0;
+                const oldPrice = product?.importPrice ?? 0;
+                const newQty = item.qtyReceived;
+                const newPrice = item.unitPrice ?? 0;
+                const avgPrice = (oldStock + newQty) > 0
+                    ? (oldStock * oldPrice + newQty * newPrice) / (oldStock + newQty)
+                    : newPrice;
+
                 await tx.product.update({
                     where: { id: item.productId },
-                    data: { stock: { increment: item.qtyReceived } },
+                    data: {
+                        stock: { increment: item.qtyReceived },
+                        importPrice: Math.round(avgPrice),
+                    },
                 });
 
                 const txCode = await generateCode('inventoryTransaction', 'NK');

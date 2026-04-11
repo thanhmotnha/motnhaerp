@@ -75,6 +75,19 @@ export const POST = withAuth(async (request, _ctx, session) => {
 
             for (const item of si.items) {
                 if (item.productId) {
+                    // Dùng importPrice hiện tại nếu unitPrice chưa nhập
+                    if (!item.unitPrice) {
+                        const product = await tx.product.findUnique({
+                            where: { id: item.productId },
+                            select: { importPrice: true },
+                        });
+                        if (product?.importPrice) {
+                            await tx.stockIssueItem.update({
+                                where: { id: item.id },
+                                data: { unitPrice: product.importPrice },
+                            });
+                        }
+                    }
                     await tx.product.update({
                         where: { id: item.productId },
                         data: { stock: { decrement: item.qty } },
