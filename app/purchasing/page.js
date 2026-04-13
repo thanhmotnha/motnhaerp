@@ -595,7 +595,7 @@ function PurchasingContent() {
                                                                 ))}
                                                             </div>
                                                         )}
-                                                        {it.productId && (
+                                                        {it.productName && (
                                                             <input className="form-input" style={{ fontSize: 11, marginTop: 3, padding: '2px 6px', color: 'var(--text-muted)' }}
                                                                 value={it.variantLabel || ''}
                                                                 onChange={e => updateItem(i, 'variantLabel', e.target.value)}
