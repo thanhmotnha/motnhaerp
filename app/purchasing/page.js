@@ -241,11 +241,19 @@ function PurchasingContent() {
             variantSelections: {},
         })).filter(it => it.quantity > 0);
         if (newItems.length === 0) return alert('Tất cả các mục đã đặt đủ số lượng');
-        setPoItems(prev => {
-            const base = prev.filter(it => it.productName.trim());
-            return base.length ? [...base, ...newItems] : newItems;
-        });
+        const base = poItems.filter(it => it.productName.trim());
+        const startIdx = base.length;
+        setPoItems(base.length ? [...base, ...newItems] : newItems);
         setShowBudgetPicker(false);
+        // Fetch attributes for new items that have a productId
+        newItems.forEach((item, i) => {
+            if (!item.productId) return;
+            const rowIdx = startIdx + i;
+            fetch(`/api/products/${item.productId}/attributes`)
+                .then(r => r.json())
+                .then(attrs => { if (Array.isArray(attrs)) setProductAttrs(p => ({ ...p, [rowIdx]: attrs })); })
+                .catch(() => {});
+        });
     };
 
     // Product picker handlers
@@ -586,6 +594,12 @@ function PurchasingContent() {
                                                                     </select>
                                                                 ))}
                                                             </div>
+                                                        )}
+                                                        {it.productId && (
+                                                            <input className="form-input" style={{ fontSize: 11, marginTop: 3, padding: '2px 6px', color: 'var(--text-muted)' }}
+                                                                value={it.variantLabel || ''}
+                                                                onChange={e => updateItem(i, 'variantLabel', e.target.value)}
+                                                                placeholder="Biến thể (tuỳ chọn, vd: 17mm / Trắng)" />
                                                         )}
                                                     </td>
                                                     <td style={{ padding: '6px 4px' }}>
