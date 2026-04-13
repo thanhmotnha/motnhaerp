@@ -58,6 +58,7 @@ export const POST = withAuth(async (request, _ctx, session) => {
                             qtyOrdered: it.qtyOrdered,
                             qtyReceived: it.qtyReceived,
                             unitPrice: it.unitPrice,
+                            variantLabel: it.variantLabel || '',
                             purchaseOrderItemId: it.purchaseOrderItemId,
                         })),
                 },

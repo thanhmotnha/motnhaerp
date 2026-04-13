@@ -67,6 +67,7 @@ export const POST = withAuth(async (request, _ctx, session) => {
                             unit: it.unit,
                             qty: it.qty,
                             unitPrice: it.unitPrice,
+                            variantLabel: it.variantLabel || '',
                         })),
                     },
                 },

@@ -920,6 +920,7 @@ model PurchaseOrderItem {
   amount               Float               @default(0)
   receivedQty          Float               @default(0)
   notes                String              @default("")
+  variantLabel         String              @default("")
   productId            String?
   purchaseOrderId      String
   materialPlanId       String?
@@ -2294,6 +2295,7 @@ model GoodsReceiptItem {
   qtyOrdered          Float              @default(0)
   qtyReceived         Float              @default(0)
   unitPrice           Float              @default(0)
+  variantLabel        String             @default("")
   purchaseOrderItemId String?
 
   receipt             GoodsReceipt       @relation(fields: [receiptId], references: [id], onDelete: Cascade)
@@ -2324,13 +2326,14 @@ model StockIssue {
 }
 
 model StockIssueItem {
-  id          String     @id @default(cuid())
-  issueId     String
-  productId   String?
-  productName String
-  unit        String     @default("")
-  qty         Float      @default(0)
-  unitPrice   Float      @default(0)
+  id           String     @id @default(cuid())
+  issueId      String
+  productId    String?
+  productName  String
+  unit         String     @default("")
+  qty          Float      @default(0)
+  unitPrice    Float      @default(0)
+  variantLabel String     @default("")
 
   issue       StockIssue @relation(fields: [issueId], references: [id], onDelete: Cascade)
   product     Product?   @relation(fields: [productId], references: [id])

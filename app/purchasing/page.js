@@ -22,7 +22,8 @@ function PurchasingContent() {
     // Create PO modal
     const [showModal, setShowModal] = useState(false);
     const [poForm, setPoForm] = useState({ supplier: '', supplierId: null, projectId: '', deliveryDate: '', notes: '' });
-    const [poItems, setPoItems] = useState([{ productName: '', unit: 'cái', quantity: 1, unitPrice: 0, amount: 0, productId: null }]);
+    const [poItems, setPoItems] = useState([{ productName: '', unit: 'cái', quantity: 1, unitPrice: 0, amount: 0, productId: null, variantLabel: '', variantSelections: {} }]);
+    const [productAttrs, setProductAttrs] = useState({}); // { rowIdx: attributes[] }
     const [saving, setSaving] = useState(false);
     const [showBulkModal, setShowBulkModal] = useState(false);
 
@@ -93,6 +94,7 @@ function PurchasingContent() {
             receivedQty: it.receivedQty || 0,
             unitPrice: it.unitPrice || 0,
             toReceive: Math.max(0, it.quantity - (it.receivedQty || 0)),
+            variantLabel: it.variantLabel || '',
         })));
         setGrnNote('');
     };
@@ -117,6 +119,7 @@ function PurchasingContent() {
                     qtyOrdered: it.quantity,
                     qtyReceived: Number(it.toReceive),
                     unitPrice: it.unitPrice,
+                    variantLabel: it.variantLabel || '',
                     purchaseOrderItemId: it.id,
                 })),
             }),
@@ -191,10 +194,26 @@ function PurchasingContent() {
             unitPrice: product.salePrice || 0,
             amount: (it.quantity || 1) * (product.salePrice || 0),
             productId: product.id,
+            variantLabel: '',
+            variantSelections: {},
         }));
         setProductResults(prev => ({ ...prev, [rowIdx]: [] }));
         setProductSearches(prev => ({ ...prev, [rowIdx]: '' }));
         setActiveRowIdx(null);
+        setProductAttrs(prev => ({ ...prev, [rowIdx]: [] }));
+        fetch(`/api/products/${product.id}/attributes`)
+            .then(r => r.json())
+            .then(attrs => { if (Array.isArray(attrs)) setProductAttrs(prev => ({ ...prev, [rowIdx]: attrs })); })
+            .catch(() => {});
+    };
+
+    const updateVariantSelection = (rowIdx, attrId, value) => {
+        setPoItems(items => items.map((it, idx) => {
+            if (idx !== rowIdx) return it;
+            const newSelections = { ...(it.variantSelections || {}), [attrId]: value };
+            const variantLabel = Object.values(newSelections).filter(Boolean).join(' / ');
+            return { ...it, variantSelections: newSelections, variantLabel };
+        }));
     };
 
     // Budget picker handlers
@@ -218,6 +237,8 @@ function PurchasingContent() {
             unitPrice: m.unitPrice || m.product?.salePrice || 0,
             amount: Math.max(0, (m.quantity || 0) - (m.orderedQty || 0)) * (m.unitPrice || m.product?.salePrice || 0),
             productId: m.productId || null,
+            variantLabel: '',
+            variantSelections: {},
         })).filter(it => it.quantity > 0);
         if (newItems.length === 0) return alert('Tất cả các mục đã đặt đủ số lượng');
         setPoItems(prev => {
@@ -278,6 +299,8 @@ function PurchasingContent() {
             unitPrice: product.salePrice || 0,
             amount: (qty || 1) * (product.salePrice || 0),
             productId: product.id,
+            variantLabel: '',
+            variantSelections: {},
         }));
         if (!newItems.length) return;
         setPoItems(prev => {
@@ -291,7 +314,15 @@ function PurchasingContent() {
         if (!poForm.supplier.trim()) return alert('Vui lòng nhập nhà cung cấp');
         if (poItems.every(it => !it.productName.trim())) return alert('Vui lòng nhập ít nhất 1 sản phẩm');
         setSaving(true);
-        const validItems = poItems.filter(it => it.productName.trim());
+        const validItems = poItems.filter(it => it.productName.trim()).map(it => ({
+            productName: it.productName,
+            unit: it.unit,
+            quantity: it.quantity,
+            unitPrice: it.unitPrice,
+            amount: it.amount,
+            productId: it.productId || null,
+            variantLabel: it.variantLabel || '',
+        }));
         const res = await fetch('/api/purchase-orders', {
             method: 'POST', headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -305,7 +336,8 @@ function PurchasingContent() {
         if (!res.ok) { const e = await res.json(); return alert(e.error || 'Lỗi tạo PO'); }
         setShowModal(false);
         setPoForm({ supplier: '', supplierId: null, projectId: '', deliveryDate: '', notes: '' });
-        setPoItems([{ productName: '', unit: 'cái', quantity: 1, unitPrice: 0, amount: 0, productId: null }]);
+        setPoItems([{ productName: '', unit: 'cái', quantity: 1, unitPrice: 0, amount: 0, productId: null, variantLabel: '', variantSelections: {} }]);
+        setProductAttrs({});
         setFilterStatus('');
         fetchOrders();
     };
@@ -318,6 +350,7 @@ function PurchasingContent() {
             unitPrice: it.unitPrice,
             productId: it.productId || null,
             budgetItemId: it.budgetItemId || null,
+            variantLabel: it.variantLabel || '',
         })));
         setPoEditSupplier(detailPO.supplier || '');
         setPoEditNotes(detailPO.notes || '');
@@ -500,7 +533,7 @@ function PurchasingContent() {
                                         <button className="btn btn-ghost btn-sm" onClick={openBudgetPicker} title="Thêm từ dự toán vật tư của dự án">
                                             📋 Từ dự toán
                                         </button>
-                                        <button className="btn btn-ghost btn-sm" onClick={() => setPoItems(it => [...it, { productName: '', unit: 'cái', quantity: 1, unitPrice: 0, amount: 0, productId: null }])}>
+                                        <button className="btn btn-ghost btn-sm" onClick={() => setPoItems(it => [...it, { productName: '', unit: 'cái', quantity: 1, unitPrice: 0, amount: 0, productId: null, variantLabel: '', variantSelections: {} }])}>
                                             + Dòng trống
                                         </button>
                                     </div>
@@ -537,6 +570,20 @@ function PurchasingContent() {
                                                                         <span>{p.name} {p.code && <span style={{ opacity: 0.45, fontSize: 11, marginLeft: 6 }}>{p.code}</span>}</span>
                                                                         <span style={{ opacity: 0.55, flexShrink: 0, marginLeft: 12, fontSize: 12 }}>{p.unit}</span>
                                                                     </div>
+                                                                ))}
+                                                            </div>
+                                                        )}
+                                                        {it.productId && (productAttrs[i] || []).length > 0 && (
+                                                            <div style={{ marginTop: 4, display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+                                                                {(productAttrs[i] || []).map(attr => (
+                                                                    <select key={attr.id}
+                                                                        className="form-select"
+                                                                        style={{ fontSize: 11, padding: '2px 4px', minWidth: 80, flex: 1 }}
+                                                                        value={(it.variantSelections || {})[attr.id] || ''}
+                                                                        onChange={e => updateVariantSelection(i, attr.id, e.target.value)}>
+                                                                        <option value="">— {attr.name} —</option>
+                                                                        {attr.options.map(opt => <option key={opt.id} value={opt.label}>{opt.label}</option>)}
+                                                                    </select>
                                                                 ))}
                                                             </div>
                                                         )}
@@ -774,7 +821,10 @@ function PurchasingContent() {
                                 <tbody>
                                     {grnItems.map((it, i) => (
                                         <tr key={it.id}>
-                                            <td style={{ fontSize: 13 }}>{it.productName}</td>
+                                            <td style={{ fontSize: 13 }}>
+                                                {it.productName}
+                                                {it.variantLabel && <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 1 }}>{it.variantLabel}</div>}
+                                            </td>
                                             <td style={{ textAlign: 'center', fontSize: 12 }}>{it.unit}</td>
                                             <td style={{ textAlign: 'center', fontSize: 13 }}>{fmtNum(it.quantity)}</td>
                                             <td style={{ textAlign: 'center', fontSize: 13, color: it.receivedQty >= it.quantity ? 'var(--status-success)' : 'var(--text-muted)' }}>
@@ -886,7 +936,10 @@ function PurchasingContent() {
                                         <tbody>
                                             {poEditItems.map((it, i) => (
                                                 <tr key={i}>
-                                                    <td style={{ padding: '4px 4px' }}><input className="form-input" style={{ fontSize: 12 }} value={it.productName} onChange={e => setPoEditItems(prev => prev.map((x, j) => j === i ? { ...x, productName: e.target.value } : x))} /></td>
+                                                    <td style={{ padding: '4px 4px' }}>
+                                                        <input className="form-input" style={{ fontSize: 12 }} value={it.productName} onChange={e => setPoEditItems(prev => prev.map((x, j) => j === i ? { ...x, productName: e.target.value } : x))} />
+                                                        <input className="form-input" style={{ fontSize: 11, marginTop: 3, color: 'var(--text-muted)' }} value={it.variantLabel || ''} onChange={e => setPoEditItems(prev => prev.map((x, j) => j === i ? { ...x, variantLabel: e.target.value } : x))} placeholder="Biến thể (tuỳ chọn)" />
+                                                    </td>
                                                     <td style={{ padding: '4px 4px' }}><input className="form-input" style={{ fontSize: 12, textAlign: 'center' }} value={it.unit} onChange={e => setPoEditItems(prev => prev.map((x, j) => j === i ? { ...x, unit: e.target.value } : x))} /></td>
                                                     <td style={{ padding: '4px 4px' }}><input className="form-input" type="number" style={{ fontSize: 12, textAlign: 'right' }} value={it.quantity} onChange={e => setPoEditItems(prev => prev.map((x, j) => j === i ? { ...x, quantity: e.target.value } : x))} /></td>
                                                     <td style={{ padding: '4px 4px' }}><input className="form-input" type="number" style={{ fontSize: 12, textAlign: 'right' }} value={it.unitPrice} onChange={e => setPoEditItems(prev => prev.map((x, j) => j === i ? { ...x, unitPrice: e.target.value } : x))} /></td>
@@ -919,7 +972,10 @@ function PurchasingContent() {
                                     <tbody>
                                         {(detailPO.items || []).map((it, i) => (
                                             <tr key={i} style={{ background: i % 2 === 0 ? '#fff' : '#f7f9fc' }}>
-                                                <td style={{ padding: '7px 10px', borderBottom: '1px solid #e8edf2', fontWeight: 500 }}>{it.productName}</td>
+                                                <td style={{ padding: '7px 10px', borderBottom: '1px solid #e8edf2', fontWeight: 500 }}>
+                                                    {it.productName}
+                                                    {it.variantLabel && <div style={{ fontSize: 11, color: '#888', marginTop: 1 }}>{it.variantLabel}</div>}
+                                                </td>
                                                 <td style={{ padding: '7px 10px', borderBottom: '1px solid #e8edf2', textAlign: 'center', color: '#555' }}>{it.unit}</td>
                                                 <td style={{ padding: '7px 10px', borderBottom: '1px solid #e8edf2', textAlign: 'right' }}>{fmtNum(it.quantity)}</td>
                                                 <td style={{ padding: '7px 10px', borderBottom: '1px solid #e8edf2', textAlign: 'right' }}>{fmtNum(it.unitPrice)}</td>

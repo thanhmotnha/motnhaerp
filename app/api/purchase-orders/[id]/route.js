@@ -32,6 +32,7 @@ export const PUT = withAuth(async (request, { params }) => {
                         amount: (Number(it.quantity) || 0) * (Number(it.unitPrice) || 0),
                         productId: it.productId || null,
                         budgetItemId: it.budgetItemId || null,
+                        variantLabel: it.variantLabel || '',
                     })),
                 })
                 : { count: 0 };

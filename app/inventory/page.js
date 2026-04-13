@@ -32,7 +32,8 @@ export default function InventoryPage() {
     const [issueProjectId, setIssueProjectId] = useState('');
     const [issueIssuedBy, setIssueIssuedBy] = useState('');
     const [issueNotes, setIssueNotes] = useState('');
-    const [issueItems, setIssueItems] = useState([{ productId: '', productName: '', unit: '', qty: '', unitPrice: 0, stock: 0 }]);
+    const [issueItems, setIssueItems] = useState([{ productId: '', productName: '', unit: '', qty: '', unitPrice: 0, stock: 0, variantLabel: '', variantSelections: {} }]);
+    const [issueItemAttrs, setIssueItemAttrs] = useState({}); // { rowIdx: attributes[] }
     const [issueSaving, setIssueSaving] = useState(false);
 
     // Edit receipt
@@ -535,7 +536,8 @@ export default function InventoryPage() {
                     <>
                         <div style={{ display: 'flex', justifyContent: 'flex-end', padding: '12px 16px 8px', flexWrap: 'wrap', gap: 8 }}>
                             <button className="btn btn-primary" onClick={() => {
-                                setIssueItems([{ productId: '', productName: '', unit: '', qty: '', unitPrice: 0, stock: 0 }]);
+                                setIssueItems([{ productId: '', productName: '', unit: '', qty: '', unitPrice: 0, stock: 0, variantLabel: '', variantSelections: {} }]);
+                                setIssueItemAttrs({});
                                 setIssueWarehouseId(txData.warehouses[0]?.id || '');
                                 setIssueProjectId('');
                                 setIssueIssuedBy('');
@@ -692,29 +694,63 @@ export default function InventoryPage() {
                             </div>
                             <div style={{ fontWeight: 600, marginBottom: 8, fontSize: 14 }}>Danh sách vật tư xuất:</div>
                             {issueItems.map((item, i) => (
-                                <div key={i} style={{ display: 'grid', gridTemplateColumns: '2fr 80px 100px 28px', gap: 6, marginBottom: 6, alignItems: 'center' }}>
-                                    <select className="form-select" value={item.productId} onChange={e => {
-                                        const p = stockData.products.find(p => p.id === e.target.value);
-                                        setIssueItems(prev => prev.map((it, idx) => idx === i ? {
-                                            ...it, productId: e.target.value,
-                                            productName: p?.name || '',
-                                            unit: p?.unit || '',
-                                            unitPrice: p?.importPrice || 0,
-                                            stock: p?.stock || 0,
-                                        } : it));
-                                    }}>
-                                        <option value="">— Chọn sản phẩm —</option>
-                                        {stockData.products.map(p => <option key={p.id} value={p.id}>{p.name} (tồn: {p.stock} {p.unit})</option>)}
-                                    </select>
-                                    <div style={{ fontSize: 12, color: 'var(--text-muted)', textAlign: 'center' }}>{item.unit}</div>
-                                    <input className="form-input" type="number" min="0.001" step="0.001" placeholder="SL" value={item.qty}
-                                        onChange={e => setIssueItems(prev => prev.map((it, idx) => idx === i ? { ...it, qty: e.target.value } : it))} />
-                                    <button type="button" style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--status-danger)', fontSize: 16 }}
-                                        onClick={() => setIssueItems(prev => prev.filter((_, idx) => idx !== i))}>×</button>
+                                <div key={i} style={{ marginBottom: 8 }}>
+                                    <div style={{ display: 'grid', gridTemplateColumns: '2fr 80px 100px 28px', gap: 6, alignItems: 'center' }}>
+                                        <select className="form-select" value={item.productId} onChange={e => {
+                                            const p = stockData.products.find(p => p.id === e.target.value);
+                                            setIssueItems(prev => prev.map((it, idx) => idx === i ? {
+                                                ...it, productId: e.target.value,
+                                                productName: p?.name || '',
+                                                unit: p?.unit || '',
+                                                unitPrice: p?.importPrice || 0,
+                                                stock: p?.stock || 0,
+                                                variantLabel: '',
+                                                variantSelections: {},
+                                            } : it));
+                                            if (e.target.value) {
+                                                setIssueItemAttrs(prev => ({ ...prev, [i]: [] }));
+                                                fetch(`/api/products/${e.target.value}/attributes`)
+                                                    .then(r => r.json())
+                                                    .then(attrs => { if (Array.isArray(attrs)) setIssueItemAttrs(prev => ({ ...prev, [i]: attrs })); })
+                                                    .catch(() => {});
+                                            } else {
+                                                setIssueItemAttrs(prev => ({ ...prev, [i]: [] }));
+                                            }
+                                        }}>
+                                            <option value="">— Chọn sản phẩm —</option>
+                                            {stockData.products.map(p => <option key={p.id} value={p.id}>{p.name} (tồn: {p.stock} {p.unit})</option>)}
+                                        </select>
+                                        <div style={{ fontSize: 12, color: 'var(--text-muted)', textAlign: 'center' }}>{item.unit}</div>
+                                        <input className="form-input" type="number" min="0.001" step="0.001" placeholder="SL" value={item.qty}
+                                            onChange={e => setIssueItems(prev => prev.map((it, idx) => idx === i ? { ...it, qty: e.target.value } : it))} />
+                                        <button type="button" style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--status-danger)', fontSize: 16 }}
+                                            onClick={() => { setIssueItems(prev => prev.filter((_, idx) => idx !== i)); setIssueItemAttrs(prev => { const n = { ...prev }; delete n[i]; return n; }); }}>×</button>
+                                    </div>
+                                    {item.productId && (issueItemAttrs[i] || []).length > 0 && (
+                                        <div style={{ marginTop: 4, display: 'flex', gap: 4, flexWrap: 'wrap', paddingLeft: 0 }}>
+                                            {(issueItemAttrs[i] || []).map(attr => (
+                                                <select key={attr.id}
+                                                    className="form-select"
+                                                    style={{ fontSize: 12, padding: '3px 6px', minWidth: 100, maxWidth: 200 }}
+                                                    value={(item.variantSelections || {})[attr.id] || ''}
+                                                    onChange={e => {
+                                                        const value = e.target.value;
+                                                        setIssueItems(prev => prev.map((it, idx) => {
+                                                            if (idx !== i) return it;
+                                                            const newSelections = { ...(it.variantSelections || {}), [attr.id]: value };
+                                                            return { ...it, variantSelections: newSelections, variantLabel: Object.values(newSelections).filter(Boolean).join(' / ') };
+                                                        }));
+                                                    }}>
+                                                    <option value="">— {attr.name} —</option>
+                                                    {attr.options.map(opt => <option key={opt.id} value={opt.label}>{opt.label}</option>)}
+                                                </select>
+                                            ))}
+                                        </div>
+                                    )}
                                 </div>
                             ))}
                             <button className="btn btn-ghost btn-sm" style={{ marginBottom: 8 }}
-                                onClick={() => setIssueItems(prev => [...prev, { productId: '', productName: '', unit: '', qty: '', unitPrice: 0, stock: 0 }])}>
+                                onClick={() => setIssueItems(prev => [...prev, { productId: '', productName: '', unit: '', qty: '', unitPrice: 0, stock: 0, variantLabel: '', variantSelections: {} }])}>
                                 + Thêm dòng
                             </button>
                         </div>
@@ -739,6 +775,7 @@ export default function InventoryPage() {
                                             unit: it.unit,
                                             qty: Number(it.qty),
                                             unitPrice: it.unitPrice,
+                                            variantLabel: it.variantLabel || '',
                                         })),
                                     }),
                                 });
@@ -774,7 +811,11 @@ export default function InventoryPage() {
                                 <tbody>
                                     {(viewReceipt.items || []).map(it => (
                                         <tr key={it.id}>
-                                            <td>{it.productName}</td><td>{it.unit}</td>
+                                            <td>
+                                                {it.productName}
+                                                {it.variantLabel && <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 1 }}>{it.variantLabel}</div>}
+                                            </td>
+                                            <td>{it.unit}</td>
                                             <td style={{ textAlign: 'right' }}>{it.qtyOrdered}</td>
                                             <td style={{ textAlign: 'right', fontWeight: 600 }}>{it.qtyReceived}</td>
                                         </tr>
@@ -810,7 +851,11 @@ export default function InventoryPage() {
                                 <tbody>
                                     {(viewIssue.items || []).map(it => (
                                         <tr key={it.id}>
-                                            <td>{it.productName}</td><td>{it.unit}</td>
+                                            <td>
+                                                {it.productName}
+                                                {it.variantLabel && <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 1 }}>{it.variantLabel}</div>}
+                                            </td>
+                                            <td>{it.unit}</td>
                                             <td style={{ textAlign: 'right', fontWeight: 600 }}>{it.qty}</td>
                                         </tr>
                                     ))}
