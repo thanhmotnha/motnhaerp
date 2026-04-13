@@ -558,6 +558,11 @@ function PurchasingContent() {
                                                 <th style={{ width: 36 }}></th>
                                             </tr>
                                         </thead>
+                                        <datalist id="variant-opts">
+                                                <option value="17mm" />
+                                                <option value="6mm" />
+                                                <option value="Nẹp" />
+                                            </datalist>
                                         <tbody>
                                             {poItems.map((it, i) => (
                                                 <tr key={i} style={{ borderTop: '1px solid var(--border-color)' }}>
@@ -596,10 +601,10 @@ function PurchasingContent() {
                                                             </div>
                                                         )}
                                                         {it.productName && (
-                                                            <input className="form-input" style={{ fontSize: 11, marginTop: 3, padding: '2px 6px', color: 'var(--text-muted)' }}
+                                                            <input className="form-input" list="variant-opts" style={{ fontSize: 11, marginTop: 3, padding: '2px 6px', color: 'var(--text-muted)' }}
                                                                 value={it.variantLabel || ''}
                                                                 onChange={e => updateItem(i, 'variantLabel', e.target.value)}
-                                                                placeholder="Biến thể (tuỳ chọn, vd: 17mm / Trắng)" />
+                                                                placeholder="Chọn hoặc nhập biến thể..." />
                                                         )}
                                                     </td>
                                                     <td style={{ padding: '6px 4px' }}>
