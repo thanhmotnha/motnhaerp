@@ -63,6 +63,8 @@ function PurchasingContent() {
     const [poEditNotes, setPoEditNotes] = useState('');
     const [poEditOrderDate, setPoEditOrderDate] = useState('');
     const [poEditDeliveryDate, setPoEditDeliveryDate] = useState('');
+    const [poEditProjectId, setPoEditProjectId] = useState('');
+    const [poEditDeliveryType, setPoEditDeliveryType] = useState('Giao thẳng dự án');
     const [poEditSaving, setPoEditSaving] = useState(false);
 
     // GRN (Goods Receipt Note) state
@@ -379,6 +381,8 @@ function PurchasingContent() {
         setPoEditNotes(detailPO.notes || '');
         setPoEditOrderDate(toDateInput(detailPO.orderDate));
         setPoEditDeliveryDate(toDateInput(detailPO.deliveryDate));
+        setPoEditProjectId(detailPO.projectId || '');
+        setPoEditDeliveryType(detailPO.deliveryType || 'Giao thẳng dự án');
         setPoEditMode(true);
     };
 
@@ -395,6 +399,8 @@ function PurchasingContent() {
                     notes: poEditNotes,
                     orderDate: poEditOrderDate || null,
                     deliveryDate: poEditDeliveryDate || null,
+                    projectId: poEditProjectId || null,
+                    deliveryType: poEditDeliveryType,
                     items,
                 }),
             });
@@ -1035,6 +1041,27 @@ function PurchasingContent() {
                                         <div>
                                             <div style={{ fontSize: 11, color: '#666', marginBottom: 3 }}>Ngày giao hàng</div>
                                             <input className="form-input" type="date" value={poEditDeliveryDate} onChange={e => setPoEditDeliveryDate(e.target.value)} />
+                                        </div>
+                                        <div>
+                                            <div style={{ fontSize: 11, color: '#666', marginBottom: 3 }}>Loại giao hàng</div>
+                                            <div style={{ display: 'flex', gap: 0, borderRadius: 6, overflow: 'hidden', border: '1px solid #ddd' }}>
+                                                {['Giao thẳng dự án', 'Nhập kho'].map(opt => (
+                                                    <button key={opt} type="button"
+                                                        style={{ flex: 1, padding: '6px 4px', fontSize: 12, fontWeight: 600, border: 'none', cursor: 'pointer', background: poEditDeliveryType === opt ? '#1e3a5f' : '#f5f5f5', color: poEditDeliveryType === opt ? '#fff' : '#555' }}
+                                                        onClick={() => { setPoEditDeliveryType(opt); if (opt === 'Nhập kho') setPoEditProjectId(''); }}>
+                                                        {opt === 'Giao thẳng dự án' ? '📍 Dự án' : '🏭 Kho'}
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <div style={{ fontSize: 11, color: '#666', marginBottom: 3 }}>Dự án</div>
+                                            <select className="form-input" value={poEditProjectId}
+                                                onChange={e => { setPoEditProjectId(e.target.value); if (e.target.value) setPoEditDeliveryType('Giao thẳng dự án'); }}
+                                                disabled={poEditDeliveryType === 'Nhập kho'}>
+                                                <option value="">-- Không gắn --</option>
+                                                {projects.map(p => <option key={p.id} value={p.id}>{p.code} — {p.name}</option>)}
+                                            </select>
                                         </div>
                                     </div>
                                     <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13, marginBottom: 8 }}>

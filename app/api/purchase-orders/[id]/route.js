@@ -15,7 +15,7 @@ export const GET = withAuth(async (request, { params }) => {
 export const PUT = withAuth(async (request, { params }) => {
     const { id } = await params;
     const body = await request.json();
-    const { status, paidAmount, deliveryType, deliveryAddress, notes, deliveryDate, orderDate, supplier, items } = body;
+    const { status, paidAmount, deliveryType, deliveryAddress, notes, deliveryDate, orderDate, supplier, projectId, items } = body;
 
     // If items provided, update items preserving receivedQty for existing ones
     if (items !== undefined) {
@@ -81,6 +81,8 @@ export const PUT = withAuth(async (request, { params }) => {
                     totalAmount,
                     ...(supplier !== undefined && { supplier }),
                     ...(notes !== undefined && { notes }),
+                    ...(projectId !== undefined && { projectId: projectId || null }),
+                    ...(deliveryType !== undefined && { deliveryType }),
                     ...(orderDate !== undefined && { orderDate: orderDate ? new Date(orderDate) : undefined }),
                     ...(deliveryDate !== undefined && { deliveryDate: deliveryDate ? new Date(deliveryDate) : null }),
                 },
@@ -116,6 +118,7 @@ export const PUT = withAuth(async (request, { params }) => {
             ...(status !== undefined && { status }),
             ...(paidAmount !== undefined && { paidAmount: Number(paidAmount) }),
             ...(supplier !== undefined && { supplier }),
+            ...(projectId !== undefined && { projectId: projectId || null }),
             ...(deliveryType !== undefined && { deliveryType }),
             ...(deliveryAddress !== undefined && { deliveryAddress }),
             ...(notes !== undefined && { notes }),
