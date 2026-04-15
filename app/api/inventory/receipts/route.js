@@ -36,12 +36,29 @@ export const POST = withAuth(async (request, _ctx, session) => {
     });
     if (!po) return NextResponse.json({ error: 'PO không tồn tại' }, { status: 404 });
 
-    const code = await generateCode('goodsReceipt', 'PNK');
+    // Generate tất cả code TRƯỚC transaction để tránh trùng mã
+    // (generateCode dùng prisma global, không thấy uncommitted inserts bên trong tx)
+    const grnCode = await generateCode('goodsReceipt', 'PNK');
+    const validItems = data.items.filter(it => it.qtyReceived > 0);
+    const productItems = validItems.filter(it => it.productId);
+
+    // Lấy MAX một lần, gán offset tuần tự cho từng item
+    let txBaseMax = 0;
+    if (productItems.length > 0) {
+        const maxResult = await prisma.$queryRawUnsafe(
+            `SELECT COALESCE(MAX(CAST(REPLACE(code, $1, '') AS INTEGER)), 0) as max_num
+             FROM "InventoryTransaction"
+             WHERE code LIKE $2 AND REPLACE(code, $1, '') ~ '^[0-9]+$'`,
+            'NK', 'NK%'
+        );
+        txBaseMax = Number(maxResult?.[0]?.max_num ?? 0);
+    }
+    let txCodeIndex = 0;
 
     const receipt = await prisma.$transaction(async (tx) => {
         const grn = await tx.goodsReceipt.create({
             data: {
-                code,
+                code: grnCode,
                 purchaseOrderId: data.purchaseOrderId,
                 warehouseId: data.warehouseId,
                 receivedDate: data.receivedDate || new Date(),
@@ -49,18 +66,16 @@ export const POST = withAuth(async (request, _ctx, session) => {
                 notes: data.notes || '',
                 createdById: session.user.id,
                 items: {
-                    create: data.items
-                        .filter(it => it.qtyReceived > 0)
-                        .map(it => ({
-                            productId: it.productId,
-                            productName: it.productName,
-                            unit: it.unit,
-                            qtyOrdered: it.qtyOrdered,
-                            qtyReceived: it.qtyReceived,
-                            unitPrice: it.unitPrice,
-                            variantLabel: it.variantLabel || '',
-                            purchaseOrderItemId: it.purchaseOrderItemId,
-                        })),
+                    create: validItems.map(it => ({
+                        productId: it.productId,
+                        productName: it.productName,
+                        unit: it.unit,
+                        qtyOrdered: it.qtyOrdered,
+                        qtyReceived: it.qtyReceived,
+                        unitPrice: it.unitPrice,
+                        variantLabel: it.variantLabel || '',
+                        purchaseOrderItemId: it.purchaseOrderItemId,
+                    })),
                 },
             },
             include: { items: true },
@@ -89,7 +104,9 @@ export const POST = withAuth(async (request, _ctx, session) => {
                     },
                 });
 
-                const txCode = await generateCode('inventoryTransaction', 'NK');
+                // Dùng code đã pre-generate (tránh trùng mã trong cùng transaction)
+                const txCode = `NK${String(txBaseMax + 1 + txCodeIndex).padStart(3, '0')}`;
+                txCodeIndex++;
                 await tx.inventoryTransaction.create({
                     data: {
                         code: txCode,
