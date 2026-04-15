@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 
 const fmt = (n) => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(n);
 const fmtNum = (n) => new Intl.NumberFormat('vi-VN').format(n || 0);
-const fmtDate = (d) => d ? new Date(d).toLocaleDateString('vi-VN') : '—';
+const fmtDate = (d) => d ? new Date(d).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '—';
 const pct = (a, b) => b > 0 ? Math.round((a / b) * 100) : 0;
 
 const STATUS_BADGE = { 'Đã thanh toán': 'badge-success', 'Đã giao': 'badge-info', 'Đang giao': 'badge-warning', 'Nháp': 'badge-default', 'Chờ duyệt': 'badge-warning', 'Chờ duyệt vượt định mức': 'badge-danger', 'Đã xác nhận': 'badge-info', 'Đang đặt': 'badge-info', 'Hoàn thành': 'badge-success', 'Hủy': 'badge-default' };
