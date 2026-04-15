@@ -27,6 +27,10 @@ function PurchasingContent() {
     const [saving, setSaving] = useState(false);
     const [showBulkModal, setShowBulkModal] = useState(false);
 
+    // Supplier autocomplete
+    const [supplierQuery, setSupplierQuery] = useState('');
+    const [showSupplierDrop, setShowSupplierDrop] = useState(false);
+
     // Product autocomplete
     const [productSearches, setProductSearches] = useState({}); // { rowIdx: query }
     const [productResults, setProductResults] = useState({}); // { rowIdx: [] }
@@ -346,6 +350,7 @@ function PurchasingContent() {
         if (!res.ok) { const e = await res.json(); return alert(e.error || 'Lỗi tạo PO'); }
         setShowModal(false);
         setPoForm({ supplier: '', supplierId: null, projectId: '', deliveryDate: '', notes: '' });
+        setSupplierQuery('');
         setPoItems([{ productName: '', unit: 'cái', quantity: 1, unitPrice: 0, amount: 0, productId: null, variantLabel: '', variantSelections: {} }]);
         setProductAttrs({});
         setFilterStatus('');
@@ -493,17 +498,44 @@ function PurchasingContent() {
                             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
                                 <div className="form-group" style={{ margin: 0 }}>
                                     <label className="form-label">Nhà cung cấp *</label>
-                                    <select className="form-select" value={poForm.supplierId || ''} autoFocus
-                                        onChange={e => {
-                                            const sup = suppliers.find(s => s.id === e.target.value);
-                                            setPoForm(f => ({ ...f, supplierId: sup?.id || null, supplier: sup?.name || '' }));
-                                        }}>
-                                        <option value="">-- Chọn nhà cung cấp --</option>
-                                        {suppliers.map(s => <option key={s.id} value={s.id}>{s.name}{s.isBlacklisted ? ' 🚫' : ''}</option>)}
-                                    </select>
-                                    {!poForm.supplierId && (
-                                        <input className="form-input" style={{ marginTop: 6, fontSize: 12 }} value={poForm.supplier} onChange={e => setPoForm(f => ({ ...f, supplier: e.target.value }))} placeholder="Hoặc nhập tên NCC thủ công..." />
-                                    )}
+                                    <div style={{ position: 'relative' }}>
+                                        <input
+                                            className="form-input"
+                                            autoFocus
+                                            autoComplete="off"
+                                            value={supplierQuery}
+                                            placeholder="Tìm hoặc nhập tên NCC..."
+                                            onChange={e => {
+                                                const q = e.target.value;
+                                                setSupplierQuery(q);
+                                                setPoForm(f => ({ ...f, supplier: q, supplierId: null }));
+                                                setShowSupplierDrop(true);
+                                            }}
+                                            onFocus={() => setShowSupplierDrop(true)}
+                                            onBlur={() => setTimeout(() => setShowSupplierDrop(false), 150)}
+                                        />
+                                        {showSupplierDrop && supplierQuery.length > 0 && (() => {
+                                            const q = supplierQuery.toLowerCase();
+                                            const matches = suppliers.filter(s => s.name.toLowerCase().includes(q)).slice(0, 8);
+                                            if (!matches.length) return null;
+                                            return (
+                                                <div style={{ position: 'absolute', zIndex: 99, top: '100%', left: 0, right: 0, background: 'var(--bg-modal)', border: '1px solid var(--border)', borderRadius: 6, boxShadow: 'var(--shadow-lg)', maxHeight: 220, overflowY: 'auto' }}>
+                                                    {matches.map(s => (
+                                                        <div key={s.id}
+                                                            style={{ padding: '8px 12px', cursor: 'pointer', fontSize: 13, borderBottom: '1px solid var(--border)' }}
+                                                            onMouseDown={() => {
+                                                                setPoForm(f => ({ ...f, supplierId: s.id, supplier: s.name }));
+                                                                setSupplierQuery(s.name);
+                                                                setShowSupplierDrop(false);
+                                                            }}>
+                                                            {s.name}{s.isBlacklisted ? ' 🚫' : ''}
+                                                            {s.phone && <span style={{ fontSize: 11, color: 'var(--text-muted)', marginLeft: 8 }}>{s.phone}</span>}
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            );
+                                        })()}
+                                    </div>
                                     {(() => {
                                         const sup = suppliers.find(s => s.id === poForm.supplierId);
                                         if (!sup) return null;
