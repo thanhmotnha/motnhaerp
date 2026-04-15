@@ -63,6 +63,13 @@ export default function ProjectDashboard({ project, scheduleTasks }) {
     const matOrdered = materials.filter(m => ['Đã đặt', 'Đặt một phần', 'Đã nhận'].includes(m.status)).length;
     const matReceived = materials.filter(m => m.status === 'Đã nhận').length;
 
+    // --- Tiền vật tư ---
+    const matBudget = materials.reduce((s, m) => s + (Number(m.totalAmount) || 0), 0);
+    const activePOs = pos.filter(po => po.status !== 'Hủy');
+    const matOrdered$ = activePOs.reduce((s, po) => s + (Number(po.totalAmount) || 0), 0);
+    const matPaid$ = activePOs.reduce((s, po) => s + (Number(po.paidAmount) || 0), 0);
+    const matDebt$ = matOrdered$ - matPaid$;
+
     return (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 4 }}>
 
@@ -166,6 +173,28 @@ export default function ProjectDashboard({ project, scheduleTasks }) {
                             </div>
                             <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 4 }}>Tiến độ nhận hàng</div>
                             <ProgressBar value={matTotal > 0 ? (matReceived / matTotal) * 100 : 0} color="#22c55e" />
+
+                            {/* Chi phí vật tư */}
+                            <div style={{ marginTop: 12, display: 'flex', flexDirection: 'column', gap: 6 }}>
+                                {[
+                                    { label: 'Dự toán vật tư', value: matBudget, color: 'var(--text-primary)' },
+                                    { label: 'Đã đặt (PO)', value: matOrdered$, color: '#3b82f6' },
+                                    { label: 'Đã thanh toán', value: matPaid$, color: '#22c55e' },
+                                    { label: 'Còn nợ NCC', value: matDebt$, color: matDebt$ > 0 ? '#ef4444' : '#22c55e' },
+                                ].map(r => (
+                                    <div key={r.label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                        <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>{r.label}</span>
+                                        <span style={{ fontSize: 12, fontWeight: 600, color: r.color, fontFamily: 'monospace' }}>
+                                            {fmtN(r.value)}đ
+                                        </span>
+                                    </div>
+                                ))}
+                                {matOrdered$ > matBudget && matBudget > 0 && (
+                                    <div style={{ fontSize: 11, color: '#ef4444', fontWeight: 600, textAlign: 'right' }}>
+                                        ⚠️ Vượt dự toán {fmtN(matOrdered$ - matBudget)}đ
+                                    </div>
+                                )}
+                            </div>
 
                             {pos.length > 0 && (
                                 <div style={{ marginTop: 12 }}>
