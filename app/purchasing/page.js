@@ -27,6 +27,9 @@ function PurchasingContent() {
     const [saving, setSaving] = useState(false);
     const [showBulkModal, setShowBulkModal] = useState(false);
 
+    // Company info for PO print
+    const [companyInfo, setCompanyInfo] = useState({});
+
     // Supplier autocomplete
     const [supplierQuery, setSupplierQuery] = useState('');
     const [showSupplierDrop, setShowSupplierDrop] = useState(false);
@@ -141,6 +144,7 @@ function PurchasingContent() {
         fetchOrders();
         fetch('/api/projects?limit=200').then(r => r.json()).then(d => setProjects(d.data || []));
         fetch('/api/suppliers?limit=1000').then(r => r.json()).then(d => setSuppliers(d.data || []));
+        fetch('/api/admin/settings').then(r => r.json()).then(d => setCompanyInfo(d || {}));
     }, []);
 
     // Pre-fill from URL params (from products bulk action)
@@ -942,7 +946,12 @@ function PurchasingContent() {
                         <div id="po-print-area" style={{ padding: '20px 28px 28px', background: '#fff', color: '#111', fontFamily: 'Arial, sans-serif' }}>
                             {/* Logo + tiêu đề */}
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20, borderBottom: '2px solid #1e3a5f', paddingBottom: 14 }}>
-                                <img src="https://pub-1e1be66737b446708af785e6cc8fe673.r2.dev/assets/motnha-header.jpg" alt="Một Nhà" style={{ height: 48, objectFit: 'contain' }} crossOrigin="anonymous" />
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                                    <img src="https://pub-1e1be66737b446708af785e6cc8fe673.r2.dev/assets/motnha-header.jpg" alt="Một Nhà" style={{ height: 44, objectFit: 'contain', objectPosition: 'left' }} crossOrigin="anonymous" />
+                                    {companyInfo.company_address && <div style={{ fontSize: 11, color: '#555', maxWidth: 280 }}>📍 {companyInfo.company_address}</div>}
+                                    {companyInfo.company_phone && <div style={{ fontSize: 11, color: '#555' }}>📞 {companyInfo.company_phone}</div>}
+                                    {companyInfo.company_email && <div style={{ fontSize: 11, color: '#555' }}>✉ {companyInfo.company_email}</div>}
+                                </div>
                                 <div style={{ textAlign: 'right' }}>
                                     <div style={{ fontSize: 20, fontWeight: 800, color: '#1e3a5f', letterSpacing: 1 }}>ĐƠN ĐẶT HÀNG</div>
                                     <div style={{ fontSize: 14, fontWeight: 700, color: '#e53e3e', marginTop: 2 }}>{detailPO.code}</div>

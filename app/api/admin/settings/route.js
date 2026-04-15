@@ -2,7 +2,7 @@ import { withAuth } from '@/lib/apiHandler';
 import prisma from '@/lib/prisma';
 import { NextResponse } from 'next/server';
 
-// GET all settings
+// GET all settings — accessible by all authenticated users (company info used in print templates)
 export const GET = withAuth(async () => {
     try {
         const rows = await prisma.systemSetting.findMany();
@@ -13,7 +13,7 @@ export const GET = withAuth(async () => {
         console.error('[Settings GET]', e.message);
         return NextResponse.json({});
     }
-}, { roles: ['giam_doc'] });
+});
 
 // PUT update settings — batch upsert
 export const PUT = withAuth(async (request) => {
