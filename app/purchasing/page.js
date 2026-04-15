@@ -54,6 +54,8 @@ function PurchasingContent() {
     const [poEditItems, setPoEditItems] = useState([]);
     const [poEditSupplier, setPoEditSupplier] = useState('');
     const [poEditNotes, setPoEditNotes] = useState('');
+    const [poEditOrderDate, setPoEditOrderDate] = useState('');
+    const [poEditDeliveryDate, setPoEditDeliveryDate] = useState('');
     const [poEditSaving, setPoEditSaving] = useState(false);
 
     // GRN (Goods Receipt Note) state
@@ -93,7 +95,7 @@ function PurchasingContent() {
             quantity: it.quantity,
             receivedQty: it.receivedQty || 0,
             unitPrice: it.unitPrice || 0,
-            toReceive: Math.max(0, it.quantity - (it.receivedQty || 0)),
+            toReceive: 0,
             variantLabel: it.variantLabel || '',
         })));
         setGrnNote('');
@@ -350,18 +352,23 @@ function PurchasingContent() {
         fetchOrders();
     };
 
+    const toDateInput = (d) => d ? new Date(d).toISOString().slice(0, 10) : '';
+
     const openPoEdit = () => {
         setPoEditItems((detailPO.items || []).map(it => ({
+            id: it.id,
             productName: it.productName,
             unit: it.unit,
             quantity: it.quantity,
             unitPrice: it.unitPrice,
             productId: it.productId || null,
-            budgetItemId: it.budgetItemId || null,
             variantLabel: it.variantLabel || '',
+            receivedQty: it.receivedQty || 0,
         })));
         setPoEditSupplier(detailPO.supplier || '');
         setPoEditNotes(detailPO.notes || '');
+        setPoEditOrderDate(toDateInput(detailPO.orderDate));
+        setPoEditDeliveryDate(toDateInput(detailPO.deliveryDate));
         setPoEditMode(true);
     };
 
@@ -373,7 +380,13 @@ function PurchasingContent() {
             const res = await fetch(`/api/purchase-orders/${detailPO.id}`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ supplier: poEditSupplier, notes: poEditNotes, items }),
+                body: JSON.stringify({
+                    supplier: poEditSupplier,
+                    notes: poEditNotes,
+                    orderDate: poEditOrderDate || null,
+                    deliveryDate: poEditDeliveryDate || null,
+                    items,
+                }),
             });
             if (!res.ok) { const e = await res.json(); throw new Error(e.error || 'Lỗi lưu'); }
             const updated = await res.json();
@@ -417,7 +430,7 @@ function PurchasingContent() {
                         <thead><tr><th>Mã PO</th><th>NCC</th><th>Dự án</th><th>Tổng tiền</th><th>Đã TT</th><th>Số SP</th><th>Ngày đặt</th><th>Giao hàng</th><th>Trạng thái</th><th></th></tr></thead>
                         <tbody>{filtered.map(o => {
                             const rate = pct(o.paidAmount, o.totalAmount);
-                            const canReceive = !['Hoàn thành', 'Hủy'].includes(o.status);
+                            const canReceive = !['Hủy'].includes(o.status);
                             return (
                                 <tr key={o.id} style={{ cursor: 'pointer' }} onClick={() => setDetailPO(o)}>
                                     <td className="accent">{o.code}</td>
@@ -853,11 +866,9 @@ function PurchasingContent() {
                                                 <input
                                                     className="form-input form-input-compact"
                                                     type="number" min="0"
-                                                    max={it.quantity - it.receivedQty}
                                                     value={it.toReceive}
                                                     onChange={e => setGrnItems(prev => prev.map((x, idx) => idx === i ? { ...x, toReceive: Number(e.target.value) || 0 } : x))}
                                                     style={{ width: 80, textAlign: 'center' }}
-                                                    disabled={it.receivedQty >= it.quantity}
                                                 />
                                             </td>
                                         </tr>
@@ -939,6 +950,14 @@ function PurchasingContent() {
                                         <div>
                                             <div style={{ fontSize: 11, color: '#666', marginBottom: 3 }}>Ghi chú</div>
                                             <input className="form-input" value={poEditNotes} onChange={e => setPoEditNotes(e.target.value)} />
+                                        </div>
+                                        <div>
+                                            <div style={{ fontSize: 11, color: '#666', marginBottom: 3 }}>Ngày đặt hàng</div>
+                                            <input className="form-input" type="date" value={poEditOrderDate} onChange={e => setPoEditOrderDate(e.target.value)} />
+                                        </div>
+                                        <div>
+                                            <div style={{ fontSize: 11, color: '#666', marginBottom: 3 }}>Ngày giao hàng</div>
+                                            <input className="form-input" type="date" value={poEditDeliveryDate} onChange={e => setPoEditDeliveryDate(e.target.value)} />
                                         </div>
                                     </div>
                                     <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13, marginBottom: 8 }}>
@@ -1044,10 +1063,14 @@ function PurchasingContent() {
                                         link.href = canvas.toDataURL('image/jpeg', 0.95);
                                         link.click();
                                     }}>🖼️ Xuất ảnh JPG</button>
-                                    {!['Hoàn thành', 'Hủy'].includes(detailPO.status) && (
+                                    {!['Hủy'].includes(detailPO.status) && (
                                         <>
                                             <button className="btn btn-ghost btn-sm" onClick={openPoEdit}>✏️ Sửa</button>
-                                            <button className="btn btn-primary btn-sm" onClick={e => { setDetailPO(null); openGrn(detailPO.id, e); }}>📦 Nhận hàng</button>
+                                            {detailPO.status !== 'Hủy' && (
+                                                <button className="btn btn-primary btn-sm" onClick={e => { setDetailPO(null); openGrn(detailPO.id, e); }}>
+                                                    {detailPO.status === 'Hoàn thành' ? '📦 Nhận bổ sung' : '📦 Nhận hàng'}
+                                                </button>
+                                            )}
                                         </>
                                     )}
                                     <button className="btn btn-ghost" onClick={() => { setDetailPO(null); setPoEditMode(false); }}>Đóng</button>
