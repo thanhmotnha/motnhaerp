@@ -21,7 +21,7 @@ function PurchasingContent() {
 
     // Create PO modal
     const [showModal, setShowModal] = useState(false);
-    const [poForm, setPoForm] = useState({ supplier: '', supplierId: null, projectId: '', deliveryDate: '', notes: '' });
+    const [poForm, setPoForm] = useState({ supplier: '', supplierId: null, projectId: '', deliveryDate: '', notes: '', deliveryType: 'Giao thẳng dự án', deliveryAddress: '' });
     const [poItems, setPoItems] = useState([{ productName: '', unit: 'cái', quantity: 1, unitPrice: 0, amount: 0, productId: null, variantLabel: '', variantSelections: {} }]);
     const [productAttrs, setProductAttrs] = useState({}); // { rowIdx: attributes[] }
     const [saving, setSaving] = useState(false);
@@ -330,6 +330,7 @@ function PurchasingContent() {
 
     const createPO = async () => {
         if (!poForm.supplier.trim()) return alert('Vui lòng nhập nhà cung cấp');
+        if (poForm.deliveryType === 'Giao thẳng dự án' && !poForm.projectId) return alert('Vui lòng chọn dự án hoặc chuyển sang Nhập kho');
         if (poItems.every(it => !it.productName.trim())) return alert('Vui lòng nhập ít nhất 1 sản phẩm');
         setSaving(true);
         const validItems = poItems.filter(it => it.productName.trim()).map(it => ({
@@ -353,7 +354,7 @@ function PurchasingContent() {
         setSaving(false);
         if (!res.ok) { const e = await res.json(); return alert(e.error || 'Lỗi tạo PO'); }
         setShowModal(false);
-        setPoForm({ supplier: '', supplierId: null, projectId: '', deliveryDate: '', notes: '' });
+        setPoForm({ supplier: '', supplierId: null, projectId: '', deliveryDate: '', notes: '', deliveryType: 'Giao thẳng dự án', deliveryAddress: '' });
         setSupplierQuery('');
         setPoItems([{ productName: '', unit: 'cái', quantity: 1, unitPrice: 0, amount: 0, productId: null, variantLabel: '', variantSelections: {} }]);
         setProductAttrs({});
@@ -558,15 +559,50 @@ function PurchasingContent() {
                                         );
                                     })()}
                                 </div>
-                                <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                                    {/* Toggle giao hàng */}
                                     <div className="form-group" style={{ margin: 0 }}>
-                                        <label className="form-label">Dự án (không bắt buộc)</label>
-                                        <select className="form-select" value={poForm.projectId} onChange={e => setPoForm(f => ({ ...f, projectId: e.target.value }))}>
-                                            <option value="">-- Không gắn dự án --</option>
-                                            {projects.map(p => <option key={p.id} value={p.id}>{p.code} — {p.name}</option>)}
-                                        </select>
+                                        <label className="form-label">Loại giao hàng *</label>
+                                        <div style={{ display: 'flex', gap: 0, borderRadius: 6, overflow: 'hidden', border: '1px solid var(--border)' }}>
+                                            {[
+                                                { value: 'Giao thẳng dự án', label: '📍 Giao dự án' },
+                                                { value: 'Nhập kho', label: '🏭 Nhập kho' },
+                                            ].map(opt => (
+                                                <button key={opt.value} type="button"
+                                                    style={{ flex: 1, padding: '7px 4px', fontSize: 13, fontWeight: 600, border: 'none', cursor: 'pointer', transition: 'all 0.15s', background: poForm.deliveryType === opt.value ? 'var(--primary)' : 'var(--bg-secondary)', color: poForm.deliveryType === opt.value ? '#fff' : 'var(--text-secondary)' }}
+                                                    onClick={() => setPoForm(f => ({ ...f, deliveryType: opt.value, projectId: opt.value === 'Nhập kho' ? '' : f.projectId, deliveryAddress: opt.value === 'Nhập kho' ? '' : f.deliveryAddress }))}>
+                                                    {opt.label}
+                                                </button>
+                                            ))}
+                                        </div>
                                     </div>
-                                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+
+                                    {/* Dự án (chỉ hiện khi Giao dự án) */}
+                                    {poForm.deliveryType === 'Giao thẳng dự án' && (
+                                        <div className="form-group" style={{ margin: 0 }}>
+                                            <label className="form-label">Dự án *</label>
+                                            <select className="form-select" value={poForm.projectId}
+                                                onChange={e => {
+                                                    const proj = projects.find(p => p.id === e.target.value);
+                                                    setPoForm(f => ({ ...f, projectId: e.target.value, deliveryAddress: proj?.address || '' }));
+                                                }}>
+                                                <option value="">-- Chọn dự án --</option>
+                                                {projects.map(p => <option key={p.id} value={p.id}>{p.code} — {p.name}</option>)}
+                                            </select>
+                                            {poForm.deliveryAddress && (
+                                                <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4 }}>📍 {poForm.deliveryAddress}</div>
+                                            )}
+                                        </div>
+                                    )}
+
+                                    {/* Nhập kho — thông báo warehouse chọn lúc nhận hàng */}
+                                    {poForm.deliveryType === 'Nhập kho' && (
+                                        <div style={{ fontSize: 12, color: 'var(--text-muted)', background: 'var(--bg-secondary)', borderRadius: 6, padding: '8px 12px' }}>
+                                            🏭 Kho nhập sẽ chọn khi xác nhận nhận hàng
+                                        </div>
+                                    )}
+
+                                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
                                         <div className="form-group" style={{ margin: 0 }}>
                                             <label className="form-label">Ngày giao hàng</label>
                                             <input className="form-input" type="date" value={poForm.deliveryDate} onChange={e => setPoForm(f => ({ ...f, deliveryDate: e.target.value }))} />
