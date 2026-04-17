@@ -130,6 +130,7 @@ export default function ExpensesTab({ defaultValues, onDefaultValuesUsed }) {
 
     useEffect(() => {
         if (!defaultValues) return;
+        if (!categoryList.length) return; // wait for categories to load
         const firstCat = categoryList.find(c => c.isActive !== false)?.name || '';
         setEditing(null);
         setForm({ ...emptyForm(firstCat), ...defaultValues });
@@ -137,8 +138,8 @@ export default function ExpensesTab({ defaultValues, onDefaultValuesUsed }) {
         setIsHistorical(false);
         setFormProofFiles([]);
         setShowModal(true);
-        onDefaultValuesUsed?.();
-    }, [defaultValues]);
+        onDefaultValuesUsed?.(); // eslint-disable-line react-hooks/exhaustive-deps
+    }, [defaultValues, categoryList.length]); // categoryList.length avoids array ref churn
 
     // ── Stats ──────────────────────────────────────────────────────
     const totalAmount = expenses.reduce((s, e) => s + (e.amount || 0), 0);

@@ -39,11 +39,6 @@ function FinanceContent() {
     const [saving, setSaving] = useState(false);
     const [prefilledExpense, setPrefilledExpense] = useState(null);
 
-    const handleGhiNhanTT = (supplier) => {
-        setPrefilledExpense({ recipientType: 'NCC', recipientId: supplier.id, recipientName: supplier.name });
-        handleTabChange('chi_phi');
-    };
-
     const load = () => {
         setLoading(true);
         apiFetch('/api/finance')
@@ -74,6 +69,12 @@ function FinanceContent() {
         setQuickType(null);
         if (key === 'dong_tien' || key === 'bao_cao') loadCashflow();
         if (key === 'cong_no') { loadRetentions(); }
+    };
+
+    const handleGhiNhanTT = (supplier) => {
+        if (!supplier?.id) return;
+        setPrefilledExpense({ recipientType: 'NCC', recipientId: supplier.id, recipientName: supplier.name || '' });
+        handleTabChange('chi_phi');
     };
 
     const saveQuickEntry = async () => {
