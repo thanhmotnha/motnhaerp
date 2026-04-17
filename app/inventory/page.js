@@ -291,8 +291,16 @@ export default function InventoryPage() {
     };
 
     const stockFiltered = stockData.products.filter(p =>
-        !stockSearch || p.name.toLowerCase().includes(stockSearch.toLowerCase()) || p.code.toLowerCase().includes(stockSearch.toLowerCase())
+        p.stock > 0 &&
+        (!stockSearch || p.name.toLowerCase().includes(stockSearch.toLowerCase()) || p.code.toLowerCase().includes(stockSearch.toLowerCase()))
     );
+
+    const stockByCategory = stockFiltered.reduce((acc, p) => {
+        const cat = p.category || 'Khác';
+        if (!acc[cat]) acc[cat] = [];
+        acc[cat].push(p);
+        return acc;
+    }, {});
 
     const totalStockValue = stockData.products.reduce((s, p) => s + (p.stock || 0) * (p.importPrice || 0), 0);
     return (
@@ -381,12 +389,16 @@ export default function InventoryPage() {
                         </div>
                         {loading ? (
                             <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-muted)' }}>Đang tải...</div>
+                        ) : stockFiltered.length === 0 ? (
+                            <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-muted)' }}>
+                                {stockSearch ? 'Không tìm thấy sản phẩm phù hợp' : 'Không có sản phẩm nào còn tồn kho'}
+                            </div>
                         ) : (
                             <div className="table-container">
                                 <table className="data-table">
                                     <thead>
                                         <tr>
-                                            <th>Mã</th><th>Tên sản phẩm</th><th>Danh mục</th>
+                                            <th>Mã</th><th>Tên sản phẩm</th>
                                             <th style={{ textAlign: 'right' }}>Tồn kho</th>
                                             <th style={{ textAlign: 'right' }}>Tồn tối thiểu</th>
                                             <th style={{ textAlign: 'right' }}>Đơn giá nhập</th>
@@ -395,43 +407,56 @@ export default function InventoryPage() {
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        {stockFiltered.map(p => {
-                                            const isLow = p.minStock > 0 && p.stock <= p.minStock;
-                                            const isOut = p.stock <= 0;
+                                        {Object.entries(stockByCategory).map(([cat, items]) => {
+                                            const catValue = items.reduce((s, p) => s + (p.stock || 0) * (p.importPrice || 0), 0);
                                             return (
-                                                <tr key={p.id} style={{ background: isOut ? 'rgba(239,68,68,0.04)' : isLow ? 'rgba(245,158,11,0.04)' : undefined }}>
-                                                    <td className="accent">{p.code}</td>
-                                                    <td className="primary">{p.name}</td>
-                                                    <td><span className="badge badge-info" style={{ fontSize: 11 }}>{p.category}</span></td>
-                                                    <td style={{ textAlign: 'right', fontWeight: 700, color: isOut ? 'var(--status-danger)' : isLow ? 'var(--status-warning)' : undefined }}>
-                                                        {p.stock} {p.unit}
-                                                    </td>
-                                                    <td style={{ textAlign: 'right', color: 'var(--text-muted)', fontSize: 13 }}>
-                                                        {p.minStock > 0 ? `${p.minStock} ${p.unit}` : '—'}
-                                                    </td>
-                                                    <td style={{ textAlign: 'right', fontSize: 13 }}>{fmt(p.importPrice)}</td>
-                                                    <td style={{ textAlign: 'right', fontWeight: 600 }}>{fmt((p.stock || 0) * (p.importPrice || 0))}</td>
-                                                    <td>
-                                                        {isOut && <span className="badge" style={{ background: 'rgba(239,68,68,0.15)', color: 'var(--status-danger)', fontSize: 10 }}>Hết hàng</span>}
-                                                        {isLow && !isOut && <span className="badge" style={{ background: 'rgba(245,158,11,0.15)', color: 'var(--status-warning)', fontSize: 10 }}>Sắp hết</span>}
-                                                    </td>
-                                                </tr>
+                                                <>
+                                                    <tr key={`cat-${cat}`} style={{ background: 'var(--bg-secondary)', borderTop: '2px solid var(--border)' }}>
+                                                        <td colSpan={7} style={{ padding: '8px 16px', fontWeight: 700, fontSize: 13 }}>
+                                                            🏷️ {cat}
+                                                            <span style={{ marginLeft: 12, fontWeight: 400, color: 'var(--text-muted)', fontSize: 12 }}>
+                                                                {items.length} mã hàng
+                                                            </span>
+                                                            <span style={{ marginLeft: 12, fontWeight: 600, color: 'var(--accent-primary)', fontSize: 12 }}>
+                                                                {fmt(catValue)}
+                                                            </span>
+                                                        </td>
+                                                    </tr>
+                                                    {items.map(p => {
+                                                        const isLow = p.minStock > 0 && p.stock <= p.minStock;
+                                                        return (
+                                                            <tr key={p.id} style={{ background: isLow ? 'rgba(245,158,11,0.04)' : undefined }}>
+                                                                <td className="accent">{p.code}</td>
+                                                                <td className="primary">{p.name}</td>
+                                                                <td style={{ textAlign: 'right', fontWeight: 700, color: isLow ? 'var(--status-warning)' : undefined }}>
+                                                                    {p.stock} {p.unit}
+                                                                </td>
+                                                                <td style={{ textAlign: 'right', color: 'var(--text-muted)', fontSize: 13 }}>
+                                                                    {p.minStock > 0 ? `${p.minStock} ${p.unit}` : '—'}
+                                                                </td>
+                                                                <td style={{ textAlign: 'right', fontSize: 13 }}>{fmt(p.importPrice)}</td>
+                                                                <td style={{ textAlign: 'right', fontWeight: 600 }}>{fmt((p.stock || 0) * (p.importPrice || 0))}</td>
+                                                                <td>
+                                                                    {isLow && <span className="badge" style={{ background: 'rgba(245,158,11,0.15)', color: 'var(--status-warning)', fontSize: 10 }}>Sắp hết</span>}
+                                                                </td>
+                                                            </tr>
+                                                        );
+                                                    })}
+                                                </>
                                             );
                                         })}
                                     </tbody>
-                                    {stockFiltered.length > 0 && (
-                                        <tfoot>
-                                            <tr>
-                                                <td colSpan={6} style={{ padding: '8px 16px', fontSize: 12, color: 'var(--text-muted)' }}>
-                                                    {stockFiltered.length} mã hàng
-                                                </td>
-                                                <td style={{ textAlign: 'right', fontWeight: 700, padding: '8px 16px' }}>
-                                                    {fmt(stockFiltered.reduce((s, p) => s + (p.stock || 0) * (p.importPrice || 0), 0))}
-                                                </td>
-                                                <td />
-                                            </tr>
-                                        </tfoot>
-                                    )}
+                                    <tfoot>
+                                        <tr>
+                                            <td colSpan={5} style={{ padding: '8px 16px', fontSize: 12, color: 'var(--text-muted)' }}>
+                                                {stockFiltered.length} mã hàng · {Object.keys(stockByCategory).length} danh mục
+                                            </td>
+                                            <td style={{ textAlign: 'right', fontWeight: 700, padding: '8px 16px' }}>
+                                                {fmt(stockFiltered.reduce((s, p) => s + (p.stock || 0) * (p.importPrice || 0), 0))}
+                                            </td>
+                                            <td />
+                                        </tr>
+                                    </tfoot>
                                 </table>
                             </div>
                         )}
