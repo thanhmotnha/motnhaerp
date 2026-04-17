@@ -33,9 +33,9 @@ export const GET = withAuth(async (request) => {
         prisma.contractorPayment.aggregate({ _sum: { contractAmount: true, paidAmount: true } }),
         prisma.transaction.aggregate({ where: { type: 'Thu' }, _sum: { amount: true } }),
         prisma.transaction.aggregate({ where: { type: 'Chi' }, _sum: { amount: true } }),
-        prisma.projectExpense.aggregate({ where: { status: { not: 'Từ chối' } }, _sum: { amount: true } }),
-        prisma.projectExpense.aggregate({ where: { status: { in: ['Đã chi', 'Hoàn thành'] } }, _sum: { amount: true } }),
-        prisma.projectExpense.aggregate({ where: { status: 'Chờ duyệt' }, _sum: { amount: true } }),
+        prisma.projectExpense.aggregate({ where: { deletedAt: null, status: { not: 'Từ chối' } }, _sum: { amount: true } }),
+        prisma.projectExpense.aggregate({ where: { deletedAt: null, status: { in: ['Đã chi', 'Hoàn thành'] } }, _sum: { amount: true } }),
+        prisma.projectExpense.aggregate({ where: { deletedAt: null, status: 'Chờ duyệt' }, _sum: { amount: true } }),
         prisma.contractPayment.findMany({
             where: {
                 status: { not: 'Đã thu' },
