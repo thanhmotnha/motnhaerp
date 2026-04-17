@@ -106,6 +106,11 @@ export const PUT = withAuth(async (request, context, session) => {
 
     const { allocations, ...updateData } = expenseUpdateSchema.parse(raw);
 
+    const existing = await prisma.projectExpense.findUnique({
+        where: { id },
+        select: { recipientType: true, recipientId: true, amount: true, date: true, description: true },
+    });
+
     const expense = await prisma.$transaction(async (tx) => {
         if (allocations !== undefined) {
             await tx.expenseAllocation.deleteMany({ where: { expenseId: id } });
@@ -123,6 +128,26 @@ export const PUT = withAuth(async (request, context, session) => {
         }
         return tx.projectExpense.update({ where: { id }, data: updateData });
     });
+
+    // Auto-create SupplierPayment khi status → "Đã chi" và là NCC
+    if (updateData.status === 'Đã chi' && existing?.recipientType === 'NCC' && existing?.recipientId) {
+        const alreadyLinked = await prisma.supplierPayment.findUnique({ where: { expenseId: id } });
+        if (!alreadyLinked) {
+            const spCode = await generateCode('supplierPayment', 'SP');
+            await prisma.supplierPayment.create({
+                data: {
+                    code: spCode,
+                    supplierId: existing.recipientId,
+                    amount: updateData.amount ?? existing.amount,
+                    date: updateData.date ? new Date(updateData.date) : existing.date,
+                    notes: existing.description || '',
+                    expenseId: id,
+                    createdById: session.user.id,
+                },
+            });
+        }
+    }
+
     return NextResponse.json(expense);
 });
 
