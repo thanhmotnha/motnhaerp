@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react';
 import { apiFetch } from '@/lib/fetchClient';
 import { fmtVND, fmtDate } from '@/lib/financeUtils';
 
-export default function DebtTab({ summary, retentions, supplierDebt }) {
+export default function DebtTab({ summary, retentions, supplierDebt, onGhiNhanTT }) {
     const [nccData, setNccData] = useState({ suppliers: [], totalSoDu: 0 });
     const [contractorData, setContractorData] = useState({ contractors: [], totalSoDu: 0, totalGiuLai: 0 });
     const [loadingDebt, setLoadingDebt] = useState(true);
@@ -214,7 +214,11 @@ export default function DebtTab({ summary, retentions, supplierDebt }) {
                                             {fmtVND(s.soDu)}
                                         </td>
                                         <td>
-                                            <button className="btn btn-primary" style={{ padding: '3px 10px', fontSize: 12 }} onClick={() => openPayModal('ncc', s)}>
+                                            <button
+                                                className="btn btn-primary"
+                                                style={{ padding: '3px 10px', fontSize: 12 }}
+                                                onClick={() => onGhiNhanTT ? onGhiNhanTT(s) : openPayModal('ncc', s)}
+                                            >
                                                 Ghi nhận TT
                                             </button>
                                         </td>

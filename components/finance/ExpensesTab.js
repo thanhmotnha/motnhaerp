@@ -40,7 +40,7 @@ const emptyForm = (firstCat = 'Vật tư xây dựng') => ({
     paymentAccount: '',
 });
 
-export default function ExpensesTab() {
+export default function ExpensesTab({ defaultValues, onDefaultValuesUsed }) {
     const toast = useToast();
     const [expenses, setExpenses] = useState([]);
     const [projects, setProjects] = useState([]);
@@ -127,6 +127,18 @@ export default function ExpensesTab() {
             apiFetch('/api/expense-categories').then(d => Array.isArray(d) ? d : []).catch(() => []),
         ]).then(([p, s, c, cats]) => { setProjects(p); setSuppliers(s); setContractors(c); setCategoryList(cats); });
     }, []);
+
+    useEffect(() => {
+        if (!defaultValues) return;
+        const firstCat = categoryList.find(c => c.isActive !== false)?.name || '';
+        setEditing(null);
+        setForm({ ...emptyForm(firstCat), ...defaultValues });
+        setAllocations([]);
+        setIsHistorical(false);
+        setFormProofFiles([]);
+        setShowModal(true);
+        onDefaultValuesUsed?.();
+    }, [defaultValues]);
 
     // ── Stats ──────────────────────────────────────────────────────
     const totalAmount = expenses.reduce((s, e) => s + (e.amount || 0), 0);

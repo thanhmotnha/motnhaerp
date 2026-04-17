@@ -37,6 +37,12 @@ function FinanceContent() {
     const [quickType, setQuickType] = useState(null); // null | 'Thu tiền' | 'Chi phí' | 'Giao dịch khác'
     const [qForm, setQForm] = useState({ type: 'Thu', description: '', amount: '', category: '', date: new Date().toISOString().slice(0, 10), paymentAccount: '' });
     const [saving, setSaving] = useState(false);
+    const [prefilledExpense, setPrefilledExpense] = useState(null);
+
+    const handleGhiNhanTT = (supplier) => {
+        setPrefilledExpense({ recipientType: 'NCC', recipientId: supplier.id, recipientName: supplier.name });
+        handleTabChange('chi_phi');
+    };
 
     const load = () => {
         setLoading(true);
@@ -172,9 +178,16 @@ function FinanceContent() {
                         <>
                             {activeTab === 'overview' && <OverviewTab summary={summary} upcomingPayments={upcomingPayments} transactions={transactions?.data || []} />}
                             {activeTab === 'thu_tien' && <div style={{ padding: 20 }}><ReceivablesTab /></div>}
-                            {activeTab === 'chi_phi' && <div style={{ padding: 20 }}><ExpensesTab /></div>}
+                            {activeTab === 'chi_phi' && (
+                                <div style={{ padding: 20 }}>
+                                    <ExpensesTab
+                                        defaultValues={prefilledExpense}
+                                        onDefaultValuesUsed={() => setPrefilledExpense(null)}
+                                    />
+                                </div>
+                            )}
                             {activeTab === 'dong_tien' && <CashflowTab cashflow={cashflow} transactions={transactions?.data || []} onAddTx={() => setQuickType('Giao dịch khác')} />}
-                            {activeTab === 'cong_no' && <DebtTab summary={summary} retentions={retentions} supplierDebt={supplierDebt} />}
+                            {activeTab === 'cong_no' && <DebtTab summary={summary} retentions={retentions} supplierDebt={supplierDebt} onGhiNhanTT={handleGhiNhanTT} />}
                             {activeTab === 'bao_cao' && <ReportTab cashflow={cashflow} />}
                         </>
                     )}
