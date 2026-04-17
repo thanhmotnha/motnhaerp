@@ -401,7 +401,7 @@ export default function InventoryPage() {
                                         <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 8 }}>
                                             {cat} <span style={{ fontWeight: 400 }}>({items.length})</span>
                                         </div>
-                                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: 8 }}>
+                                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: 10 }}>
                                             {items.map(p => {
                                                 const isLow = p.minStock > 0 && p.stock <= p.minStock;
                                                 return (
@@ -409,15 +409,34 @@ export default function InventoryPage() {
                                                         background: 'var(--bg-card)',
                                                         border: `1px solid ${isLow ? 'var(--status-warning)' : 'var(--border)'}`,
                                                         borderRadius: 8,
-                                                        padding: '10px 12px',
+                                                        overflow: 'hidden',
+                                                        display: 'flex',
+                                                        flexDirection: 'column',
                                                     }}>
-                                                        <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 4, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.code}</div>
-                                                        <div style={{ fontSize: 13, fontWeight: 600, lineHeight: 1.3, marginBottom: 8, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{p.name}</div>
-                                                        <div style={{ fontSize: 20, fontWeight: 700, color: isLow ? 'var(--status-warning)' : 'var(--accent-primary)' }}>
-                                                            {p.stock}
-                                                            <span style={{ fontSize: 12, fontWeight: 400, color: 'var(--text-muted)', marginLeft: 4 }}>{p.unit}</span>
+                                                        <div style={{
+                                                            width: '100%',
+                                                            aspectRatio: '1 / 1',
+                                                            background: 'var(--bg-secondary)',
+                                                            display: 'flex',
+                                                            alignItems: 'center',
+                                                            justifyContent: 'center',
+                                                            overflow: 'hidden',
+                                                        }}>
+                                                            {p.image ? (
+                                                                <img src={p.image} alt={p.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                                            ) : (
+                                                                <span style={{ fontSize: 32, color: 'var(--text-muted)' }}>📦</span>
+                                                            )}
                                                         </div>
-                                                        {isLow && <div style={{ fontSize: 10, color: 'var(--status-warning)', marginTop: 2 }}>Sắp hết</div>}
+                                                        <div style={{ padding: '8px 10px', flex: 1, display: 'flex', flexDirection: 'column' }}>
+                                                            <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.code}</div>
+                                                            <div style={{ fontSize: 13, fontWeight: 600, lineHeight: 1.3, marginBottom: 6, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{p.name}</div>
+                                                            <div style={{ fontSize: 18, fontWeight: 700, color: isLow ? 'var(--status-warning)' : 'var(--accent-primary)', marginTop: 'auto' }}>
+                                                                {p.stock}
+                                                                <span style={{ fontSize: 12, fontWeight: 400, color: 'var(--text-muted)', marginLeft: 4 }}>{p.unit}</span>
+                                                            </div>
+                                                            {isLow && <div style={{ fontSize: 10, color: 'var(--status-warning)', marginTop: 2 }}>Sắp hết</div>}
+                                                        </div>
                                                     </div>
                                                 );
                                             })}

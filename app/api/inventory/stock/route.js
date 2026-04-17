@@ -7,7 +7,7 @@ export const GET = withAuth(async () => {
         select: {
             id: true, code: true, name: true, category: true,
             unit: true, stock: true, minStock: true,
-            importPrice: true, salePrice: true,
+            importPrice: true, salePrice: true, image: true,
         },
         orderBy: { name: 'asc' },
     });
