@@ -11,8 +11,8 @@ CREATE TABLE "Contractor" (
     "bankName" TEXT NOT NULL DEFAULT '',
     "rating" INTEGER NOT NULL DEFAULT 3,
     "notes" TEXT NOT NULL DEFAULT '',
-    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" DATETIME NOT NULL
+    "createdAt" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP NOT NULL
 );
 
 -- CreateTable
@@ -22,11 +22,11 @@ CREATE TABLE "ContractorPayment" (
     "paidAmount" REAL NOT NULL DEFAULT 0,
     "status" TEXT NOT NULL DEFAULT 'Chưa TT',
     "description" TEXT NOT NULL DEFAULT '',
-    "dueDate" DATETIME,
+    "dueDate" TIMESTAMP,
     "contractorId" TEXT NOT NULL,
     "projectId" TEXT NOT NULL,
-    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" DATETIME NOT NULL,
+    "createdAt" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP NOT NULL,
     CONSTRAINT "ContractorPayment_contractorId_fkey" FOREIGN KEY ("contractorId") REFERENCES "Contractor" ("id") ON DELETE RESTRICT ON UPDATE CASCADE,
     CONSTRAINT "ContractorPayment_projectId_fkey" FOREIGN KEY ("projectId") REFERENCES "Project" ("id") ON DELETE RESTRICT ON UPDATE CASCADE
 );
@@ -36,12 +36,12 @@ CREATE TABLE "ProjectMilestone" (
     "id" TEXT NOT NULL PRIMARY KEY,
     "name" TEXT NOT NULL,
     "progress" INTEGER NOT NULL DEFAULT 0,
-    "startDate" DATETIME,
-    "endDate" DATETIME,
+    "startDate" TIMESTAMP,
+    "endDate" TIMESTAMP,
     "status" TEXT NOT NULL DEFAULT 'Chưa bắt đầu',
     "order" INTEGER NOT NULL DEFAULT 0,
     "projectId" TEXT NOT NULL,
-    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "createdAt" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT "ProjectMilestone_projectId_fkey" FOREIGN KEY ("projectId") REFERENCES "Project" ("id") ON DELETE RESTRICT ON UPDATE CASCADE
 );
 
@@ -57,8 +57,6 @@ CREATE TABLE "ProjectBudget" (
 );
 
 -- RedefineTables
-PRAGMA defer_foreign_keys=ON;
-PRAGMA foreign_keys=OFF;
 CREATE TABLE "new_Customer" (
     "id" TEXT NOT NULL PRIMARY KEY,
     "code" TEXT NOT NULL,
@@ -70,12 +68,12 @@ CREATE TABLE "new_Customer" (
     "status" TEXT NOT NULL DEFAULT 'Lead',
     "taxCode" TEXT NOT NULL DEFAULT '',
     "representative" TEXT NOT NULL DEFAULT '',
-    "birthday" DATETIME,
+    "birthday" TIMESTAMP,
     "source" TEXT NOT NULL DEFAULT '',
     "notes" TEXT NOT NULL DEFAULT '',
     "totalRevenue" REAL NOT NULL DEFAULT 0,
-    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" DATETIME NOT NULL
+    "createdAt" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP NOT NULL
 );
 INSERT INTO "new_Customer" ("address", "code", "createdAt", "email", "id", "name", "phone", "status", "type", "updatedAt") SELECT "address", "code", "createdAt", "email", "id", "name", "phone", "status", "type", "updatedAt" FROM "Customer";
 DROP TABLE "Customer";
@@ -102,8 +100,8 @@ CREATE TABLE "new_Product" (
     "brand" TEXT NOT NULL DEFAULT '',
     "status" TEXT NOT NULL DEFAULT 'Đang bán',
     "location" TEXT NOT NULL DEFAULT '',
-    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" DATETIME NOT NULL
+    "createdAt" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP NOT NULL
 );
 INSERT INTO "new_Product" ("category", "code", "createdAt", "id", "importPrice", "minStock", "name", "salePrice", "stock", "supplier", "unit", "updatedAt") SELECT "category", "code", "createdAt", "id", "importPrice", "minStock", "name", "salePrice", "stock", "supplier", "unit", "updatedAt" FROM "Product";
 DROP TABLE "Product";
@@ -125,13 +123,13 @@ CREATE TABLE "new_Project" (
     "status" TEXT NOT NULL DEFAULT 'Khảo sát',
     "phase" TEXT NOT NULL DEFAULT '',
     "progress" INTEGER NOT NULL DEFAULT 0,
-    "startDate" DATETIME,
-    "endDate" DATETIME,
+    "startDate" TIMESTAMP,
+    "endDate" TIMESTAMP,
     "manager" TEXT NOT NULL DEFAULT '',
     "notes" TEXT NOT NULL DEFAULT '',
     "customerId" TEXT NOT NULL,
-    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" DATETIME NOT NULL,
+    "createdAt" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP NOT NULL,
     CONSTRAINT "Project_customerId_fkey" FOREIGN KEY ("customerId") REFERENCES "Customer" ("id") ON DELETE RESTRICT ON UPDATE CASCADE
 );
 INSERT INTO "new_Project" ("address", "budget", "code", "createdAt", "customerId", "endDate", "id", "manager", "name", "progress", "spent", "startDate", "status", "type", "updatedAt") SELECT "address", "budget", "code", "createdAt", "customerId", "endDate", "id", "manager", "name", "progress", "spent", "startDate", "status", "type", "updatedAt" FROM "Project";
@@ -146,12 +144,12 @@ CREATE TABLE "new_Quotation" (
     "vat" REAL NOT NULL DEFAULT 10,
     "grandTotal" REAL NOT NULL DEFAULT 0,
     "status" TEXT NOT NULL DEFAULT 'Nháp',
-    "validUntil" DATETIME,
+    "validUntil" TIMESTAMP,
     "notes" TEXT NOT NULL DEFAULT '',
     "customerId" TEXT NOT NULL,
     "projectId" TEXT,
-    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" DATETIME NOT NULL,
+    "createdAt" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP NOT NULL,
     CONSTRAINT "Quotation_customerId_fkey" FOREIGN KEY ("customerId") REFERENCES "Customer" ("id") ON DELETE RESTRICT ON UPDATE CASCADE,
     CONSTRAINT "Quotation_projectId_fkey" FOREIGN KEY ("projectId") REFERENCES "Project" ("id") ON DELETE SET NULL ON UPDATE CASCADE
 );
@@ -177,8 +175,6 @@ CREATE TABLE "new_QuotationItem" (
 INSERT INTO "new_QuotationItem" ("amount", "id", "name", "quantity", "quotationId", "unit", "unitPrice") SELECT "amount", "id", "name", "quantity", "quotationId", "unit", "unitPrice" FROM "QuotationItem";
 DROP TABLE "QuotationItem";
 ALTER TABLE "new_QuotationItem" RENAME TO "QuotationItem";
-PRAGMA foreign_keys=ON;
-PRAGMA defer_foreign_keys=OFF;
 
 -- CreateIndex
 CREATE UNIQUE INDEX "Contractor_code_key" ON "Contractor"("code");

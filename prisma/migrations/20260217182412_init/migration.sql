@@ -8,8 +8,8 @@ CREATE TABLE "Customer" (
     "address" TEXT NOT NULL DEFAULT '',
     "type" TEXT NOT NULL DEFAULT 'Cá nhân',
     "status" TEXT NOT NULL DEFAULT 'Lead',
-    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" DATETIME NOT NULL
+    "createdAt" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP NOT NULL
 );
 
 -- CreateTable
@@ -23,12 +23,12 @@ CREATE TABLE "Project" (
     "spent" REAL NOT NULL DEFAULT 0,
     "status" TEXT NOT NULL DEFAULT 'Khảo sát',
     "progress" INTEGER NOT NULL DEFAULT 0,
-    "startDate" DATETIME,
-    "endDate" DATETIME,
+    "startDate" TIMESTAMP,
+    "endDate" TIMESTAMP,
     "manager" TEXT NOT NULL DEFAULT '',
     "customerId" TEXT NOT NULL,
-    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" DATETIME NOT NULL,
+    "createdAt" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP NOT NULL,
     CONSTRAINT "Project_customerId_fkey" FOREIGN KEY ("customerId") REFERENCES "Customer" ("id") ON DELETE RESTRICT ON UPDATE CASCADE
 );
 
@@ -44,8 +44,8 @@ CREATE TABLE "Product" (
     "stock" INTEGER NOT NULL DEFAULT 0,
     "minStock" INTEGER NOT NULL DEFAULT 0,
     "supplier" TEXT NOT NULL DEFAULT '',
-    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" DATETIME NOT NULL
+    "createdAt" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP NOT NULL
 );
 
 -- CreateTable
@@ -57,11 +57,11 @@ CREATE TABLE "Quotation" (
     "vat" REAL NOT NULL DEFAULT 10,
     "grandTotal" REAL NOT NULL DEFAULT 0,
     "status" TEXT NOT NULL DEFAULT 'Nháp',
-    "validUntil" DATETIME,
+    "validUntil" TIMESTAMP,
     "customerId" TEXT NOT NULL,
     "projectId" TEXT,
-    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" DATETIME NOT NULL,
+    "createdAt" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP NOT NULL,
     CONSTRAINT "Quotation_customerId_fkey" FOREIGN KEY ("customerId") REFERENCES "Customer" ("id") ON DELETE RESTRICT ON UPDATE CASCADE,
     CONSTRAINT "Quotation_projectId_fkey" FOREIGN KEY ("projectId") REFERENCES "Project" ("id") ON DELETE SET NULL ON UPDATE CASCADE
 );
@@ -84,7 +84,7 @@ CREATE TABLE "Warehouse" (
     "code" TEXT NOT NULL,
     "name" TEXT NOT NULL,
     "address" TEXT NOT NULL DEFAULT '',
-    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+    "createdAt" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
 -- CreateTable
@@ -95,11 +95,11 @@ CREATE TABLE "InventoryTransaction" (
     "quantity" REAL NOT NULL,
     "unit" TEXT NOT NULL DEFAULT '',
     "note" TEXT NOT NULL DEFAULT '',
-    "date" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "date" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "productId" TEXT NOT NULL,
     "warehouseId" TEXT NOT NULL,
     "projectId" TEXT,
-    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "createdAt" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT "InventoryTransaction_productId_fkey" FOREIGN KEY ("productId") REFERENCES "Product" ("id") ON DELETE RESTRICT ON UPDATE CASCADE,
     CONSTRAINT "InventoryTransaction_warehouseId_fkey" FOREIGN KEY ("warehouseId") REFERENCES "Warehouse" ("id") ON DELETE RESTRICT ON UPDATE CASCADE,
     CONSTRAINT "InventoryTransaction_projectId_fkey" FOREIGN KEY ("projectId") REFERENCES "Project" ("id") ON DELETE SET NULL ON UPDATE CASCADE
@@ -113,9 +113,9 @@ CREATE TABLE "Transaction" (
     "description" TEXT NOT NULL,
     "amount" REAL NOT NULL,
     "category" TEXT NOT NULL DEFAULT '',
-    "date" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "date" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "projectId" TEXT,
-    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "createdAt" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT "Transaction_projectId_fkey" FOREIGN KEY ("projectId") REFERENCES "Project" ("id") ON DELETE SET NULL ON UPDATE CASCADE
 );
 
@@ -123,7 +123,7 @@ CREATE TABLE "Transaction" (
 CREATE TABLE "Department" (
     "id" TEXT NOT NULL PRIMARY KEY,
     "name" TEXT NOT NULL,
-    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+    "createdAt" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
 -- CreateTable
@@ -136,10 +136,10 @@ CREATE TABLE "Employee" (
     "email" TEXT NOT NULL DEFAULT '',
     "salary" REAL NOT NULL DEFAULT 0,
     "status" TEXT NOT NULL DEFAULT 'Đang làm',
-    "joinDate" DATETIME,
+    "joinDate" TIMESTAMP,
     "departmentId" TEXT NOT NULL,
-    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" DATETIME NOT NULL,
+    "createdAt" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP NOT NULL,
     CONSTRAINT "Employee_departmentId_fkey" FOREIGN KEY ("departmentId") REFERENCES "Department" ("id") ON DELETE RESTRICT ON UPDATE CASCADE
 );
 
