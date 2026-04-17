@@ -2,6 +2,7 @@
 import { useState, useEffect, useRef, Suspense } from 'react';
 import PoBulkFromQuotationModal from '@/components/PoBulkFromQuotationModal';
 import { useRouter, useSearchParams } from 'next/navigation';
+import { DEFAULT_SUPPLIER_TYPES } from '@/lib/partnerTypes';
 
 const fmt = (n) => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(n);
 const fmtNum = (n) => new Intl.NumberFormat('vi-VN').format(n || 0);
@@ -33,6 +34,9 @@ function PurchasingContent() {
     // Supplier autocomplete
     const [supplierQuery, setSupplierQuery] = useState('');
     const [showSupplierDrop, setShowSupplierDrop] = useState(false);
+    const [showAddSupplier, setShowAddSupplier] = useState(false);
+    const [addSupplierForm, setAddSupplierForm] = useState({ name: '', type: DEFAULT_SUPPLIER_TYPES[0], phone: '' });
+    const [addSupplierSaving, setAddSupplierSaving] = useState(false);
 
     // Product autocomplete
     const [productSearches, setProductSearches] = useState({}); // { rowIdx: query }
@@ -528,7 +532,6 @@ function PurchasingContent() {
                                         {showSupplierDrop && supplierQuery.length > 0 && (() => {
                                             const q = supplierQuery.toLowerCase();
                                             const matches = suppliers.filter(s => s.name.toLowerCase().includes(q)).slice(0, 8);
-                                            if (!matches.length) return null;
                                             return (
                                                 <div style={{ position: 'absolute', zIndex: 99, top: '100%', left: 0, right: 0, background: 'var(--bg-modal)', border: '1px solid var(--border)', borderRadius: 6, boxShadow: 'var(--shadow-lg)', maxHeight: 220, overflowY: 'auto' }}>
                                                     {matches.map(s => (
@@ -543,6 +546,16 @@ function PurchasingContent() {
                                                             {s.phone && <span style={{ fontSize: 11, color: 'var(--text-muted)', marginLeft: 8 }}>{s.phone}</span>}
                                                         </div>
                                                     ))}
+                                                    <div
+                                                        style={{ padding: '8px 12px', cursor: 'pointer', fontSize: 13, color: 'var(--primary)', fontWeight: 600, borderTop: matches.length ? '1px solid var(--border)' : 'none' }}
+                                                        onMouseDown={() => {
+                                                            setShowSupplierDrop(false);
+                                                            setAddSupplierForm({ name: supplierQuery, type: DEFAULT_SUPPLIER_TYPES[0], phone: '' });
+                                                            setShowAddSupplier(true);
+                                                        }}
+                                                    >
+                                                        + Thêm NCC mới "{supplierQuery}"
+                                                    </div>
                                                 </div>
                                             );
                                         })()}
@@ -736,6 +749,55 @@ function PurchasingContent() {
                         <div className="modal-footer">
                             <button className="btn btn-ghost" onClick={() => setShowModal(false)}>Hủy</button>
                             <button className="btn btn-primary" onClick={createPO} disabled={saving || suppliers.find(s => s.id === poForm.supplierId)?.isBlacklisted}>{saving ? 'Đang tạo...' : 'Tạo đơn hàng'}</button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Quick-add NCC modal */}
+            {showAddSupplier && (
+                <div className="modal-overlay" onClick={() => setShowAddSupplier(false)}>
+                    <div className="modal" style={{ maxWidth: 420 }} onClick={e => e.stopPropagation()}>
+                        <div className="modal-header">
+                            <span style={{ fontWeight: 700 }}>Thêm nhanh nhà cung cấp</span>
+                            <button className="modal-close" onClick={() => setShowAddSupplier(false)}>×</button>
+                        </div>
+                        <div className="modal-body">
+                            <div className="form-group">
+                                <label className="form-label">Tên NCC *</label>
+                                <input className="form-input" autoFocus value={addSupplierForm.name} onChange={e => setAddSupplierForm(f => ({ ...f, name: e.target.value }))} placeholder="Tên nhà cung cấp" />
+                            </div>
+                            <div className="form-group">
+                                <label className="form-label">Loại</label>
+                                <select className="form-select" value={addSupplierForm.type} onChange={e => setAddSupplierForm(f => ({ ...f, type: e.target.value }))}>
+                                    {DEFAULT_SUPPLIER_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+                                </select>
+                            </div>
+                            <div className="form-group">
+                                <label className="form-label">Số điện thoại</label>
+                                <input className="form-input" value={addSupplierForm.phone} onChange={e => setAddSupplierForm(f => ({ ...f, phone: e.target.value }))} placeholder="Tùy chọn" />
+                            </div>
+                        </div>
+                        <div className="modal-footer">
+                            <button className="btn btn-ghost" onClick={() => setShowAddSupplier(false)}>Hủy</button>
+                            <button className="btn btn-primary" disabled={addSupplierSaving || !addSupplierForm.name.trim()} onClick={async () => {
+                                setAddSupplierSaving(true);
+                                try {
+                                    const res = await fetch('/api/suppliers', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: addSupplierForm.name.trim(), type: addSupplierForm.type, phone: addSupplierForm.phone.trim() }) });
+                                    if (!res.ok) throw new Error('Lỗi tạo NCC');
+                                    const newSupplier = await res.json();
+                                    setSuppliers(prev => [...prev, newSupplier]);
+                                    setPoForm(f => ({ ...f, supplierId: newSupplier.id, supplier: newSupplier.name }));
+                                    setSupplierQuery(newSupplier.name);
+                                    setShowAddSupplier(false);
+                                } catch (e) {
+                                    alert(e.message);
+                                } finally {
+                                    setAddSupplierSaving(false);
+                                }
+                            }}>
+                                {addSupplierSaving ? 'Đang lưu...' : 'Thêm'}
+                            </button>
                         </div>
                     </div>
                 </div>
