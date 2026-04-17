@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 
 const fmt = (n) => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(n || 0);
 const fmtDate = (d) => new Date(d).toLocaleDateString('vi-VN');
@@ -301,6 +301,7 @@ export default function InventoryPage() {
         acc[cat].push(p);
         return acc;
     }, {});
+    const totalFilteredValue = stockFiltered.reduce((s, p) => s + (p.stock || 0) * (p.importPrice || 0), 0);
 
     const totalStockValue = stockData.products.reduce((s, p) => s + (p.stock || 0) * (p.importPrice || 0), 0);
     return (
@@ -410,8 +411,8 @@ export default function InventoryPage() {
                                         {Object.entries(stockByCategory).map(([cat, items]) => {
                                             const catValue = items.reduce((s, p) => s + (p.stock || 0) * (p.importPrice || 0), 0);
                                             return (
-                                                <>
-                                                    <tr key={`cat-${cat}`} style={{ background: 'var(--bg-secondary)', borderTop: '2px solid var(--border)' }}>
+                                                <React.Fragment key={`cat-${cat}`}>
+                                                    <tr style={{ background: 'var(--bg-secondary)', borderTop: '2px solid var(--border)' }}>
                                                         <td colSpan={7} style={{ padding: '8px 16px', fontWeight: 700, fontSize: 13 }}>
                                                             🏷️ {cat}
                                                             <span style={{ marginLeft: 12, fontWeight: 400, color: 'var(--text-muted)', fontSize: 12 }}>
@@ -442,7 +443,7 @@ export default function InventoryPage() {
                                                             </tr>
                                                         );
                                                     })}
-                                                </>
+                                                </React.Fragment>
                                             );
                                         })}
                                     </tbody>
@@ -452,7 +453,7 @@ export default function InventoryPage() {
                                                 {stockFiltered.length} mã hàng · {Object.keys(stockByCategory).length} danh mục
                                             </td>
                                             <td style={{ textAlign: 'right', fontWeight: 700, padding: '8px 16px' }}>
-                                                {fmt(stockFiltered.reduce((s, p) => s + (p.stock || 0) * (p.importPrice || 0), 0))}
+                                                {fmt(totalFilteredValue)}
                                             </td>
                                             <td />
                                         </tr>
