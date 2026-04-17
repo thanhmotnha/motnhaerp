@@ -639,6 +639,7 @@ model SupplierPayment {
   paymentAccount String   @default("")
   createdById    String?
   createdAt      DateTime @default(now())
+  expenseId   String?  @unique
   supplier       Supplier @relation(fields: [supplierId], references: [id])
 }
 
