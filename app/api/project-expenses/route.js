@@ -1,7 +1,7 @@
 import { withAuth } from '@/lib/apiHandler';
 import { parsePagination, paginatedResponse } from '@/lib/pagination';
 import prisma from '@/lib/prisma';
-import { generateCode } from '@/lib/generateCode';
+import { generateCode, withCodeRetry } from '@/lib/generateCode';
 import { NextResponse } from 'next/server';
 import { expenseCreateSchema, expenseUpdateSchema } from '@/lib/validations/expense';
 
@@ -108,8 +108,10 @@ export const PUT = withAuth(async (request, context, session) => {
 
     const existing = await prisma.projectExpense.findUnique({
         where: { id },
-        select: { recipientType: true, recipientId: true, amount: true, date: true, description: true },
+        select: { recipientType: true, recipientId: true, amount: true, date: true, description: true, paymentAccount: true },
     });
+
+    if (!existing) return NextResponse.json({ error: 'Không tìm thấy lệnh chi' }, { status: 404 });
 
     const expense = await prisma.$transaction(async (tx) => {
         if (allocations !== undefined) {
@@ -133,18 +135,20 @@ export const PUT = withAuth(async (request, context, session) => {
     if (updateData.status === 'Đã chi' && existing?.recipientType === 'NCC' && existing?.recipientId) {
         const alreadyLinked = await prisma.supplierPayment.findUnique({ where: { expenseId: id } });
         if (!alreadyLinked) {
-            const spCode = await generateCode('supplierPayment', 'SP');
-            await prisma.supplierPayment.create({
-                data: {
-                    code: spCode,
-                    supplierId: existing.recipientId,
-                    amount: updateData.amount ?? existing.amount,
-                    date: updateData.date ? new Date(updateData.date) : existing.date,
-                    notes: existing.description || '',
-                    expenseId: id,
-                    createdById: session.user.id,
-                },
-            });
+            await withCodeRetry('supplierPayment', 'SP', (spCode) =>
+                prisma.supplierPayment.create({
+                    data: {
+                        code: spCode,
+                        supplierId: existing.recipientId,
+                        amount: updateData.amount ?? existing.amount,
+                        date: updateData.date ? new Date(updateData.date) : existing.date,
+                        notes: existing.description || '',
+                        paymentAccount: updateData.paymentAccount ?? existing.paymentAccount ?? '',
+                        expenseId: id,
+                        createdById: session.user.id,
+                    },
+                })
+            );
         }
     }
 
