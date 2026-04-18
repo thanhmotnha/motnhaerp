@@ -23,7 +23,7 @@ function PurchasingContent() {
     // Create PO modal
     const [showModal, setShowModal] = useState(false);
     const [poForm, setPoForm] = useState({ supplier: '', supplierId: null, projectId: '', deliveryDate: '', notes: '', deliveryType: 'Giao thẳng dự án', deliveryAddress: '' });
-    const [poItems, setPoItems] = useState([{ productName: '', unit: 'cái', quantity: 1, unitPrice: 0, amount: 0, productId: null, variantLabel: '', variantSelections: {} }]);
+    const [poItems, setPoItems] = useState([{ productName: '', unit: 'cái', quantity: 1, unitPrice: 0, amount: 0, productId: null, variantLabel: '', variantSelections: {}, projectId: null }]);
     const [productAttrs, setProductAttrs] = useState({}); // { rowIdx: attributes[] }
     const [saving, setSaving] = useState(false);
     const [showBulkModal, setShowBulkModal] = useState(false);
@@ -255,6 +255,7 @@ function PurchasingContent() {
             productId: m.productId || null,
             variantLabel: '',
             variantSelections: {},
+            projectId: null,
         })).filter(it => it.quantity > 0);
         if (newItems.length === 0) return alert('Tất cả các mục đã đặt đủ số lượng');
         const base = poItems.filter(it => it.productName.trim());
@@ -325,6 +326,7 @@ function PurchasingContent() {
             productId: product.id,
             variantLabel: '',
             variantSelections: {},
+            projectId: null,
         }));
         if (!newItems.length) return;
         setPoItems(prev => {
@@ -347,12 +349,17 @@ function PurchasingContent() {
             amount: it.amount,
             productId: it.productId || null,
             variantLabel: it.variantLabel || '',
+            projectId: poForm.deliveryType === 'Chia nhiều'
+                ? (it.projectId || null)
+                : poForm.deliveryType === 'Giao thẳng dự án'
+                    ? (poForm.projectId || null)
+                    : null,
         }));
         const res = await fetch('/api/purchase-orders', {
             method: 'POST', headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 ...poForm,
-                projectId: poForm.projectId || null,
+                projectId: poForm.deliveryType === 'Giao thẳng dự án' ? (poForm.projectId || null) : null,
                 totalAmount: poTotal,
                 items: validItems,
             }),
@@ -362,7 +369,7 @@ function PurchasingContent() {
         setShowModal(false);
         setPoForm({ supplier: '', supplierId: null, projectId: '', deliveryDate: '', notes: '', deliveryType: 'Giao thẳng dự án', deliveryAddress: '' });
         setSupplierQuery('');
-        setPoItems([{ productName: '', unit: 'cái', quantity: 1, unitPrice: 0, amount: 0, productId: null, variantLabel: '', variantSelections: {} }]);
+        setPoItems([{ productName: '', unit: 'cái', quantity: 1, unitPrice: 0, amount: 0, productId: null, variantLabel: '', variantSelections: {}, projectId: null }]);
         setProductAttrs({});
         setFilterStatus('');
         fetchOrders();
@@ -584,12 +591,29 @@ function PurchasingContent() {
                                         <label className="form-label">Loại giao hàng *</label>
                                         <div style={{ display: 'flex', gap: 0, borderRadius: 6, overflow: 'hidden', border: '1px solid var(--border)' }}>
                                             {[
-                                                { value: 'Giao thẳng dự án', label: '📍 Giao dự án' },
                                                 { value: 'Nhập kho', label: '🏭 Nhập kho' },
+                                                { value: 'Giao thẳng dự án', label: '📍 Giao 1 dự án' },
+                                                { value: 'Chia nhiều', label: '⚙️ Chia nhiều dự án' },
                                             ].map(opt => (
                                                 <button key={opt.value} type="button"
                                                     style={{ flex: 1, padding: '7px 4px', fontSize: 13, fontWeight: 600, border: 'none', cursor: 'pointer', transition: 'all 0.15s', background: poForm.deliveryType === opt.value ? 'var(--primary)' : 'var(--bg-secondary)', color: poForm.deliveryType === opt.value ? '#fff' : 'var(--text-secondary)' }}
-                                                    onClick={() => setPoForm(f => ({ ...f, deliveryType: opt.value, projectId: opt.value === 'Nhập kho' ? '' : f.projectId, deliveryAddress: opt.value === 'Nhập kho' ? '' : f.deliveryAddress }))}>
+                                                    onClick={() => {
+                                                        const next = opt.value;
+                                                        const curr = poForm.deliveryType;
+                                                        if (curr === 'Chia nhiều' && next !== 'Chia nhiều') {
+                                                            const perItemSet = poItems.some(i => i.projectId);
+                                                            if (perItemSet && !confirm('Các dự án đã chọn theo dòng sẽ bị ghi đè. Tiếp tục?')) return;
+                                                        }
+                                                        setPoForm(f => ({
+                                                            ...f,
+                                                            deliveryType: next,
+                                                            projectId: next === 'Nhập kho' ? '' : f.projectId,
+                                                            deliveryAddress: next === 'Nhập kho' ? '' : f.deliveryAddress,
+                                                        }));
+                                                        if (next !== 'Chia nhiều') {
+                                                            setPoItems(prev => prev.map(it => ({ ...it, projectId: null })));
+                                                        }
+                                                    }}>
                                                     {opt.label}
                                                 </button>
                                             ))}
@@ -645,7 +669,7 @@ function PurchasingContent() {
                                         <button className="btn btn-ghost btn-sm" onClick={openBudgetPicker} title="Thêm từ dự toán vật tư của dự án">
                                             📋 Từ dự toán
                                         </button>
-                                        <button className="btn btn-ghost btn-sm" onClick={() => setPoItems(it => [...it, { productName: '', unit: 'cái', quantity: 1, unitPrice: 0, amount: 0, productId: null, variantLabel: '', variantSelections: {} }])}>
+                                        <button className="btn btn-ghost btn-sm" onClick={() => setPoItems(it => [...it, { productName: '', unit: 'cái', quantity: 1, unitPrice: 0, amount: 0, productId: null, variantLabel: '', variantSelections: {}, projectId: null }])}>
                                             + Dòng trống
                                         </button>
                                     </div>
@@ -659,6 +683,7 @@ function PurchasingContent() {
                                                 <th style={{ padding: '8px 8px', width: 80, textAlign: 'left', fontWeight: 600, fontSize: 11 }}>Số lượng</th>
                                                 <th style={{ padding: '8px 8px', width: 110, textAlign: 'left', fontWeight: 600, fontSize: 11 }}>Đơn giá</th>
                                                 <th style={{ padding: '8px 8px', width: 110, textAlign: 'right', fontWeight: 600, fontSize: 11 }}>Thành tiền</th>
+                                                {poForm.deliveryType === 'Chia nhiều' && <th style={{ width: 140, padding: '8px 8px', textAlign: 'left', fontWeight: 600, fontSize: 11 }}>Giao đến</th>}
                                                 <th style={{ width: 36 }}></th>
                                             </tr>
                                         </thead>
@@ -726,6 +751,34 @@ function PurchasingContent() {
                                                     <td style={{ padding: '6px 8px', textAlign: 'right', fontWeight: 600, fontSize: 12 }}>
                                                         {fmtNum(it.amount)}
                                                     </td>
+                                                    {poForm.deliveryType === 'Chia nhiều' && (
+                                                        <td style={{ padding: '6px 4px' }}>
+                                                            <select
+                                                                className="form-select form-select-compact"
+                                                                style={{ fontSize: 12, padding: '3px 4px', width: '100%' }}
+                                                                value={it.projectId || ''}
+                                                                onChange={e => setPoItems(prev => prev.map((x, idx) => idx === i ? { ...x, projectId: e.target.value || null } : x))}
+                                                            >
+                                                                <option value="">🏭 Vào kho</option>
+                                                                {projects.filter(p => p.status !== 'Hoàn thành').map(p => (
+                                                                    <option key={p.id} value={p.id}>📍 {p.code} — {p.name}</option>
+                                                                ))}
+                                                            </select>
+                                                            {i === 0 && (
+                                                                <button
+                                                                    type="button"
+                                                                    className="btn btn-ghost btn-sm"
+                                                                    style={{ fontSize: 10, padding: '2px 6px', marginTop: 2 }}
+                                                                    onClick={() => {
+                                                                        const firstProjectId = poItems[0]?.projectId || null;
+                                                                        setPoItems(prev => prev.map(it => ({ ...it, projectId: firstProjectId })));
+                                                                    }}
+                                                                >
+                                                                    ↓ Áp dụng xuống
+                                                                </button>
+                                                            )}
+                                                        </td>
+                                                    )}
                                                     <td style={{ padding: '6px 4px', textAlign: 'center' }}>
                                                         {poItems.length > 1 && (
                                                             <button className="btn btn-ghost btn-sm" style={{ fontSize: 12 }}
@@ -739,6 +792,7 @@ function PurchasingContent() {
                                             <tr style={{ background: 'var(--surface-alt)', borderTop: '2px solid var(--border-color)' }}>
                                                 <td colSpan={4} style={{ padding: '10px 12px', fontWeight: 700, fontSize: 13 }}>TỔNG CỘNG</td>
                                                 <td style={{ padding: '10px 8px', textAlign: 'right', fontWeight: 700, fontSize: 14, color: 'var(--primary)' }}>{fmt(poTotal)}</td>
+                                                {poForm.deliveryType === 'Chia nhiều' && <td></td>}
                                                 <td></td>
                                             </tr>
                                         </tfoot>
