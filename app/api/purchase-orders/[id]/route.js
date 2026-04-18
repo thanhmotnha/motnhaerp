@@ -54,6 +54,10 @@ export const PUT = withAuth(async (request, { params }) => {
                 const price = Number(it.unitPrice) || 0;
                 if (it.id && existingMap[it.id]) {
                     // Update existing item, preserve receivedQty
+                    // Only write materialPlanId/projectId when the incoming payload
+                    // explicitly includes them, to avoid wiping the MaterialPlan link
+                    // when the frontend omits these fields (would break refund flow
+                    // at line ~119 that checks item.materialPlanId on PO cancel).
                     await tx.purchaseOrderItem.update({
                         where: { id: it.id },
                         data: {
@@ -63,8 +67,8 @@ export const PUT = withAuth(async (request, { params }) => {
                             unitPrice: price,
                             amount: qty * price,
                             productId: it.productId || null,
-                            materialPlanId: it.materialPlanId || null,
-                            projectId: it.projectId || null,
+                            ...(Object.prototype.hasOwnProperty.call(it, 'materialPlanId') && { materialPlanId: it.materialPlanId || null }),
+                            ...(Object.prototype.hasOwnProperty.call(it, 'projectId') && { projectId: it.projectId || null }),
                             variantLabel: it.variantLabel || '',
                         },
                     });
