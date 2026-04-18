@@ -80,6 +80,14 @@ export const POST = withAuth(async (request) => {
 
     const code = await generateCode('purchaseOrder', 'PO');
     const status = needsApproval ? 'Chờ duyệt vượt định mức' : (poData.status || 'Chờ duyệt');
+
+    const normalizedItems = items?.map(it => ({
+        ...it,
+        projectId: it.projectId || null,
+        productId: it.productId || null,
+        materialPlanId: it.materialPlanId || null,
+    }));
+
     const order = await prisma.purchaseOrder.create({
         data: {
             code,
@@ -96,7 +104,7 @@ export const POST = withAuth(async (request) => {
             orderDate: poData.orderDate || new Date(),
             deliveryDate: poData.deliveryDate || null,
             receivedDate: poData.receivedDate || null,
-            items: items ? { create: items } : undefined,
+            items: normalizedItems ? { create: normalizedItems } : undefined,
         },
         include: { items: true, project: { select: { name: true, code: true } } },
     });
