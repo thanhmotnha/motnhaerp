@@ -2275,7 +2275,7 @@ model OverheadAllocation {
 model GoodsReceipt {
   id              String             @id @default(cuid())
   code            String             @unique
-  purchaseOrderId String
+  purchaseOrderId String?
   warehouseId     String
   receivedDate    DateTime           @default(now())
   receivedBy      String             @default("")
@@ -2283,7 +2283,7 @@ model GoodsReceipt {
   createdById     String             @default("")
   createdAt       DateTime           @default(now())
 
-  purchaseOrder   PurchaseOrder      @relation(fields: [purchaseOrderId], references: [id])
+  purchaseOrder   PurchaseOrder?     @relation(fields: [purchaseOrderId], references: [id])
   warehouse       Warehouse          @relation(fields: [warehouseId], references: [id])
   items           GoodsReceiptItem[]
 
