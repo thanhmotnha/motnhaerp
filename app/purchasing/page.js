@@ -110,6 +110,7 @@ function PurchasingContent() {
             unitPrice: it.unitPrice || 0,
             toReceive: 0,
             variantLabel: it.variantLabel || '',
+            projectId: it.projectId || null,
         })));
         setGrnNote('');
     };
@@ -117,31 +118,22 @@ function PurchasingContent() {
     const submitGrn = async () => {
         const validItems = grnItems.filter(it => (it.toReceive || 0) > 0);
         if (!validItems.length) return alert('Nhập số lượng cần nhận cho ít nhất 1 sản phẩm');
-        if (!grnWarehouseId) return alert('Vui lòng chọn kho nhập');
+        const hasWarehouseItems = validItems.some(it => !it.projectId);
+        if (hasWarehouseItems && !grnWarehouseId) return alert('Vui lòng chọn kho nhập cho các sản phẩm vào kho');
         setGrnSaving(true);
-        const res = await fetch('/api/inventory/receipts', {
+        const res = await fetch(`/api/purchase-orders/${grnPO.id}/receive`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                purchaseOrderId: grnPO.id,
-                warehouseId: grnWarehouseId,
+                items: validItems.map(it => ({ id: it.id, receivedQty: Number(it.toReceive) })),
+                warehouseId: hasWarehouseItems ? grnWarehouseId : null,
                 receivedBy: '',
-                notes: grnNote,
-                items: validItems.map(it => ({
-                    productId: it.productId,
-                    productName: it.productName,
-                    unit: it.unit,
-                    qtyOrdered: it.quantity,
-                    qtyReceived: Number(it.toReceive),
-                    unitPrice: it.unitPrice,
-                    variantLabel: it.variantLabel || '',
-                    purchaseOrderItemId: it.id,
-                })),
+                note: grnNote,
             }),
         });
         setGrnSaving(false);
         if (!res.ok) { const e = await res.json(); return alert(e.error || 'Lỗi nhận hàng'); }
-        alert('Đã tạo phiếu nhập kho thành công!');
+        alert('Đã tạo phiếu nhận hàng thành công!');
         setGrnPO(null);
         fetchOrders();
     };
@@ -1017,14 +1009,7 @@ function PurchasingContent() {
                         <div className="modal-body">
                             <div style={{ marginBottom: 8, fontSize: 13, color: 'var(--text-muted)' }}>
                                 NCC: <strong>{grnPO.supplier}</strong>
-                                {grnPO.project && <> &nbsp;|&nbsp; Dự án: <strong>{grnPO.project.code}</strong></>}
-                            </div>
-                            <div className="form-group" style={{ marginBottom: 12 }}>
-                                <label className="form-label">Kho nhập *</label>
-                                <select className="form-select" value={grnWarehouseId} onChange={e => setGrnWarehouseId(e.target.value)}>
-                                    <option value="">— Chọn kho —</option>
-                                    {warehouses.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}
-                                </select>
+                                {grnPO.project && <> &nbsp;|&nbsp; Dự án chính: <strong>{grnPO.project.code}</strong></>}
                             </div>
                             {poReceipts.length > 0 && (
                                 <div style={{ marginBottom: 12, background: 'var(--bg-secondary)', borderRadius: 8, padding: 12 }}>
@@ -1036,16 +1021,20 @@ function PurchasingContent() {
                                     ))}
                                 </div>
                             )}
-                            <table className="data-table" style={{ margin: 0 }}>
-                                <thead><tr>
-                                    <th>Sản phẩm</th>
-                                    <th style={{ width: 55, textAlign: 'center' }}>ĐVT</th>
-                                    <th style={{ width: 80, textAlign: 'center' }}>Đặt</th>
-                                    <th style={{ width: 80, textAlign: 'center' }}>Đã nhận</th>
-                                    <th style={{ width: 100, textAlign: 'center' }}>Nhận lần này</th>
-                                </tr></thead>
-                                <tbody>
-                                    {grnItems.map((it, i) => (
+                            {(() => {
+                                const warehouseItems = grnItems.filter(it => !it.projectId);
+                                const byProject = {};
+                                for (const it of grnItems) {
+                                    if (it.projectId) {
+                                        if (!byProject[it.projectId]) byProject[it.projectId] = [];
+                                        byProject[it.projectId].push(it);
+                                    }
+                                }
+                                const findProject = (pid) => projects.find(p => p.id === pid);
+
+                                const ItemRow = ({ it }) => {
+                                    const i = grnItems.findIndex(x => x.id === it.id);
+                                    return (
                                         <tr key={it.id}>
                                             <td style={{ fontSize: 13 }}>
                                                 {it.productName}
@@ -1066,9 +1055,54 @@ function PurchasingContent() {
                                                 />
                                             </td>
                                         </tr>
-                                    ))}
-                                </tbody>
-                            </table>
+                                    );
+                                };
+
+                                const ItemsTable = ({ items }) => (
+                                    <table className="data-table" style={{ fontSize: 12, marginBottom: 12 }}>
+                                        <thead><tr>
+                                            <th>Sản phẩm</th>
+                                            <th style={{ width: 65, textAlign: 'center' }}>ĐVT</th>
+                                            <th style={{ width: 80, textAlign: 'center' }}>Đặt</th>
+                                            <th style={{ width: 80, textAlign: 'center' }}>Đã nhận</th>
+                                            <th style={{ width: 100, textAlign: 'center' }}>Nhận lần này</th>
+                                        </tr></thead>
+                                        <tbody>
+                                            {items.map(it => <ItemRow key={it.id} it={it} />)}
+                                        </tbody>
+                                    </table>
+                                );
+
+                                return (
+                                    <>
+                                        {warehouseItems.length > 0 && (
+                                            <div style={{ border: '1px solid var(--border)', borderRadius: 8, padding: 10, marginBottom: 12 }}>
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                                                    <strong style={{ fontSize: 13 }}>🏭 Vào kho</strong>
+                                                    <select className="form-select" style={{ flex: 1, maxWidth: 200, fontSize: 12 }} value={grnWarehouseId} onChange={e => setGrnWarehouseId(e.target.value)}>
+                                                        <option value="">— Chọn kho —</option>
+                                                        {warehouses.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}
+                                                    </select>
+                                                </div>
+                                                <ItemsTable items={warehouseItems} />
+                                            </div>
+                                        )}
+                                        {Object.entries(byProject).map(([projectId, items]) => {
+                                            const proj = findProject(projectId);
+                                            return (
+                                                <div key={projectId} style={{ border: '1px solid var(--border)', borderRadius: 8, padding: 10, marginBottom: 12 }}>
+                                                    <div style={{ marginBottom: 8 }}>
+                                                        <strong style={{ fontSize: 13 }}>📍 Giao thẳng công trình</strong>
+                                                        {proj && <span style={{ marginLeft: 8, fontSize: 13, color: 'var(--text-secondary)' }}>{proj.code} — {proj.name}</span>}
+                                                        <span style={{ marginLeft: 8, fontSize: 11, color: 'var(--text-muted)' }}>(không qua kho)</span>
+                                                    </div>
+                                                    <ItemsTable items={items} />
+                                                </div>
+                                            );
+                                        })}
+                                    </>
+                                );
+                            })()}
                             <div className="form-group" style={{ marginTop: 12 }}>
                                 <label className="form-label">Ghi chú nhận hàng</label>
                                 <input className="form-input" value={grnNote} onChange={e => setGrnNote(e.target.value)} placeholder="Tình trạng hàng, ghi chú thêm..." />
