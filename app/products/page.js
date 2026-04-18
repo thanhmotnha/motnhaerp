@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation';
 import * as XLSX from 'xlsx';
 import CategorySidebar from '@/components/products/CategorySidebar';
 import BulkActionsBar from '@/components/products/BulkActionsBar';
+import { VAN_CATEGORIES } from '@/lib/vanCategories';
 // ProductDrawer removed — edit always navigates to /products/[id]
 
 const fmt = (n) => new Intl.NumberFormat('vi-VN').format(n);
@@ -64,7 +65,8 @@ export default function ProductsPage() {
     const [newProduct, setNewProduct] = useState(null);
     const [selectedIds, setSelectedIds] = useState(new Set());
     const [showAddModal, setShowAddModal] = useState(false);
-    const [addForm, setAddForm] = useState({ name: '', category: 'Nội thất thành phẩm', unit: 'cái', salePrice: 0, importPrice: 0, brand: '', description: '', supplyType: 'Mua ngoài', stock: 0, minStock: 0, supplier: '', coreBoard: '', surfaceCode: '', image: '' });
+    const [addForm, setAddForm] = useState({ name: '', category: 'Nội thất thành phẩm', unit: 'cái', salePrice: 0, importPrice: 0, brand: '', description: '', supplyType: 'Mua ngoài', stock: 0, minStock: 0, supplier: '', coreBoard: '', surfaceCode: '', image: '', warehouseId: '' });
+    const [warehouses, setWarehouses] = useState([]);
     // Edit modal state
     const [editModal, setEditModal] = useState(null); // product object being edited
     const [editForm, setEditForm] = useState(null);
@@ -169,6 +171,19 @@ export default function ProductsPage() {
     useEffect(() => { fetchProducts(); }, [fetchProducts]);
 
     useEffect(() => {
+        fetch('/api/inventory?limit=1').then(r => r.json()).then(d => setWarehouses(d.warehouses || []));
+    }, []);
+
+    useEffect(() => {
+        if (!warehouses.length) return;
+        const targetCode = VAN_CATEGORIES.includes(addForm.category) ? 'KHO02' : 'KHO01';
+        const target = warehouses.find(w => w.code === targetCode);
+        if (target && addForm.warehouseId !== target.id) {
+            setAddForm(f => ({ ...f, warehouseId: target.id }));
+        }
+    }, [addForm.category, warehouses]);
+
+    useEffect(() => {
         if (!sentinelRef.current) return;
         const obs = new IntersectionObserver(([entry]) => { if (entry.isIntersecting) loadMore(); }, { threshold: 0.1 });
         obs.observe(sentinelRef.current);
@@ -206,11 +221,12 @@ export default function ProductsPage() {
 
     const editProduct = (p) => {
         setEditModal(p);
-        setEditForm({ ...p });
+        setEditForm({ ...p, warehouseId: p.warehouseId || '' });
     };
     const closeEditModal = () => { setEditModal(null); setEditForm(null); };
     const saveEditProduct = async () => {
         if (!editForm || !editModal) return;
+        if (!editForm.warehouseId) { alert('Vui lòng chọn kho'); return; }
         setEditSaving(true);
         try {
             const { id: _id, code, createdAt, updatedAt, deletedAt, categoryRef, inventoryTx, quotationItems, materialPlans, purchaseItems, bomComponents, bomUsedIn, ...data } = editForm;
@@ -292,7 +308,7 @@ export default function ProductsPage() {
             catId = firstLeaf?.id || null;
             catName = firstLeaf?.name || catName;
         }
-        setAddForm({ name: '', category: catName, unit: 'cái', salePrice: 0, importPrice: 0, brand: '', supplyType: 'Mua ngoài', stock: 0, minStock: 0, supplier: '', coreBoard: '', surfaceCode: '', image: '', categoryId: catId });
+        setAddForm({ name: '', category: catName, unit: 'cái', salePrice: 0, importPrice: 0, brand: '', supplyType: 'Mua ngoài', stock: 0, minStock: 0, supplier: '', coreBoard: '', surfaceCode: '', image: '', categoryId: catId, warehouseId: '' });
         setShowAddModal(true);
     };
     const handleImgUpload = async (e) => {
@@ -337,6 +353,7 @@ export default function ProductsPage() {
     // --- Save new product ---
     const saveNewProduct = async () => {
         if (!addForm.name?.trim()) return alert('Nhập tên sản phẩm');
+        if (!addForm.warehouseId) return alert('Vui lòng chọn kho');
         const res = await fetch('/api/products', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(addForm) });
         if (!res.ok) { const err = await res.json(); return alert(err.error || 'Lỗi tạo'); }
         setShowAddModal(false); fetchProducts(); fetchCategories();
@@ -877,6 +894,20 @@ export default function ProductsPage() {
                                 </div>
                             </div>
                             <div className="form-row">
+                                <div className="form-group" style={{ flex: 1 }}>
+                                    <label className="form-label">Kho *</label>
+                                    <select
+                                        className="form-select"
+                                        value={addForm.warehouseId}
+                                        onChange={e => setAddForm(f => ({ ...f, warehouseId: e.target.value }))}
+                                        required
+                                    >
+                                        <option value="">— Chọn kho —</option>
+                                        {warehouses.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}
+                                    </select>
+                                </div>
+                            </div>
+                            <div className="form-row">
                                 <div className="form-group" style={{ flex: 2 }}>
                                     <label className="form-label">Thương hiệu</label>
                                     <select className="form-select" value={addForm.brand} onChange={e => setAddForm(f => ({ ...f, brand: e.target.value }))}>
@@ -1070,6 +1101,22 @@ export default function ProductsPage() {
                                             <input className="form-input" value={editForm.unit || ''} onChange={e => setEdit('unit', e.target.value)} />
                                         </div>
                                     </div>
+                                </div>
+                            </div>
+
+                            {/* Kho */}
+                            <div className="form-row" style={{ gap: 8, marginBottom: 12 }}>
+                                <div className="form-group" style={{ flex: 1 }}>
+                                    <label className="form-label">Kho *</label>
+                                    <select
+                                        className="form-select"
+                                        value={editForm.warehouseId || ''}
+                                        onChange={e => setEdit('warehouseId', e.target.value)}
+                                        required
+                                    >
+                                        <option value="">— Chọn kho —</option>
+                                        {warehouses.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}
+                                    </select>
                                 </div>
                             </div>
 
