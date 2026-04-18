@@ -4,113 +4,221 @@ import { generateCode } from '@/lib/generateCode';
 import { NextResponse } from 'next/server';
 
 // POST /api/purchase-orders/[id]/receive
-// Body: { items: [{ id: itemId, receivedQty: N }], note: "" }
-export const POST = withAuth(async (request, { params }) => {
+// Unified receive: handle mixed items (warehouse + project) in 1 transaction
+// Body: { items: [{ id, receivedQty }], warehouseId?, receivedBy?, receivedDate?, note? }
+export const POST = withAuth(async (request, { params }, session) => {
     const { id } = await params;
-    const { items, note } = await request.json();
+    const { items, warehouseId, receivedBy, receivedDate, note } = await request.json();
 
     if (!items?.length) return NextResponse.json({ error: 'Không có item nào' }, { status: 400 });
 
     const po = await prisma.purchaseOrder.findUnique({
         where: { id },
-        include: { items: true, project: { select: { id: true, name: true } } },
+        include: { items: true, project: { select: { id: true, name: true, code: true } } },
     });
     if (!po) return NextResponse.json({ error: 'PO không tồn tại' }, { status: 404 });
 
-    const isDirectSite = po.deliveryType === 'Giao thẳng dự án';
+    const validItems = items.filter(it => Number(it.receivedQty) > 0);
+    if (!validItems.length) return NextResponse.json({ error: 'Nhập số lượng > 0 cho ít nhất 1 sản phẩm' }, { status: 400 });
 
-    // Process each received item
-    for (const recv of items) {
+    const warehouseItems = [];
+    const projectItemsByProject = {};
+
+    for (const recv of validItems) {
         const poItem = po.items.find(i => i.id === recv.id);
         if (!poItem) continue;
-        const delta = Number(recv.receivedQty) || 0;
-        if (delta <= 0) continue;
-
-        // 1. Update PurchaseOrderItem.receivedQty
-        await prisma.purchaseOrderItem.update({
-            where: { id: recv.id },
-            data: { receivedQty: { increment: delta } },
-        });
-
-        if (isDirectSite) {
-            // 2a. Direct-to-site: update MaterialPlan.receivedQty (NO company stock change)
-            if (poItem.materialPlanId) {
-                const plan = await prisma.materialPlan.findUnique({ where: { id: poItem.materialPlanId } });
-                if (plan) {
-                    const newReceivedQty = plan.receivedQty + delta;
-                    const newStatus = newReceivedQty >= plan.quantity ? 'Đã nhận đủ'
-                        : newReceivedQty > 0 ? 'Nhận một phần' : plan.status;
-                    await prisma.materialPlan.update({
-                        where: { id: poItem.materialPlanId },
-                        data: { receivedQty: { increment: delta }, status: newStatus },
-                    });
-                }
-            }
-
-            // 3. Auto-generate ProjectExpense for direct cost
-            if (po.projectId && poItem.unitPrice > 0) {
-                const expCode = await generateCode('projectExpense', 'CP');
-                const amount = delta * poItem.unitPrice;
-                await prisma.projectExpense.create({
-                    data: {
-                        code: expCode,
-                        expenseType: 'Mua hàng',
-                        description: `[GRN] ${poItem.productName} — ${po.code}`,
-                        amount,
-                        paidAmount: 0,
-                        category: 'Vật tư',
-                        status: 'Chờ thanh toán',
-                        recipientType: 'supplier',
-                        recipientName: po.supplier,
-                        projectId: po.projectId,
-                        notes: note || '',
-                    },
-                });
-            }
+        const delta = Number(recv.receivedQty);
+        if (poItem.projectId) {
+            if (!projectItemsByProject[poItem.projectId]) projectItemsByProject[poItem.projectId] = [];
+            projectItemsByProject[poItem.projectId].push({ poItem, delta });
         } else {
-            // 2b. Into company warehouse: create InventoryTransaction
-            if (poItem.productId) {
-                const defaultWarehouse = await prisma.warehouse.findFirst({ orderBy: { name: 'asc' } });
-                if (defaultWarehouse) {
-                    const txCode = await generateCode('inventoryTransaction', 'PNK');
-                    await prisma.inventoryTransaction.create({
+            warehouseItems.push({ poItem, delta });
+        }
+    }
+
+    if (warehouseItems.length > 0 && !warehouseId) {
+        return NextResponse.json({ error: 'Phải chọn kho cho các sản phẩm nhập kho' }, { status: 400 });
+    }
+
+    let grnCode = null;
+    if (warehouseItems.length > 0) {
+        grnCode = await generateCode('goodsReceipt', 'PNK');
+    }
+    const expenseCodes = [];
+    for (const projectId in projectItemsByProject) {
+        for (const _ of projectItemsByProject[projectId]) {
+            expenseCodes.push(await generateCode('projectExpense', 'CP'));
+        }
+    }
+    let expenseCodeIdx = 0;
+
+    const productWarehouseItems = warehouseItems.filter(w => w.poItem.productId);
+    let txBaseMax = 0;
+    if (productWarehouseItems.length > 0) {
+        const maxResult = await prisma.$queryRawUnsafe(
+            `SELECT COALESCE(MAX(CAST(REPLACE(code, $1, '') AS INTEGER)), 0) as max_num
+             FROM "InventoryTransaction"
+             WHERE code LIKE $2 AND REPLACE(code, $1, '') ~ '^[0-9]+$'`,
+            'NK', 'NK%'
+        );
+        txBaseMax = Number(maxResult?.[0]?.max_num ?? 0);
+    }
+    let txCodeIdx = 0;
+
+    await prisma.$transaction(async (tx) => {
+        if (warehouseItems.length > 0) {
+            await tx.goodsReceipt.create({
+                data: {
+                    code: grnCode,
+                    purchaseOrderId: id,
+                    warehouseId,
+                    receivedDate: receivedDate ? new Date(receivedDate) : new Date(),
+                    receivedBy: receivedBy || '',
+                    notes: note || '',
+                    createdById: session.user.id,
+                    items: {
+                        create: warehouseItems.map(({ poItem, delta }) => ({
+                            productId: poItem.productId,
+                            productName: poItem.productName,
+                            unit: poItem.unit,
+                            qtyOrdered: poItem.quantity,
+                            qtyReceived: delta,
+                            unitPrice: poItem.unitPrice,
+                            variantLabel: poItem.variantLabel || '',
+                            purchaseOrderItemId: poItem.id,
+                        })),
+                    },
+                },
+            });
+
+            for (const { poItem, delta } of warehouseItems) {
+                if (poItem.productId) {
+                    const product = await tx.product.findUnique({
+                        where: { id: poItem.productId },
+                        select: { stock: true, importPrice: true },
+                    });
+                    const oldStock = product?.stock ?? 0;
+                    const oldPrice = product?.importPrice ?? 0;
+                    const avgPrice = (oldStock + delta) > 0
+                        ? (oldStock * oldPrice + delta * (poItem.unitPrice || 0)) / (oldStock + delta)
+                        : (poItem.unitPrice || 0);
+
+                    await tx.product.update({
+                        where: { id: poItem.productId },
+                        data: {
+                            stock: { increment: delta },
+                            importPrice: Math.round(avgPrice),
+                        },
+                    });
+
+                    const txCode = `NK${String(txBaseMax + 1 + txCodeIdx).padStart(3, '0')}`;
+                    txCodeIdx++;
+                    await tx.inventoryTransaction.create({
                         data: {
                             code: txCode,
                             type: 'Nhập',
                             quantity: delta,
                             unit: poItem.unit,
-                            note: `Nhập từ PO ${po.code} — ${po.supplier}. ${note || ''}`,
+                            note: `Phiếu nhập ${grnCode} — PO ${po.code}`,
                             productId: poItem.productId,
-                            warehouseId: defaultWarehouse.id,
-                            projectId: po.projectId || null,
+                            warehouseId,
+                            projectId: null,
+                            date: receivedDate ? new Date(receivedDate) : new Date(),
                         },
                     });
-                    await prisma.product.update({
-                        where: { id: poItem.productId },
-                        data: { stock: { increment: delta } },
+                }
+
+                await tx.purchaseOrderItem.update({
+                    where: { id: poItem.id },
+                    data: { receivedQty: { increment: delta } },
+                });
+            }
+        }
+
+        for (const projectId in projectItemsByProject) {
+            for (const { poItem, delta } of projectItemsByProject[projectId]) {
+                await tx.purchaseOrderItem.update({
+                    where: { id: poItem.id },
+                    data: { receivedQty: { increment: delta } },
+                });
+
+                if (poItem.materialPlanId) {
+                    const plan = await tx.materialPlan.findUnique({ where: { id: poItem.materialPlanId } });
+                    if (plan) {
+                        const newReceivedQty = plan.receivedQty + delta;
+                        const newStatus = newReceivedQty >= plan.quantity ? 'Đã nhận đủ'
+                            : newReceivedQty > 0 ? 'Nhận một phần' : plan.status;
+                        await tx.materialPlan.update({
+                            where: { id: poItem.materialPlanId },
+                            data: { receivedQty: { increment: delta }, status: newStatus },
+                        });
+                    }
+                } else if (poItem.productId) {
+                    const existing = await tx.materialPlan.findFirst({
+                        where: { projectId, productId: poItem.productId, isLocked: false },
+                    });
+                    if (existing) {
+                        await tx.materialPlan.update({
+                            where: { id: existing.id },
+                            data: { receivedQty: { increment: delta } },
+                        });
+                    } else {
+                        await tx.materialPlan.create({
+                            data: {
+                                projectId,
+                                productId: poItem.productId,
+                                quantity: 0,
+                                receivedQty: delta,
+                                orderedQty: 0,
+                                unitPrice: poItem.unitPrice || 0,
+                                totalAmount: delta * (poItem.unitPrice || 0),
+                                status: 'Nhận một phần',
+                                type: 'Phát sinh',
+                                notes: `Auto từ PO ${po.code} (ngoài dự toán)`,
+                            },
+                        });
+                    }
+                }
+
+                if (poItem.unitPrice > 0) {
+                    const expCode = expenseCodes[expenseCodeIdx++];
+                    const amount = delta * poItem.unitPrice;
+                    await tx.projectExpense.create({
+                        data: {
+                            code: expCode,
+                            expenseType: 'Mua hàng',
+                            description: `[GRN] ${poItem.productName} — ${po.code}`,
+                            amount,
+                            paidAmount: 0,
+                            category: 'Vật tư',
+                            status: 'Chờ thanh toán',
+                            recipientType: 'supplier',
+                            recipientName: po.supplier,
+                            projectId,
+                            notes: note || '',
+                        },
                     });
                 }
             }
         }
-    }
 
-    // 4. Recalculate PO status
-    const updatedItems = await prisma.purchaseOrderItem.findMany({ where: { purchaseOrderId: id } });
-    const allReceived = updatedItems.every(i => i.receivedQty >= i.quantity);
-    const anyReceived = updatedItems.some(i => i.receivedQty > 0);
-    const newStatus = allReceived ? 'Hoàn thành' : anyReceived ? 'Nhận một phần' : po.status;
+        const updatedItems = await tx.purchaseOrderItem.findMany({ where: { purchaseOrderId: id } });
+        const allReceived = updatedItems.every(i => i.receivedQty >= i.quantity);
+        const anyReceived = updatedItems.some(i => i.receivedQty > 0);
+        const newStatus = allReceived ? 'Hoàn thành' : anyReceived ? 'Nhận một phần' : po.status;
 
-    const updatedPO = await prisma.purchaseOrder.update({
-        where: { id },
-        data: {
-            status: newStatus,
-            receivedDate: allReceived ? new Date() : po.receivedDate,
-        },
-        include: { items: true },
+        await tx.purchaseOrder.update({
+            where: { id },
+            data: {
+                status: newStatus,
+                receivedDate: allReceived ? new Date() : po.receivedDate,
+            },
+        });
     });
 
-    // Auto-update FurnitureMaterialOrder status khi nhận hàng PO nội thất
-    if (updatedPO.furnitureOrderId && allReceived) {
+    const updatedPO = await prisma.purchaseOrder.findUnique({ where: { id }, include: { items: true } });
+
+    if (updatedPO.furnitureOrderId && updatedPO.status === 'Hoàn thành') {
         await prisma.furnitureMaterialOrder.updateMany({
             where: { purchaseOrderId: id },
             data: { status: 'RECEIVED' },
