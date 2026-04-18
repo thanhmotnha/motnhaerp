@@ -29,8 +29,8 @@ export const GET = withAuth(async () => {
 
     const projectIds = projects.map(p => p.id);
 
-    // Chi phí: gộp trực tiếp (không phân bổ) + phân bổ qua ExpenseAllocation
-    const [directExpenses, allocatedExpenses] = await Promise.all([
+    // Chi phí + giá trị vật tư giao thẳng dự án (từ POItem.projectId, hỗ trợ cả mixed-mode PO)
+    const [directExpenses, allocatedExpenses, directShipItems] = await Promise.all([
         prisma.projectExpense.groupBy({
             by: ['projectId'],
             where: {
@@ -49,6 +49,10 @@ export const GET = withAuth(async () => {
             },
             _sum: { amount: true },
         }),
+        prisma.purchaseOrderItem.findMany({
+            where: { projectId: { in: projectIds }, receivedQty: { gt: 0 } },
+            select: { projectId: true, receivedQty: true, unitPrice: true },
+        }),
     ]);
 
     const expenseMap = {};
@@ -57,6 +61,12 @@ export const GET = withAuth(async () => {
     }
     for (const a of allocatedExpenses) {
         expenseMap[a.projectId] = (expenseMap[a.projectId] || 0) + (a._sum.amount || 0);
+    }
+
+    const directShipMap = {};
+    for (const it of directShipItems) {
+        if (!it.projectId) continue;
+        directShipMap[it.projectId] = (directShipMap[it.projectId] || 0) + (Number(it.receivedQty) * Number(it.unitPrice || 0));
     }
 
     const rows = projects.map(p => {
@@ -69,6 +79,8 @@ export const GET = withAuth(async () => {
         const stockIssueCost = p.stockIssues.reduce((s, si) =>
             s + si.items.reduce((is, it) => is + (it.qty * it.unitPrice), 0), 0);
         const expenseCost = expenseMap[p.id] || 0;
+        const directShipValue = directShipMap[p.id] || 0;
+        const materialsValue = stockIssueCost + directShipValue;
         const totalCost = contractorCost + poCost + stockIssueCost + expenseCost;
 
         const grossProfit = paidByCustomer - totalCost;
@@ -95,6 +107,7 @@ export const GET = withAuth(async () => {
             poCost,
             stockIssueCost,
             expenseCost,
+            materialsValue,
             totalCost,
             grossProfit,
             margin,
@@ -107,6 +120,7 @@ export const GET = withAuth(async () => {
         totalPaid: rows.reduce((s, r) => s + r.paidByCustomer, 0),
         totalRemain: rows.reduce((s, r) => s + r.remainReceivable, 0),
         totalCost: rows.reduce((s, r) => s + r.totalCost, 0),
+        totalMaterialsValue: rows.reduce((s, r) => s + r.materialsValue, 0),
         totalProfit: rows.reduce((s, r) => s + r.grossProfit, 0),
         alertCount: rows.filter(r => r.alert).length,
     };

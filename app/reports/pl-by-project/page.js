@@ -97,6 +97,7 @@ export default function PLByProjectPage() {
                     <SummaryCard icon={<TrendingUp size={20} />} label="Đã thu" value={fmt(sum.totalPaid)} color="#22c55e" />
                     <SummaryCard icon={<Clock size={20} />} label="Còn phải thu" value={fmt(sum.totalRemain)} color="#f59e0b" />
                     <SummaryCard icon={<TrendingDown size={20} />} label="Tổng chi phí" value={fmt(sum.totalCost)} color="#ef4444" />
+                    <SummaryCard icon={<DollarSign size={20} />} label="Giá trị vật tư" value={fmt(sum.totalMaterialsValue || 0)} color="#8b5cf6" />
                     <SummaryCard
                         icon={sum.totalProfit >= 0 ? <TrendingUp size={20} /> : <TrendingDown size={20} />}
                         label="Lợi nhuận"
@@ -135,6 +136,7 @@ export default function PLByProjectPage() {
                             contractValue: rows.reduce((s, r) => s + r.contractValue, 0),
                             paidByCustomer: rows.reduce((s, r) => s + r.paidByCustomer, 0),
                             remainReceivable: rows.reduce((s, r) => s + r.remainReceivable, 0),
+                            materialsValue: rows.reduce((s, r) => s + (r.materialsValue || 0), 0),
                             totalCost: rows.reduce((s, r) => s + r.totalCost, 0),
                             grossProfit: rows.reduce((s, r) => s + r.grossProfit, 0),
                         };
@@ -164,6 +166,7 @@ export default function PLByProjectPage() {
                                                 <th style={{ ...th, textAlign: 'right' }}><SortBtn field="contractValue" label="Giá trị HĐ" /></th>
                                                 <th style={{ ...th, textAlign: 'right' }}><SortBtn field="paidByCustomer" label="Đã thu" /></th>
                                                 <th style={{ ...th, textAlign: 'right' }}><SortBtn field="remainReceivable" label="Còn phải thu" /></th>
+                                                <th style={{ ...th, textAlign: 'right' }}><SortBtn field="materialsValue" label="Vật tư" /></th>
                                                 <th style={{ ...th, textAlign: 'right' }}><SortBtn field="totalCost" label="Tổng chi" /></th>
                                                 <th style={{ ...th, textAlign: 'right' }}><SortBtn field="grossProfit" label="Lợi nhuận" /></th>
                                                 <th style={{ ...th, textAlign: 'right' }}><SortBtn field="margin" label="Margin %" /></th>
@@ -196,6 +199,7 @@ export default function PLByProjectPage() {
                                                                 </span>
                                                             ) : <span style={{ color: '#9ca3af' }}>—</span>}
                                                         </td>
+                                                        <td style={{ ...td, textAlign: 'right', color: '#8b5cf6' }}>{r.materialsValue > 0 ? fmt(r.materialsValue) : '—'}</td>
                                                         <td style={{ ...td, textAlign: 'right', color: '#dc2626' }}>{r.totalCost > 0 ? fmt(r.totalCost) : '—'}</td>
                                                         <td style={{ ...td, textAlign: 'right', fontWeight: 700, color: r.grossProfit >= 0 ? '#16a34a' : '#dc2626' }}>
                                                             {r.contractValue > 0 ? (r.grossProfit >= 0 ? '' : '-') + fmt(Math.abs(r.grossProfit)) : '—'}
@@ -219,6 +223,7 @@ export default function PLByProjectPage() {
                                                 <td style={{ ...td, textAlign: 'right' }}>{fmt(subTotal.contractValue)}</td>
                                                 <td style={{ ...td, textAlign: 'right', color: '#16a34a' }}>{fmt(subTotal.paidByCustomer)}</td>
                                                 <td style={{ ...td, textAlign: 'right', color: '#d97706' }}>{subTotal.remainReceivable > 0 ? fmt(subTotal.remainReceivable) : '—'}</td>
+                                                <td style={{ ...td, textAlign: 'right', color: '#8b5cf6' }}>{subTotal.materialsValue > 0 ? fmt(subTotal.materialsValue) : '—'}</td>
                                                 <td style={{ ...td, textAlign: 'right', color: '#dc2626' }}>{fmt(subTotal.totalCost)}</td>
                                                 <td style={{ ...td, textAlign: 'right', color: subTotal.grossProfit >= 0 ? '#16a34a' : '#dc2626' }}>
                                                     {(subTotal.grossProfit >= 0 ? '' : '-') + fmt(Math.abs(subTotal.grossProfit))}
