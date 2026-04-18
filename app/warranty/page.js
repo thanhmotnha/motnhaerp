@@ -45,7 +45,7 @@ function WarrantyForm({ projects, onSaved, onCancel }) {
                     <label className="form-label">Dự án *</label>
                     <select className="form-select" value={form.projectId} onChange={e => set('projectId', e.target.value)}>
                         <option value="">-- Chọn dự án --</option>
-                        {projects.map(p => <option key={p.id} value={p.id}>{p.code} - {p.name}</option>)}
+                        {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
                     </select>
                 </div>
                 <div>
@@ -166,7 +166,7 @@ export default function WarrantyPage() {
                 <div className="page-header-right">
                     <select className="form-select" style={{ width: 200 }} value={filterProject} onChange={e => setFilterProject(e.target.value)}>
                         <option value="">Tất cả dự án</option>
-                        {projects.map(p => <option key={p.id} value={p.id}>{p.code} - {p.name}</option>)}
+                        {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
                     </select>
                     <select className="form-select" style={{ width: 150 }} value={filterStatus} onChange={e => setFilterStatus(e.target.value)}>
                         <option value="">Tất cả trạng thái</option>
@@ -239,7 +239,7 @@ export default function WarrantyPage() {
                                                 {t.title}
                                                 {t.notes && <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>{t.notes}</div>}
                                             </td>
-                                            <td style={{ fontSize: 12 }}>{t.project?.code} - {t.project?.name}</td>
+                                            <td style={{ fontSize: 12 }}>{t.project?.name || '—'}</td>
                                             <td>
                                                 <span style={{ fontSize: 11, fontWeight: 600, color: PRIORITY_COLOR[t.priority], padding: '2px 6px', background: `${PRIORITY_COLOR[t.priority]}18`, borderRadius: 4 }}>
                                                     {t.priority}

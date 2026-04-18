@@ -185,7 +185,7 @@ export default function WorkOrderDetailPage() {
                                 </>
                             ) : (
                                 <>
-                                    <InfoRow label="Dự án" value={wo.project ? `${wo.project.code} — ${wo.project.name}` : '—'} />
+                                    <InfoRow label="Dự án" value={wo.project?.name || '—'} />
                                     <InfoRow label="Người thực hiện" value={wo.assignee || '—'} />
                                     <InfoRow label="Phân loại" value={wo.category || '—'} />
                                     <InfoRow label="Hạn hoàn thành" value={fmtDate(wo.dueDate)} />

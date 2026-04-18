@@ -37,7 +37,7 @@ export default function SettlementPage() {
         <div>
             <div className="page-header">
                 <div className="page-header-left">
-                    <h1>📊 Quyết toán: {p.code} - {p.name}</h1>
+                    <h1>📊 Quyết toán: {p.name}</h1>
                     <p>{p.customer} · Tiến độ: {p.progress}% · Trạng thái: {p.status}</p>
                 </div>
                 <div className="page-header-right">
