@@ -191,6 +191,8 @@ model Product {
   coreBoard              String                  @default("")
   surfaceCode            String                  @default("")
   categoryId             String?
+  warehouseId            String?
+  warehouse              Warehouse?              @relation(fields: [warehouseId], references: [id])
   reorderPoint           Int                     @default(0)
   furnitureOrderItems    FurnitureOrderItem[]
   inventoryTx            InventoryTransaction[]
@@ -207,6 +209,7 @@ model Product {
   issueItems             StockIssueItem[]
 
   @@index([categoryId])
+  @@index([warehouseId])
 }
 
 model Quotation {
@@ -338,6 +341,7 @@ model Warehouse {
   transfersIn  WarehouseTransfer[]    @relation("TransferTo")
   receipts     GoodsReceipt[]
   stockIssues  StockIssue[]
+  products     Product[]
 }
 
 model InventoryTransaction {
