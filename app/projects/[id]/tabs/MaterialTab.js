@@ -1,5 +1,5 @@
 'use client';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { fmtVND } from '@/lib/projectUtils';
 import { apiFetch } from '@/lib/fetchClient';
 import PoBulkFromQuotationModal from '@/components/PoBulkFromQuotationModal';
@@ -12,6 +12,19 @@ export default function MaterialTab({ project: p, projectId, onRefresh }) {
     const [suppliers, setSuppliers] = useState([]);
     const [savingPO, setSavingPO] = useState(false);
     const [showBulkModal, setShowBulkModal] = useState(false);
+    const [report, setReport] = useState(null);
+    const [reportLoading, setReportLoading] = useState(true);
+    const [filterCategory, setFilterCategory] = useState('');
+    const [filterSource, setFilterSource] = useState('all');
+
+    useEffect(() => {
+        let active = true;
+        setReportLoading(true);
+        apiFetch(`/api/projects/${projectId}/materials-report`)
+            .then(d => { if (active) { setReport(d); setReportLoading(false); } })
+            .catch(() => { if (active) setReportLoading(false); });
+        return () => { active = false; };
+    }, [projectId, p?.updatedAt]);
 
     const materials = (p.materialPlans || []).filter(m => m.costType !== 'Thầu phụ');
     const totalBudget = materials.reduce((s, m) => s + (Number(m.totalAmount) || 0), 0);
@@ -84,9 +97,40 @@ export default function MaterialTab({ project: p, projectId, onRefresh }) {
     return (
         <div>
             <div className="stats-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', marginBottom: 16 }}>
-                <div className="stat-card"><div style={{ fontSize: 18, fontWeight: 700, color: 'var(--status-info)' }}>{fmtVND(totalBudget)}</div><div style={{ fontSize: 12, color: 'var(--text-muted)' }}>Tổng dự toán</div></div>
-                <div className="stat-card"><div style={{ fontSize: 18, fontWeight: 700, color: 'var(--status-warning)' }}>{needOrder}</div><div style={{ fontSize: 12, color: 'var(--text-muted)' }}>Cần đặt thêm</div></div>
-                <div className="stat-card"><div style={{ fontSize: 18, fontWeight: 700, color: overBudget > 0 ? 'var(--status-danger)' : 'var(--status-success)' }}>{overBudget}</div><div style={{ fontSize: 12, color: 'var(--text-muted)' }}>Vượt dự toán</div></div>
+                <div className="stat-card">
+                    <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--status-info)' }}>{fmtVND(report?.summary?.planned || 0)}</div>
+                    <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>📋 Dự toán</div>
+                </div>
+                <div className="stat-card">
+                    <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--primary)' }}>{fmtVND(report?.summary?.ordered || 0)}</div>
+                    <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>🛒 Đã đặt (giao thẳng)</div>
+                </div>
+                <div className="stat-card">
+                    <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--status-success)' }}>{(report?.summary?.receivedDirectQty || 0) + (report?.summary?.receivedFromStockQty || 0)}</div>
+                    <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>📦 Đã nhận (tổng SL)</div>
+                </div>
+                <div className="stat-card">
+                    <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--status-warning)' }}>{report?.summary?.itemCount || 0}</div>
+                    <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>🔧 Số mã vật tư</div>
+                </div>
+                <div className="stat-card">
+                    <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--status-danger)' }}>{fmtVND(report?.summary?.totalCost || 0)}</div>
+                    <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>💰 Chi phí thực tế</div>
+                </div>
+            </div>
+
+            <div style={{ display: 'flex', gap: 8, marginBottom: 12, flexWrap: 'wrap', alignItems: 'center' }}>
+                <select className="form-select form-select-compact" style={{ maxWidth: 200 }} value={filterCategory} onChange={e => setFilterCategory(e.target.value)}>
+                    <option value="">Tất cả danh mục</option>
+                    {Array.from(new Set((report?.items || []).map(i => i.category).filter(Boolean))).sort().map(c => (
+                        <option key={c} value={c}>{c}</option>
+                    ))}
+                </select>
+                <select className="form-select form-select-compact" style={{ maxWidth: 180 }} value={filterSource} onChange={e => setFilterSource(e.target.value)}>
+                    <option value="all">Tất cả nguồn</option>
+                    <option value="GT">📍 Chỉ giao thẳng</option>
+                    <option value="XK">🏭 Chỉ xuất kho</option>
+                </select>
             </div>
 
             <div className="card">
@@ -107,61 +151,54 @@ export default function MaterialTab({ project: p, projectId, onRefresh }) {
                     </div>
                 </div>
 
-                {materials.length === 0 ? (
-                    <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-muted)' }}>Chưa có dự toán vật tư</div>
+                {reportLoading ? (
+                    <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-muted)' }}>Đang tải báo cáo...</div>
+                ) : (report?.items || []).length === 0 ? (
+                    <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-muted)' }}>Chưa có vật tư nào cho dự án này</div>
                 ) : (
                     <div className="table-container">
                         <table className="data-table">
                             <thead>
                                 <tr>
-                                    <th style={{ width: 32 }}>
-                                        <input type="checkbox"
-                                            checked={selectedPlans.length > 0 && selectedPlans.length === materials.filter(m => m.status === 'Chưa đặt' || m.status === 'Đặt một phần').length}
-                                            onChange={e => toggleAll(e.target.checked)}
-                                        />
-                                    </th>
-                                    <th>Hạng mục</th>
-                                    <th>SL cần</th>
-                                    <th>Đã đặt</th>
-                                    <th>Đã nhận</th>
-                                    <th>Còn thiếu</th>
-                                    <th>Đơn giá</th>
-                                    <th>Trạng thái</th>
-                                    <th></th>
+                                    <th>Sản phẩm</th>
+                                    <th>ĐVT</th>
+                                    <th style={{ textAlign: 'right' }}>Dự toán</th>
+                                    <th style={{ textAlign: 'right' }}>Đã đặt</th>
+                                    <th style={{ textAlign: 'right' }}>Đã nhận</th>
+                                    <th style={{ textAlign: 'right' }}>Đã dùng</th>
+                                    <th style={{ textAlign: 'right' }}>Còn thiếu</th>
+                                    <th style={{ textAlign: 'center' }}>Nguồn</th>
                                 </tr>
                             </thead>
                             <tbody>
-                                {materials.map(m => {
-                                    const missing = m.quantity - m.receivedQty;
-                                    const canOrder = m.status === 'Chưa đặt' || m.status === 'Đặt một phần';
-                                    const over = m.receivedQty > m.quantity;
-                                    return (
-                                        <tr key={m.id} style={{ background: over ? 'rgba(239,68,68,0.06)' : '' }}>
-                                            <td>{canOrder && <input type="checkbox" checked={selectedPlans.includes(m.id)} onChange={() => toggleSelect(m.id)} />}</td>
-                                            <td>
-                                                <div style={{ fontWeight: 600, fontSize: 13 }}>{m.product?.name}</div>
-                                                <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{m.product?.code}</div>
-                                                {over && <div style={{ fontSize: 11, color: 'var(--status-danger)', fontWeight: 600 }}>⚠ Nhận vượt {m.receivedQty - m.quantity} {m.product?.unit}</div>}
-                                            </td>
-                                            <td>{m.quantity} <span style={{ fontSize: 11, opacity: 0.6 }}>{m.product?.unit}</span></td>
-                                            <td style={{ color: 'var(--status-info)' }}>{m.orderedQty}</td>
-                                            <td style={{ color: over ? 'var(--status-danger)' : 'var(--status-success)', fontWeight: 600 }}>{m.receivedQty}</td>
-                                            <td style={{ color: missing > 0 ? 'var(--status-danger)' : 'var(--status-success)', fontWeight: 700 }}>{missing > 0 ? missing : '✓'}</td>
-                                            <td style={{ fontSize: 12 }}>{fmtVND(m.unitPrice)}</td>
-                                            <td>
-                                                <span className={`badge ${m.status === 'Đã nhận đủ' || m.status === 'Đã đặt đủ' ? 'success' : m.status?.includes('một phần') ? 'warning' : 'danger'}`} style={{ fontSize: 11 }}>
-                                                    {m.status}
-                                                </span>
-                                            </td>
-                                            <td>
-                                                <div style={{ display: 'flex', gap: 4 }}>
-                                                    <a href={`/purchasing?projectId=${projectId}&mpId=${m.id}`} className="btn btn-ghost btn-sm" style={{ fontSize: 11 }} title="Yêu cầu vật tư">📋 YC</a>
-                                                    {m.orderedQty === 0 && <button className="btn btn-ghost btn-sm" style={{ fontSize: 11, color: 'var(--status-danger)' }} onClick={() => deletePlan(m.id)}>🗑</button>}
-                                                </div>
-                                            </td>
-                                        </tr>
-                                    );
-                                })}
+                                {(report.items || [])
+                                    .filter(it => !filterCategory || it.category === filterCategory)
+                                    .filter(it => filterSource === 'all' || it.sources.includes(filterSource))
+                                    .map(it => {
+                                        const badgeColor = it.missing > 0 ? 'var(--status-danger)' : 'var(--status-success)';
+                                        const sourceLabel = it.sources.length === 2 ? '📍+🏭'
+                                            : it.sources.includes('GT') ? '📍 GT'
+                                            : it.sources.includes('XK') ? '🏭 XK' : '—';
+                                        return (
+                                            <tr key={`${it.productId || it.name}`}>
+                                                <td>
+                                                    <div style={{ fontWeight: 600, fontSize: 13 }}>{it.name}</div>
+                                                    {it.code && <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{it.code}</div>}
+                                                </td>
+                                                <td style={{ fontSize: 12 }}>{it.unit}</td>
+                                                <td style={{ textAlign: 'right', fontSize: 13 }}>{it.planned || '—'}</td>
+                                                <td style={{ textAlign: 'right', fontSize: 13, color: 'var(--primary)' }}>{it.ordered || '—'}</td>
+                                                <td style={{ textAlign: 'right', fontSize: 13, color: 'var(--status-success)', fontWeight: 600 }}>{it.received || '—'}</td>
+                                                <td style={{ textAlign: 'right', fontSize: 13 }}>{it.used || '—'}</td>
+                                                <td style={{ textAlign: 'right', fontSize: 13, color: badgeColor, fontWeight: 700 }}>
+                                                    {it.missing > 0 ? it.missing : (it.missing < 0 ? `+${-it.missing}` : '✓')}
+                                                </td>
+                                                <td style={{ textAlign: 'center', fontSize: 11 }}>
+                                                    <span className="badge" style={{ background: 'var(--bg-secondary)', padding: '2px 6px' }}>{sourceLabel}</span>
+                                                </td>
+                                            </tr>
+                                        );
+                                    })}
                             </tbody>
                         </table>
                     </div>
