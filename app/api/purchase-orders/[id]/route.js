@@ -19,6 +19,18 @@ export const PUT = withAuth(async (request, { params }) => {
 
     // If items provided, update items preserving receivedQty for existing ones
     if (items !== undefined) {
+        // Block editing item list once GRN exists or any item has been received
+        // (scope to items only — other fields like notes, deliveryDate remain editable)
+        const [receiptCount, receivedCount] = await Promise.all([
+            prisma.goodsReceipt.count({ where: { purchaseOrderId: id } }),
+            prisma.purchaseOrderItem.count({ where: { purchaseOrderId: id, receivedQty: { gt: 0 } } }),
+        ]);
+        if (receiptCount > 0 || receivedCount > 0) {
+            return NextResponse.json({
+                error: 'PO đã có phiếu nhận — không được sửa danh sách sản phẩm. Hủy phiếu nhận trước nếu cần.',
+            }, { status: 422 });
+        }
+
         const po = await prisma.$transaction(async (tx) => {
             // Get existing items to preserve receivedQty
             const existingItems = await tx.purchaseOrderItem.findMany({ where: { purchaseOrderId: id } });
@@ -51,6 +63,8 @@ export const PUT = withAuth(async (request, { params }) => {
                             unitPrice: price,
                             amount: qty * price,
                             productId: it.productId || null,
+                            materialPlanId: it.materialPlanId || null,
+                            projectId: it.projectId || null,
                             variantLabel: it.variantLabel || '',
                         },
                     });
@@ -65,6 +79,8 @@ export const PUT = withAuth(async (request, { params }) => {
                             unitPrice: price,
                             amount: qty * price,
                             productId: it.productId || null,
+                            materialPlanId: it.materialPlanId || null,
+                            projectId: it.projectId || null,
                             variantLabel: it.variantLabel || '',
                         },
                     });
