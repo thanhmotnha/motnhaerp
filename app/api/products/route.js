@@ -107,6 +107,14 @@ export const POST = withAuth(async (request) => {
         if (cat) data.categoryId = cat.id;
     }
 
+    // Auto-default warehouseId nếu chưa có (seed/import scripts cũ)
+    if (!data.warehouseId) {
+        const { VAN_CATEGORIES } = await import('@/lib/vanCategories');
+        const targetCode = VAN_CATEGORIES.includes(data.category) ? 'KHO02' : 'KHO01';
+        const wh = await prisma.warehouse.findUnique({ where: { code: targetCode }, select: { id: true } });
+        if (wh) data.warehouseId = wh.id;
+    }
+
     const product = await prisma.product.create({
         data: { code, ...data },
     });
