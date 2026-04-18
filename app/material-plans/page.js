@@ -116,7 +116,7 @@ export default function MaterialPlansPage() {
                 <input className="input" placeholder="Tìm sản phẩm / dự án..." value={search} onChange={e => setSearch(e.target.value)} onKeyDown={e => e.key === 'Enter' && fetchData()} style={{ width: 260 }} />
                 <select className="input" value={filterProject} onChange={e => setFilterProject(e.target.value)} style={{ width: 220 }}>
                     <option value="">Tất cả dự án</option>
-                    {projects.map(p => <option key={p.id} value={p.id}>{p.code} - {p.name}</option>)}
+                    {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
                 </select>
             </div>
 

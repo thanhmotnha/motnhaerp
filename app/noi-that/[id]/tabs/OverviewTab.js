@@ -140,7 +140,7 @@ export default function OverviewTab({ order, onRefresh }) {
                             {order.project ? (
                                 <a href={`/projects/${order.project.code || order.projectId}`}
                                     style={{ color: 'var(--status-info)', textDecoration: 'none', fontWeight: 500 }}>
-                                    {order.project.code} — {order.project.name}
+                                    {order.project.name}
                                 </a>
                             ) : (
                                 <button className="btn btn-ghost btn-sm" style={{ padding: '2px 8px', fontSize: 12 }}
@@ -225,10 +225,10 @@ export default function OverviewTab({ order, onRefresh }) {
                                     <option value="">— Không gắn dự án —</option>
                                     {/* Always show the current project if exists */}
                                     {order.project && !projects.find(p => p.id === order.projectId) && (
-                                        <option value={order.projectId}>{order.project.code} — {order.project.name}</option>
+                                        <option value={order.projectId}>{order.project.name}</option>
                                     )}
                                     {projects.map(p => (
-                                        <option key={p.id} value={p.id}>{p.code} — {p.name}</option>
+                                        <option key={p.id} value={p.id}>{p.name}</option>
                                     ))}
                                 </select>
                             </div>

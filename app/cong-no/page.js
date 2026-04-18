@@ -564,7 +564,7 @@ export default function CongNoPage() {
                             onChange={e => { setSelectedProject(e.target.value); if (e.target.value) loadProjectDebts(e.target.value); }}
                             style={{ maxWidth: 320 }}>
                             <option value="">— Chọn dự án —</option>
-                            {projects.map(p => <option key={p.id} value={p.id}>{p.code} — {p.name}</option>)}
+                            {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
                         </select>
                     </div>
 
@@ -779,7 +779,7 @@ export default function CongNoPage() {
                             <label className="form-label">Dự án</label>
                             <select className="form-select" value={debtForm.projectId} onChange={e => setDebtForm({ ...debtForm, projectId: e.target.value })}>
                                 <option value="">— Không gắn —</option>
-                                {projects.map(p => <option key={p.id} value={p.id}>{p.code} — {p.name}</option>)}
+                                {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
                             </select>
                         </div>
                         <div className="form-group">

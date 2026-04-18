@@ -175,7 +175,7 @@ function ExpenseForm({ categories, onClose, onSuccess, toast }) {
                         <label className="form-label">Dự án chính</label>
                         <select className="form-input" value={form.projectId} onChange={e => setForm({ ...form, projectId: e.target.value })}>
                             <option value="">Không gắn dự án</option>
-                            {projects.map(p => <option key={p.id} value={p.id}>{p.code} — {p.name}</option>)}
+                            {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
                         </select>
                     </div>
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
@@ -209,7 +209,7 @@ function ExpenseForm({ categories, onClose, onSuccess, toast }) {
                             <div key={i} style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr auto', gap: 8, marginBottom: 6, alignItems: 'end' }}>
                                 <select className="form-input" value={a.projectId} onChange={e => updateAllocation(i, 'projectId', e.target.value)}>
                                     <option value="">Chọn DA</option>
-                                    {projects.filter(p => p.id !== form.projectId).map(p => <option key={p.id} value={p.id}>{p.code} — {p.name}</option>)}
+                                    {projects.filter(p => p.id !== form.projectId).map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
                                 </select>
                                 <input className="form-input" type="number" placeholder="Số tiền" value={a.amount} onChange={e => updateAllocation(i, 'amount', e.target.value)} />
                                 <input className="form-input" type="number" placeholder="% tỷ lệ" value={a.ratio} onChange={e => updateAllocation(i, 'ratio', e.target.value)} />

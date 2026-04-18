@@ -749,7 +749,7 @@ function BatchDetailModal({ batchId, onClose, toast, canManage }) {
                         <tbody>
                             {allocations.map(a => {
                                 const pid = a.projectId || a.project?.id;
-                                const pname = a.projectName || (a.project ? `${a.project.code} — ${a.project.name}` : pid);
+                                const pname = a.projectName || (a.project ? a.project.name : pid);
                                 return (
                                     <tr key={pid}>
                                         <td>{pname}</td>

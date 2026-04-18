@@ -401,7 +401,7 @@ export default function ContractDetailPage() {
                                         <label className="form-label">Dự án liên kết</label>
                                         <select className="form-select" value={form.projectId} onChange={e => setForm(f => ({ ...f, projectId: e.target.value }))}>
                                             <option value="">— Chưa gán dự án —</option>
-                                            {projects.map(p => <option key={p.id} value={p.id}>{p.code} — {p.name}</option>)}
+                                            {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
                                         </select>
                                     </div>
                                     <div className="form-group">
@@ -844,7 +844,7 @@ export default function ContractDetailPage() {
                                     <div style={{ display: 'flex', gap: 6 }}>
                                         <select className="form-select" style={{ flex: 1, fontSize: 12 }} value={linkProjectId} onChange={e => setLinkProjectId(e.target.value)}>
                                             <option value="">-- Chọn dự án đã có --</option>
-                                            {projects.map(p => <option key={p.id} value={p.id}>{p.code} - {p.name}</option>)}
+                                            {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
                                         </select>
                                         <button className="btn btn-secondary" onClick={linkExistingProject} disabled={linkingProject || !linkProjectId}>
                                             {linkingProject ? '...' : 'Link'}

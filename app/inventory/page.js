@@ -145,7 +145,7 @@ export default function InventoryPage() {
             </style></head><body>
             <h2>PHIẾU XUẤT KHO</h2>
             <div class="sub">Mã: ${si.code} | Ngày: ${new Date(si.issuedDate).toLocaleDateString('vi-VN')} | Kho: ${si.warehouse?.name || ''}</div>
-            <p><strong>Dự án:</strong> ${si.project ? `${si.project.code} — ${si.project.name}` : '—'} &nbsp;&nbsp; <strong>Người lập:</strong> ${si.issuedBy || '—'}</p>
+            <p><strong>Dự án:</strong> ${si.project ? si.project.name : '—'} &nbsp;&nbsp; <strong>Người lập:</strong> ${si.issuedBy || '—'}</p>
             <p><strong>Ghi chú:</strong> ${si.notes || '—'}</p>
             <table>
                 <thead><tr><th>#</th><th>Tên vật tư</th><th>ĐVT</th><th>Số lượng</th><th>Đơn giá</th><th>Thành tiền</th></tr></thead>
@@ -574,7 +574,7 @@ export default function InventoryPage() {
                                                 <td style={{ fontFamily: 'monospace', fontWeight: 600, fontSize: 12 }}>{si.code}</td>
                                                 <td style={{ fontSize: 13 }}>{new Date(si.issuedDate).toLocaleDateString('vi-VN')}</td>
                                                 <td style={{ fontSize: 12 }}>{si.warehouse?.name}</td>
-                                                <td style={{ fontSize: 12 }}>{si.project ? `${si.project.code} — ${si.project.name}` : '—'}</td>
+                                                <td style={{ fontSize: 12 }}>{si.project ? si.project.name : '—'}</td>
                                                 <td style={{ textAlign: 'right', fontSize: 13 }}>{si.items?.length}</td>
                                                 <td style={{ fontSize: 12 }}>{si.issuedBy || '—'}</td>
                                                 <td>
@@ -635,7 +635,7 @@ export default function InventoryPage() {
                                     <label className="form-label">Dự án (tuỳ chọn)</label>
                                     <select className="form-select" value={form.projectId} onChange={e => setForm({ ...form, projectId: e.target.value })}>
                                         <option value="">— Không gắn DA —</option>
-                                        {projects.map(p => <option key={p.id} value={p.id}>{p.code} — {p.name}</option>)}
+                                        {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
                                     </select>
                                 </div>
                             </div>
@@ -693,7 +693,7 @@ export default function InventoryPage() {
                                     <label className="form-label">Dự án</label>
                                     <select className="form-select" value={issueProjectId} onChange={e => setIssueProjectId(e.target.value)}>
                                         <option value="">— Không gắn dự án —</option>
-                                        {projects.map(p => <option key={p.id} value={p.id}>{p.code} — {p.name}</option>)}
+                                        {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
                                     </select>
                                 </div>
                                 <div className="form-group">
@@ -856,7 +856,7 @@ export default function InventoryPage() {
                         </div>
                         <div className="modal-body">
                             <div style={{ fontSize: 13, color: 'var(--text-muted)', marginBottom: 12 }}>
-                                Kho: {viewIssue.warehouse?.name} | Dự án: {viewIssue.project ? `${viewIssue.project.code} — ${viewIssue.project.name}` : '—'}<br />
+                                Kho: {viewIssue.warehouse?.name} | Dự án: {viewIssue.project ? viewIssue.project.name : '—'}<br />
                                 Ngày: {new Date(viewIssue.issuedDate).toLocaleDateString('vi-VN')} | Người lập: {viewIssue.issuedBy || '—'}
                             </div>
                             <table className="data-table">
@@ -974,7 +974,7 @@ export default function InventoryPage() {
                                     <select className="form-select" value={editIssueMeta.projectId}
                                         onChange={e => setEditIssueMeta(m => ({ ...m, projectId: e.target.value }))}>
                                         <option value="">— Không gắn —</option>
-                                        {projects.map(p => <option key={p.id} value={p.id}>{p.code} — {p.name}</option>)}
+                                        {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
                                     </select>
                                 </div>
                                 <div>

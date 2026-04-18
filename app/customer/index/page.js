@@ -39,7 +39,7 @@ export default function CustomerDashboard() {
             {project && (
                 <div className="card" style={{ marginBottom: 20 }}>
                     <div className="card-header" style={{ borderLeft: '4px solid var(--accent-primary)', paddingLeft: 12 }}>
-                        <h3>🏗️ Dự án: {project.code} - {project.name}</h3>
+                        <h3>🏗️ Dự án: {project.name}</h3>
                         <span className="status-badge" style={{ background: project.status === 'Đang thi công' ? 'var(--status-info)' : 'var(--status-success)', color: '#fff', padding: '4px 12px', borderRadius: 20, fontSize: 12 }}>
                             {project.status}
                         </span>

@@ -45,7 +45,7 @@ export default function BudgetPage() {
                 </div>
                 <select className="form-input" value={projectId} onChange={e => setProjectId(e.target.value)} style={{ maxWidth: 300 }}>
                     <option value="">Chọn dự án</option>
-                    {projects.map(p => <option key={p.id} value={p.id}>{p.code} — {p.name}</option>)}
+                    {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
                 </select>
             </div>
 

@@ -202,7 +202,7 @@ function InfoTab({ order }) {
                     <InfoRow label="Mã đơn" value={order.code} accent />
                     <InfoRow label="Tên" value={order.name} />
                     <InfoRow label="Khách hàng" value={order.customer?.name} />
-                    <InfoRow label="Dự án" value={order.project ? `${order.project.code} — ${order.project.name}` : '—'} />
+                    <InfoRow label="Dự án" value={order.project ? order.project.name : '—'} />
                     <InfoRow label="Báo giá" value={order.quotation?.code} />
                     <InfoRow label="Hợp đồng" value={order.contract?.code} />
                     <InfoRow label="Giao dự kiến" value={fmtDate(order.expectedDelivery)} />

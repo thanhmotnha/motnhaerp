@@ -218,7 +218,7 @@ export default function AcceptanceDetailPage() {
                 <div className="card" style={{ alignSelf: 'start' }}>
                     <div className="card-header"><span className="card-title">Thông tin</span></div>
                     <div style={{ padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: 12, fontSize: 13 }}>
-                        <InfoRow label="Dự án" value={report.project ? `${report.project.code} — ${report.project.name}` : '—'} />
+                        <InfoRow label="Dự án" value={report.project ? report.project.name : '—'} />
                         {report.milestone && <InfoRow label="Mốc công trình" value={report.milestone.name} />}
                         <InfoRow label="Cán bộ nghiệm thu" value={report.inspector || '—'} />
                         <InfoRow label="Đại diện khách hàng" value={report.customerRep || '—'} />

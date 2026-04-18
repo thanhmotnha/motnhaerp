@@ -622,7 +622,7 @@ function PurchasingContent() {
                                                     setPoForm(f => ({ ...f, projectId: e.target.value, deliveryAddress: proj?.address || '' }));
                                                 }}>
                                                 <option value="">-- Chọn dự án --</option>
-                                                {projects.map(p => <option key={p.id} value={p.id}>{p.code} — {p.name}</option>)}
+                                                {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
                                             </select>
                                             {poForm.deliveryAddress && (
                                                 <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4 }}>📍 {poForm.deliveryAddress}</div>
@@ -753,7 +753,7 @@ function PurchasingContent() {
                                                             >
                                                                 <option value="">🏭 Vào kho</option>
                                                                 {projects.filter(p => p.status !== 'Hoàn thành').map(p => (
-                                                                    <option key={p.id} value={p.id}>📍 {p.code} — {p.name}</option>
+                                                                    <option key={p.id} value={p.id}>📍 {p.name}</option>
                                                                 ))}
                                                             </select>
                                                             {i === 0 && (
@@ -1009,7 +1009,7 @@ function PurchasingContent() {
                         <div className="modal-body">
                             <div style={{ marginBottom: 8, fontSize: 13, color: 'var(--text-muted)' }}>
                                 NCC: <strong>{grnPO.supplier}</strong>
-                                {grnPO.project && <> &nbsp;|&nbsp; Dự án chính: <strong>{grnPO.project.code}</strong></>}
+                                {grnPO.project && <> &nbsp;|&nbsp; Dự án chính: <strong>{grnPO.project.name}</strong></>}
                             </div>
                             {poReceipts.length > 0 && (
                                 <div style={{ marginBottom: 12, background: 'var(--bg-secondary)', borderRadius: 8, padding: 12 }}>
@@ -1093,7 +1093,7 @@ function PurchasingContent() {
                                                 <div key={projectId} style={{ border: '1px solid var(--border)', borderRadius: 8, padding: 10, marginBottom: 12 }}>
                                                     <div style={{ marginBottom: 8 }}>
                                                         <strong style={{ fontSize: 13 }}>📍 Giao thẳng công trình</strong>
-                                                        {proj && <span style={{ marginLeft: 8, fontSize: 13, color: 'var(--text-secondary)' }}>{proj.code} — {proj.name}</span>}
+                                                        {proj && <span style={{ marginLeft: 8, fontSize: 13, color: 'var(--text-secondary)' }}>{proj.name}</span>}
                                                         <span style={{ marginLeft: 8, fontSize: 11, color: 'var(--text-muted)' }}>(không qua kho)</span>
                                                     </div>
                                                     <ItemsTable items={items} />
@@ -1155,7 +1155,7 @@ function PurchasingContent() {
                                 <div>
                                     <div style={{ fontSize: 11, color: '#666', marginBottom: 3, textTransform: 'uppercase', letterSpacing: 0.5 }}>Nhà cung cấp</div>
                                     <div style={{ fontSize: 15, fontWeight: 700 }}>{detailPO.supplier}</div>
-                                    {detailPO.project && <div style={{ fontSize: 12, color: '#555', marginTop: 4 }}>Dự án: <strong>{detailPO.project.code} — {detailPO.project.name}</strong></div>}
+                                    {detailPO.project && <div style={{ fontSize: 12, color: '#555', marginTop: 4 }}>Dự án: <strong>{detailPO.project.name}</strong></div>}
                                     {detailPO.notes && <div style={{ fontSize: 12, color: '#555', marginTop: 4 }}>Ghi chú: {detailPO.notes}</div>}
                                 </div>
                                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
@@ -1210,7 +1210,7 @@ function PurchasingContent() {
                                                 onChange={e => { setPoEditProjectId(e.target.value); if (e.target.value) setPoEditDeliveryType('Giao thẳng dự án'); }}
                                                 disabled={poEditDeliveryType === 'Nhập kho'}>
                                                 <option value="">-- Không gắn --</option>
-                                                {projects.map(p => <option key={p.id} value={p.id}>{p.code} — {p.name}</option>)}
+                                                {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
                                             </select>
                                         </div>
                                     </div>

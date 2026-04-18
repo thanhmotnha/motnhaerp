@@ -136,7 +136,7 @@ function AcceptanceFormModal({ onClose, onSuccess, toast }) {
                         <label className="form-label">Dự án *</label>
                         <select className="form-input" value={form.projectId} onChange={e => setForm({ ...form, projectId: e.target.value })} required>
                             <option value="">Chọn dự án</option>
-                            {projects.map(p => <option key={p.id} value={p.id}>{p.code} — {p.name}</option>)}
+                            {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
                         </select>
                     </div>
                     <div className="form-group">
