@@ -129,6 +129,7 @@ model Project {
   projectRisks          ProjectRisk[]
   punchListItems        PunchListItem[]
   purchaseOrders        PurchaseOrder[]
+  purchaseOrderItems    PurchaseOrderItem[]    @relation("PurchaseOrderItemProject")
   quotations            Quotation[]
   resources             ResourceAllocation[]
   risks                 RiskEntry[]
@@ -926,15 +927,18 @@ model PurchaseOrderItem {
   purchaseOrderId      String
   materialPlanId       String?
   furnitureOrderItemId String?
+  projectId            String?
   furnitureOrderItem   FurnitureOrderItem? @relation(fields: [furnitureOrderItemId], references: [id])
   materialPlan         MaterialPlan?       @relation(fields: [materialPlanId], references: [id])
   product              Product?            @relation(fields: [productId], references: [id])
   purchaseOrder        PurchaseOrder       @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
+  project              Project?            @relation("PurchaseOrderItemProject", fields: [projectId], references: [id])
   receiptItems         GoodsReceiptItem[]
 
   @@index([purchaseOrderId])
   @@index([materialPlanId])
   @@index([furnitureOrderItemId])
+  @@index([projectId])
 }
 
 model ProjectExpense {
