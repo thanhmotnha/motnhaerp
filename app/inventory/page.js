@@ -197,6 +197,15 @@ export default function InventoryPage() {
         const validItems = formItems.filter(it => it.productId && Number(it.quantity) > 0);
         if (!validItems.length) return alert('Thêm ít nhất 1 sản phẩm với số lượng > 0');
         if (!form.warehouseId) return alert('Chọn kho');
+        // Validate SP cùng kho với phiếu
+        const itemWhIds = [...new Set(validItems.map(it => {
+            const p = stockData.products.find(x => x.id === it.productId);
+            return p?.warehouseId;
+        }).filter(Boolean))];
+        if (itemWhIds.length > 1) return alert('SP thuộc nhiều kho khác nhau — tách thành phiếu riêng cho mỗi kho');
+        if (itemWhIds.length === 1 && itemWhIds[0] !== form.warehouseId) {
+            return alert('SP thuộc kho khác với phiếu — vui lòng chọn đúng kho của SP');
+        }
         setSaving(true);
         const res = await fetch('/api/inventory', {
             method: 'POST',
@@ -655,7 +664,13 @@ export default function InventoryPage() {
                                 </div>
                                 <div className="form-group">
                                     <label className="form-label">Kho *</label>
-                                    <select className="form-select" value={form.warehouseId} onChange={e => setForm({ ...form, warehouseId: e.target.value })}>
+                                    <select
+                                        className="form-select"
+                                        value={form.warehouseId}
+                                        onChange={e => setForm({ ...form, warehouseId: e.target.value })}
+                                        disabled={formItems.some(it => it.productId)}
+                                        title={formItems.some(it => it.productId) ? 'Kho auto-fill theo SP đã chọn' : ''}
+                                    >
                                         <option value="">— Chọn kho —</option>
                                         {txData.warehouses.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}
                                     </select>
@@ -672,12 +687,30 @@ export default function InventoryPage() {
                                 <label className="form-label">Ghi chú</label>
                                 <input className="form-input" value={form.note} onChange={e => setForm({ ...form, note: e.target.value })} />
                             </div>
+                            {(() => {
+                                const whIds = [...new Set(formItems.filter(it => it.productId).map(it => {
+                                    const p = stockData.products.find(x => x.id === it.productId);
+                                    return p?.warehouseId;
+                                }).filter(Boolean))];
+                                if (whIds.length > 1) {
+                                    return (
+                                        <div style={{ padding: 8, background: 'rgba(239,68,68,0.1)', border: '1px solid var(--status-danger)', borderRadius: 6, color: 'var(--status-danger)', fontSize: 12, marginBottom: 8 }}>
+                                            ⚠ SP thuộc nhiều kho khác nhau. Phải tách thành nhiều phiếu riêng cho từng kho.
+                                        </div>
+                                    );
+                                }
+                                return null;
+                            })()}
                             <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 8 }}>Danh sách sản phẩm:</div>
                             {formItems.map((item, i) => (
                                 <div key={i} style={{ display: 'grid', gridTemplateColumns: '2fr 100px 28px', gap: 6, marginBottom: 6, alignItems: 'center' }}>
                                     <select className="form-select" value={item.productId} onChange={e => {
                                         const p = stockData.products.find(p => p.id === e.target.value);
                                         setFormItems(prev => prev.map((it, idx) => idx === i ? { ...it, productId: e.target.value, unit: p?.unit || '' } : it));
+                                        // Auto-set warehouseId theo SP đầu tiên
+                                        if (p?.warehouseId && !form.warehouseId) {
+                                            setForm(f => ({ ...f, warehouseId: p.warehouseId }));
+                                        }
                                     }}>
                                         <option value="">— Chọn sản phẩm —</option>
                                         {stockData.products.map(p => <option key={p.id} value={p.id}>{p.name} (tồn: {p.stock} {p.unit})</option>)}
