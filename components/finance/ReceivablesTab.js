@@ -352,7 +352,7 @@ ${[1, 2].map(copy => `
                                         <td className="accent">{c.code}</td>
                                         <td className="primary">{c.name}</td>
                                         <td style={{ fontSize: 12 }}>{c.customer?.name}</td>
-                                        <td>{c.project ? <span className="badge info">{c.project.code}</span> : <span style={{ color: 'var(--text-muted)', fontSize: 11 }}>—</span>}</td>
+                                        <td>{c.project ? <span className="badge info">{c.project.name || c.project.code}</span> : <span style={{ color: 'var(--text-muted)', fontSize: 11 }}>—</span>}</td>
                                         <td><span className="badge badge-default" style={{ fontSize: 10 }}>{c.type}</span></td>
                                         <td className="amount">{fmt(c.contractValue)}</td>
                                         <td style={{ color: 'var(--status-success)', fontWeight: 600 }}>{fmt(c.paidAmount)}</td>

@@ -455,7 +455,7 @@ function PurchasingContent() {
                                     <td className="accent">{o.code}</td>
                                     <td className="primary">{o.supplier}</td>
                                     <td>{o.project
-                                        ? <span className="badge badge-info" style={{ cursor: 'pointer' }} onClick={() => router.push(`/projects/${o.project.code || o.projectId}`)}>{o.project.code}</span>
+                                        ? <span className="badge badge-info" style={{ cursor: 'pointer' }} onClick={() => router.push(`/projects/${o.project.code || o.projectId}`)}>{o.project.name || o.project.code}</span>
                                         : <span style={{ opacity: 0.3, fontSize: 12 }}>—</span>}
                                     </td>
                                     <td className="amount">{fmt(o.totalAmount)}</td>

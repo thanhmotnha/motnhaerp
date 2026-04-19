@@ -364,7 +364,7 @@ export default function ExpensesTab({ defaultValues, onDefaultValuesUsed }) {
 <div class="title">Phiếu Chi Tiền</div>
 <div style="text-align:center;font-size:12px;color:#888;margin-bottom:14px">Ngày ${today} — Mã: ${e.code}</div>
 <div class="row"><span class="label">Người nhận:</span><span class="value">${e.recipientName || e.submittedBy || '...'}</span></div>
-<div class="row"><span class="label">Dự án:</span><span class="value">${e.project?.code ? `${e.project.code} — ${e.project.name}` : '—'}</span></div>
+<div class="row"><span class="label">Dự án:</span><span class="value">${e.project?.name || '—'}</span></div>
 <div class="row"><span class="label">Hạng mục:</span><span class="value">${e.category}</span></div>
 <div class="row"><span class="label">Mô tả:</span><span class="value">${e.description}</span></div>
 <div class="amount"><div style="font-size:12px;color:#555;text-transform:uppercase;letter-spacing:2px;margin-bottom:4px">Số tiền chi</div><div class="val">${fmt(e.amount)}</div></div>
@@ -416,7 +416,7 @@ ${e.proofUrl ? parseProofUrls(e.proofUrl).map(url => `<img src="${url}" style="m
                 </select>
                 <select className="form-select" style={{ width: 180 }} value={filterProject} onChange={e => setFilterProject(e.target.value)}>
                     <option value="">Tất cả DA</option>
-                    {projects.map(p => <option key={p.id} value={p.id}>{p.code} — {p.name}</option>)}
+                    {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
                 </select>
                 <button className="btn btn-primary" style={{ marginLeft: 'auto' }} onClick={openCreate}>+ Tạo lệnh chi</button>
             </div>
@@ -547,7 +547,7 @@ ${e.proofUrl ? parseProofUrls(e.proofUrl).map(url => `<img src="${url}" style="m
                                 <label className="form-label">Dự án</label>
                                 <select className="form-select" value={form.projectId || ''} onChange={e => setForm(f => ({ ...f, projectId: e.target.value || null }))}>
                                     <option value="">— Không gắn dự án —</option>
-                                    {projects.map(p => <option key={p.id} value={p.id}>{p.code} — {p.name}</option>)}
+                                    {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
                                 </select>
                             </div>
                             )}
@@ -685,7 +685,7 @@ ${e.proofUrl ? parseProofUrls(e.proofUrl).map(url => `<img src="${url}" style="m
                                         <div key={i} style={{ display: 'grid', gridTemplateColumns: '2fr 1fr auto', gap: 8, marginBottom: 6, alignItems: 'end' }}>
                                             <select className="form-select" value={a.projectId} onChange={e => setAllocations(al => { const n = [...al]; n[i] = { ...n[i], projectId: e.target.value }; return n; })}>
                                                 <option value="">— Chọn dự án —</option>
-                                                {projects.map(p => <option key={p.id} value={p.id}>{p.code} — {p.name}</option>)}
+                                                {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
                                             </select>
                                             <input className="form-input" type="number" placeholder="Số tiền" value={a.amount} onChange={e => setAllocations(al => { const n = [...al]; n[i] = { ...n[i], amount: e.target.value }; return n; })} />
                                             <button type="button" className="btn" style={{ padding: '6px 8px', color: '#ef4444' }} onClick={() => setAllocations(al => al.filter((_, j) => j !== i))}>✕</button>

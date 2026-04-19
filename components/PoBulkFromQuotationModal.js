@@ -160,7 +160,7 @@ export default function PoBulkFromQuotationModal({ open, onClose, prefillProject
                 <b>Mã PO:</b> ${po.code} &nbsp;|&nbsp;
                 <b>NCC:</b> ${po.supplier} &nbsp;|&nbsp;
                 <b>Ngày:</b> ${new Date().toLocaleDateString('vi-VN')}
-                ${po.project ? `&nbsp;|&nbsp;<b>Dự án:</b> ${po.project.code}` : ''}
+                ${po.project ? `&nbsp;|&nbsp;<b>Dự án:</b> ${po.project.name || po.project.code}` : ''}
             </div>
             <table>
                 <thead><tr><th>#</th><th>Tên sản phẩm</th><th>ĐVT</th><th>Số lượng</th><th>Đơn giá</th><th>Thành tiền</th></tr></thead>
@@ -303,7 +303,7 @@ export default function PoBulkFromQuotationModal({ open, onClose, prefillProject
                                         onChange={e => setProjectId(e.target.value)}
                                         disabled={!!prefillProjectId}>
                                         <option value="">— Chọn dự án —</option>
-                                        {projects.map(p => <option key={p.id} value={p.id}>{p.code} — {p.name}</option>)}
+                                        {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
                                     </select>
                                 </div>
                                 <div>
