@@ -35,14 +35,20 @@ export const POST = withAuth(async (request, _ctx, session) => {
     let issue;
     try {
         issue = await prisma.$transaction(async (tx) => {
-            // Validate tồn kho đủ bên trong transaction để tránh race condition
+            // Validate tồn kho + kho-SP bên trong transaction để tránh race condition
             for (const item of data.items) {
                 if (!item.productId) continue;
                 const product = await tx.product.findUnique({
                     where: { id: item.productId },
-                    select: { stock: true, name: true },
+                    select: { stock: true, name: true, warehouseId: true },
                 });
                 if (!product) throw Object.assign(new Error('Sản phẩm không tồn tại'), { status: 400 });
+                if (product.warehouseId && product.warehouseId !== data.warehouseId) {
+                    throw Object.assign(
+                        new Error(`${product.name}: thuộc kho khác với phiếu xuất — tách phiếu riêng`),
+                        { status: 400 }
+                    );
+                }
                 if ((product.stock || 0) < item.qty) {
                     throw Object.assign(
                         new Error(`${item.productName}: tồn kho không đủ (tồn: ${product.stock}, cần: ${item.qty})`),

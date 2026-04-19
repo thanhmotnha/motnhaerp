@@ -64,9 +64,20 @@ export const POST = withAuth(async (request, _ctx, session) => {
     const productIds = items.map(it => it.productId).filter(Boolean);
     const products = await prisma.product.findMany({
         where: { id: { in: productIds } },
-        select: { id: true, name: true, unit: true, importPrice: true, stock: true },
+        select: { id: true, name: true, unit: true, importPrice: true, stock: true, warehouseId: true },
     });
     const productMap = Object.fromEntries(products.map(p => [p.id, p]));
+
+    // Validate tất cả SP cùng kho với phiếu
+    for (const item of items) {
+        const p = productMap[item.productId];
+        if (!p) continue;
+        if (p.warehouseId && p.warehouseId !== data.warehouseId) {
+            return NextResponse.json({
+                error: `${p.name}: thuộc kho khác với phiếu — tách phiếu riêng cho mỗi kho`,
+            }, { status: 400 });
+        }
+    }
 
     // Validate xuất kho không vượt tồn
     if (!isNhap) {
