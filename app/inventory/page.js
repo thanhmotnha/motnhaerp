@@ -514,12 +514,12 @@ export default function InventoryPage() {
                     <span style={{ fontSize: 20 }}>⚠️</span>
                     <div style={{ flex: 1 }}>
                         <div style={{ fontWeight: 700, color: 'var(--status-danger)', marginBottom: 4 }}>
-                            {reorderAlerts.length} vật tư dưới ngưỡng tồn kho tối thiểu
+                            {reorderAlerts.length} vật tư dưới ngưỡng đặt lại (reorder point)
                         </div>
                         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px 12px' }}>
                             {reorderAlerts.slice(0, 8).map(p => (
                                 <span key={p.id} style={{ fontSize: 12, color: 'var(--text-muted)' }}>
-                                    <strong>{p.name}</strong>: {p.stock} {p.unit} / min {p.reorderPoint}
+                                    <strong>{p.name}</strong>: {p.stock} {p.unit} / reorder {p.reorderPoint}
                                 </span>
                             ))}
                             {reorderAlerts.length > 8 && <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>+{reorderAlerts.length - 8} khác</span>}
@@ -660,7 +660,10 @@ export default function InventoryPage() {
                                                                         )}
                                                                     </div>
                                                                     <div style={{ padding: '8px 10px', flex: 1, display: 'flex', flexDirection: 'column' }}>
-                                                                        <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.code}</div>
+                                                                        <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 2, display: 'flex', justifyContent: 'space-between', gap: 4 }}>
+                                                                            <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.code}</span>
+                                                                            {p.location && <span style={{ color: 'var(--accent-primary)', fontSize: 10, flexShrink: 0 }} title="Vị trí">📍{p.location}</span>}
+                                                                        </div>
                                                                         <div style={{ fontSize: 13, fontWeight: 600, lineHeight: 1.3, marginBottom: 6, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{p.name}</div>
                                                                         <div style={{ fontSize: 18, fontWeight: 700, color: isLow ? 'var(--status-warning)' : 'var(--accent-primary)', marginTop: 'auto' }}>
                                                                             {p.stock}

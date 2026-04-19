@@ -7,7 +7,7 @@ export const GET = withAuth(async () => {
         select: {
             id: true, code: true, name: true, category: true,
             unit: true, stock: true, minStock: true,
-            importPrice: true, salePrice: true, image: true,
+            importPrice: true, salePrice: true, image: true, location: true,
             warehouseId: true,
             warehouse: { select: { id: true, code: true, name: true } },
         },

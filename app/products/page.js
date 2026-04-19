@@ -65,7 +65,7 @@ export default function ProductsPage() {
     const [newProduct, setNewProduct] = useState(null);
     const [selectedIds, setSelectedIds] = useState(new Set());
     const [showAddModal, setShowAddModal] = useState(false);
-    const [addForm, setAddForm] = useState({ name: '', category: 'Nội thất thành phẩm', unit: 'cái', salePrice: 0, importPrice: 0, brand: '', description: '', supplyType: 'Mua ngoài', stock: 0, minStock: 0, supplier: '', coreBoard: '', surfaceCode: '', image: '', warehouseId: '' });
+    const [addForm, setAddForm] = useState({ name: '', category: 'Nội thất thành phẩm', unit: 'cái', salePrice: 0, importPrice: 0, brand: '', description: '', supplyType: 'Mua ngoài', stock: 0, minStock: 0, supplier: '', coreBoard: '', surfaceCode: '', image: '', warehouseId: '', location: '' });
     const [warehouses, setWarehouses] = useState([]);
     // Edit modal state
     const [editModal, setEditModal] = useState(null); // product object being edited
@@ -906,6 +906,15 @@ export default function ProductsPage() {
                                         {warehouses.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}
                                     </select>
                                 </div>
+                                <div className="form-group" style={{ flex: 1 }}>
+                                    <label className="form-label">Vị trí trong kho</label>
+                                    <input
+                                        className="form-input"
+                                        value={addForm.location}
+                                        onChange={e => setAddForm(f => ({ ...f, location: e.target.value }))}
+                                        placeholder="VD: Kệ A1, Tầng 2..."
+                                    />
+                                </div>
                             </div>
                             <div className="form-row">
                                 <div className="form-group" style={{ flex: 2 }}>
@@ -1117,6 +1126,15 @@ export default function ProductsPage() {
                                         <option value="">— Chọn kho —</option>
                                         {warehouses.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}
                                     </select>
+                                </div>
+                                <div className="form-group" style={{ flex: 1 }}>
+                                    <label className="form-label">Vị trí trong kho</label>
+                                    <input
+                                        className="form-input"
+                                        value={editForm.location || ''}
+                                        onChange={e => setEdit('location', e.target.value)}
+                                        placeholder="VD: Kệ A1, Tầng 2..."
+                                    />
                                 </div>
                             </div>
 
