@@ -69,6 +69,12 @@ export async function PATCH(request, { params }) {
         // Product.stock does not change overall (xuất 1 kho + nhập 1 kho = 0)
         // Không cần update Product.stock vì tổng tồn kho không đổi khi chuyển giữa kho.
 
+        // 1 SP chỉ ở 1 kho → chuyển kho = đổi home warehouse
+        await tx.product.update({
+          where: { id: transfer.productId },
+          data: { warehouseId: transfer.toWarehouseId },
+        });
+
         // Update transfer status
         await tx.warehouseTransfer.update({
           where: { id },
