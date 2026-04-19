@@ -207,6 +207,7 @@ model Product {
   warehouseTransfers     WarehouseTransfer[]
   receiptItems           GoodsReceiptItem[]
   issueItems             StockIssueItem[]
+  stockTakingItems       StockTakingItem[]
 
   @@index([categoryId])
   @@index([warehouseId])
@@ -341,6 +342,7 @@ model Warehouse {
   transfersIn  WarehouseTransfer[]    @relation("TransferTo")
   receipts     GoodsReceipt[]
   stockIssues  StockIssue[]
+  stockTakings StockTaking[]
   products     Product[]
 }
 
@@ -2436,4 +2438,36 @@ model ContractorDebtPayment {
   debt ContractorDebt @relation(fields: [debtId], references: [id], onDelete: Cascade)
 
   @@index([debtId])
+}
+
+model StockTaking {
+  id             String              @id @default(cuid())
+  code           String              @unique
+  warehouseId    String
+  status         String              @default("Nháp")
+  note           String              @default("")
+  createdById    String              @default("")
+  createdAt      DateTime            @default(now())
+  completedAt    DateTime?
+
+  warehouse      Warehouse           @relation(fields: [warehouseId], references: [id])
+  items          StockTakingItem[]
+
+  @@index([warehouseId])
+  @@index([status])
+}
+
+model StockTakingItem {
+  id             String              @id @default(cuid())
+  stockTakingId  String
+  productId      String
+  systemStock    Int                 @default(0)
+  countedStock   Int?
+  note           String              @default("")
+
+  stockTaking    StockTaking         @relation(fields: [stockTakingId], references: [id], onDelete: Cascade)
+  product        Product             @relation(fields: [productId], references: [id])
+
+  @@index([stockTakingId])
+  @@index([productId])
 }
