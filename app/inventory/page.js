@@ -17,6 +17,7 @@ export default function InventoryPage() {
     const [filterType, setFilterType] = useState('');
     const [filterWarehouse, setFilterWarehouse] = useState('');
     const [stockSearch, setStockSearch] = useState('');
+    const [stockWarehouseFilter, setStockWarehouseFilter] = useState('');
     const [showModal, setShowModal] = useState(false);
     const [form, setForm] = useState(EMPTY_FORM);
     const [formItems, setFormItems] = useState([{ ...EMPTY_ITEM }]);
@@ -292,13 +293,19 @@ export default function InventoryPage() {
 
     const stockFiltered = stockData.products.filter(p =>
         p.stock > 0 &&
+        (!stockWarehouseFilter || p.warehouseId === stockWarehouseFilter) &&
         (!stockSearch || p.name.toLowerCase().includes(stockSearch.toLowerCase()) || p.code.toLowerCase().includes(stockSearch.toLowerCase()))
     );
 
-    const stockByCategory = stockFiltered.reduce((acc, p) => {
+    // Group: Kho → Danh mục → Products
+    const stockByWarehouse = stockFiltered.reduce((acc, p) => {
+        const whName = p.warehouse?.name || 'Chưa gán kho';
+        const whId = p.warehouseId || '_none';
+        if (!acc[whId]) acc[whId] = { name: whName, categories: {}, products: [] };
+        acc[whId].products.push(p);
         const cat = p.category || 'Khác';
-        if (!acc[cat]) acc[cat] = [];
-        acc[cat].push(p);
+        if (!acc[whId].categories[cat]) acc[whId].categories[cat] = [];
+        acc[whId].categories[cat].push(p);
         return acc;
     }, {});
     const totalFilteredValue = stockFiltered.reduce((s, p) => s + (p.stock || 0) * (p.importPrice || 0), 0);
@@ -381,12 +388,23 @@ export default function InventoryPage() {
                 {/* TAB: Tồn kho */}
                 {activeTab === 'stock' && (
                     <>
-                        <div style={{ padding: '10px 16px', borderBottom: '1px solid var(--border)' }}>
+                        <div style={{ padding: '10px 16px', borderBottom: '1px solid var(--border)', display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                             <input
                                 type="text" className="form-input" placeholder="Tìm sản phẩm..."
                                 value={stockSearch} onChange={e => setStockSearch(e.target.value)}
                                 style={{ maxWidth: 280 }}
                             />
+                            <select
+                                className="form-select"
+                                value={stockWarehouseFilter}
+                                onChange={e => setStockWarehouseFilter(e.target.value)}
+                                style={{ maxWidth: 180 }}
+                            >
+                                <option value="">🏭 Tất cả kho</option>
+                                {(txData.warehouses || []).map(w => (
+                                    <option key={w.id} value={w.id}>{w.name}</option>
+                                ))}
+                            </select>
                         </div>
                         {loading ? (
                             <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-muted)' }}>Đang tải...</div>
@@ -396,55 +414,66 @@ export default function InventoryPage() {
                             </div>
                         ) : (
                             <div style={{ padding: '12px 16px' }}>
-                                {Object.entries(stockByCategory).map(([cat, items]) => (
-                                    <div key={cat} style={{ marginBottom: 20 }}>
-                                        <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 8 }}>
-                                            {cat} <span style={{ fontWeight: 400 }}>({items.length})</span>
-                                        </div>
-                                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: 10 }}>
-                                            {items.map(p => {
-                                                const isLow = p.minStock > 0 && p.stock <= p.minStock;
-                                                return (
-                                                    <div key={p.id} style={{
-                                                        background: 'var(--bg-card)',
-                                                        border: `1px solid ${isLow ? 'var(--status-warning)' : 'var(--border)'}`,
-                                                        borderRadius: 8,
-                                                        overflow: 'hidden',
-                                                        display: 'flex',
-                                                        flexDirection: 'column',
-                                                    }}>
-                                                        <div style={{
-                                                            width: '100%',
-                                                            aspectRatio: '1 / 1',
-                                                            background: 'var(--bg-secondary)',
-                                                            display: 'flex',
-                                                            alignItems: 'center',
-                                                            justifyContent: 'center',
-                                                            overflow: 'hidden',
-                                                        }}>
-                                                            {p.image ? (
-                                                                <img src={p.image} alt={p.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                                                            ) : (
-                                                                <span style={{ fontSize: 32, color: 'var(--text-muted)' }}>📦</span>
-                                                            )}
-                                                        </div>
-                                                        <div style={{ padding: '8px 10px', flex: 1, display: 'flex', flexDirection: 'column' }}>
-                                                            <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.code}</div>
-                                                            <div style={{ fontSize: 13, fontWeight: 600, lineHeight: 1.3, marginBottom: 6, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{p.name}</div>
-                                                            <div style={{ fontSize: 18, fontWeight: 700, color: isLow ? 'var(--status-warning)' : 'var(--accent-primary)', marginTop: 'auto' }}>
-                                                                {p.stock}
-                                                                <span style={{ fontSize: 12, fontWeight: 400, color: 'var(--text-muted)', marginLeft: 4 }}>{p.unit}</span>
-                                                            </div>
-                                                            {isLow && <div style={{ fontSize: 10, color: 'var(--status-warning)', marginTop: 2 }}>Sắp hết</div>}
-                                                        </div>
+                                {Object.entries(stockByWarehouse).map(([whId, wh]) => {
+                                    const whValue = wh.products.reduce((s, p) => s + (p.stock || 0) * (p.importPrice || 0), 0);
+                                    return (
+                                        <div key={whId} style={{ marginBottom: 28 }}>
+                                            <div style={{ display: 'flex', alignItems: 'baseline', gap: 12, padding: '8px 0', borderBottom: '2px solid var(--border)', marginBottom: 12 }}>
+                                                <span style={{ fontSize: 15, fontWeight: 700 }}>🏭 {wh.name}</span>
+                                                <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>{wh.products.length} mã · {fmt(whValue)}</span>
+                                            </div>
+                                            {Object.entries(wh.categories).map(([cat, items]) => (
+                                                <div key={cat} style={{ marginBottom: 20 }}>
+                                                    <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 8 }}>
+                                                        {cat} <span style={{ fontWeight: 400 }}>({items.length})</span>
                                                     </div>
-                                                );
-                                            })}
+                                                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: 10 }}>
+                                                        {items.map(p => {
+                                                            const isLow = p.minStock > 0 && p.stock <= p.minStock;
+                                                            return (
+                                                                <div key={p.id} style={{
+                                                                    background: 'var(--bg-card)',
+                                                                    border: `1px solid ${isLow ? 'var(--status-warning)' : 'var(--border)'}`,
+                                                                    borderRadius: 8,
+                                                                    overflow: 'hidden',
+                                                                    display: 'flex',
+                                                                    flexDirection: 'column',
+                                                                }}>
+                                                                    <div style={{
+                                                                        width: '100%',
+                                                                        aspectRatio: '1 / 1',
+                                                                        background: 'var(--bg-secondary)',
+                                                                        display: 'flex',
+                                                                        alignItems: 'center',
+                                                                        justifyContent: 'center',
+                                                                        overflow: 'hidden',
+                                                                    }}>
+                                                                        {p.image ? (
+                                                                            <img src={p.image} alt={p.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                                                        ) : (
+                                                                            <span style={{ fontSize: 32, color: 'var(--text-muted)' }}>📦</span>
+                                                                        )}
+                                                                    </div>
+                                                                    <div style={{ padding: '8px 10px', flex: 1, display: 'flex', flexDirection: 'column' }}>
+                                                                        <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.code}</div>
+                                                                        <div style={{ fontSize: 13, fontWeight: 600, lineHeight: 1.3, marginBottom: 6, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{p.name}</div>
+                                                                        <div style={{ fontSize: 18, fontWeight: 700, color: isLow ? 'var(--status-warning)' : 'var(--accent-primary)', marginTop: 'auto' }}>
+                                                                            {p.stock}
+                                                                            <span style={{ fontSize: 12, fontWeight: 400, color: 'var(--text-muted)', marginLeft: 4 }}>{p.unit}</span>
+                                                                        </div>
+                                                                        {isLow && <div style={{ fontSize: 10, color: 'var(--status-warning)', marginTop: 2 }}>Sắp hết</div>}
+                                                                    </div>
+                                                                </div>
+                                                            );
+                                                        })}
+                                                    </div>
+                                                </div>
+                                            ))}
                                         </div>
-                                    </div>
-                                ))}
+                                    );
+                                })}
                                 <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 8 }}>
-                                    {stockFiltered.length} mã hàng · {Object.keys(stockByCategory).length} danh mục · Tổng: {fmt(totalFilteredValue)}
+                                    {stockFiltered.length} mã hàng · {Object.keys(stockByWarehouse).length} kho · Tổng: {fmt(totalFilteredValue)}
                                 </div>
                             </div>
                         )}
