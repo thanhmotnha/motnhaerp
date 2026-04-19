@@ -55,6 +55,17 @@ export default function InventoryPage() {
     const [editIssueMeta, setEditIssueMeta] = useState({ warehouseId: '', projectId: '', issuedBy: '', notes: '', issuedDate: '' });
     const [editIssueSaving, setEditIssueSaving] = useState(false);
 
+    // Kiểm kê state
+    const [stockTakings, setStockTakings] = useState([]);
+    const [stShowCreate, setStShowCreate] = useState(false);
+    const [stDetail, setStDetail] = useState(null);
+    const [stForm, setStForm] = useState({ warehouseId: '', note: '', mode: 'all', selectedCategories: [], selectedProductIds: [] });
+    const [stCreateSaving, setStCreateSaving] = useState(false);
+    const [stDetailItems, setStDetailItems] = useState([]);
+    const [stDetailSaving, setStDetailSaving] = useState(false);
+    const [stDetailFilter, setStDetailFilter] = useState('all');
+    const [stDetailSearch, setStDetailSearch] = useState('');
+
     const fetchTx = async () => {
         setLoading(true);
         const p = new URLSearchParams({ limit: 200 });
@@ -88,6 +99,12 @@ export default function InventoryPage() {
         const d = await res.json();
         setIssues(Array.isArray(d) ? d : []);
         setLoading(false);
+    };
+
+    const fetchStockTakings = async () => {
+        const res = await fetch('/api/stock-takings');
+        const d = await res.json();
+        setStockTakings(Array.isArray(d) ? d : []);
     };
 
     const printReceipt = (r) => {
@@ -184,6 +201,7 @@ export default function InventoryPage() {
         else if (activeTab === 'history') fetchTx();
         else if (activeTab === 'receipts') fetchReceipts();
         else if (activeTab === 'issues') fetchIssues();
+        else if (activeTab === 'kiem-ke') fetchStockTakings();
     }, [activeTab, filterType, filterWarehouse]);
 
     useEffect(() => {
@@ -306,6 +324,168 @@ export default function InventoryPage() {
         setEditIssueSaving(false);
     };
 
+    const openStockTakingDetail = async (id) => {
+        const res = await fetch(`/api/stock-takings/${id}`);
+        const d = await res.json();
+        setStDetail(d);
+        setStDetailItems((d.items || []).map(it => ({
+            ...it,
+            countedInput: it.countedStock !== null ? String(it.countedStock) : '',
+        })));
+        setStDetailFilter('all');
+        setStDetailSearch('');
+    };
+
+    const submitCreateStockTaking = async () => {
+        if (!stForm.warehouseId) return alert('Chọn kho');
+        const productsInWh = stockData.products.filter(p => p.warehouseId === stForm.warehouseId);
+        let productIds = null;
+        if (stForm.mode === 'category') {
+            if (stForm.selectedCategories.length === 0) return alert('Chọn ít nhất 1 danh mục');
+            productIds = productsInWh.filter(p => stForm.selectedCategories.includes(p.category)).map(p => p.id);
+        } else if (stForm.mode === 'manual') {
+            if (stForm.selectedProductIds.length === 0) return alert('Chọn ít nhất 1 SP');
+            productIds = stForm.selectedProductIds;
+        }
+        if (productIds !== null && productIds.length === 0) return alert('Không có SP nào khớp');
+        setStCreateSaving(true);
+        const res = await fetch('/api/stock-takings', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ warehouseId: stForm.warehouseId, note: stForm.note, productIds }),
+        });
+        setStCreateSaving(false);
+        if (!res.ok) { const e = await res.json(); return alert(e.error || 'Lỗi tạo phiếu'); }
+        const created = await res.json();
+        setStShowCreate(false);
+        fetchStockTakings();
+        openStockTakingDetail(created.id);
+    };
+
+    const saveStockTakingDraft = async () => {
+        if (!stDetail) return;
+        setStDetailSaving(true);
+        const res = await fetch(`/api/stock-takings/${stDetail.id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                items: stDetailItems.map(it => ({
+                    id: it.id,
+                    countedStock: it.countedInput === '' ? null : Number(it.countedInput),
+                    note: it.note || '',
+                })),
+            }),
+        });
+        setStDetailSaving(false);
+        if (!res.ok) { const e = await res.json(); return alert(e.error || 'Lỗi lưu'); }
+        const updated = await res.json();
+        setStDetail(updated);
+        setStDetailItems((updated.items || []).map(it => ({ ...it, countedInput: it.countedStock !== null ? String(it.countedStock) : '' })));
+        fetchStockTakings();
+    };
+
+    const deleteStockTaking = async () => {
+        if (!stDetail) return;
+        if (!confirm(`Xóa phiếu kiểm kê ${stDetail.code}?`)) return;
+        const res = await fetch(`/api/stock-takings/${stDetail.id}`, { method: 'DELETE' });
+        if (!res.ok) { const e = await res.json(); return alert(e.error || 'Lỗi xóa'); }
+        setStDetail(null);
+        fetchStockTakings();
+    };
+
+    const completeStockTaking = async () => {
+        if (!stDetail) return;
+        const toCount = stDetailItems.filter(it => it.countedInput !== '');
+        const diffCount = toCount.filter(it => Number(it.countedInput) !== it.systemStock).length;
+        const uncounted = stDetailItems.length - toCount.length;
+        if (toCount.length === 0) return alert('Nhập ít nhất 1 SP trước khi chốt');
+
+        const msg = `Chốt phiếu kiểm kê ${stDetail.code}?\n\n` +
+            `• ${diffCount} SP có chênh lệch → cập nhật stock\n` +
+            `• ${uncounted} SP chưa đếm → bỏ qua\n\n` +
+            `Thao tác này không thể hoàn tác.`;
+        if (!confirm(msg)) return;
+
+        setStDetailSaving(true);
+        const saveRes = await fetch(`/api/stock-takings/${stDetail.id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                items: stDetailItems.map(it => ({
+                    id: it.id,
+                    countedStock: it.countedInput === '' ? null : Number(it.countedInput),
+                    note: it.note || '',
+                })),
+            }),
+        });
+        if (!saveRes.ok) { setStDetailSaving(false); const e = await saveRes.json(); return alert(e.error || 'Lỗi lưu nháp'); }
+
+        const res = await fetch(`/api/stock-takings/${stDetail.id}/complete`, { method: 'POST' });
+        setStDetailSaving(false);
+        if (!res.ok) { const e = await res.json(); return alert(e.error || 'Lỗi chốt phiếu'); }
+        const updated = await res.json();
+        setStDetail(updated);
+        setStDetailItems((updated.items || []).map(it => ({ ...it, countedInput: it.countedStock !== null ? String(it.countedStock) : '' })));
+        fetchStockTakings();
+        fetchStock();
+        alert('✅ Đã chốt phiếu kiểm kê! Stock đã được cập nhật.');
+    };
+
+    const printStockTaking = async (id) => {
+        const res = await fetch(`/api/stock-takings/${id}`);
+        const st = await res.json();
+        if (!st || !st.items) return alert('Không tải được phiếu');
+
+        const win = window.open('', '_blank');
+        win.document.write(`
+            <html><head><title>Phiếu kiểm kê ${st.code}</title>
+            <style>
+                body { font-family: Arial, sans-serif; font-size: 13px; padding: 24px; color: #000; }
+                h2 { text-align: center; margin: 0 0 4px; }
+                .sub { text-align: center; color: #555; margin-bottom: 16px; }
+                table { width: 100%; border-collapse: collapse; margin: 12px 0; }
+                th, td { border: 1px solid #999; padding: 6px 10px; text-align: left; }
+                th { background: #f5f5f5; font-weight: 600; }
+                .sign { display: flex; justify-content: space-between; margin-top: 40px; }
+                .sign div { text-align: center; width: 200px; }
+                @media print { button { display: none; } }
+            </style></head><body>
+            <h2>PHIẾU KIỂM KÊ KHO</h2>
+            <div class="sub">Mã: ${st.code} | Kho: ${st.warehouse?.name || ''} | Ngày: ${new Date(st.createdAt).toLocaleDateString('vi-VN')}</div>
+            <p><strong>Trạng thái:</strong> ${st.status}${st.completedAt ? ` (Hoàn thành: ${new Date(st.completedAt).toLocaleDateString('vi-VN')})` : ''}</p>
+            ${st.note ? `<p><strong>Ghi chú:</strong> ${st.note}</p>` : ''}
+            <table>
+                <thead><tr><th>#</th><th>Tên SP</th><th>ĐVT</th><th>Hệ thống</th><th>Thực tế</th><th>Chênh lệch</th><th>Ghi chú</th></tr></thead>
+                <tbody>
+                    ${(st.items || []).map((it, i) => {
+                        const delta = it.countedStock === null ? '—' : (it.countedStock - it.systemStock);
+                        const deltaStr = delta === '—' ? '—' : (delta > 0 ? `+${delta}` : delta);
+                        return `
+                            <tr>
+                                <td>${i + 1}</td>
+                                <td>${it.product?.name || '(Đã xóa)'}</td>
+                                <td>${it.product?.unit || ''}</td>
+                                <td style="text-align:right">${it.systemStock}</td>
+                                <td style="text-align:right">${it.countedStock !== null ? it.countedStock : '—'}</td>
+                                <td style="text-align:right">${deltaStr}</td>
+                                <td>${it.note || ''}</td>
+                            </tr>`;
+                    }).join('')}
+                </tbody>
+            </table>
+            <div class="sign">
+                <div><p>Người lập phiếu</p><br><br><small>(Ký, ghi rõ họ tên)</small></div>
+                <div><p>Thủ kho</p><br><br><small>(Ký, ghi rõ họ tên)</small></div>
+                <div><p>Kế toán</p><br><br><small>(Ký, ghi rõ họ tên)</small></div>
+            </div>
+            <button onclick="window.print()">In phiếu</button>
+            </body></html>
+        `);
+        win.document.close();
+        win.focus();
+        setTimeout(() => win.print(), 400);
+    };
+
     const stockFiltered = stockData.products.filter(p =>
         p.stock > 0 &&
         (!stockWarehouseFilter || p.warehouseId === stockWarehouseFilter) &&
@@ -395,6 +575,9 @@ export default function InventoryPage() {
                         </button>
                         <button className={`tab-item ${activeTab === 'issues' ? 'active' : ''}`} onClick={() => setActiveTab('issues')}>
                             📤 Phiếu xuất
+                        </button>
+                        <button className={`tab-item ${activeTab === 'kiem-ke' ? 'active' : ''}`} onClick={() => setActiveTab('kiem-ke')}>
+                            📋 Kiểm kê
                         </button>
                     </div>
                     <button className="btn btn-primary" onClick={openModal}>+ Nhập/Xuất kho</button>
@@ -643,6 +826,64 @@ export default function InventoryPage() {
                                 </table>
                             </div>
                         )}
+                    </>
+                )}
+
+                {/* TAB: Kiểm kê */}
+                {activeTab === 'kiem-ke' && (
+                    <>
+                        <div style={{ padding: '10px 16px', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <div style={{ fontSize: 13, color: 'var(--text-muted)' }}>{stockTakings.length} phiếu kiểm kê</div>
+                            <button className="btn btn-primary" onClick={() => {
+                                setStForm({ warehouseId: txData.warehouses[0]?.id || '', note: '', mode: 'all', selectedCategories: [], selectedProductIds: [] });
+                                setStShowCreate(true);
+                            }}>+ Tạo phiếu kiểm kê</button>
+                        </div>
+                        <div className="table-container">
+                            <table className="data-table" style={{ fontSize: 13 }}>
+                                <thead>
+                                    <tr>
+                                        <th>Mã</th>
+                                        <th>Kho</th>
+                                        <th>Ngày tạo</th>
+                                        <th style={{ textAlign: 'center' }}>SL SP</th>
+                                        <th style={{ textAlign: 'center' }}>Đã đếm</th>
+                                        <th style={{ textAlign: 'center' }}>Chênh lệch</th>
+                                        <th>Trạng thái</th>
+                                        <th></th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {stockTakings.map(st => (
+                                        <tr key={st.id} onClick={() => openStockTakingDetail(st.id)} style={{ cursor: 'pointer' }}>
+                                            <td className="accent">{st.code}</td>
+                                            <td>{st.warehouse?.name || '—'}</td>
+                                            <td>{fmtDate(st.createdAt)}</td>
+                                            <td style={{ textAlign: 'center' }}>{st.totalItems}</td>
+                                            <td style={{ textAlign: 'center', color: 'var(--status-info)' }}>{st.countedItems}</td>
+                                            <td style={{ textAlign: 'center', color: st.diffItems > 0 ? 'var(--status-warning)' : 'var(--text-muted)', fontWeight: 600 }}>
+                                                {st.diffItems || '—'}
+                                            </td>
+                                            <td>
+                                                <span className="badge" style={{
+                                                    background: st.status === 'Hoàn thành' ? 'rgba(34,197,94,0.15)' : 'rgba(245,158,11,0.15)',
+                                                    color: st.status === 'Hoàn thành' ? 'var(--status-success)' : 'var(--status-warning)',
+                                                    fontSize: 11, padding: '2px 8px',
+                                                }}>{st.status}</span>
+                                            </td>
+                                            <td style={{ textAlign: 'right' }}>
+                                                {st.status === 'Hoàn thành' && (
+                                                    <button className="btn btn-ghost btn-sm" onClick={(e) => { e.stopPropagation(); printStockTaking(st.id); }}>🖨️</button>
+                                                )}
+                                            </td>
+                                        </tr>
+                                    ))}
+                                    {stockTakings.length === 0 && (
+                                        <tr><td colSpan={8} style={{ textAlign: 'center', color: 'var(--text-muted)', padding: 30 }}>Chưa có phiếu kiểm kê nào</td></tr>
+                                    )}
+                                </tbody>
+                            </table>
+                        </div>
                     </>
                 )}
             </div>
@@ -1179,6 +1420,221 @@ export default function InventoryPage() {
                             <button className="btn btn-primary" onClick={saveEditIssue} disabled={editIssueSaving}>
                                 {editIssueSaving ? '⏳ Đang lưu...' : '💾 Lưu thay đổi'}
                             </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Modal tạo phiếu kiểm kê */}
+            {stShowCreate && (
+                <div className="modal-overlay" onClick={() => setStShowCreate(false)}>
+                    <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 600 }}>
+                        <div className="modal-header">
+                            <h3>Tạo phiếu kiểm kê</h3>
+                            <button className="modal-close" onClick={() => setStShowCreate(false)}>×</button>
+                        </div>
+                        <div className="modal-body">
+                            <div className="form-group" style={{ marginBottom: 12 }}>
+                                <label className="form-label">Kho *</label>
+                                <select className="form-select" value={stForm.warehouseId} onChange={e => setStForm({ ...stForm, warehouseId: e.target.value, selectedCategories: [], selectedProductIds: [] })}>
+                                    <option value="">— Chọn kho —</option>
+                                    {txData.warehouses.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}
+                                </select>
+                            </div>
+                            <div className="form-group" style={{ marginBottom: 12 }}>
+                                <label className="form-label">Ghi chú</label>
+                                <input className="form-input" value={stForm.note} onChange={e => setStForm({ ...stForm, note: e.target.value })} placeholder="VD: Kiểm kê cuối tháng 4" />
+                            </div>
+                            <div className="form-group" style={{ marginBottom: 12 }}>
+                                <label className="form-label">Chọn SP để kiểm kê</label>
+                                <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
+                                    {[
+                                        { v: 'all', label: 'Tất cả SP trong kho' },
+                                        { v: 'category', label: 'Theo danh mục' },
+                                        { v: 'manual', label: 'Chọn thủ công' },
+                                    ].map(opt => (
+                                        <button key={opt.v} type="button"
+                                            className={`btn btn-sm ${stForm.mode === opt.v ? 'btn-primary' : 'btn-ghost'}`}
+                                            onClick={() => setStForm({ ...stForm, mode: opt.v })}>
+                                            {opt.label}
+                                        </button>
+                                    ))}
+                                </div>
+                                {stForm.mode === 'category' && stForm.warehouseId && (
+                                    <div style={{ maxHeight: 200, overflowY: 'auto', border: '1px solid var(--border)', borderRadius: 6, padding: 8 }}>
+                                        {[...new Set(stockData.products.filter(p => p.warehouseId === stForm.warehouseId).map(p => p.category).filter(Boolean))].sort().map(cat => (
+                                            <label key={cat} style={{ display: 'block', padding: 4, cursor: 'pointer' }}>
+                                                <input type="checkbox"
+                                                    checked={stForm.selectedCategories.includes(cat)}
+                                                    onChange={e => {
+                                                        const next = e.target.checked
+                                                            ? [...stForm.selectedCategories, cat]
+                                                            : stForm.selectedCategories.filter(c => c !== cat);
+                                                        setStForm({ ...stForm, selectedCategories: next });
+                                                    }}
+                                                />
+                                                <span style={{ marginLeft: 6 }}>{cat}</span>
+                                            </label>
+                                        ))}
+                                    </div>
+                                )}
+                                {stForm.mode === 'manual' && stForm.warehouseId && (
+                                    <div style={{ maxHeight: 240, overflowY: 'auto', border: '1px solid var(--border)', borderRadius: 6, padding: 8 }}>
+                                        {stockData.products.filter(p => p.warehouseId === stForm.warehouseId).map(p => (
+                                            <label key={p.id} style={{ display: 'block', padding: 3, cursor: 'pointer', fontSize: 12 }}>
+                                                <input type="checkbox"
+                                                    checked={stForm.selectedProductIds.includes(p.id)}
+                                                    onChange={e => {
+                                                        const next = e.target.checked
+                                                            ? [...stForm.selectedProductIds, p.id]
+                                                            : stForm.selectedProductIds.filter(id => id !== p.id);
+                                                        setStForm({ ...stForm, selectedProductIds: next });
+                                                    }}
+                                                />
+                                                <span style={{ marginLeft: 6 }}>{p.name} <span style={{ color: 'var(--text-muted)' }}>({p.code}) — tồn: {p.stock}</span></span>
+                                            </label>
+                                        ))}
+                                    </div>
+                                )}
+                                {(() => {
+                                    if (!stForm.warehouseId) return null;
+                                    const whProducts = stockData.products.filter(p => p.warehouseId === stForm.warehouseId);
+                                    let count = 0;
+                                    if (stForm.mode === 'all') count = whProducts.length;
+                                    else if (stForm.mode === 'category') count = whProducts.filter(p => stForm.selectedCategories.includes(p.category)).length;
+                                    else if (stForm.mode === 'manual') count = stForm.selectedProductIds.length;
+                                    return <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 6 }}>Sẽ kiểm kê: <strong>{count}</strong> SP</div>;
+                                })()}
+                            </div>
+                        </div>
+                        <div className="modal-footer">
+                            <button className="btn btn-ghost" onClick={() => setStShowCreate(false)}>Hủy</button>
+                            <button className="btn btn-primary" onClick={submitCreateStockTaking} disabled={stCreateSaving}>
+                                {stCreateSaving ? 'Đang tạo...' : 'Tạo phiếu'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Modal chi tiết phiếu kiểm kê */}
+            {stDetail && (
+                <div className="modal-overlay" onClick={() => setStDetail(null)}>
+                    <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 900, width: '95%', maxHeight: '90vh', display: 'flex', flexDirection: 'column' }}>
+                        <div className="modal-header">
+                            <h3>📋 Phiếu kiểm kê {stDetail.code}
+                                <span className="badge" style={{ marginLeft: 10, fontSize: 11, padding: '2px 8px',
+                                    background: stDetail.status === 'Hoàn thành' ? 'rgba(34,197,94,0.15)' : 'rgba(245,158,11,0.15)',
+                                    color: stDetail.status === 'Hoàn thành' ? 'var(--status-success)' : 'var(--status-warning)',
+                                }}>{stDetail.status}</span>
+                            </h3>
+                            <button className="modal-close" onClick={() => setStDetail(null)}>×</button>
+                        </div>
+                        <div className="modal-body" style={{ flex: 1, overflowY: 'auto' }}>
+                            <div style={{ fontSize: 13, color: 'var(--text-muted)', marginBottom: 12 }}>
+                                Kho: <strong>{stDetail.warehouse?.name}</strong>
+                                &nbsp;|&nbsp; Ngày tạo: <strong>{fmtDate(stDetail.createdAt)}</strong>
+                                {stDetail.note && <> &nbsp;|&nbsp; Ghi chú: <strong>{stDetail.note}</strong></>}
+                            </div>
+
+                            {(() => {
+                                const total = stDetailItems.length;
+                                const counted = stDetailItems.filter(it => it.countedInput !== '').length;
+                                const diff = stDetailItems.filter(it => it.countedInput !== '' && Number(it.countedInput) !== it.systemStock).length;
+                                return (
+                                    <div style={{ display: 'flex', gap: 12, marginBottom: 12, fontSize: 13 }}>
+                                        <div>Đã đếm: <strong>{counted}/{total}</strong></div>
+                                        <div>Chênh lệch: <strong style={{ color: diff > 0 ? 'var(--status-warning)' : 'var(--text-muted)' }}>{diff} mã</strong></div>
+                                    </div>
+                                );
+                            })()}
+
+                            <div style={{ display: 'flex', gap: 8, marginBottom: 8, flexWrap: 'wrap' }}>
+                                <input className="form-input" placeholder="Tìm SP..." value={stDetailSearch} onChange={e => setStDetailSearch(e.target.value)} style={{ maxWidth: 240 }} />
+                                <select className="form-select" value={stDetailFilter} onChange={e => setStDetailFilter(e.target.value)} style={{ maxWidth: 180 }}>
+                                    <option value="all">Tất cả</option>
+                                    <option value="uncounted">Chưa đếm</option>
+                                    <option value="diff">Có chênh lệch</option>
+                                </select>
+                            </div>
+
+                            <table className="data-table" style={{ fontSize: 12 }}>
+                                <thead>
+                                    <tr>
+                                        <th>SP</th>
+                                        <th>ĐVT</th>
+                                        <th style={{ textAlign: 'right' }}>Hệ thống</th>
+                                        <th style={{ textAlign: 'center' }}>Số thực</th>
+                                        <th style={{ textAlign: 'right' }}>Chênh lệch</th>
+                                        <th>Ghi chú</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {stDetailItems
+                                        .filter(it => {
+                                            if (stDetailFilter === 'uncounted' && it.countedInput !== '') return false;
+                                            if (stDetailFilter === 'diff') {
+                                                if (it.countedInput === '') return false;
+                                                if (Number(it.countedInput) === it.systemStock) return false;
+                                            }
+                                            if (stDetailSearch && !it.product?.name?.toLowerCase().includes(stDetailSearch.toLowerCase()) && !it.product?.code?.toLowerCase().includes(stDetailSearch.toLowerCase())) return false;
+                                            return true;
+                                        })
+                                        .map(it => {
+                                            const i = stDetailItems.findIndex(x => x.id === it.id);
+                                            const delta = it.countedInput === '' ? null : Number(it.countedInput) - it.systemStock;
+                                            const readonly = stDetail.status !== 'Nháp';
+                                            return (
+                                                <tr key={it.id}>
+                                                    <td>
+                                                        <div style={{ fontWeight: 600 }}>{it.product?.name || '(Đã xóa)'}</div>
+                                                        <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{it.product?.code}</div>
+                                                    </td>
+                                                    <td>{it.product?.unit}</td>
+                                                    <td style={{ textAlign: 'right' }}>{it.systemStock}</td>
+                                                    <td style={{ textAlign: 'center' }}>
+                                                        {readonly ? (it.countedStock !== null ? it.countedStock : '—') : (
+                                                            <input className="form-input form-input-compact" type="number" min="0" style={{ width: 80, textAlign: 'center' }}
+                                                                value={it.countedInput}
+                                                                onChange={e => setStDetailItems(prev => prev.map((x, idx) => idx === i ? { ...x, countedInput: e.target.value } : x))}
+                                                            />
+                                                        )}
+                                                    </td>
+                                                    <td style={{ textAlign: 'right', fontWeight: 600, color: delta === null ? 'var(--text-muted)' : (delta > 0 ? 'var(--status-success)' : delta < 0 ? 'var(--status-danger)' : 'var(--text-muted)') }}>
+                                                        {delta === null ? '—' : (delta > 0 ? `+${delta}` : delta)}
+                                                    </td>
+                                                    <td>
+                                                        {readonly ? (it.note || '') : (
+                                                            <input className="form-input form-input-compact" style={{ fontSize: 12 }}
+                                                                value={it.note || ''}
+                                                                onChange={e => setStDetailItems(prev => prev.map((x, idx) => idx === i ? { ...x, note: e.target.value } : x))}
+                                                            />
+                                                        )}
+                                                    </td>
+                                                </tr>
+                                            );
+                                        })}
+                                </tbody>
+                            </table>
+                        </div>
+                        <div className="modal-footer">
+                            {stDetail.status === 'Nháp' ? (
+                                <>
+                                    <button className="btn btn-ghost" style={{ color: 'var(--status-danger)' }} onClick={deleteStockTaking}>🗑️ Xóa phiếu</button>
+                                    <div style={{ flex: 1 }} />
+                                    <button className="btn btn-ghost" onClick={() => setStDetail(null)}>Đóng</button>
+                                    <button className="btn btn-ghost" onClick={saveStockTakingDraft} disabled={stDetailSaving}>
+                                        {stDetailSaving ? 'Đang lưu...' : '💾 Lưu nháp'}
+                                    </button>
+                                    <button className="btn btn-primary" onClick={completeStockTaking} disabled={stDetailSaving}>✅ Chốt phiếu</button>
+                                </>
+                            ) : (
+                                <>
+                                    <button className="btn btn-ghost btn-sm" onClick={() => printStockTaking(stDetail.id)}>🖨️ In phiếu</button>
+                                    <div style={{ flex: 1 }} />
+                                    <button className="btn btn-primary" onClick={() => setStDetail(null)}>Đóng</button>
+                                </>
+                            )}
                         </div>
                     </div>
                 </div>
