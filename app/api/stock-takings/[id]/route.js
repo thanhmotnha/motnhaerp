@@ -19,7 +19,7 @@ export const GET = withAuth(async (_request, { params }) => {
     });
     if (!taking) return NextResponse.json({ error: 'Không tìm thấy phiếu kiểm kê' }, { status: 404 });
     return NextResponse.json(taking);
-}, { roles: ['ke_toan', 'giam_doc'] });
+}, { roles: ['ke_toan', 'giam_doc', 'kho'] });
 
 export const PUT = withAuth(async (request, { params }) => {
     const { id } = await params;
@@ -60,7 +60,7 @@ export const PUT = withAuth(async (request, { params }) => {
         },
     });
     return NextResponse.json(updated);
-}, { roles: ['ke_toan', 'giam_doc'] });
+}, { roles: ['ke_toan', 'giam_doc', 'kho'] });
 
 export const DELETE = withAuth(async (_request, { params }) => {
     const { id } = await params;
@@ -71,4 +71,4 @@ export const DELETE = withAuth(async (_request, { params }) => {
     }
     await prisma.stockTaking.delete({ where: { id } });
     return NextResponse.json({ ok: true });
-}, { roles: ['ke_toan', 'giam_doc'] });
+}, { roles: ['ke_toan', 'giam_doc', 'kho'] });

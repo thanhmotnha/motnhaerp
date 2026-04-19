@@ -79,4 +79,4 @@ export const POST = withAuth(async (_request, { params }) => {
         },
     });
     return NextResponse.json(updated);
-}, { roles: ['ke_toan', 'giam_doc'] });
+}, { roles: ['ke_toan', 'giam_doc', 'kho'] });

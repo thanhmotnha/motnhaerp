@@ -41,7 +41,7 @@ export const GET = withAuth(async (request) => {
     });
 
     return NextResponse.json(data);
-}, { roles: ['ke_toan', 'giam_doc'] });
+}, { roles: ['ke_toan', 'giam_doc', 'kho'] });
 
 export const POST = withAuth(async (request, _ctx, session) => {
     const body = await request.json();
@@ -89,4 +89,4 @@ export const POST = withAuth(async (request, _ctx, session) => {
     });
 
     return NextResponse.json(taking, { status: 201 });
-}, { roles: ['ke_toan', 'giam_doc'] });
+}, { roles: ['ke_toan', 'giam_doc', 'kho'] });

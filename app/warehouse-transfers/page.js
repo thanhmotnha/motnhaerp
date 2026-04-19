@@ -32,7 +32,7 @@ export default function WarehouseTransfersPage() {
             if (filterStatus) p.set('status', filterStatus);
             const r = await fetch(`/api/warehouses/transfers?${p}`);
             const d = await r.json();
-            setTransfers(d.data || []);
+            setTransfers(Array.isArray(d) ? d : (d.data || []));
         } catch {}
         setLoading(false);
     }, [filterStatus]);
@@ -69,8 +69,76 @@ export default function WarehouseTransfersPage() {
     };
 
     const approve = async (id) => {
-        await fetch(`/api/warehouses/transfers/${id}/approve`, { method: 'POST' });
+        const res = await fetch(`/api/warehouses/transfers/${id}/approve`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ status: 'Đã chuyển' }),
+        });
+        if (!res.ok) { const e = await res.json(); return alert(e.error || 'Lỗi duyệt'); }
         load();
+    };
+
+    const cancel = async (id) => {
+        if (!confirm('Huỷ phiếu chuyển kho này?')) return;
+        const res = await fetch(`/api/warehouses/transfers/${id}/approve`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ status: 'Huỷ' }),
+        });
+        if (!res.ok) { const e = await res.json(); return alert(e.error || 'Lỗi huỷ'); }
+        load();
+    };
+
+    const removeTransfer = async (id) => {
+        if (!confirm('Xóa phiếu chuyển kho này?')) return;
+        const res = await fetch(`/api/warehouses/transfers/${id}`, { method: 'DELETE' });
+        if (!res.ok) { const e = await res.json(); return alert(e.error || 'Lỗi xóa'); }
+        load();
+    };
+
+    const printTransfer = (t) => {
+        const win = window.open('', '_blank');
+        win.document.write(`
+            <html><head><title>Phiếu chuyển kho ${t.code}</title>
+            <style>
+                body { font-family: Arial, sans-serif; font-size: 13px; padding: 24px; color: #000; }
+                h2 { text-align: center; margin: 0 0 4px; }
+                .sub { text-align: center; color: #555; margin-bottom: 16px; }
+                .info { margin: 10px 0; }
+                table { width: 100%; border-collapse: collapse; margin: 12px 0; }
+                th, td { border: 1px solid #999; padding: 6px 10px; text-align: left; }
+                th { background: #f5f5f5; font-weight: 600; }
+                .sign { display: flex; justify-content: space-between; margin-top: 40px; }
+                .sign div { text-align: center; width: 200px; }
+                @media print { button { display: none; } }
+            </style></head><body>
+            <h2>PHIẾU CHUYỂN KHO</h2>
+            <div class="sub">Mã: ${t.code} | Ngày: ${fmtDate(t.transferDate || t.createdAt)} | Trạng thái: ${t.status}</div>
+            <div class="info"><strong>Từ kho:</strong> ${t.fromWarehouse?.name || '—'} &nbsp;&nbsp; <strong>Đến kho:</strong> ${t.toWarehouse?.name || '—'}</div>
+            ${t.createdBy ? `<div class="info"><strong>Người lập:</strong> ${t.createdBy}</div>` : ''}
+            ${t.notes ? `<div class="info"><strong>Ghi chú:</strong> ${t.notes}</div>` : ''}
+            <table>
+                <thead><tr><th>#</th><th>Sản phẩm</th><th>Mã SP</th><th>Số lượng</th></tr></thead>
+                <tbody>
+                    <tr>
+                        <td>1</td>
+                        <td>${t.product?.name || '—'}</td>
+                        <td>${t.product?.code || '—'}</td>
+                        <td style="text-align:right">${fmt(t.quantity)}</td>
+                    </tr>
+                </tbody>
+            </table>
+            <div class="sign">
+                <div><p>Người lập phiếu</p><br><br><small>(Ký, ghi rõ họ tên)</small></div>
+                <div><p>Thủ kho xuất</p><br><br><small>(Ký, ghi rõ họ tên)</small></div>
+                <div><p>Thủ kho nhận</p><br><br><small>(Ký, ghi rõ họ tên)</small></div>
+            </div>
+            <button onclick="window.print()">In phiếu</button>
+            </body></html>
+        `);
+        win.document.close();
+        win.focus();
+        setTimeout(() => win.print(), 400);
     };
 
     const stats = {
@@ -175,11 +243,16 @@ export default function WarehouseTransfersPage() {
                                     <td style={{ fontSize: 12 }}>{fmtDate(t.transferDate)}</td>
                                     <td style={{ fontSize: 12 }}>{t.createdBy || '—'}</td>
                                     <td>
-                                        {t.status === 'Chờ duyệt' && (
-                                            <button className="btn btn-ghost" style={{ fontSize: 11, padding: '2px 8px' }} onClick={() => approve(t.id)}>
-                                                ✅ Duyệt
-                                            </button>
-                                        )}
+                                        <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+                                            {t.status === 'Chờ duyệt' && (
+                                                <>
+                                                    <button className="btn btn-ghost" style={{ fontSize: 11, padding: '2px 8px' }} onClick={() => approve(t.id)} title="Duyệt">✅</button>
+                                                    <button className="btn btn-ghost" style={{ fontSize: 11, padding: '2px 8px', color: 'var(--status-warning)' }} onClick={() => cancel(t.id)} title="Huỷ">🚫</button>
+                                                    <button className="btn btn-ghost" style={{ fontSize: 11, padding: '2px 8px', color: 'var(--status-danger)' }} onClick={() => removeTransfer(t.id)} title="Xóa">🗑️</button>
+                                                </>
+                                            )}
+                                            <button className="btn btn-ghost" style={{ fontSize: 11, padding: '2px 8px' }} onClick={() => printTransfer(t)} title="In phiếu">🖨️</button>
+                                        </div>
                                     </td>
                                 </tr>
                             );

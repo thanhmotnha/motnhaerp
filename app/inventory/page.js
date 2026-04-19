@@ -525,6 +525,13 @@ export default function InventoryPage() {
                             {reorderAlerts.length > 8 && <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>+{reorderAlerts.length - 8} khác</span>}
                         </div>
                     </div>
+                    <a
+                        href={`/purchasing?createPO=1&products=${reorderAlerts.map(p => p.id).join(',')}`}
+                        className="btn btn-primary btn-sm"
+                        style={{ whiteSpace: 'nowrap', textDecoration: 'none', flexShrink: 0 }}
+                    >
+                        🛒 Tạo PO
+                    </a>
                 </div>
             )}
             {/* KPI */}
