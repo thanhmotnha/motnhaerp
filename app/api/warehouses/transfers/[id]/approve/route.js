@@ -40,6 +40,8 @@ export const PATCH = withAuth(async (request, { params }) => {
         const xkCode = `XK${String(xkBaseMax + 1).padStart(3, '0')}`;
         const nkCode = `NK${String(nkBaseMax + 1).padStart(3, '0')}`;
 
+        const txDate = new Date();
+
         await prisma.$transaction(async (tx) => {
             await tx.inventoryTransaction.create({
                 data: {
@@ -49,6 +51,7 @@ export const PATCH = withAuth(async (request, { params }) => {
                     productId: transfer.productId,
                     warehouseId: transfer.fromWarehouseId,
                     note: `Chuyển kho → ${transfer.code}`,
+                    date: txDate,
                 },
             });
 
@@ -60,6 +63,7 @@ export const PATCH = withAuth(async (request, { params }) => {
                     productId: transfer.productId,
                     warehouseId: transfer.toWarehouseId,
                     note: `Nhận từ chuyển kho ← ${transfer.code}`,
+                    date: txDate,
                 },
             });
 
@@ -72,7 +76,7 @@ export const PATCH = withAuth(async (request, { params }) => {
 
             await tx.warehouseTransfer.update({
                 where: { id },
-                data: { status: 'Đã chuyển', transferDate: new Date() },
+                data: { status: 'Đã chuyển', transferDate: txDate },
             });
         });
     } else {
