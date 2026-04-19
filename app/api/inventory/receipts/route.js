@@ -1,11 +1,13 @@
 import { withAuth } from '@/lib/apiHandler';
 import prisma from '@/lib/prisma';
 import { generateCode } from '@/lib/generateCode';
+import { parsePagination, paginatedResponse } from '@/lib/pagination';
 import { NextResponse } from 'next/server';
 import { goodsReceiptCreateSchema } from '@/lib/validations/goodsReceipt';
 
 export const GET = withAuth(async (request) => {
     const { searchParams } = new URL(request.url);
+    const { page, limit, skip } = parsePagination(searchParams);
     const poId = searchParams.get('poId');
     const warehouseId = searchParams.get('warehouseId');
 
@@ -13,17 +15,21 @@ export const GET = withAuth(async (request) => {
     if (poId) where.purchaseOrderId = poId;
     if (warehouseId) where.warehouseId = warehouseId;
 
-    const receipts = await prisma.goodsReceipt.findMany({
-        where,
-        include: {
-            purchaseOrder: { select: { code: true, supplier: true } },
-            warehouse: { select: { name: true } },
-            items: true,
-        },
-        orderBy: { createdAt: 'desc' },
-        take: 200,
-    });
-    return NextResponse.json(receipts);
+    const [receipts, total] = await Promise.all([
+        prisma.goodsReceipt.findMany({
+            where,
+            include: {
+                purchaseOrder: { select: { code: true, supplier: true } },
+                warehouse: { select: { name: true } },
+                items: true,
+            },
+            orderBy: { createdAt: 'desc' },
+            skip,
+            take: limit,
+        }),
+        prisma.goodsReceipt.count({ where }),
+    ]);
+    return NextResponse.json(paginatedResponse(receipts, total, { page, limit }));
 });
 
 export const POST = withAuth(async (request, _ctx, session) => {

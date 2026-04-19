@@ -1,11 +1,13 @@
 import { withAuth } from '@/lib/apiHandler';
 import prisma from '@/lib/prisma';
 import { generateCode } from '@/lib/generateCode';
+import { parsePagination, paginatedResponse } from '@/lib/pagination';
 import { NextResponse } from 'next/server';
 import { stockIssueCreateSchema } from '@/lib/validations/stockIssue';
 
 export const GET = withAuth(async (request) => {
     const { searchParams } = new URL(request.url);
+    const { page, limit, skip } = parsePagination(searchParams);
     const warehouseId = searchParams.get('warehouseId');
     const projectId = searchParams.get('projectId');
 
@@ -13,17 +15,21 @@ export const GET = withAuth(async (request) => {
     if (warehouseId) where.warehouseId = warehouseId;
     if (projectId) where.projectId = projectId;
 
-    const issues = await prisma.stockIssue.findMany({
-        where,
-        include: {
-            warehouse: { select: { name: true } },
-            project: { select: { name: true, code: true } },
-            items: true,
-        },
-        orderBy: { createdAt: 'desc' },
-        take: 200,
-    });
-    return NextResponse.json(issues);
+    const [issues, total] = await Promise.all([
+        prisma.stockIssue.findMany({
+            where,
+            include: {
+                warehouse: { select: { name: true } },
+                project: { select: { name: true, code: true } },
+                items: true,
+            },
+            orderBy: { createdAt: 'desc' },
+            skip,
+            take: limit,
+        }),
+        prisma.stockIssue.count({ where }),
+    ]);
+    return NextResponse.json(paginatedResponse(issues, total, { page, limit }));
 });
 
 export const POST = withAuth(async (request, _ctx, session) => {

@@ -12,6 +12,7 @@ const EMPTY_ITEM = { productId: '', quantity: '', unit: '' };
 export default function InventoryPage() {
     const [activeTab, setActiveTab] = useState('stock');
     const [txData, setTxData] = useState({ transactions: [], warehouses: [] });
+    const [txPage, setTxPage] = useState(null);
     const [stockData, setStockData] = useState({ products: [], lowStock: 0 });
     const [loading, setLoading] = useState(true);
     const [filterType, setFilterType] = useState('');
@@ -31,7 +32,9 @@ export default function InventoryPage() {
     const [saving, setSaving] = useState(false);
     const [reorderAlerts, setReorderAlerts] = useState([]);
     const [receipts, setReceipts] = useState([]);
+    const [receiptsPage, setReceiptsPage] = useState(null);
     const [issues, setIssues] = useState([]);
+    const [issuesPage, setIssuesPage] = useState(null);
     const [viewReceipt, setViewReceipt] = useState(null);
     const [viewIssue, setViewIssue] = useState(null);
     const [showIssueForm, setShowIssueForm] = useState(false);
@@ -66,14 +69,15 @@ export default function InventoryPage() {
     const [stDetailFilter, setStDetailFilter] = useState('all');
     const [stDetailSearch, setStDetailSearch] = useState('');
 
-    const fetchTx = async () => {
+    const fetchTx = async (page = 1) => {
         setLoading(true);
-        const p = new URLSearchParams({ limit: 200 });
+        const p = new URLSearchParams({ limit: 50, page: String(page) });
         if (filterType) p.set('type', filterType);
         if (filterWarehouse) p.set('warehouseId', filterWarehouse);
         const res = await fetch(`/api/inventory?${p}`);
         const d = await res.json();
         setTxData({ transactions: d.data || [], warehouses: d.warehouses || [] });
+        setTxPage(d?.pagination || null);
         setLoading(false);
     };
 
@@ -85,19 +89,21 @@ export default function InventoryPage() {
         setLoading(false);
     };
 
-    const fetchReceipts = async () => {
+    const fetchReceipts = async (page = 1) => {
         setLoading(true);
-        const res = await fetch('/api/inventory/receipts');
+        const res = await fetch(`/api/inventory/receipts?page=${page}&limit=50`);
         const d = await res.json();
-        setReceipts(Array.isArray(d) ? d : []);
+        setReceipts(Array.isArray(d?.data) ? d.data : (Array.isArray(d) ? d : []));
+        setReceiptsPage(d?.pagination || null);
         setLoading(false);
     };
 
-    const fetchIssues = async () => {
+    const fetchIssues = async (page = 1) => {
         setLoading(true);
-        const res = await fetch('/api/inventory/issues');
+        const res = await fetch(`/api/inventory/issues?page=${page}&limit=50`);
         const d = await res.json();
-        setIssues(Array.isArray(d) ? d : []);
+        setIssues(Array.isArray(d?.data) ? d.data : (Array.isArray(d) ? d : []));
+        setIssuesPage(d?.pagination || null);
         setLoading(false);
     };
 
@@ -732,6 +738,9 @@ export default function InventoryPage() {
                         {!loading && txData.transactions.length === 0 && (
                             <div style={{ padding: 32, textAlign: 'center', color: 'var(--text-muted)' }}>Chưa có giao dịch kho</div>
                         )}
+                        {txPage && txPage.totalPages > 1 && (
+                            <Pager page={txPage} onGo={(p) => fetchTx(p)} />
+                        )}
                     </>
                 )}
 
@@ -777,6 +786,9 @@ export default function InventoryPage() {
                                     )}
                                 </tbody>
                             </table>
+                            {receiptsPage && receiptsPage.totalPages > 1 && (
+                                <Pager page={receiptsPage} onGo={(p) => fetchReceipts(p)} />
+                            )}
                         </div>
                     )
                 )}
@@ -834,6 +846,9 @@ export default function InventoryPage() {
                                         )}
                                     </tbody>
                                 </table>
+                                {issuesPage && issuesPage.totalPages > 1 && (
+                                    <Pager page={issuesPage} onGo={(p) => fetchIssues(p)} />
+                                )}
                             </div>
                         )}
                     </>
@@ -1649,6 +1664,22 @@ export default function InventoryPage() {
                     </div>
                 </div>
             )}
+        </div>
+    );
+}
+
+function Pager({ page, onGo }) {
+    const { page: cur, totalPages, total, limit } = page;
+    const from = (cur - 1) * limit + 1;
+    const to = Math.min(cur * limit, total);
+    return (
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 16px', borderTop: '1px solid var(--border)', fontSize: 12, color: 'var(--text-muted)' }}>
+            <div>Hiển thị {from}-{to} / {total} phiếu</div>
+            <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+                <button className="btn btn-ghost btn-sm" disabled={cur <= 1} onClick={() => onGo(cur - 1)}>‹ Trước</button>
+                <span style={{ padding: '0 8px' }}>Trang {cur}/{totalPages}</span>
+                <button className="btn btn-ghost btn-sm" disabled={cur >= totalPages} onClick={() => onGo(cur + 1)}>Sau ›</button>
+            </div>
         </div>
     );
 }
