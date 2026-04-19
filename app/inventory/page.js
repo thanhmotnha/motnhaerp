@@ -18,6 +18,12 @@ export default function InventoryPage() {
     const [filterWarehouse, setFilterWarehouse] = useState('');
     const [stockSearch, setStockSearch] = useState('');
     const [stockWarehouseFilter, setStockWarehouseFilter] = useState('');
+    // Product autocomplete trong modal Nhập/Xuất kho
+    const [itemSearch, setItemSearch] = useState({}); // { rowIdx: query }
+    const [activeItemRow, setActiveItemRow] = useState(null);
+    // Product autocomplete trong modal Phiếu xuất (issue)
+    const [issueItemSearch, setIssueItemSearch] = useState({});
+    const [activeIssueRow, setActiveIssueRow] = useState(null);
     const [showModal, setShowModal] = useState(false);
     const [form, setForm] = useState(EMPTY_FORM);
     const [formItems, setFormItems] = useState([{ ...EMPTY_ITEM }]);
@@ -702,26 +708,69 @@ export default function InventoryPage() {
                                 return null;
                             })()}
                             <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 8 }}>Danh sách sản phẩm:</div>
-                            {formItems.map((item, i) => (
-                                <div key={i} style={{ display: 'grid', gridTemplateColumns: '2fr 100px 28px', gap: 6, marginBottom: 6, alignItems: 'center' }}>
-                                    <select className="form-select" value={item.productId} onChange={e => {
-                                        const p = stockData.products.find(p => p.id === e.target.value);
-                                        setFormItems(prev => prev.map((it, idx) => idx === i ? { ...it, productId: e.target.value, unit: p?.unit || '' } : it));
-                                        // Auto-set warehouseId theo SP đầu tiên
-                                        if (p?.warehouseId && !form.warehouseId) {
-                                            setForm(f => ({ ...f, warehouseId: p.warehouseId }));
-                                        }
-                                    }}>
-                                        <option value="">— Chọn sản phẩm —</option>
-                                        {stockData.products.map(p => <option key={p.id} value={p.id}>{p.name} (tồn: {p.stock} {p.unit})</option>)}
-                                    </select>
-                                    <input className="form-input" type="number" min="0.001" step="0.001" placeholder="Số lượng" value={item.quantity}
-                                        onChange={e => setFormItems(prev => prev.map((it, idx) => idx === i ? { ...it, quantity: e.target.value } : it))}
-                                        style={{ textAlign: 'center' }} />
-                                    <button type="button" style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--status-danger)', fontSize: 18, lineHeight: 1 }}
-                                        onClick={() => setFormItems(prev => prev.filter((_, idx) => idx !== i))}>×</button>
-                                </div>
-                            ))}
+                            {formItems.map((item, i) => {
+                                const selectedProduct = item.productId ? stockData.products.find(p => p.id === item.productId) : null;
+                                const query = itemSearch[i] ?? (selectedProduct ? selectedProduct.name : '');
+                                const q = (query || '').toLowerCase().trim();
+                                const results = activeItemRow === i && q.length > 0
+                                    ? stockData.products.filter(p =>
+                                        p.name.toLowerCase().includes(q) ||
+                                        (p.code || '').toLowerCase().includes(q)
+                                    ).slice(0, 15)
+                                    : [];
+                                return (
+                                    <div key={i} style={{ display: 'grid', gridTemplateColumns: '2fr 100px 28px', gap: 6, marginBottom: 6, alignItems: 'center', position: 'relative' }}>
+                                        <div style={{ position: 'relative' }}>
+                                            <input
+                                                className="form-input"
+                                                placeholder="Gõ tên hoặc mã SP để tìm..."
+                                                value={query}
+                                                onChange={e => {
+                                                    setItemSearch(prev => ({ ...prev, [i]: e.target.value }));
+                                                    if (item.productId && e.target.value !== selectedProduct?.name) {
+                                                        // Clear selection khi user gõ khác
+                                                        setFormItems(prev => prev.map((it, idx) => idx === i ? { ...it, productId: '', unit: '' } : it));
+                                                    }
+                                                }}
+                                                onFocus={() => setActiveItemRow(i)}
+                                                onBlur={() => setTimeout(() => setActiveItemRow(a => a === i ? null : a), 150)}
+                                            />
+                                            {activeItemRow === i && results.length > 0 && (
+                                                <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 200, background: 'var(--bg-card, #fff)', border: '1px solid var(--border)', borderRadius: 6, boxShadow: '0 6px 20px rgba(0,0,0,0.18)', maxHeight: 260, overflowY: 'auto', marginTop: 2 }}>
+                                                    {results.map(p => (
+                                                        <div key={p.id}
+                                                            onMouseDown={() => {
+                                                                setFormItems(prev => prev.map((it, idx) => idx === i ? { ...it, productId: p.id, unit: p.unit || '' } : it));
+                                                                setItemSearch(prev => ({ ...prev, [i]: p.name }));
+                                                                if (p.warehouseId && !form.warehouseId) {
+                                                                    setForm(f => ({ ...f, warehouseId: p.warehouseId }));
+                                                                }
+                                                                setActiveItemRow(null);
+                                                            }}
+                                                            style={{ padding: '8px 10px', cursor: 'pointer', fontSize: 12, borderBottom: '1px solid var(--border-light, #eee)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
+                                                            onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-secondary, #f5f5f5)'}
+                                                            onMouseLeave={e => e.currentTarget.style.background = ''}>
+                                                            <div>
+                                                                <div style={{ fontWeight: 600 }}>{p.name}</div>
+                                                                <div style={{ fontSize: 10, opacity: 0.6 }}>{p.code} · {p.warehouse?.name || '—'}</div>
+                                                            </div>
+                                                            <div style={{ fontSize: 11, color: 'var(--text-muted)', flexShrink: 0, marginLeft: 10 }}>tồn: {p.stock} {p.unit}</div>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            )}
+                                        </div>
+                                        <input className="form-input" type="number" min="0.001" step="0.001" placeholder="Số lượng" value={item.quantity}
+                                            onChange={e => setFormItems(prev => prev.map((it, idx) => idx === i ? { ...it, quantity: e.target.value } : it))}
+                                            style={{ textAlign: 'center' }} />
+                                        <button type="button" style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--status-danger)', fontSize: 18, lineHeight: 1 }}
+                                            onClick={() => {
+                                                setFormItems(prev => prev.filter((_, idx) => idx !== i));
+                                                setItemSearch(prev => { const next = { ...prev }; delete next[i]; return next; });
+                                            }}>×</button>
+                                    </div>
+                                );
+                            })}
                             <button className="btn btn-ghost btn-sm" onClick={() => setFormItems(prev => [...prev, { ...EMPTY_ITEM }])}>+ Thêm sản phẩm</button>
                         </div>
                         <div className="modal-footer">
@@ -768,33 +817,68 @@ export default function InventoryPage() {
                                 </div>
                             </div>
                             <div style={{ fontWeight: 600, marginBottom: 8, fontSize: 14 }}>Danh sách vật tư xuất:</div>
-                            {issueItems.map((item, i) => (
+                            {issueItems.map((item, i) => {
+                                const issueQuery = issueItemSearch[i] ?? (item.productName || '');
+                                const iq = (issueQuery || '').toLowerCase().trim();
+                                const issueResults = activeIssueRow === i && iq.length > 0
+                                    ? stockData.products.filter(p =>
+                                        p.name.toLowerCase().includes(iq) ||
+                                        (p.code || '').toLowerCase().includes(iq)
+                                    ).slice(0, 15)
+                                    : [];
+                                const pickIssueProduct = (p) => {
+                                    setIssueItems(prev => prev.map((it, idx) => idx === i ? {
+                                        ...it, productId: p.id,
+                                        productName: p.name || '',
+                                        unit: p.unit || '',
+                                        unitPrice: p.importPrice || 0,
+                                        stock: p.stock || 0,
+                                        variantLabel: '',
+                                        variantSelections: {},
+                                    } : it));
+                                    setIssueItemSearch(prev => ({ ...prev, [i]: p.name }));
+                                    setActiveIssueRow(null);
+                                    setIssueItemAttrs(prev => ({ ...prev, [i]: [] }));
+                                    fetch(`/api/products/${p.id}/attributes`)
+                                        .then(r => r.json())
+                                        .then(attrs => { if (Array.isArray(attrs)) setIssueItemAttrs(prev => ({ ...prev, [i]: attrs })); })
+                                        .catch(() => {});
+                                };
+                                return (
                                 <div key={i} style={{ marginBottom: 8 }}>
                                     <div style={{ display: 'grid', gridTemplateColumns: '2fr 80px 100px 28px', gap: 6, alignItems: 'center' }}>
-                                        <select className="form-select" value={item.productId} onChange={e => {
-                                            const p = stockData.products.find(p => p.id === e.target.value);
-                                            setIssueItems(prev => prev.map((it, idx) => idx === i ? {
-                                                ...it, productId: e.target.value,
-                                                productName: p?.name || '',
-                                                unit: p?.unit || '',
-                                                unitPrice: p?.importPrice || 0,
-                                                stock: p?.stock || 0,
-                                                variantLabel: '',
-                                                variantSelections: {},
-                                            } : it));
-                                            if (e.target.value) {
-                                                setIssueItemAttrs(prev => ({ ...prev, [i]: [] }));
-                                                fetch(`/api/products/${e.target.value}/attributes`)
-                                                    .then(r => r.json())
-                                                    .then(attrs => { if (Array.isArray(attrs)) setIssueItemAttrs(prev => ({ ...prev, [i]: attrs })); })
-                                                    .catch(() => {});
-                                            } else {
-                                                setIssueItemAttrs(prev => ({ ...prev, [i]: [] }));
-                                            }
-                                        }}>
-                                            <option value="">— Chọn sản phẩm —</option>
-                                            {stockData.products.map(p => <option key={p.id} value={p.id}>{p.name} (tồn: {p.stock} {p.unit})</option>)}
-                                        </select>
+                                        <div style={{ position: 'relative' }}>
+                                            <input
+                                                className="form-input"
+                                                placeholder="Gõ tên hoặc mã SP..."
+                                                value={issueQuery}
+                                                onChange={e => {
+                                                    setIssueItemSearch(prev => ({ ...prev, [i]: e.target.value }));
+                                                    if (item.productId && e.target.value !== item.productName) {
+                                                        setIssueItems(prev => prev.map((it, idx) => idx === i ? { ...it, productId: '', productName: '', unit: '', stock: 0 } : it));
+                                                    }
+                                                }}
+                                                onFocus={() => setActiveIssueRow(i)}
+                                                onBlur={() => setTimeout(() => setActiveIssueRow(a => a === i ? null : a), 150)}
+                                            />
+                                            {activeIssueRow === i && issueResults.length > 0 && (
+                                                <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 200, background: 'var(--bg-card, #fff)', border: '1px solid var(--border)', borderRadius: 6, boxShadow: '0 6px 20px rgba(0,0,0,0.18)', maxHeight: 260, overflowY: 'auto', marginTop: 2 }}>
+                                                    {issueResults.map(p => (
+                                                        <div key={p.id}
+                                                            onMouseDown={() => pickIssueProduct(p)}
+                                                            style={{ padding: '8px 10px', cursor: 'pointer', fontSize: 12, borderBottom: '1px solid var(--border-light, #eee)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
+                                                            onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-secondary, #f5f5f5)'}
+                                                            onMouseLeave={e => e.currentTarget.style.background = ''}>
+                                                            <div>
+                                                                <div style={{ fontWeight: 600 }}>{p.name}</div>
+                                                                <div style={{ fontSize: 10, opacity: 0.6 }}>{p.code} · {p.warehouse?.name || '—'}</div>
+                                                            </div>
+                                                            <div style={{ fontSize: 11, color: 'var(--text-muted)', flexShrink: 0, marginLeft: 10 }}>tồn: {p.stock} {p.unit}</div>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            )}
+                                        </div>
                                         <div style={{ fontSize: 12, color: 'var(--text-muted)', textAlign: 'center' }}>{item.unit}</div>
                                         <input className="form-input" type="number" min="0.001" step="0.001" placeholder="SL" value={item.qty}
                                             onChange={e => setIssueItems(prev => prev.map((it, idx) => idx === i ? { ...it, qty: e.target.value } : it))} />
@@ -823,7 +907,8 @@ export default function InventoryPage() {
                                         </div>
                                     )}
                                 </div>
-                            ))}
+                                );
+                            })}
                             <button className="btn btn-ghost btn-sm" style={{ marginBottom: 8 }}
                                 onClick={() => setIssueItems(prev => [...prev, { productId: '', productName: '', unit: '', qty: '', unitPrice: 0, stock: 0, variantLabel: '', variantSelections: {} }])}>
                                 + Thêm dòng
