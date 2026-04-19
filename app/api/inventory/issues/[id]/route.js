@@ -27,6 +27,25 @@ export const PATCH = withAuth(async (request, { params }) => {
     });
     if (!existing) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
+    // Warehouse của phiếu sau khi edit
+    const finalWarehouseId = warehouseId ?? existing.warehouseId;
+
+    // Validate: items mới phải có warehouseId khớp phiếu
+    const newProductIds = (items || []).filter(it => it.productId).map(it => it.productId);
+    if (newProductIds.length > 0) {
+        const prods = await prisma.product.findMany({
+            where: { id: { in: newProductIds } },
+            select: { id: true, name: true, warehouseId: true },
+        });
+        for (const p of prods) {
+            if (p.warehouseId && p.warehouseId !== finalWarehouseId) {
+                return NextResponse.json({
+                    error: `${p.name}: thuộc kho khác với phiếu — không thể thêm vào phiếu này`,
+                }, { status: 400 });
+            }
+        }
+    }
+
     const issue = await prisma.$transaction(async (tx) => {
         // 1. Hoàn lại tồn kho cũ
         for (const old of existing.items) {
