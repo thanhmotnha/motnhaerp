@@ -2364,6 +2364,7 @@ model SupplierDebt {
   paidAmount  Float    @default(0)
   status      String   @default("open")
   date        DateTime @default(now())
+  dueDate     DateTime?
   proofUrl    String   @default("")
   notes       String   @default("")
   createdById String   @default("")
@@ -2407,6 +2408,7 @@ model ContractorDebt {
   paidAmount   Float    @default(0)
   status       String   @default("open")
   date         DateTime @default(now())
+  dueDate      DateTime?
   proofUrl     String   @default("")
   notes        String   @default("")
   createdById  String   @default("")

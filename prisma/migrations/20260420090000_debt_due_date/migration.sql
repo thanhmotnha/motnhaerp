@@ -1,0 +1,2 @@
+ALTER TABLE "SupplierDebt" ADD COLUMN "dueDate" TIMESTAMP(3);
+ALTER TABLE "ContractorDebt" ADD COLUMN "dueDate" TIMESTAMP(3);
