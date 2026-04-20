@@ -1015,8 +1015,21 @@ function PurchasingContent() {
                                 <div style={{ marginBottom: 12, background: 'var(--bg-secondary)', borderRadius: 8, padding: 12 }}>
                                     <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 6 }}>Đã nhập trước ({poReceipts.length} lần):</div>
                                     {poReceipts.map(r => (
-                                        <div key={r.id} style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 2 }}>
-                                            {r.code} — {new Date(r.receivedDate).toLocaleDateString('vi-VN')} — {r.warehouse?.name} — {r.items.length} mặt hàng
+                                        <div key={r.id} style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 4, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
+                                            <span>{r.code} — {new Date(r.receivedDate).toLocaleDateString('vi-VN')} — {r.warehouse?.name} — {r.items.length} mặt hàng</span>
+                                            <button
+                                                type="button"
+                                                style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--status-danger)', fontSize: 14, padding: '2px 6px' }}
+                                                title="Xóa phiếu nhập này (hoàn lại tồn kho)"
+                                                onClick={async () => {
+                                                    if (!confirm(`Xóa phiếu nhập ${r.code}? Tồn kho + số đã nhận trên PO sẽ được hoàn lại.`)) return;
+                                                    const res = await fetch(`/api/inventory/receipts/${r.id}`, { method: 'DELETE' });
+                                                    if (!res.ok) { const e = await res.json(); return alert(e.error || 'Lỗi xóa'); }
+                                                    // Reload GRN modal data
+                                                    openGrn(grnPO.id, { stopPropagation: () => {} });
+                                                    fetchOrders();
+                                                }}
+                                            >🗑️</button>
                                         </div>
                                     ))}
                                 </div>
