@@ -44,10 +44,19 @@ export const POST = withAuth(async (request, { params }, session) => {
     if (warehouseItems.length > 0) {
         grnCode = await generateCode('goodsReceipt', 'PNK');
     }
+    // Pre-compute sequential CP codes (all generateCode calls before any insert → same MAX)
     const expenseCodes = [];
-    for (const projectId in projectItemsByProject) {
-        for (const _ of projectItemsByProject[projectId]) {
-            expenseCodes.push(await generateCode('projectExpense', 'CP'));
+    const totalExpenses = Object.values(projectItemsByProject).reduce((s, arr) => s + arr.length, 0);
+    if (totalExpenses > 0) {
+        const cpMaxResult = await prisma.$queryRawUnsafe(
+            `SELECT COALESCE(MAX(CAST(REPLACE(code, $1, '') AS INTEGER)), 0) as max_num
+             FROM "ProjectExpense"
+             WHERE code LIKE $2 AND REPLACE(code, $1, '') ~ '^[0-9]+$'`,
+            'CP', 'CP%'
+        );
+        const cpBaseMax = Number(cpMaxResult?.[0]?.max_num ?? 0);
+        for (let i = 0; i < totalExpenses; i++) {
+            expenseCodes.push(`CP${String(cpBaseMax + 1 + i).padStart(3, '0')}`);
         }
     }
     let expenseCodeIdx = 0;
