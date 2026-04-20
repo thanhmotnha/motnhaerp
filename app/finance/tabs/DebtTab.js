@@ -217,7 +217,9 @@ export default function DebtTab({ summary, retentions, supplierDebt, onGhiNhanTT
                                             <button
                                                 className="btn btn-primary"
                                                 style={{ padding: '3px 10px', fontSize: 12 }}
-                                                onClick={() => onGhiNhanTT ? onGhiNhanTT(s) : openPayModal('ncc', s)}
+                                                onClick={() => onGhiNhanTT
+                                                    ? onGhiNhanTT({ partnerType: 'NCC', id: s.id, name: s.name, amount: s.soDu })
+                                                    : openPayModal('ncc', s)}
                                             >
                                                 Ghi nhận TT
                                             </button>
@@ -320,7 +322,13 @@ export default function DebtTab({ summary, retentions, supplierDebt, onGhiNhanTT
                                             {fmtVND(c.soDu)}
                                         </td>
                                         <td>
-                                            <button className="btn btn-primary" style={{ padding: '3px 10px', fontSize: 12 }} onClick={() => openPayModal('contractor', c)}>
+                                            <button
+                                                className="btn btn-primary"
+                                                style={{ padding: '3px 10px', fontSize: 12 }}
+                                                onClick={() => onGhiNhanTT
+                                                    ? onGhiNhanTT({ partnerType: 'Thầu phụ', id: c.id, name: c.name, amount: c.soDu })
+                                                    : openPayModal('contractor', c)}
+                                            >
                                                 Ghi nhận TT
                                             </button>
                                         </td>

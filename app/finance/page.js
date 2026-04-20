@@ -71,9 +71,18 @@ function FinanceContent() {
         if (key === 'cong_no') { loadRetentions(); }
     };
 
-    const handleGhiNhanTT = (supplier) => {
-        if (!supplier?.id) return;
-        setPrefilledExpense({ recipientType: 'NCC', recipientId: supplier.id, recipientName: supplier.name || '' });
+    const handleGhiNhanTT = (payload) => {
+        // Support 2 shapes: legacy `(supplier)` + new `({ partnerType, id, name, amount })`
+        const { partnerType, id, name, amount } = payload?.partnerType
+            ? payload
+            : { partnerType: 'NCC', id: payload?.id, name: payload?.name, amount: payload?.soDu };
+        if (!id) return;
+        setPrefilledExpense({
+            recipientType: partnerType,
+            recipientId: id,
+            recipientName: name || '',
+            amount: amount ? String(amount) : '',
+        });
         handleTabChange('chi_phi');
     };
 
