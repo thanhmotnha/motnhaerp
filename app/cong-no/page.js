@@ -316,7 +316,7 @@ export default function CongNoPage() {
                 {/* View toggle */}
                 {selectedId && (
                     <div style={{ display: 'flex', gap: 6, padding: '16px 24px 0' }}>
-                        {[['debts', '📋 Công nợ theo phiếu'], ['ledger', '📊 Sổ cái']].map(([v, label]) => (
+                        {[['debts', '📋 Công nợ theo phiếu'], ['ledger', '📊 Sổ cái'], ['payments', '💳 Lịch sử TT']].map(([v, label]) => (
                             <button key={v} className={`btn btn-sm${debtView === v ? ' btn-primary' : ''}`}
                                 onClick={() => setDebtView(v)}>{label}</button>
                         ))}
@@ -448,6 +448,57 @@ export default function CongNoPage() {
                                 </table>
                             </div>
                         )}
+                    </div>
+                ) : debtView === 'payments' ? (
+                    <div style={{ padding: 24 }}>
+                        {debtsLoading ? (
+                            <div style={{ padding: 24, textAlign: 'center', color: 'var(--text-muted)' }}>Đang tải...</div>
+                        ) : (() => {
+                            const allPayments = debts.flatMap(d => (d.payments || []).map(p => ({ ...p, debtCode: d.code, debtDesc: d.description }))).sort((a, b) => new Date(b.date) - new Date(a.date));
+                            const totalPaid = allPayments.reduce((s, p) => s + (p.amount || 0), 0);
+                            return (
+                                <div className="card" style={{ overflow: 'auto' }}>
+                                    <div style={{ padding: '12px 16px', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                        <div style={{ fontSize: 13, color: 'var(--text-muted)' }}>
+                                            {allPayments.length} giao dịch thanh toán
+                                        </div>
+                                        <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--status-success)' }}>
+                                            Tổng đã trả: {fmtVND(totalPaid)}
+                                        </div>
+                                    </div>
+                                    <table className="data-table">
+                                        <thead>
+                                            <tr>
+                                                <th>Mã TT</th>
+                                                <th>Phiếu công nợ</th>
+                                                <th>Ngày</th>
+                                                <th style={{ textAlign: 'right' }}>Số tiền</th>
+                                                <th>Ghi chú</th>
+                                                <th>Chứng từ</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {allPayments.map(p => (
+                                                <tr key={p.id}>
+                                                    <td style={{ fontFamily: 'monospace', fontWeight: 600, fontSize: 12 }}>{p.code}</td>
+                                                    <td>
+                                                        <div style={{ fontFamily: 'monospace', fontSize: 11, color: 'var(--text-muted)' }}>{p.debtCode}</div>
+                                                        <div style={{ fontSize: 12 }}>{p.debtDesc}</div>
+                                                    </td>
+                                                    <td style={{ fontSize: 12 }}>{new Date(p.date).toLocaleDateString('vi-VN')}</td>
+                                                    <td style={{ textAlign: 'right', fontFamily: 'monospace', fontWeight: 600, color: 'var(--status-success)' }}>{fmtVND(p.amount)}</td>
+                                                    <td style={{ fontSize: 12 }}>{p.notes || '—'}</td>
+                                                    <td>{p.proofUrl ? <a href={p.proofUrl} target="_blank" rel="noreferrer" style={{ color: 'var(--primary)' }}>📎 Xem</a> : '—'}</td>
+                                                </tr>
+                                            ))}
+                                            {allPayments.length === 0 && (
+                                                <tr><td colSpan={6} style={{ textAlign: 'center', color: 'var(--text-muted)', padding: 24 }}>Chưa có thanh toán nào</td></tr>
+                                            )}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            );
+                        })()}
                     </div>
                 ) : ledger ? (
                     <div style={{ padding: 24 }}>
