@@ -1,7 +1,8 @@
 'use client';
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, Fragment } from 'react';
 import { apiFetch } from '@/lib/fetchClient';
 import { fmtVND, fmtDate } from '@/lib/financeUtils';
+import { agingStatus, matchesAgingFilter, agingBadgeStyle } from '@/lib/debtAging';
 
 export default function CongNoPage() {
     const [activeTab, setActiveTab] = useState('ncc'); // 'ncc' | 'contractor'
@@ -33,9 +34,10 @@ export default function CongNoPage() {
     const [expandedDebtId, setExpandedDebtId] = useState(null);
     const [showDebtForm, setShowDebtForm] = useState(false);
     const [showPayForm, setShowPayForm] = useState(null); // debt object
-    const [debtForm, setDebtForm] = useState({ description: '', invoiceNo: '', totalAmount: '', projectId: '', date: new Date().toISOString().slice(0, 10), notes: '', proofUrl: '' });
+    const [debtForm, setDebtForm] = useState({ description: '', invoiceNo: '', totalAmount: '', projectId: '', date: new Date().toISOString().slice(0, 10), dueDate: '', notes: '', proofUrl: '' });
     const [payForm, setPayForm] = useState({ amount: '', date: new Date().toISOString().slice(0, 10), notes: '', proofUrl: '' });
     const [debtFilterStatus, setDebtFilterStatus] = useState('open');
+    const [agingFilter, setAgingFilter] = useState('all');
     const [selectedProject, setSelectedProject] = useState('');
     const [projectDebts, setProjectDebts] = useState({ supplier: [], contractor: [] });
     const [projectDebtsLoading, setProjectDebtsLoading] = useState(false);
@@ -114,13 +116,14 @@ export default function CongNoPage() {
         if (!debtForm.description || !debtForm.totalAmount) return alert('Nhập mô tả và số tiền');
         try {
             const isNcc = selectedType === 'ncc';
+            const payload = { ...debtForm, totalAmount: Number(debtForm.totalAmount), dueDate: debtForm.dueDate || null };
             const body = isNcc
-                ? { supplierId: selectedId, ...debtForm, totalAmount: Number(debtForm.totalAmount), projectId: debtForm.projectId || null }
-                : { contractorId: selectedId, ...debtForm, totalAmount: Number(debtForm.totalAmount) };
+                ? { supplierId: selectedId, ...payload, projectId: debtForm.projectId || null }
+                : { contractorId: selectedId, ...payload };
             const endpoint = isNcc ? '/api/debts/supplier' : '/api/debts/contractor';
             await apiFetch(endpoint, { method: 'POST', body });
             setShowDebtForm(false);
-            setDebtForm({ description: '', invoiceNo: '', totalAmount: '', projectId: '', date: new Date().toISOString().slice(0, 10), notes: '', proofUrl: '' });
+            setDebtForm({ description: '', invoiceNo: '', totalAmount: '', projectId: '', date: new Date().toISOString().slice(0, 10), dueDate: '', notes: '', proofUrl: '' });
             loadDebts(selectedId, selectedType);
             loadLists();
         } catch (err) { alert(err.message); }
@@ -341,6 +344,13 @@ export default function CongNoPage() {
                                     <option key={v} value={v}>{l}</option>
                                 ))}
                             </select>
+                            <select className="form-select" value={agingFilter} onChange={e => setAgingFilter(e.target.value)} style={{ width: 200 }}>
+                                <option value="all">Tất cả tình trạng</option>
+                                <option value="overdue-30">🔴 Quá hạn &gt; 30 ngày</option>
+                                <option value="overdue">🟠 Quá hạn</option>
+                                <option value="due-soon">🟡 Sắp đến hạn (&lt; 7d)</option>
+                                <option value="on-track">⚪ Còn hạn / Chưa có hạn</option>
+                            </select>
                             <button className="btn btn-primary btn-sm" onClick={() => setShowDebtForm(true)}>+ Tạo công nợ</button>
                         </div>
 
@@ -355,31 +365,38 @@ export default function CongNoPage() {
                                             <th>Mô tả / Hóa đơn</th>
                                             <th>Dự án</th>
                                             <th>Ngày</th>
+                                            <th>Hạn trả</th>
                                             <th style={{ textAlign: 'right' }}>Tổng</th>
                                             <th style={{ textAlign: 'right' }}>Đã trả</th>
                                             <th style={{ textAlign: 'right' }}>Còn nợ</th>
+                                            <th>Tình trạng</th>
                                             <th>TT</th>
                                             <th></th>
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        {debts.filter(d => debtFilterStatus === 'all' || d.status === debtFilterStatus).map(d => {
+                                        {debts.filter(d => (debtFilterStatus === 'all' || d.status === debtFilterStatus) && matchesAgingFilter({ ...d, totalAmount: d.totalAmount, paidAmount: d.paidAmount }, agingFilter)).map(d => {
                                             const statusColor = { open: '#ef4444', partial: '#f59e0b', paid: '#22c55e' }[d.status] || '#888';
                                             const statusLabel = { open: 'Còn nợ', partial: 'Trả 1 phần', paid: 'Đã trả' }[d.status] || d.status;
                                             const isExpanded = expandedDebtId === d.id;
+                                            const aging = agingStatus(d);
+                                            const agingStyleInner = agingBadgeStyle(aging.color);
+                                            const isOverdue30 = aging.category === 'overdue-30';
                                             return (
-                                                <>
-                                                    <tr key={d.id} onClick={() => setExpandedDebtId(isExpanded ? null : d.id)} style={{ cursor: 'pointer' }}>
+                                                <Fragment key={d.id}>
+                                                    <tr onClick={() => setExpandedDebtId(isExpanded ? null : d.id)} style={{ cursor: 'pointer', background: isOverdue30 ? 'rgba(239,68,68,0.04)' : undefined }}>
                                                         <td style={{ fontFamily: 'monospace', fontWeight: 600 }}>{d.code}</td>
                                                         <td>
                                                             <div>{d.description}</div>
                                                             {d.invoiceNo && <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>HD: {d.invoiceNo}</div>}
                                                         </td>
-                                                        <td style={{ fontSize: 12, color: 'var(--text-muted)' }}>{d.project?.code || '—'}</td>
+                                                        <td style={{ fontSize: 12, color: 'var(--text-muted)' }}>{d.project?.name || d.project?.code || '—'}</td>
                                                         <td style={{ fontSize: 12 }}>{d.date ? new Date(d.date).toLocaleDateString('vi-VN') : '—'}</td>
+                                                        <td style={{ fontSize: 12 }}>{d.dueDate ? new Date(d.dueDate).toLocaleDateString('vi-VN') : '—'}</td>
                                                         <td style={{ textAlign: 'right', fontFamily: 'monospace' }}>{fmtVND(d.totalAmount)}</td>
                                                         <td style={{ textAlign: 'right', fontFamily: 'monospace', color: '#22c55e' }}>{fmtVND(d.paidAmount)}</td>
                                                         <td style={{ textAlign: 'right', fontFamily: 'monospace', fontWeight: 700, color: statusColor }}>{fmtVND(d.remaining)}</td>
+                                                        <td><span style={{ ...agingStyleInner, fontSize: 11, padding: '2px 8px', borderRadius: 8, whiteSpace: 'nowrap' }}>{aging.label}</span></td>
                                                         <td><span style={{ fontSize: 11, padding: '2px 6px', borderRadius: 8, background: statusColor + '18', color: statusColor }}>{statusLabel}</span></td>
                                                         <td>
                                                             <div style={{ display: 'flex', gap: 4 }}>
@@ -400,7 +417,7 @@ export default function CongNoPage() {
                                                     </tr>
                                                     {isExpanded && d.payments.length > 0 && (
                                                         <tr key={`${d.id}-payments`}>
-                                                            <td colSpan={9} style={{ padding: '4px 16px 12px', background: 'var(--bg-secondary)' }}>
+                                                            <td colSpan={11} style={{ padding: '4px 16px 12px', background: 'var(--bg-secondary)' }}>
                                                                 <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 6, color: 'var(--text-muted)' }}>Lịch sử thanh toán:</div>
                                                                 {d.payments.map(p => (
                                                                     <div key={p.id} style={{ display: 'flex', gap: 12, padding: '4px 0', borderBottom: '1px solid var(--border)', fontSize: 12 }}>
@@ -416,16 +433,16 @@ export default function CongNoPage() {
                                                     )}
                                                     {isExpanded && d.payments.length === 0 && (
                                                         <tr key={`${d.id}-empty`}>
-                                                            <td colSpan={9} style={{ padding: '8px 16px', background: 'var(--bg-secondary)', fontSize: 12, color: 'var(--text-muted)' }}>
+                                                            <td colSpan={11} style={{ padding: '8px 16px', background: 'var(--bg-secondary)', fontSize: 12, color: 'var(--text-muted)' }}>
                                                                 Chưa có thanh toán nào
                                                             </td>
                                                         </tr>
                                                     )}
-                                                </>
+                                                </Fragment>
                                             );
                                         })}
-                                        {debts.filter(d => debtFilterStatus === 'all' || d.status === debtFilterStatus).length === 0 && (
-                                            <tr><td colSpan={9} style={{ textAlign: 'center', color: 'var(--text-muted)', padding: 24 }}>Không có công nợ</td></tr>
+                                        {debts.filter(d => (debtFilterStatus === 'all' || d.status === debtFilterStatus) && matchesAgingFilter(d, agingFilter)).length === 0 && (
+                                            <tr><td colSpan={11} style={{ textAlign: 'center', color: 'var(--text-muted)', padding: 24 }}>Không có công nợ</td></tr>
                                         )}
                                     </tbody>
                                 </table>
@@ -774,6 +791,10 @@ export default function CongNoPage() {
                                 <label className="form-label">Ngày</label>
                                 <input className="form-input" type="date" value={debtForm.date} onChange={e => setDebtForm({ ...debtForm, date: e.target.value })} />
                             </div>
+                        </div>
+                        <div className="form-group">
+                            <label className="form-label">Hạn trả (tuỳ chọn)</label>
+                            <input className="form-input" type="date" value={debtForm.dueDate} onChange={e => setDebtForm({ ...debtForm, dueDate: e.target.value })} />
                         </div>
                         <div className="form-group">
                             <label className="form-label">Dự án</label>
