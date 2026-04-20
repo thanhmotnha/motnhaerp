@@ -86,21 +86,26 @@ export const POST = withAuth(async (request, _ctx, session) => {
                 include: { items: true },
             });
 
+            let totalValue = 0;
             for (const item of si.items) {
                 if (item.productId) {
+                    let effectivePrice = item.unitPrice;
                     // Dùng importPrice hiện tại nếu unitPrice chưa nhập
-                    if (!item.unitPrice) {
+                    if (!effectivePrice) {
                         const product = await tx.product.findUnique({
                             where: { id: item.productId },
                             select: { importPrice: true },
                         });
-                        if (product?.importPrice) {
+                        effectivePrice = product?.importPrice || 0;
+                        if (effectivePrice) {
                             await tx.stockIssueItem.update({
                                 where: { id: item.id },
-                                data: { unitPrice: product.importPrice },
+                                data: { unitPrice: effectivePrice },
                             });
                         }
                     }
+                    totalValue += Number(item.qty || 0) * Number(effectivePrice || 0);
+
                     await tx.product.update({
                         where: { id: item.productId },
                         data: { stock: { decrement: item.qty } },
@@ -121,6 +126,25 @@ export const POST = withAuth(async (request, _ctx, session) => {
                         },
                     });
                 }
+            }
+
+            // Xuất kho cho dự án → tạo ProjectExpense để ghi nhận chi phí vật tư
+            if (data.projectId && totalValue > 0) {
+                const cpCode = await generateCode('projectExpense', 'CP');
+                await tx.projectExpense.create({
+                    data: {
+                        code: cpCode,
+                        expenseType: 'Xuất kho',
+                        description: `[Xuất kho] ${si.code} — ${si.items.length} vật tư`,
+                        amount: totalValue,
+                        paidAmount: totalValue,
+                        category: 'Vật tư',
+                        status: 'Đã chi',
+                        projectId: data.projectId,
+                        date: data.issuedDate || new Date(),
+                        notes: `Phiếu xuất kho ${si.code}`,
+                    },
+                });
             }
 
             return si;

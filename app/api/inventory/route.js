@@ -186,6 +186,32 @@ export const POST = withAuth(async (request, _ctx, session) => {
             await tx.product.update({ where: { id: item.productId }, data: { stock: { increment: delta } } });
         }
 
+        // Xuất kho cho dự án → tạo ProjectExpense để ghi nhận chi phí vật tư
+        if (!isNhap && data.projectId) {
+            const totalValue = validItems.reduce((sum, it) => {
+                const p = productMap[it.productId];
+                const price = Number(it.unitPrice ?? p?.importPrice ?? 0);
+                return sum + (Number(it.quantity) || 0) * price;
+            }, 0);
+            if (totalValue > 0) {
+                const cpCode = await generateCode('projectExpense', 'CP');
+                await tx.projectExpense.create({
+                    data: {
+                        code: cpCode,
+                        expenseType: 'Xuất kho',
+                        description: `[Xuất kho] ${parentCode} — ${validItems.length} vật tư`,
+                        amount: totalValue,
+                        paidAmount: totalValue,
+                        category: 'Vật tư',
+                        status: 'Đã chi',
+                        projectId: data.projectId,
+                        date: receivedDate,
+                        notes: `Phiếu xuất kho ${parentCode}`,
+                    },
+                });
+            }
+        }
+
         return parent;
     });
 
