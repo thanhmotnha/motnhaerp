@@ -1046,13 +1046,24 @@ function PurchasingContent() {
                                                 {fmtNum(it.receivedQty)}
                                             </td>
                                             <td style={{ textAlign: 'center' }}>
-                                                <input
-                                                    className="form-input form-input-compact"
-                                                    type="number" min="0"
-                                                    value={it.toReceive}
-                                                    onChange={e => setGrnItems(prev => prev.map((x, idx) => idx === i ? { ...x, toReceive: Number(e.target.value) || 0 } : x))}
-                                                    style={{ width: 80, textAlign: 'center' }}
-                                                />
+                                                {(() => {
+                                                    const remain = Math.max(0, (it.quantity || 0) - (it.receivedQty || 0));
+                                                    return (
+                                                        <input
+                                                            className="form-input form-input-compact"
+                                                            type="number" min="0" max={remain}
+                                                            value={it.toReceive}
+                                                            onChange={e => {
+                                                                const v = Number(e.target.value) || 0;
+                                                                const capped = Math.min(v, remain);
+                                                                setGrnItems(prev => prev.map((x, idx) => idx === i ? { ...x, toReceive: capped } : x));
+                                                            }}
+                                                            disabled={remain <= 0}
+                                                            title={remain <= 0 ? 'Đã nhận đủ' : `Còn lại ${remain}`}
+                                                            style={{ width: 80, textAlign: 'center', background: remain <= 0 ? 'var(--bg-secondary)' : undefined }}
+                                                        />
+                                                    );
+                                                })()}
                                             </td>
                                         </tr>
                                     );

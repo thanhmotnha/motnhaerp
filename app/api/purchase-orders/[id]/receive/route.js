@@ -40,6 +40,20 @@ export const POST = withAuth(async (request, { params }, session) => {
         return NextResponse.json({ error: 'Phải chọn kho cho các sản phẩm nhập kho' }, { status: 400 });
     }
 
+    // Validate: không cho nhận vượt số đặt
+    for (const group of [warehouseItems, ...Object.values(projectItemsByProject)]) {
+        for (const { poItem, delta } of group) {
+            const alreadyReceived = Number(poItem.receivedQty) || 0;
+            const ordered = Number(poItem.quantity) || 0;
+            if (alreadyReceived + delta > ordered) {
+                const remain = Math.max(0, ordered - alreadyReceived);
+                return NextResponse.json({
+                    error: `${poItem.productName}: vượt số đặt (đã nhận ${alreadyReceived}/${ordered} ${poItem.unit}, còn lại ${remain}). Nếu cần nhận thêm, tăng SL trên PO trước.`,
+                }, { status: 400 });
+            }
+        }
+    }
+
     let grnCode = null;
     if (warehouseItems.length > 0) {
         grnCode = await generateCode('goodsReceipt', 'PNK');
