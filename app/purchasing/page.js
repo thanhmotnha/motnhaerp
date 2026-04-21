@@ -513,6 +513,87 @@ function PurchasingContent() {
                 {!loading && filtered.length === 0 && <div style={{ color: 'var(--text-muted)', padding: 24, textAlign: 'center' }}>Không có dữ liệu</div>}
             </div>
 
+            {/* Section: PO grouped by project */}
+            {!loading && orders.length > 0 && (() => {
+                const groups = {};
+                for (const o of orders) {
+                    // Determine "home project" for each PO — PO.project OR first item with projectId
+                    let projLabel = '—';
+                    let projCode = null;
+                    if (o.project) {
+                        projLabel = o.project.name || o.project.code || '—';
+                        projCode = o.project.code;
+                    } else {
+                        const itemWithProj = (o.items || []).find(it => it.projectId);
+                        if (itemWithProj) {
+                            const proj = projects.find(p => p.id === itemWithProj.projectId);
+                            if (proj) {
+                                projLabel = proj.name || proj.code || '—';
+                                projCode = proj.code;
+                            }
+                        }
+                    }
+                    if (!groups[projLabel]) groups[projLabel] = { code: projCode, pos: [] };
+                    groups[projLabel].pos.push(o);
+                }
+                const entries = Object.entries(groups).sort((a, b) => {
+                    if (a[0] === '—') return 1;
+                    if (b[0] === '—') return -1;
+                    return a[0].localeCompare(b[0], 'vi');
+                });
+                return (
+                    <div className="card" style={{ marginTop: 20 }}>
+                        <div className="card-header">
+                            <span className="card-title">📂 Đơn mua hàng theo dự án</span>
+                            <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>{entries.length} dự án · {orders.length} PO</span>
+                        </div>
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))', gap: 12, padding: 12 }}>
+                            {entries.map(([label, { code, pos }]) => {
+                                const total = pos.reduce((s, po) => s + (po.totalAmount || 0), 0);
+                                const paid = pos.reduce((s, po) => s + (po.paidAmount || 0), 0);
+                                return (
+                                    <div key={label} style={{ border: '1px solid var(--border)', borderRadius: 8, padding: 10, background: 'var(--bg-card)' }}>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 6, gap: 8 }}>
+                                            <div style={{ fontWeight: 700, fontSize: 13 }}>
+                                                {code ? <span
+                                                    style={{ cursor: 'pointer', color: 'var(--primary)' }}
+                                                    onClick={() => router.push(`/projects/${code}`)}
+                                                    title="Mở trang dự án"
+                                                >{label}</span> : label}
+                                            </div>
+                                            <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{pos.length} PO</div>
+                                        </div>
+                                        <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 6 }}>
+                                            Tổng: <strong style={{ color: 'var(--primary)' }}>{fmt(total)}</strong>
+                                            &nbsp;·&nbsp;
+                                            Đã TT: <strong style={{ color: 'var(--status-success)' }}>{fmt(paid)}</strong>
+                                        </div>
+                                        <div style={{ maxHeight: 200, overflowY: 'auto' }}>
+                                            {pos.map(po => (
+                                                <div key={po.id}
+                                                    onClick={() => setDetailPO(po)}
+                                                    style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '4px 6px', borderRadius: 4, cursor: 'pointer', fontSize: 12, gap: 6 }}
+                                                    onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-secondary)'}
+                                                    onMouseLeave={e => e.currentTarget.style.background = ''}>
+                                                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0, flex: 1 }}>
+                                                        <span style={{ fontFamily: 'monospace', fontWeight: 600, color: 'var(--primary)' }}>{po.code}</span>
+                                                        <span style={{ color: 'var(--text-muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{po.supplier}</span>
+                                                    </div>
+                                                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
+                                                        <span style={{ fontFamily: 'monospace' }}>{fmt(po.totalAmount)}</span>
+                                                        <span className={`badge ${STATUS_BADGE[po.status] || 'badge-default'}`} style={{ fontSize: 10, padding: '1px 6px' }}>{po.status}</span>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    </div>
+                );
+            })()}
+
             {/* Create PO Modal */}
             {showModal && (
                 <div className="modal-overlay" onClick={() => setShowModal(false)}>
