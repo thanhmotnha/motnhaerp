@@ -105,6 +105,13 @@ export default function ProjectDetailScreen() {
           icon={<Camera size={18} color={COLORS.white} />}
         />
         <Button
+          title="Xem lịch sử báo cáo"
+          onPress={() => router.push({ pathname: '/progress/list', params: { projectId: id, projectName: project.name } })}
+          size="lg"
+          variant="secondary"
+          style={{ marginTop: 10 }}
+        />
+        <Button
           title="Lịch trình dự án"
           onPress={() => router.push({ pathname: '/schedule/index' as any, params: { projectId: id, projectName: project.name } })}
           size="lg"
