@@ -17,6 +17,15 @@ const timeAgo = (d) => {
     return `${days}d trước`;
 };
 
+const daysSince = (d) => d ? Math.floor((Date.now() - new Date(d).getTime()) / 86400000) : null;
+const ContactBadge = ({ lastContactAt }) => {
+    const days = daysSince(lastContactAt);
+    if (days === null) return <span className="badge" style={{ background: '#f1f5f9', color: '#64748b', fontSize: 10 }}>Chưa liên hệ</span>;
+    const color = days > 14 ? '#dc2626' : days > 7 ? '#d97706' : '#16a34a';
+    const bg = days > 14 ? '#fee2e2' : days > 7 ? '#fef3c7' : '#dcfce7';
+    return <span className="badge" style={{ background: bg, color, fontSize: 10 }}>🕐 {days === 0 ? 'Hôm nay' : `${days}d`}</span>;
+};
+
 const zaloLink = (phone) => `https://zalo.me/${phone.replace(/\s+/g, '')}`;
 
 const PIPELINE = [
@@ -224,6 +233,7 @@ export default function CustomersPage() {
                                             <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>
                                                 {c.phone && <div>📱 {c.phone}</div>}
                                             </div>
+                                            <div style={{ marginTop: 4 }}><ContactBadge lastContactAt={c.lastContactAt} /></div>
                                             {isNvkd && !c.salesPersonId && (
                                                 <button className="btn btn-sm btn-primary" style={{ fontSize: 10, padding: '2px 8px', marginTop: 4 }} onClick={async (e) => {
                                                     e.stopPropagation();
@@ -271,7 +281,11 @@ export default function CustomersPage() {
                             return (
                                 <tr key={c.id} onClick={() => router.push(`/customers/${c.id}`)} style={{ cursor: 'pointer' }}>
                                     <td className="accent">{c.code}</td>
-                                    <td className="primary">{c.name}{c.representative ? <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>ĐD: {c.representative}</div> : null}</td>
+                                    <td className="primary">
+                                        {c.name}
+                                        {c.representative ? <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>ĐD: {c.representative}</div> : null}
+                                        <div style={{ marginTop: 4 }}><ContactBadge lastContactAt={c.lastContactAt} /></div>
+                                    </td>
                                     <td>
                                         <div>{c.phone}</div>
                                         <div style={{ display: 'flex', gap: 6, marginTop: 2 }}>
