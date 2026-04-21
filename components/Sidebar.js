@@ -24,6 +24,7 @@ const menuItems = [
     {
         section: 'Kinh doanh', items: [
             { href: '/customers', icon: Users, label: 'Khách hàng', roles: ['giam_doc', 'ke_toan', 'kinh_doanh'] },
+            { href: '/customers/activities', icon: Activity, label: 'Hoạt động NVKD', roles: ['giam_doc', 'ke_toan'] },
             { href: '/quotations', icon: ClipboardList, label: 'Báo giá', roles: ['giam_doc', 'ke_toan', 'kinh_doanh', 'ky_thuat'], quick: '/quotations/create' },
             { href: '/contracts', icon: FileText, label: 'Hợp đồng', roles: ['giam_doc', 'ke_toan', 'kinh_doanh'], quick: '/contracts/create' },
             { href: '/warranty', icon: ShieldCheck, label: 'Bảo hành', roles: ['giam_doc', 'ke_toan', 'ky_thuat'] },
