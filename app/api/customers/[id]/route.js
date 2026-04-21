@@ -60,12 +60,21 @@ export const GET = withAuth(async (request, { params }) => {
     });
 });
 
-export const PUT = withAuth(async (request, { params }) => {
+export const PUT = withAuth(async (request, { params }, session) => {
     const { id } = await params;
     const body = await request.json();
     const data = customerUpdateSchema.parse(body);
 
-    const customer = await prisma.customer.update({ where: { id }, data });
+    // Chỉ giám đốc được đổi chủ khách
+    if (data.salesPersonId !== undefined && session.user.role !== 'giam_doc') {
+        return NextResponse.json({ error: 'Chỉ giám đốc được đổi chủ khách' }, { status: 403 });
+    }
+
+    const customer = await prisma.customer.update({
+        where: { id },
+        data,
+        include: { salesPerson: { select: { id: true, name: true, email: true } } },
+    });
     return NextResponse.json(customer);
 });
 
