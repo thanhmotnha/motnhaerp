@@ -11,7 +11,7 @@ export const POST = withAuth(async (request, { params }, session) => {
 
     const debt = await prisma.supplierDebt.findUnique({
         where: { id },
-        select: { id: true, supplierId: true, totalAmount: true, paidAmount: true, status: true },
+        select: { id: true, supplierId: true, totalAmount: true, paidAmount: true, status: true, expenseId: true },
     });
     if (!debt) return NextResponse.json({ error: 'Không tìm thấy công nợ' }, { status: 404 });
 
@@ -54,6 +54,23 @@ export const POST = withAuth(async (request, { params }, session) => {
                 },
             }),
         ]);
+
+        // Sync ProjectExpense nếu debt có link
+        if (debt.expenseId) {
+            const expense = await tx.projectExpense.findUnique({
+                where: { id: debt.expenseId },
+                select: { status: true, paidAmount: true, amount: true, deletedAt: true },
+            });
+            if (expense && !expense.deletedAt && expense.status !== 'Hoàn thành') {
+                const newExpensePaid = (expense.paidAmount || 0) + data.amount;
+                const newExpenseStatus = newExpensePaid >= expense.amount ? 'Đã chi' : expense.status;
+                await tx.projectExpense.update({
+                    where: { id: debt.expenseId },
+                    data: { paidAmount: newExpensePaid, status: newExpenseStatus },
+                });
+            }
+        }
+
         return p;
     });
 
