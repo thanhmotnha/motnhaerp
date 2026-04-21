@@ -159,17 +159,59 @@ export const DELETE = withAuth(async (_request, { params }) => {
     });
     if (!po) return NextResponse.json({ error: 'Không tìm thấy đơn đặt hàng' }, { status: 404 });
 
-    const [receiptCount, receivedCount] = await Promise.all([
-        prisma.goodsReceipt.count({ where: { purchaseOrderId: id } }),
-        prisma.purchaseOrderItem.count({ where: { purchaseOrderId: id, receivedQty: { gt: 0 } } }),
-    ]);
-    if (receiptCount > 0 || receivedCount > 0) {
+    // Block nếu có GRN thật (hàng đã vào kho)
+    const receiptCount = await prisma.goodsReceipt.count({ where: { purchaseOrderId: id } });
+    if (receiptCount > 0) {
         return NextResponse.json({
-            error: 'PO đã có phiếu nhập — xóa các phiếu nhập trước, rồi mới xóa được PO.',
+            error: 'PO đã có phiếu nhập kho — xóa các phiếu nhập trước, rồi mới xóa được PO.',
         }, { status: 422 });
     }
 
+    // Với items "Giao thẳng dự án" đã nhận: auto-rollback nếu ProjectExpense chưa chi
+    const directReceivedItems = po.items.filter(it => it.projectId && (it.receivedQty || 0) > 0);
+    if (directReceivedItems.length > 0) {
+        const expenseCodes = directReceivedItems.map(it => `[GRN] ${it.productName} — ${po.code}`);
+        const paidExpenses = await prisma.projectExpense.findMany({
+            where: {
+                description: { in: expenseCodes },
+                status: { in: ['Đã chi', 'Hoàn thành'] },
+                deletedAt: null,
+            },
+            select: { code: true, description: true },
+        });
+        if (paidExpenses.length > 0) {
+            return NextResponse.json({
+                error: `PO có ${paidExpenses.length} chi phí đã chi — không thể xóa. Hủy thanh toán các lệnh chi trước: ${paidExpenses.map(e => e.code).join(', ')}`,
+            }, { status: 422 });
+        }
+    }
+
     await prisma.$transaction(async (tx) => {
+        // Rollback giao thẳng dự án: xóa ProjectExpense chưa chi + reverse MaterialPlan.receivedQty
+        for (const item of directReceivedItems) {
+            await tx.projectExpense.deleteMany({
+                where: {
+                    description: `[GRN] ${item.productName} — ${po.code}`,
+                    status: 'Chờ thanh toán',
+                    deletedAt: null,
+                },
+            });
+            if (item.materialPlanId) {
+                const plan = await tx.materialPlan.findUnique({ where: { id: item.materialPlanId } });
+                if (plan) {
+                    const newReceivedQty = Math.max(0, (plan.receivedQty || 0) - (item.receivedQty || 0));
+                    const newStatus = newReceivedQty >= plan.quantity && plan.quantity > 0
+                        ? 'Đã nhận đủ'
+                        : newReceivedQty > 0 ? 'Nhận một phần' : 'Chưa nhận';
+                    await tx.materialPlan.update({
+                        where: { id: item.materialPlanId },
+                        data: { receivedQty: newReceivedQty, status: newStatus },
+                    });
+                }
+            }
+        }
+
+        // Reverse MaterialPlan.orderedQty
         for (const item of po.items) {
             if (item.materialPlanId && item.quantity > 0) {
                 await tx.materialPlan.update({
@@ -178,6 +220,7 @@ export const DELETE = withAuth(async (_request, { params }) => {
                 });
             }
         }
+
         await tx.materialRequisition.updateMany({
             where: { purchaseOrderId: id },
             data: { purchaseOrderId: null, status: 'Chờ xử lý' },
