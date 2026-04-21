@@ -1,6 +1,8 @@
 'use client';
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
+import { useRole } from '@/contexts/RoleContext';
+import { useSession } from 'next-auth/react';
 
 const fmt = (n) => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(n);
 const fmtDate = (d) => d ? new Date(d).toLocaleDateString('vi-VN') : '';
@@ -30,13 +32,20 @@ const PIPELINE = [
 const SOURCES = ['Facebook', 'Zalo', 'Website', 'Instagram', 'Giới thiệu', 'Đối tác'];
 
 export default function CustomersPage() {
+    const { role, permissions } = useRole();
+    const { data: session } = useSession();
+    const myUserId = session?.user?.id;
+    const isNvkd = role === 'kinh_doanh';
+
     const [customers, setCustomers] = useState([]);
     const [loading, setLoading] = useState(true);
     const [search, setSearch] = useState('');
     const [filterSource, setFilterSource] = useState('');
+    const [ownerFilter, setOwnerFilter] = useState(isNvkd ? 'mine' : 'all'); // mine | unassigned | all
     const [view, setView] = useState('kanban');
     const [showModal, setShowModal] = useState(false);
-    const [form, setForm] = useState({ name: '', phone: '', email: '', address: '', type: 'Cá nhân', pipelineStage: 'Lead', taxCode: '', representative: '', source: '', notes: '', gender: 'Nam', birthday: '', salesPerson: '', designer: '', projectAddress: '', projectName: '', contactPerson2: '', phone2: '', estimatedValue: 0 });
+    const [form, setForm] = useState({ name: '', phone: '', email: '', address: '', type: 'Cá nhân', pipelineStage: 'Lead', taxCode: '', representative: '', source: '', notes: '', gender: 'Nam', birthday: '', salesPerson: '', designer: '', projectAddress: '', projectName: '', contactPerson2: '', phone2: '', estimatedValue: 0, salesPersonId: '' });
+    const [salesPeople, setSalesPeople] = useState([]);
     const [dragId, setDragId] = useState(null);
     const [dragOver, setDragOver] = useState(null);
     const isDragging = useRef(false);
@@ -45,7 +54,21 @@ export default function CustomersPage() {
     const fetchCustomers = async () => { setLoading(true); const r = await fetch('/api/customers?limit=1000'); const d = await r.json(); setCustomers(d.data || []); setLoading(false); };
     useEffect(() => { fetchCustomers(); }, []);
 
+    useEffect(() => {
+        fetch('/api/users?role=kinh_doanh')
+            .then(r => r.ok ? r.json() : { data: [] })
+            .then(d => setSalesPeople(Array.isArray(d?.data) ? d.data : (Array.isArray(d) ? d : [])))
+            .catch(() => setSalesPeople([]));
+    }, []);
+
+    // Sync ownerFilter default when role resolves (session loads async)
+    useEffect(() => {
+        setOwnerFilter(isNvkd ? 'mine' : 'all');
+    }, [isNvkd]);
+
     const filtered = customers.filter(c => {
+        if (ownerFilter === 'mine' && c.salesPersonId !== myUserId) return false;
+        if (ownerFilter === 'unassigned' && c.salesPersonId !== null) return false;
         if (filterSource && c.source !== filterSource) return false;
         if (search && !c.name.toLowerCase().includes(search.toLowerCase()) && !(c.code || '').toLowerCase().includes(search.toLowerCase()) && !(c.phone || '').includes(search)) return false;
         return true;
@@ -54,10 +77,17 @@ export default function CustomersPage() {
     const handleSubmit = async () => {
         if (!form.name.trim()) return alert('Vui lòng nhập tên khách hàng');
         if (!form.phone.trim()) return alert('Vui lòng nhập số điện thoại');
-        const res = await fetch('/api/customers', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...form, status: form.pipelineStage === 'VIP' ? 'VIP' : form.pipelineStage === 'Lead' ? 'Lead' : form.pipelineStage === 'Prospect' ? 'Prospect' : 'Khách hàng' }) });
+        const payload = {
+            ...form,
+            salesPersonId: form.salesPersonId ? form.salesPersonId : null,
+            status: form.pipelineStage === 'VIP' ? 'VIP' : form.pipelineStage === 'Lead' ? 'Lead' : form.pipelineStage === 'Prospect' ? 'Prospect' : 'Khách hàng',
+        };
+        // NVKD không được tự chọn salesPersonId (BE auto-gán), chỉ giám đốc mới set được
+        if (!permissions?.canReassignCustomer) delete payload.salesPersonId;
+        const res = await fetch('/api/customers', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
         if (!res.ok) { const err = await res.json(); return alert(err.error || 'Lỗi tạo khách hàng'); }
         setShowModal(false);
-        setForm({ name: '', phone: '', email: '', address: '', type: 'Cá nhân', pipelineStage: 'Lead', taxCode: '', representative: '', source: '', notes: '', gender: 'Nam', birthday: '', salesPerson: '', designer: '', projectAddress: '', projectName: '', contactPerson2: '', phone2: '', estimatedValue: 0 });
+        setForm({ name: '', phone: '', email: '', address: '', type: 'Cá nhân', pipelineStage: 'Lead', taxCode: '', representative: '', source: '', notes: '', gender: 'Nam', birthday: '', salesPerson: '', designer: '', projectAddress: '', projectName: '', contactPerson2: '', phone2: '', estimatedValue: 0, salesPersonId: '' });
         fetchCustomers();
     };
 
@@ -109,6 +139,11 @@ export default function CustomersPage() {
                     <select className="form-select" value={filterSource} onChange={e => setFilterSource(e.target.value)}>
                         <option value="">Tất cả nguồn</option>
                         {SOURCES.map(s => <option key={s}>{s}</option>)}
+                    </select>
+                    <select className="form-select" value={ownerFilter} onChange={e => setOwnerFilter(e.target.value)} style={{ maxWidth: 200 }}>
+                        {!isNvkd && <option value="all">🏢 Tất cả</option>}
+                        <option value="mine">🙋 Của tôi</option>
+                        <option value="unassigned">❓ Chưa chủ</option>
                     </select>
                     <div style={{ flex: 1 }} />
                     <div style={{ display: 'flex', background: 'var(--bg-secondary)', borderRadius: 8, overflow: 'hidden', border: '1px solid var(--border-light)' }}>
@@ -183,9 +218,21 @@ export default function CustomersPage() {
                                             onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-1px)'; e.currentTarget.style.boxShadow = '0 3px 8px rgba(0,0,0,.1)'; }}
                                             onMouseLeave={e => { e.currentTarget.style.transform = ''; e.currentTarget.style.boxShadow = '0 1px 2px rgba(0,0,0,.05)'; }}>
                                             <div style={{ fontWeight: 600, fontSize: 12, marginBottom: 3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.name}</div>
+                                            <div style={{ fontSize: 10, color: c.salesPersonId === myUserId ? 'var(--status-success)' : 'var(--text-muted)', marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                                {c.salesPerson?.name ? `👤 ${c.salesPerson.name}` : '❓ Chưa chủ'}
+                                            </div>
                                             <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>
                                                 {c.phone && <div>📱 {c.phone}</div>}
                                             </div>
+                                            {isNvkd && !c.salesPersonId && (
+                                                <button className="btn btn-sm btn-primary" style={{ fontSize: 10, padding: '2px 8px', marginTop: 4 }} onClick={async (e) => {
+                                                    e.stopPropagation();
+                                                    if (!confirm(`Nhận khách "${c.name}" làm khách của bạn?`)) return;
+                                                    const res = await fetch(`/api/customers/${c.id}/claim`, { method: 'POST' });
+                                                    if (!res.ok) { const err = await res.json().catch(() => ({})); return alert(err.error || 'Lỗi'); }
+                                                    fetchCustomers();
+                                                }}>🙋 Nhận</button>
+                                            )}
                                             <div style={{ display: 'flex', gap: 6, marginTop: 4 }}>
                                                 {c.phone && (
                                                     <a href={zaloLink(c.phone)} target="_blank" rel="noopener noreferrer"
@@ -218,7 +265,7 @@ export default function CustomersPage() {
                 /* ========= TABLE VIEW ========= */
                 <div className="card">
                     <div className="table-container"><table className="data-table">
-                        <thead><tr><th>Mã</th><th>Tên KH</th><th>SĐT</th><th>Pipeline</th><th>Nguồn</th><th>Giá trị deal</th><th>Doanh thu</th><th>DA</th><th>Follow-up</th><th></th></tr></thead>
+                        <thead><tr><th>Mã</th><th>Tên KH</th><th>SĐT</th><th>Pipeline</th><th>Nguồn</th><th>Chủ khách</th><th>Giá trị deal</th><th>Doanh thu</th><th>DA</th><th>Follow-up</th><th></th></tr></thead>
                         <tbody>{filtered.map(c => {
                             const stage = PIPELINE.find(p => p.key === (c.pipelineStage || 'Lead')) || PIPELINE[0];
                             return (
@@ -246,11 +293,33 @@ export default function CustomersPage() {
                                     </td>
                                     <td><span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 12, fontWeight: 600, padding: '2px 10px', borderRadius: 12, background: stage.bg, color: stage.color }}><span style={{ width: 7, height: 7, borderRadius: '50%', background: stage.color }} />{stage.label}</span></td>
                                     <td style={{ fontSize: 12 }}>{c.source || '-'}</td>
+                                    <td style={{ fontSize: 12 }}>
+                                        {c.salesPerson?.name ? (
+                                            <span style={{
+                                                padding: '2px 8px', borderRadius: 12, fontSize: 11,
+                                                background: c.salesPersonId === myUserId ? 'rgba(34,197,94,0.15)' : 'var(--bg-secondary)',
+                                                color: c.salesPersonId === myUserId ? 'var(--status-success)' : 'var(--text-muted)',
+                                            }}>{c.salesPerson.name}</span>
+                                        ) : (
+                                            <span style={{ padding: '2px 8px', borderRadius: 12, fontSize: 11, background: 'rgba(245,158,11,0.15)', color: 'var(--status-warning)' }}>Chưa chủ</span>
+                                        )}
+                                    </td>
                                     <td style={{ fontWeight: 600 }}>{c.estimatedValue > 0 ? fmt(c.estimatedValue) : '-'}</td>
                                     <td style={{ fontWeight: 600 }}>{c.totalRevenue > 0 ? fmt(c.totalRevenue) : '-'}</td>
                                     <td>{c.projects?.length || 0}</td>
                                     <td style={{ fontSize: 11 }}>{c.nextFollowUp ? <span style={{ color: new Date(c.nextFollowUp) < new Date() ? 'var(--status-danger)' : 'var(--status-success)' }}>{fmtDate(c.nextFollowUp)}</span> : '-'}</td>
-                                    <td><button className="btn btn-ghost" onClick={e => { e.stopPropagation(); handleDelete(c.id); }}>🗑️</button></td>
+                                    <td>
+                                        {isNvkd && !c.salesPersonId && (
+                                            <button className="btn btn-sm btn-primary" style={{ fontSize: 11, marginRight: 4 }} onClick={async (e) => {
+                                                e.stopPropagation();
+                                                if (!confirm(`Nhận khách "${c.name}" làm khách của bạn?`)) return;
+                                                const res = await fetch(`/api/customers/${c.id}/claim`, { method: 'POST' });
+                                                if (!res.ok) { const err = await res.json().catch(() => ({})); return alert(err.error || 'Lỗi'); }
+                                                fetchCustomers();
+                                            }}>🙋 Nhận</button>
+                                        )}
+                                        <button className="btn btn-ghost" onClick={e => { e.stopPropagation(); handleDelete(c.id); }}>🗑️</button>
+                                    </td>
                                 </tr>
                             );
                         })}</tbody>
@@ -299,6 +368,19 @@ export default function CustomersPage() {
                             <div className="form-row">
                                 <div className="form-group"><label className="form-label">NV kinh doanh</label><input className="form-input" value={form.salesPerson} onChange={e => setForm({ ...form, salesPerson: e.target.value })} /></div>
                                 <div className="form-group"><label className="form-label">NV thiết kế</label><input className="form-input" value={form.designer} onChange={e => setForm({ ...form, designer: e.target.value })} /></div>
+                            </div>
+                            <div className="form-group">
+                                <label className="form-label">Chủ khách (gán cho NVKD)</label>
+                                <select
+                                    className="form-select"
+                                    value={form.salesPersonId || ''}
+                                    onChange={e => setForm({ ...form, salesPersonId: e.target.value })}
+                                    disabled={!permissions?.canReassignCustomer}
+                                    title={!permissions?.canReassignCustomer ? 'Chỉ giám đốc được đổi chủ khách (NVKD tự động được gán khi tạo)' : ''}
+                                >
+                                    <option value="">— Chưa gán —</option>
+                                    {salesPeople.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
+                                </select>
                             </div>
                             <div className="form-group"><label className="form-label">Tên dự án</label><input className="form-input" value={form.projectName} onChange={e => setForm({ ...form, projectName: e.target.value })} placeholder="VD: Biệt thự anh Minh" /></div>
                             <div className="form-group"><label className="form-label">Địa chỉ dự án</label><input className="form-input" value={form.projectAddress} onChange={e => setForm({ ...form, projectAddress: e.target.value })} /></div>
