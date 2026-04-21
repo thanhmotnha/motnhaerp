@@ -486,10 +486,24 @@ function PurchasingContent() {
                                         </select>
                                     </td>
                                     <td>
-                                        {canReceive && (
-                                            <button className="btn btn-ghost btn-sm" style={{ fontSize: 11, whiteSpace: 'nowrap' }}
-                                                onClick={e => openGrn(o.id, e)}>📦 Nhận hàng</button>
-                                        )}
+                                        <div style={{ display: 'flex', gap: 4, flexWrap: 'nowrap' }}>
+                                            {canReceive && (
+                                                <button className="btn btn-ghost btn-sm" style={{ fontSize: 11, whiteSpace: 'nowrap' }}
+                                                    onClick={e => openGrn(o.id, e)}>📦 Nhận hàng</button>
+                                            )}
+                                            <button
+                                                className="btn btn-ghost btn-sm"
+                                                style={{ fontSize: 11, color: 'var(--status-danger)' }}
+                                                title="Xóa đơn đặt hàng"
+                                                onClick={async e => {
+                                                    e.stopPropagation();
+                                                    if (!confirm(`Xóa đơn đặt hàng ${o.code}? Nếu đã có phiếu nhập, hãy xóa phiếu nhập trước.`)) return;
+                                                    const res = await fetch(`/api/purchase-orders/${o.id}`, { method: 'DELETE' });
+                                                    if (!res.ok) { const err = await res.json(); return alert(err.error || 'Lỗi xóa'); }
+                                                    fetchOrders();
+                                                }}
+                                            >🗑️</button>
+                                        </div>
                                     </td>
                                 </tr>
                             );

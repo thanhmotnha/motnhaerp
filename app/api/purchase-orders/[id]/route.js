@@ -149,3 +149,42 @@ export const PUT = withAuth(async (request, { params }) => {
     });
     return NextResponse.json(po);
 }, { roles: ['giam_doc', 'ke_toan', 'kho', 'ky_thuat'] });
+
+export const DELETE = withAuth(async (_request, { params }) => {
+    const { id } = await params;
+
+    const po = await prisma.purchaseOrder.findUnique({
+        where: { id },
+        include: { items: true },
+    });
+    if (!po) return NextResponse.json({ error: 'Không tìm thấy đơn đặt hàng' }, { status: 404 });
+
+    const [receiptCount, receivedCount] = await Promise.all([
+        prisma.goodsReceipt.count({ where: { purchaseOrderId: id } }),
+        prisma.purchaseOrderItem.count({ where: { purchaseOrderId: id, receivedQty: { gt: 0 } } }),
+    ]);
+    if (receiptCount > 0 || receivedCount > 0) {
+        return NextResponse.json({
+            error: 'PO đã có phiếu nhập — xóa các phiếu nhập trước, rồi mới xóa được PO.',
+        }, { status: 422 });
+    }
+
+    await prisma.$transaction(async (tx) => {
+        for (const item of po.items) {
+            if (item.materialPlanId && item.quantity > 0) {
+                await tx.materialPlan.update({
+                    where: { id: item.materialPlanId },
+                    data: { orderedQty: { decrement: item.quantity } },
+                });
+            }
+        }
+        await tx.materialRequisition.updateMany({
+            where: { purchaseOrderId: id },
+            data: { purchaseOrderId: null, status: 'Chờ xử lý' },
+        });
+        await tx.purchaseOrderItem.deleteMany({ where: { purchaseOrderId: id } });
+        await tx.purchaseOrder.delete({ where: { id } });
+    });
+
+    return NextResponse.json({ ok: true });
+}, { roles: ['giam_doc', 'ke_toan'] });
