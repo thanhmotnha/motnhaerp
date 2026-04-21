@@ -29,7 +29,7 @@ const ALLOWED_EXTENSIONS = [
     '.zip', '.rar', '.dwg', '.dxf',
 ];
 
-const ALLOWED_UPLOAD_TYPES = ['products', 'library', 'proofs', 'documents', 'acceptance', 'contracts', 'pdf-covers'];
+const ALLOWED_UPLOAD_TYPES = ['products', 'library', 'proofs', 'documents', 'acceptance', 'contracts', 'pdf-covers', 'checkin'];
 
 const MAX_FILE_SIZE_DEFAULT = 5 * 1024 * 1024; // 5MB
 const MAX_FILE_SIZE_DOCUMENTS = 200 * 1024 * 1024; // 200MB
