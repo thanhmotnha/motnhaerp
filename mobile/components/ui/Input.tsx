@@ -1,6 +1,6 @@
 import React from 'react';
-import { View, Text, TextInput, StyleSheet, type TextInputProps } from 'react-native';
-import { COLORS } from '@/lib/constants';
+import { View, Text, TextInput, type TextInputProps } from 'react-native';
+import { useTheme } from '@/contexts/ThemeContext';
 
 interface InputProps extends TextInputProps {
   label?: string;
@@ -8,43 +8,32 @@ interface InputProps extends TextInputProps {
 }
 
 export function Input({ label, error, style, ...props }: InputProps) {
+  const { theme } = useTheme();
   return (
-    <View style={styles.container}>
-      {label && <Text style={styles.label}>{label}</Text>}
+    <View style={{ marginBottom: 16 }}>
+      {label && (
+        <Text style={{ fontSize: 14, fontWeight: '600', color: theme.text, marginBottom: 6 }}>
+          {label}
+        </Text>
+      )}
       <TextInput
-        style={[styles.input, error && styles.inputError, style]}
-        placeholderTextColor={COLORS.textLight}
+        style={[
+          {
+            backgroundColor: theme.mode === 'dark' ? theme.bgTertiary : theme.surface,
+            borderWidth: 1,
+            borderColor: error ? theme.danger : theme.border,
+            borderRadius: theme.radius.md,
+            paddingHorizontal: 14,
+            paddingVertical: 12,
+            fontSize: 15,
+            color: theme.text,
+          },
+          style,
+        ]}
+        placeholderTextColor={theme.textMuted}
         {...props}
       />
-      {error && <Text style={styles.error}>{error}</Text>}
+      {error && <Text style={{ color: theme.danger, fontSize: 12, marginTop: 4 }}>{error}</Text>}
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  container: { marginBottom: 16 },
-  label: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: COLORS.text,
-    marginBottom: 6,
-  },
-  input: {
-    backgroundColor: COLORS.white,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    borderRadius: 10,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    fontSize: 15,
-    color: COLORS.text,
-  },
-  inputError: {
-    borderColor: COLORS.danger,
-  },
-  error: {
-    color: COLORS.danger,
-    fontSize: 12,
-    marginTop: 4,
-  },
-});

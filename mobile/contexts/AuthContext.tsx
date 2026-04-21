@@ -81,7 +81,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const login = useCallback(async (email: string, password: string) => {
     const response = await apiFetch<AuthResponse>('/api/auth/mobile', {
       method: 'POST',
-      body: JSON.stringify({ email, password }),
+      body: JSON.stringify({ login: email, password }),
       skipAuth: true,
     });
     await saveAuthResponse(response);

@@ -1,19 +1,42 @@
 import * as SecureStore from 'expo-secure-store';
+import { Platform } from 'react-native';
 import type { AuthResponse, User } from './types';
 
 const TOKEN_KEY = 'motnha_token';
 const USER_KEY = 'motnha_user';
 
+// Web-safe storage (SecureStore throws on web; fall back to localStorage)
+async function storeGet(key: string): Promise<string | null> {
+  if (Platform.OS === 'web') {
+    try { return (globalThis as any).localStorage?.getItem(key) ?? null; } catch { return null; }
+  }
+  try { return await SecureStore.getItemAsync(key); } catch { return null; }
+}
+async function storeSet(key: string, value: string): Promise<void> {
+  if (Platform.OS === 'web') {
+    try { (globalThis as any).localStorage?.setItem(key, value); } catch { }
+    return;
+  }
+  try { await SecureStore.setItemAsync(key, value); } catch { }
+}
+async function storeDel(key: string): Promise<void> {
+  if (Platform.OS === 'web') {
+    try { (globalThis as any).localStorage?.removeItem(key); } catch { }
+    return;
+  }
+  try { await SecureStore.deleteItemAsync(key); } catch { }
+}
+
 export async function getToken(): Promise<string | null> {
-  return SecureStore.getItemAsync(TOKEN_KEY);
+  return storeGet(TOKEN_KEY);
 }
 
 export async function setToken(token: string): Promise<void> {
-  await SecureStore.setItemAsync(TOKEN_KEY, token);
+  await storeSet(TOKEN_KEY, token);
 }
 
 export async function getStoredUser(): Promise<User | null> {
-  const json = await SecureStore.getItemAsync(USER_KEY);
+  const json = await storeGet(USER_KEY);
   if (!json) return null;
   try {
     return JSON.parse(json);
@@ -23,12 +46,12 @@ export async function getStoredUser(): Promise<User | null> {
 }
 
 export async function setStoredUser(user: User): Promise<void> {
-  await SecureStore.setItemAsync(USER_KEY, JSON.stringify(user));
+  await storeSet(USER_KEY, JSON.stringify(user));
 }
 
 export async function clearAuth(): Promise<void> {
-  await SecureStore.deleteItemAsync(TOKEN_KEY);
-  await SecureStore.deleteItemAsync(USER_KEY);
+  await storeDel(TOKEN_KEY);
+  await storeDel(USER_KEY);
 }
 
 export async function saveAuthResponse(response: AuthResponse): Promise<void> {

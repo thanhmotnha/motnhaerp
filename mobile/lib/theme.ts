@@ -84,36 +84,37 @@ const space: Theme['space'] = { xs: 4, sm: 8, md: 12, lg: 16, xl: 24 };
 export const lightTheme: Theme = {
     mode: 'light',
 
-    bg: '#F8FAFC',
-    bgSecondary: '#F1F5F9',
-    bgTertiary: '#E2E8F0',
+    bg: '#F4F6FA',
+    bgSecondary: '#FFFFFF',
+    bgTertiary: '#F0F4FA',
     surface: '#FFFFFF',
     overlay: 'rgba(15, 23, 42, 0.55)',
 
-    text: '#0F172A',
-    textSecondary: '#475569',
-    textMuted: '#94A3B8',
+    text: '#1A202C',
+    textSecondary: '#4A5568',
+    textMuted: '#6B7280',
     textOnPrimary: '#FFFFFF',
 
     border: '#E2E8F0',
-    borderLight: '#F1F5F9',
+    borderLight: 'rgba(0, 0, 0, 0.05)',
 
-    primary: '#1E3A5F',
-    primaryLight: '#3B5C87',
-    primaryDark: '#132640',
-    primaryGradient: ['#1E3A5F', '#2C5282'] as const,
-    primaryGradientSoft: ['#EBF2FB', '#DDEBFF'] as const,
+    // MỘT NHÀ Brand: Navy #234093 + Gold #DBB35E
+    primary: '#234093',
+    primaryLight: '#2D5CA3',
+    primaryDark: '#1D3580',
+    primaryGradient: ['#234093', '#2D5CA3'] as const,
+    primaryGradientSoft: ['#E8EEF8', '#DDE6F5'] as const,
 
-    success: '#10B981',
+    success: '#38A169',
     successBg: '#D1FAE5',
-    warning: '#F59E0B',
+    warning: '#D69E2E',
     warningBg: '#FEF3C7',
-    danger: '#EF4444',
+    danger: '#E53E3E',
     dangerBg: '#FEE2E2',
-    info: '#3B82F6',
+    info: '#2B6CB0',
     infoBg: '#DBEAFE',
 
-    accent: '#E67E22',
+    accent: '#DBB35E',  // Gold brand color
 
     shadow: {
         sm: { shadowColor: '#0F172A', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.06, shadowRadius: 3, elevation: 1 },
@@ -127,36 +128,37 @@ export const lightTheme: Theme = {
 export const darkTheme: Theme = {
     mode: 'dark',
 
-    bg: '#0F1115',
-    bgSecondary: '#151921',
-    bgTertiary: '#1E2230',
-    surface: '#1A1F2B',
+    bg: '#080E1C',
+    bgSecondary: '#0F1729',
+    bgTertiary: '#111E36',
+    surface: '#111E36',
     overlay: 'rgba(0, 0, 0, 0.75)',
 
-    text: '#F1F5F9',
-    textSecondary: '#CBD5E0',
-    textMuted: '#64748B',
+    text: '#EDF2F7',
+    textSecondary: '#94A3B8',
+    textMuted: '#4A5568',
     textOnPrimary: '#FFFFFF',
 
-    border: '#2A3040',
-    borderLight: '#20242F',
+    border: '#1C2E4A',
+    borderLight: 'rgba(255, 255, 255, 0.05)',
 
-    primary: '#4F7FBA',
-    primaryLight: '#6B97D4',
-    primaryDark: '#3B6396',
-    primaryGradient: ['#1A2B45', '#2A4A7A'] as const,
-    primaryGradientSoft: ['#1A2130', '#1E2B40'] as const,
+    // Brand navy lighter for dark mode
+    primary: '#4A90D9',
+    primaryLight: '#6BA8E5',
+    primaryDark: '#2D5CA3',
+    primaryGradient: ['#234093', '#2D5CA3'] as const,
+    primaryGradientSoft: ['#162440', '#1A2C4F'] as const,
 
-    success: '#34D399',
+    success: '#48BB78',
     successBg: '#064E3B',
-    warning: '#FBBF24',
+    warning: '#ECC94B',
     warningBg: '#78350F',
-    danger: '#F87171',
+    danger: '#FC8181',
     dangerBg: '#7F1D1D',
-    info: '#60A5FA',
+    info: '#63B3ED',
     infoBg: '#1E3A8A',
 
-    accent: '#FB923C',
+    accent: '#DBB35E',  // Gold brand color
 
     shadow: {
         sm: { shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.3, shadowRadius: 3, elevation: 1 },
