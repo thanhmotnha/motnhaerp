@@ -312,6 +312,32 @@ export function useUsersByRole(role: string) {
   });
 }
 
+// ─── Finance — Receivables (thu tiền) ───────────────────────
+export function useReceivables() {
+  const ready = useIsReady();
+  return useQuery<{ payments: any[]; summary: { totalReceivable: number; totalReceived: number; outstanding: number } }>({
+    queryKey: ['receivables'],
+    queryFn: () => apiFetch('/api/finance/receivables'),
+    enabled: ready,
+  });
+}
+
+export function useCollectPayment() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ contractId, paymentId, paidAmount, paidDate, status }: {
+      contractId: string; paymentId: string; paidAmount: number; paidDate: string; status: string;
+    }) => apiFetch(`/api/contracts/${contractId}/payments`, {
+      method: 'PATCH',
+      body: JSON.stringify({ paymentId, paidAmount, paidDate, status }),
+    }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['receivables'] });
+      qc.invalidateQueries({ queryKey: ['contracts'] });
+    },
+  });
+}
+
 // ─── Inventory ──────────────────────────────────────────────
 export function useWarehouses() {
   const ready = useIsReady();

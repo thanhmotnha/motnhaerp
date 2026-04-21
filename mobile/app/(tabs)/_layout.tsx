@@ -1,7 +1,7 @@
 import React from 'react';
 import { View } from 'react-native';
 import { Tabs } from 'expo-router';
-import { LayoutDashboard, FolderKanban, ClipboardCheck, Settings, Users, Warehouse } from 'lucide-react-native';
+import { LayoutDashboard, FolderKanban, ClipboardCheck, Settings, Users, Warehouse, CircleDollarSign } from 'lucide-react-native';
 import { COLORS } from '@/lib/constants';
 import { useAuth } from '@/contexts/AuthContext';
 import { FAB } from '@/components/FAB';
@@ -10,6 +10,7 @@ export default function TabsLayout() {
   const { canApprove, role } = useAuth();
   const canManageCustomers = role === 'giam_doc' || role === 'ke_toan' || role === 'kinh_doanh';
   const canManageInventory = role === 'giam_doc' || role === 'ke_toan' || role === 'kho' || role === 'ky_thuat';
+  const canViewFinance = role === 'giam_doc' || role === 'ke_toan';
 
   return (
     <View style={{ flex: 1 }}>
@@ -57,6 +58,14 @@ export default function TabsLayout() {
             title: 'Kho',
             tabBarIcon: ({ color, size }) => <Warehouse size={size} color={color} />,
             href: canManageInventory ? undefined : null,
+          }}
+        />
+        <Tabs.Screen
+          name="finance"
+          options={{
+            title: 'Thu tiền',
+            tabBarIcon: ({ color, size }) => <CircleDollarSign size={size} color={color} />,
+            href: canViewFinance ? undefined : null,
           }}
         />
         <Tabs.Screen
