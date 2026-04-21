@@ -88,6 +88,15 @@ export default function OverheadPage() {
         } catch (e) { toast.error(e.message); }
     };
 
+    const unapproveExpense = async (id) => {
+        if (!confirm('Hoàn duyệt khoản này về Chờ duyệt?')) return;
+        try {
+            await apiFetch(`/api/overhead/expenses/${id}/unapprove`, { method: 'PATCH' });
+            toast.success('Đã hoàn duyệt');
+            fetchExpenses();
+        } catch (e) { toast.error(e.message); }
+    };
+
     const deleteBatch = async (id) => {
         if (!confirm('Xóa đợt phân bổ này?')) return;
         try {
@@ -187,6 +196,16 @@ export default function OverheadPage() {
                                                             <button className="btn btn-sm" style={{ color: '#22c55e', border: '1px solid #22c55e' }} onClick={() => approveExpense(e.id)}>Duyệt</button>
                                                             <button className="btn btn-sm" style={{ color: '#ef4444' }} onClick={() => deleteExpense(e.id)}>Xóa</button>
                                                         </div>
+                                                    )}
+                                                    {canManage && e.status === 'approved' && (
+                                                        <div style={{ display: 'flex', gap: 4 }}>
+                                                            <button className="btn btn-sm btn-ghost" onClick={() => { setEditExpense(e); setShowExpForm(true); }}>Sửa</button>
+                                                            <button className="btn btn-sm" style={{ color: '#f59e0b', border: '1px solid #f59e0b' }} onClick={() => unapproveExpense(e.id)}>↩ Hoàn duyệt</button>
+                                                            <button className="btn btn-sm" style={{ color: '#ef4444' }} onClick={() => deleteExpense(e.id)}>Xóa</button>
+                                                        </div>
+                                                    )}
+                                                    {canManage && e.status === 'confirmed' && (
+                                                        <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>Đã vào batch · hủy batch để sửa</span>
                                                     )}
                                                 </td>
                                             </tr>

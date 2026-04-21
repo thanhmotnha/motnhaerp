@@ -8,8 +8,8 @@ export const PUT = withAuth(async (request, { params }, session) => {
     const { id } = await params;
     const existing = await prisma.overheadExpense.findFirst({ where: { id } });
     if (!existing) return NextResponse.json({ error: 'Không tìm thấy' }, { status: 404 });
-    if (existing.status === 'approved') {
-        return NextResponse.json({ error: 'Không thể sửa khoản đã duyệt' }, { status: 400 });
+    if (existing.status === 'confirmed') {
+        return NextResponse.json({ error: 'Khoản đã vào batch phân bổ, hủy batch trước khi sửa' }, { status: 400 });
     }
     const { status: _status, ...data } = overheadExpenseUpdateSchema.parse(await request.json());
     const updated = await prisma.overheadExpense.update({
@@ -32,8 +32,8 @@ export const DELETE = withAuth(async (_request, { params }, session) => {
     const { id } = await params;
     const existing = await prisma.overheadExpense.findFirst({ where: { id } });
     if (!existing) return NextResponse.json({ error: 'Không tìm thấy' }, { status: 404 });
-    if (existing.status === 'approved') {
-        return NextResponse.json({ error: 'Không thể xóa khoản đã duyệt' }, { status: 400 });
+    if (existing.status === 'confirmed') {
+        return NextResponse.json({ error: 'Khoản đã vào batch phân bổ, hủy batch trước khi xóa' }, { status: 400 });
     }
     await prisma.overheadExpense.update({ where: { id }, data: { deletedAt: new Date() } });
     await logActivity({
