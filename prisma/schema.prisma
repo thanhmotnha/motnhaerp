@@ -1968,17 +1968,22 @@ model Notification {
 }
 
 model CustomerInteraction {
-  id         String   @id @default(cuid())
-  type       String
-  content    String
-  date       DateTime @default(now())
-  customerId String
-  createdBy  String   @default("")
-  createdAt  DateTime @default(now())
-  customer   Customer @relation(fields: [customerId], references: [id])
+  id            String   @id @default(cuid())
+  type          String
+  content       String
+  date          DateTime @default(now())
+  customerId    String
+  createdBy     String   @default("")
+  createdAt     DateTime @default(now())
+  photos        String[] @default([])
+  interestLevel String   @default("")
+  outcome       String   @default("")
+  companionIds  String[] @default([])
+  customer      Customer @relation(fields: [customerId], references: [id])
 
   @@index([customerId])
   @@index([date])
+  @@index([createdBy])
 }
 
 model EmployeeReview {
