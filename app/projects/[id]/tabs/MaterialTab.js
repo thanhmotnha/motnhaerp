@@ -16,13 +16,19 @@ export default function MaterialTab({ project: p, projectId, onRefresh }) {
     const [reportLoading, setReportLoading] = useState(true);
     const [filterCategory, setFilterCategory] = useState('');
     const [filterSource, setFilterSource] = useState('all');
+    const [projectPOs, setProjectPOs] = useState([]);
+    const [posLoading, setPosLoading] = useState(true);
 
     useEffect(() => {
         let active = true;
         setReportLoading(true);
+        setPosLoading(true);
         apiFetch(`/api/projects/${projectId}/materials-report`)
             .then(d => { if (active) { setReport(d); setReportLoading(false); } })
             .catch(() => { if (active) setReportLoading(false); });
+        apiFetch(`/api/purchase-orders?projectId=${projectId}&limit=100`)
+            .then(d => { if (active) { setProjectPOs(d.data || []); setPosLoading(false); } })
+            .catch(() => { if (active) setPosLoading(false); });
         return () => { active = false; };
     }, [projectId, p?.updatedAt]);
 
@@ -263,6 +269,79 @@ export default function MaterialTab({ project: p, projectId, onRefresh }) {
                     </div>
                 </div>
             )}
+
+            {/* Section: Đơn mua hàng của dự án */}
+            <div className="card" style={{ marginTop: 20 }}>
+                <div className="card-header">
+                    <span className="card-title">🛒 Đơn mua hàng của dự án</span>
+                    <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>{projectPOs.length} PO</span>
+                </div>
+                {posLoading ? (
+                    <div style={{ padding: 30, textAlign: 'center', color: 'var(--text-muted)' }}>Đang tải...</div>
+                ) : projectPOs.length === 0 ? (
+                    <div style={{ padding: 30, textAlign: 'center', color: 'var(--text-muted)' }}>Chưa có đơn mua hàng nào cho dự án này</div>
+                ) : (
+                    <div className="table-container">
+                        <table className="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Mã PO</th>
+                                    <th>NCC</th>
+                                    <th>Loại giao</th>
+                                    <th>Ngày đặt</th>
+                                    <th style={{ textAlign: 'right' }}>Tổng tiền</th>
+                                    <th style={{ textAlign: 'right' }}>Đã TT</th>
+                                    <th style={{ textAlign: 'center' }}>Số SP</th>
+                                    <th style={{ textAlign: 'center' }}>Đã nhận</th>
+                                    <th>Trạng thái</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {projectPOs.map(po => {
+                                    const totalQty = (po.items || []).reduce((s, it) => s + (Number(it.quantity) || 0), 0);
+                                    const receivedQty = (po.items || []).reduce((s, it) => s + (Number(it.receivedQty) || 0), 0);
+                                    const pct = totalQty > 0 ? Math.round((receivedQty / totalQty) * 100) : 0;
+                                    return (
+                                        <tr key={po.id} onClick={() => window.open(`/purchasing?po=${po.code}`, '_self')} style={{ cursor: 'pointer' }}>
+                                            <td style={{ fontFamily: 'monospace', fontWeight: 600 }}>{po.code}</td>
+                                            <td>{po.supplier}</td>
+                                            <td style={{ fontSize: 12 }}>
+                                                {po.deliveryType === 'Giao thẳng dự án' ? '📍 Giao dự án'
+                                                    : po.deliveryType === 'Nhập kho' ? '🏭 Nhập kho'
+                                                    : po.deliveryType === 'Chia nhiều' ? '⚙️ Chia nhiều'
+                                                    : po.deliveryType || '—'}
+                                            </td>
+                                            <td style={{ fontSize: 12 }}>{po.orderDate ? new Date(po.orderDate).toLocaleDateString('vi-VN') : '—'}</td>
+                                            <td style={{ textAlign: 'right', fontFamily: 'monospace' }}>{fmtVND(po.totalAmount || 0)}</td>
+                                            <td style={{ textAlign: 'right', fontFamily: 'monospace', color: 'var(--status-success)' }}>{fmtVND(po.paidAmount || 0)}</td>
+                                            <td style={{ textAlign: 'center', fontSize: 12 }}>{(po.items || []).length}</td>
+                                            <td style={{ textAlign: 'center', fontSize: 12 }}>
+                                                <div style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                                                    <div className="progress-bar" style={{ width: 50, height: 5 }}>
+                                                        <div className="progress-fill" style={{ width: `${pct}%`, background: pct >= 100 ? 'var(--status-success)' : 'var(--status-warning)' }}></div>
+                                                    </div>
+                                                    <span style={{ fontSize: 11 }}>{pct}%</span>
+                                                </div>
+                                            </td>
+                                            <td>
+                                                <span className="badge" style={{ fontSize: 11, padding: '2px 6px' }}>{po.status}</span>
+                                            </td>
+                                        </tr>
+                                    );
+                                })}
+                            </tbody>
+                            <tfoot>
+                                <tr style={{ background: 'var(--bg-secondary)', fontWeight: 700 }}>
+                                    <td colSpan={4}>Tổng</td>
+                                    <td style={{ textAlign: 'right' }}>{fmtVND(projectPOs.reduce((s, po) => s + (po.totalAmount || 0), 0))}</td>
+                                    <td style={{ textAlign: 'right', color: 'var(--status-success)' }}>{fmtVND(projectPOs.reduce((s, po) => s + (po.paidAmount || 0), 0))}</td>
+                                    <td colSpan={3}></td>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+                )}
+            </div>
 
             <PoBulkFromQuotationModal
                 open={showBulkModal}

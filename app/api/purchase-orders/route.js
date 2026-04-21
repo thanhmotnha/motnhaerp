@@ -9,6 +9,7 @@ export const GET = withAuth(async (request) => {
     const { searchParams } = new URL(request.url);
     const { page, limit, skip } = parsePagination(searchParams);
     const search = searchParams.get('search') || '';
+    const projectId = searchParams.get('projectId');
 
     const where = {};
     if (search) {
@@ -17,6 +18,17 @@ export const GET = withAuth(async (request) => {
             { supplier: { contains: search, mode: 'insensitive' } },
             { project: { name: { contains: search, mode: 'insensitive' } } },
         ];
+    }
+    if (projectId) {
+        // Match PO nếu PO.projectId = X HOẶC có item.projectId = X (mixed-mode)
+        const projectFilter = {
+            OR: [
+                { projectId },
+                { items: { some: { projectId } } },
+            ],
+        };
+        where.AND = where.OR ? [{ OR: where.OR }, projectFilter] : [projectFilter];
+        delete where.OR;
     }
 
     const [orders, total] = await Promise.all([
