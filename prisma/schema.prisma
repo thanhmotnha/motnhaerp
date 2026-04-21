@@ -973,6 +973,8 @@ model ProjectExpense {
   allocations     ExpenseAllocation[]
   expenseCategory ExpenseCategory?    @relation(fields: [categoryId], references: [id])
   project         Project?            @relation(fields: [projectId], references: [id])
+  supplierDebt    SupplierDebt?       @relation("SupplierDebtFromExpense")
+  contractorDebt  ContractorDebt?     @relation("ContractorDebtFromExpense")
 
   @@index([projectId])
   @@index([categoryId])
@@ -2370,9 +2372,11 @@ model SupplierDebt {
   createdById String   @default("")
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+  expenseId   String?  @unique
 
   supplier Supplier              @relation(fields: [supplierId], references: [id])
   project  Project?              @relation(fields: [projectId], references: [id])
+  expense  ProjectExpense?       @relation("SupplierDebtFromExpense", fields: [expenseId], references: [id], onDelete: SetNull)
   payments SupplierDebtPayment[]
 
   @@index([supplierId])
@@ -2414,9 +2418,11 @@ model ContractorDebt {
   createdById  String   @default("")
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
+  expenseId    String?  @unique
 
   contractor Contractor              @relation(fields: [contractorId], references: [id])
   project    Project                 @relation(fields: [projectId], references: [id])
+  expense    ProjectExpense?         @relation("ContractorDebtFromExpense", fields: [expenseId], references: [id], onDelete: SetNull)
   payments   ContractorDebtPayment[]
 
   @@index([contractorId])
