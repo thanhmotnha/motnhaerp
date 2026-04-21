@@ -47,7 +47,7 @@ export const GET = withAuth(async (request) => {
     return NextResponse.json(paginatedResponse(data, total, { page, limit }));
 });
 
-export const POST = withAuth(async (request) => {
+export const POST = withAuth(async (request, context, session) => {
     const body = await request.json();
     const { allocations, ...data } = expenseCreateSchema.parse(body);
     const code = await generateCode('projectExpense', 'CP');
@@ -79,6 +79,59 @@ export const POST = withAuth(async (request) => {
         });
     });
 
+    // Auto-tạo Debt nếu expense là công nợ NCC/Thầu phụ
+    const SKIP_AUTO_DEBT_TYPES = new Set(['Xuất kho', 'Nội bộ']);
+    if (
+        expense.recipientType &&
+        expense.recipientId &&
+        !SKIP_AUTO_DEBT_TYPES.has(expense.expenseType) &&
+        (expense.recipientType === 'NCC' || expense.recipientType === 'Thầu phụ')
+    ) {
+        try {
+            if (expense.recipientType === 'NCC') {
+                await withCodeRetry('supplierDebt', 'CN', (dbtCode) =>
+                    prisma.supplierDebt.create({
+                        data: {
+                            code: dbtCode,
+                            supplierId: expense.recipientId,
+                            projectId: expense.projectId || null,
+                            description: expense.description,
+                            totalAmount: expense.amount,
+                            paidAmount: 0,
+                            status: 'open',
+                            date: expense.date,
+                            notes: expense.notes || '',
+                            proofUrl: expense.proofUrl || '',
+                            createdById: session.user.id,
+                            expenseId: expense.id,
+                        },
+                    })
+                );
+            } else if (expense.recipientType === 'Thầu phụ' && expense.projectId) {
+                await withCodeRetry('contractorDebt', 'CNT', (dbtCode) =>
+                    prisma.contractorDebt.create({
+                        data: {
+                            code: dbtCode,
+                            contractorId: expense.recipientId,
+                            projectId: expense.projectId,
+                            description: expense.description,
+                            totalAmount: expense.amount,
+                            paidAmount: 0,
+                            status: 'open',
+                            date: expense.date,
+                            notes: expense.notes || '',
+                            proofUrl: expense.proofUrl || '',
+                            createdById: session.user.id,
+                            expenseId: expense.id,
+                        },
+                    })
+                );
+            }
+        } catch (e) {
+            console.warn('Auto-create debt failed:', e.message);
+        }
+    }
+
     return NextResponse.json(expense, { status: 201 });
 });
 
@@ -108,7 +161,7 @@ export const PUT = withAuth(async (request, context, session) => {
 
     const existing = await prisma.projectExpense.findUnique({
         where: { id },
-        select: { recipientType: true, recipientId: true, amount: true, date: true, description: true, paymentAccount: true },
+        select: { recipientType: true, recipientId: true, amount: true, date: true, description: true, paymentAccount: true, proofUrl: true },
     });
 
     if (!existing) return NextResponse.json({ error: 'Không tìm thấy lệnh chi' }, { status: 404 });
@@ -152,6 +205,90 @@ export const PUT = withAuth(async (request, context, session) => {
         }
     }
 
+    // Sync linked debt totalAmount/description/date khi expense bị sửa
+    const linkedSupplierDebt = await prisma.supplierDebt.findUnique({ where: { expenseId: id } });
+    const linkedContractorDebt = await prisma.contractorDebt.findUnique({ where: { expenseId: id } });
+
+    const newTotal = updateData.amount ?? existing.amount;
+    const newDesc = updateData.description ?? existing.description;
+    const newDate = updateData.date ? new Date(updateData.date) : existing.date;
+
+    if (linkedSupplierDebt) {
+        if (newTotal < linkedSupplierDebt.paidAmount) {
+            return NextResponse.json({
+                error: `Không thể giảm số tiền (${newTotal}) xuống dưới số đã trả (${linkedSupplierDebt.paidAmount})`,
+            }, { status: 422 });
+        }
+        await prisma.supplierDebt.update({
+            where: { id: linkedSupplierDebt.id },
+            data: { totalAmount: newTotal, description: newDesc, date: newDate },
+        });
+    }
+    if (linkedContractorDebt) {
+        if (newTotal < linkedContractorDebt.paidAmount) {
+            return NextResponse.json({
+                error: `Không thể giảm số tiền xuống dưới số đã trả thầu phụ`,
+            }, { status: 422 });
+        }
+        await prisma.contractorDebt.update({
+            where: { id: linkedContractorDebt.id },
+            data: { totalAmount: newTotal, description: newDesc, date: newDate },
+        });
+    }
+
+    // Auto-tạo DebtPayment khi status → 'Đã chi'
+    if (updateData.status === 'Đã chi') {
+        const payAmount = updateData.amount ?? existing.amount;
+        const payDate = updateData.date ? new Date(updateData.date) : existing.date;
+        const payProofUrl = updateData.proofUrl ?? existing.proofUrl ?? '';
+        const payAccount = updateData.paymentAccount ?? existing.paymentAccount ?? '';
+
+        if (linkedSupplierDebt && linkedSupplierDebt.paidAmount < linkedSupplierDebt.totalAmount) {
+            const pCode = await generateCode('supplierDebtPayment', 'TTNCC');
+            await prisma.supplierDebtPayment.create({
+                data: {
+                    code: pCode,
+                    debtId: linkedSupplierDebt.id,
+                    amount: payAmount,
+                    date: payDate,
+                    notes: existing.description || '',
+                    proofUrl: payProofUrl,
+                    paymentAccount: payAccount,
+                    createdById: session.user.id,
+                },
+            });
+            const newPaid = (linkedSupplierDebt.paidAmount || 0) + payAmount;
+            const newStatus = newPaid >= linkedSupplierDebt.totalAmount ? 'paid'
+                : newPaid > 0 ? 'partial' : 'open';
+            await prisma.supplierDebt.update({
+                where: { id: linkedSupplierDebt.id },
+                data: { paidAmount: newPaid, status: newStatus },
+            });
+        }
+        if (linkedContractorDebt && linkedContractorDebt.paidAmount < linkedContractorDebt.totalAmount) {
+            const pCode = await generateCode('contractorDebtPayment', 'TTTP');
+            await prisma.contractorDebtPayment.create({
+                data: {
+                    code: pCode,
+                    debtId: linkedContractorDebt.id,
+                    amount: payAmount,
+                    date: payDate,
+                    notes: existing.description || '',
+                    proofUrl: payProofUrl,
+                    paymentAccount: payAccount,
+                    createdById: session.user.id,
+                },
+            });
+            const newPaid = (linkedContractorDebt.paidAmount || 0) + payAmount;
+            const newStatus = newPaid >= linkedContractorDebt.totalAmount ? 'paid'
+                : newPaid > 0 ? 'partial' : 'open';
+            await prisma.contractorDebt.update({
+                where: { id: linkedContractorDebt.id },
+                data: { paidAmount: newPaid, status: newStatus },
+            });
+        }
+    }
+
     return NextResponse.json(expense);
 });
 
@@ -159,6 +296,41 @@ export const DELETE = withAuth(async (request) => {
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');
     if (!id) return NextResponse.json({ error: 'Missing id' }, { status: 400 });
-    await prisma.projectExpense.delete({ where: { id } });
-    return NextResponse.json({ success: true });
+
+    const expense = await prisma.projectExpense.findUnique({
+        where: { id },
+        include: { supplierDebt: true, contractorDebt: true },
+    });
+    if (!expense) return NextResponse.json({ error: 'Không tìm thấy' }, { status: 404 });
+
+    if (expense.supplierDebt && expense.supplierDebt.paidAmount > 0) {
+        return NextResponse.json({
+            error: `Công nợ NCC ${expense.supplierDebt.code} đã có thanh toán ${expense.supplierDebt.paidAmount}. Hủy thanh toán trước khi xóa.`,
+        }, { status: 422 });
+    }
+    if (expense.contractorDebt && expense.contractorDebt.paidAmount > 0) {
+        return NextResponse.json({
+            error: `Công nợ thầu phụ ${expense.contractorDebt.code} đã có thanh toán. Hủy thanh toán trước khi xóa.`,
+        }, { status: 422 });
+    }
+
+    await prisma.$transaction(async (tx) => {
+        if (expense.supplierDebt) {
+            await tx.supplierDebt.delete({ where: { id: expense.supplierDebt.id } });
+        }
+        if (expense.contractorDebt) {
+            await tx.contractorDebt.delete({ where: { id: expense.contractorDebt.id } });
+        }
+        if (expense.expenseType === 'Xuất kho') {
+            await tx.inventoryTransaction.deleteMany({
+                where: { note: { contains: `Phiếu xuất kho ${expense.code}` } },
+            });
+        }
+        await tx.projectExpense.update({
+            where: { id },
+            data: { deletedAt: new Date() },
+        });
+    });
+
+    return NextResponse.json({ ok: true });
 }, { roles: ['giam_doc', 'ke_toan'] });
