@@ -1,56 +1,79 @@
-import React from 'react';
-import { Stack } from 'expo-router';
-import { StatusBar } from 'expo-status-bar';
-import { QueryClientProvider } from '@tanstack/react-query';
-import { AuthProvider } from '@/contexts/AuthContext';
-import { ThemeProvider, useTheme } from '@/contexts/ThemeContext';
-import { ErrorBoundary } from '@/components/ErrorBoundary';
-import { queryClient } from '@/lib/queryClient';
+import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
+import { useFonts } from 'expo-font';
+import { Stack, useRouter, useSegments } from 'expo-router';
+import * as SplashScreen from 'expo-splash-screen';
+import { useEffect } from 'react';
+import 'react-native-reanimated';
 
-function ThemedStack() {
-  const { theme, mode } = useTheme();
-  return (
-    <>
-      <StatusBar style={mode === 'dark' ? 'light' : 'light'} />
-      <Stack
-        screenOptions={{
-          headerStyle: { backgroundColor: theme.primary },
-          headerTintColor: theme.textOnPrimary,
-          headerTitleStyle: { fontWeight: '600' },
-          contentStyle: { backgroundColor: theme.bg },
-        }}
-      >
-        <Stack.Screen name="(auth)" options={{ headerShown: false }} />
-        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        <Stack.Screen name="projects/[id]" options={{ title: 'Chi tiết dự án' }} />
-        <Stack.Screen name="progress/report" options={{ title: 'Báo cáo tiến độ' }} />
-        <Stack.Screen name="progress/list" options={{ title: 'Lịch sử báo cáo' }} />
-        <Stack.Screen name="purchase-orders/[id]" options={{ title: 'Chi tiết PO' }} />
-        <Stack.Screen name="purchase-orders/create" options={{ title: 'Tạo đơn mua hàng' }} />
-        <Stack.Screen name="daily-logs/create" options={{ title: 'Nhật ký công trường' }} />
-        <Stack.Screen name="schedule/index" options={{ title: 'Lịch trình dự án' }} />
-        <Stack.Screen name="customer/index" options={{ title: 'Dự án của tôi', headerShown: false }} />
-        <Stack.Screen name="customer/gallery" options={{ title: 'Ảnh công trường' }} />
-        <Stack.Screen name="customer/quotation" options={{ title: 'Báo giá dự án' }} />
-        <Stack.Screen name="customers/[id]" options={{ title: 'Chi tiết KH' }} />
-        <Stack.Screen name="customers/[id]/checkin" options={{ title: 'Check-in KH' }} />
-        <Stack.Screen name="inventory/receive/[id]" options={{ title: 'Nhập kho' }} />
-        <Stack.Screen name="inventory/issue" options={{ title: 'Xuất kho' }} />
-      </Stack>
-    </>
-  );
+import { useColorScheme } from '@/components/useColorScheme';
+import { AuthProvider, useAuth } from '@/lib/auth';
+import { ToastProvider } from '@/components/Toast';
+
+export { ErrorBoundary } from 'expo-router';
+
+SplashScreen.preventAutoHideAsync();
+
+function AuthGate({ children }: { children: React.ReactNode }) {
+  const { user, loading } = useAuth();
+  const segments = useSegments();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (loading) return;
+    const inAuth = segments[0] === 'login';
+    if (!user && !inAuth) router.replace('/login');
+    else if (user && inAuth) router.replace('/(tabs)');
+  }, [user, loading, segments]);
+
+  if (loading) return null;
+  return <>{children}</>;
 }
 
 export default function RootLayout() {
+  const [loaded, error] = useFonts({
+    SpaceMono: require('../assets/fonts/SpaceMono-Regular.ttf'),
+  });
+
+  useEffect(() => { if (error) throw error; }, [error]);
+  useEffect(() => { if (loaded) SplashScreen.hideAsync(); }, [loaded]);
+
+  if (!loaded) return null;
+
   return (
-    <ErrorBoundary>
-      <QueryClientProvider client={queryClient}>
-        <ThemeProvider>
-          <AuthProvider>
-            <ThemedStack />
-          </AuthProvider>
-        </ThemeProvider>
-      </QueryClientProvider>
-    </ErrorBoundary>
+    <ToastProvider>
+      <AuthProvider>
+        <RootLayoutNav />
+      </AuthProvider>
+    </ToastProvider>
+  );
+}
+
+function RootLayoutNav() {
+  const colorScheme = useColorScheme();
+
+  return (
+    <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
+      <AuthGate>
+        <Stack screenOptions={{ headerShown: false }}>
+          <Stack.Screen name="(tabs)" />
+          <Stack.Screen name="login" />
+          <Stack.Screen name="schedule" />
+          <Stack.Screen name="daily-log" />
+          <Stack.Screen name="material-request" />
+          <Stack.Screen name="purchasing" />
+          <Stack.Screen name="drawings" />
+          <Stack.Screen name="warranty" />
+          <Stack.Screen name="approvals" />
+          <Stack.Screen name="dashboard" />
+          <Stack.Screen name="projects/[id]" />
+          <Stack.Screen name="attendance" />
+          <Stack.Screen name="leave-request" />
+          <Stack.Screen name="production" />
+          <Stack.Screen name="production-detail" />
+          <Stack.Screen name="punch-list" />
+          <Stack.Screen name="acceptance-check" />
+        </Stack>
+      </AuthGate>
+    </ThemeProvider>
   );
 }
