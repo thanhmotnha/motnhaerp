@@ -180,6 +180,23 @@ export const PUT = withAuth(async (request, context, session) => {
                     })),
                 });
             }
+        } else if (updateData.amount !== undefined && updateData.amount !== existing.amount) {
+            // Amount đổi nhưng user không re-config allocations → auto-scale theo tỷ lệ
+            const oldAllocs = await tx.expenseAllocation.findMany({ where: { expenseId: id } });
+            if (oldAllocs.length > 0) {
+                const sumOld = oldAllocs.reduce((s, a) => s + (a.amount || 0), 0);
+                if (sumOld > 0 && Math.abs(sumOld - existing.amount) < 1) {
+                    // Sum allocations khớp với amount cũ → scale proportional
+                    const ratio = updateData.amount / existing.amount;
+                    for (const a of oldAllocs) {
+                        await tx.expenseAllocation.update({
+                            where: { id: a.id },
+                            data: { amount: Math.round((a.amount || 0) * ratio) },
+                        });
+                    }
+                }
+                // Else: sum đã mismatch từ trước → không auto-scale, user phải tự fix
+            }
         }
         return tx.projectExpense.update({ where: { id }, data: updateData });
     });

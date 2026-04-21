@@ -112,13 +112,23 @@ export const PUT = withAuth(async (request, { params }) => {
         return NextResponse.json(po);
     }
 
-    // Khi hủy PO: trả lại orderedQty cho MaterialPlan (phần chưa nhận)
+    // Khi hủy PO: trả lại orderedQty cho MaterialPlan (phần chưa nhận).
+    // Block nếu PO đã có GRN hoặc receivedQty > 0 — user phải hủy GRN/receive trước.
     if (status === 'Hủy') {
         const currentPO = await prisma.purchaseOrder.findUnique({
             where: { id },
             include: { items: true },
         });
         if (currentPO && currentPO.status !== 'Hủy') {
+            const [receiptCount, receivedItemsCount] = await Promise.all([
+                prisma.goodsReceipt.count({ where: { purchaseOrderId: id } }),
+                prisma.purchaseOrderItem.count({ where: { purchaseOrderId: id, receivedQty: { gt: 0 } } }),
+            ]);
+            if (receiptCount > 0 || receivedItemsCount > 0) {
+                return NextResponse.json({
+                    error: 'PO đã có phiếu nhận — hủy phiếu nhận (GRN) hoặc "Hủy nhận" giao thẳng trước, rồi mới hủy PO.',
+                }, { status: 422 });
+            }
             for (const item of currentPO.items) {
                 if (!item.materialPlanId) continue;
                 const undelivered = Math.max(0, item.quantity - (item.receivedQty || 0));
