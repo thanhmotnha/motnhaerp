@@ -25,6 +25,8 @@ model User {
   pushToken String   @default("")
   username  String   @default("")
 
+  salesCustomers Customer[] @relation("CustomerSalesPerson")
+
   @@index([username])
 }
 
@@ -46,7 +48,9 @@ model Customer {
   gender          String                @default("Nam")
   projectAddress  String                @default("")
   projectName     String                @default("")
-  salesPerson     String                @default("")
+  salesPersonNote String                @default("")
+  salesPersonId   String?
+  salesPerson     User?                 @relation("CustomerSalesPerson", fields: [salesPersonId], references: [id], onDelete: SetNull)
   designer        String                @default("")
   contactPerson2  String                @default("")
   phone2          String                @default("")
@@ -70,6 +74,8 @@ model Customer {
   documents       ProjectDocument[]
   quotations      Quotation[]
   trackingLogs    TrackingLog[]
+
+  @@index([salesPersonId])
 }
 
 model Project {
