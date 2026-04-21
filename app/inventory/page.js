@@ -1083,6 +1083,14 @@ export default function InventoryPage() {
                                 </div>
                             </div>
                             <div style={{ fontWeight: 600, marginBottom: 8, fontSize: 14 }}>Danh sách vật tư xuất:</div>
+                            <div style={{ display: 'grid', gridTemplateColumns: '1.8fr 55px 80px 110px 110px 28px', gap: 6, marginBottom: 6, fontSize: 11, color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.5 }}>
+                                <div>Sản phẩm</div>
+                                <div style={{ textAlign: 'center' }}>ĐVT</div>
+                                <div style={{ textAlign: 'center' }}>SL</div>
+                                <div style={{ textAlign: 'right' }}>Đơn giá</div>
+                                <div style={{ textAlign: 'right' }}>Thành tiền</div>
+                                <div></div>
+                            </div>
                             {issueItems.map((item, i) => {
                                 const issueQuery = issueItemSearch[i] ?? (item.productName || '');
                                 const iq = (issueQuery || '').toLowerCase().trim();
@@ -1112,7 +1120,7 @@ export default function InventoryPage() {
                                 };
                                 return (
                                 <div key={i} style={{ marginBottom: 8 }}>
-                                    <div style={{ display: 'grid', gridTemplateColumns: '2fr 80px 100px 28px', gap: 6, alignItems: 'center' }}>
+                                    <div style={{ display: 'grid', gridTemplateColumns: '1.8fr 55px 80px 110px 110px 28px', gap: 6, alignItems: 'center' }}>
                                         <div style={{ position: 'relative' }}>
                                             <input
                                                 className="form-input"
@@ -1147,7 +1155,15 @@ export default function InventoryPage() {
                                         </div>
                                         <div style={{ fontSize: 12, color: 'var(--text-muted)', textAlign: 'center' }}>{item.unit}</div>
                                         <input className="form-input" type="number" min="0.001" step="0.001" placeholder="SL" value={item.qty}
-                                            onChange={e => setIssueItems(prev => prev.map((it, idx) => idx === i ? { ...it, qty: e.target.value } : it))} />
+                                            onChange={e => setIssueItems(prev => prev.map((it, idx) => idx === i ? { ...it, qty: e.target.value } : it))}
+                                            style={{ textAlign: 'center' }} />
+                                        <input className="form-input" type="number" min="0" placeholder="Đơn giá" value={item.unitPrice}
+                                            onChange={e => setIssueItems(prev => prev.map((it, idx) => idx === i ? { ...it, unitPrice: Number(e.target.value) || 0 } : it))}
+                                            style={{ textAlign: 'right' }}
+                                            title="Đơn giá xuất kho (tự fill = giá nhập bình quân)" />
+                                        <div style={{ fontSize: 12, fontWeight: 600, textAlign: 'right', color: 'var(--status-warning)' }}>
+                                            {fmt((Number(item.qty) || 0) * (Number(item.unitPrice) || 0))}
+                                        </div>
                                         <button type="button" style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--status-danger)', fontSize: 16 }}
                                             onClick={() => { setIssueItems(prev => prev.filter((_, idx) => idx !== i)); setIssueItemAttrs(prev => { const n = { ...prev }; delete n[i]; return n; }); }}>×</button>
                                     </div>
@@ -1175,6 +1191,14 @@ export default function InventoryPage() {
                                 </div>
                                 );
                             })}
+                            {issueItems.some(it => it.productId) && (
+                                <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 12, padding: '8px 40px 8px 0', borderTop: '1px solid var(--border)', marginTop: 4, marginBottom: 4 }}>
+                                    <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>Tổng giá trị xuất:</span>
+                                    <span style={{ fontSize: 15, fontWeight: 700, color: 'var(--status-warning)' }}>
+                                        {fmt(issueItems.reduce((s, it) => s + (Number(it.qty) || 0) * (Number(it.unitPrice) || 0), 0))}
+                                    </span>
+                                </div>
+                            )}
                             <button className="btn btn-ghost btn-sm" style={{ marginBottom: 8 }}
                                 onClick={() => setIssueItems(prev => [...prev, { productId: '', productName: '', unit: '', qty: '', unitPrice: 0, stock: 0, variantLabel: '', variantSelections: {} }])}>
                                 + Thêm dòng
