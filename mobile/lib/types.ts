@@ -156,3 +156,41 @@ export interface CustomerInteraction {
 export type InterestLevel = '' | 'Nóng' | 'Ấm' | 'Lạnh';
 export type InteractionOutcome = '' | 'Báo giá' | 'Đặt cọc' | 'Từ chối' | 'Cần gặp lại';
 export type InteractionType = 'Gặp trực tiếp' | 'Điện thoại' | 'Zalo' | 'Email' | 'Ghi chú';
+
+export interface Warehouse {
+  id: string;
+  code: string;
+  name: string;
+}
+
+export interface POItemForReceive {
+  id: string;
+  productId: string | null;
+  productName: string;
+  unit: string;
+  quantity: number;
+  receivedQty: number;
+  unitPrice: number;
+  variantLabel?: string;
+}
+
+export interface GoodsReceipt {
+  id: string;
+  code: string;
+  purchaseOrderId: string;
+  warehouseId: string;
+  receivedDate: string;
+  receivedBy: string;
+  notes: string;
+  purchaseOrder?: { code: string; supplier: string };
+  warehouse?: { name: string };
+  items: Array<{
+    id: string;
+    productName: string;
+    unit: string;
+    qtyOrdered: number;
+    qtyReceived: number;
+    unitPrice: number;
+  }>;
+  createdAt: string;
+}

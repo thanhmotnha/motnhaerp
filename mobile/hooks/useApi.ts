@@ -11,6 +11,8 @@ import type {
   Customer,
   CustomerInteraction,
   User,
+  Warehouse,
+  GoodsReceipt,
 } from '@/lib/types';
 
 /** All queries must only fire when user is authenticated */
@@ -307,5 +309,52 @@ export function useUsersByRole(role: string) {
     queryKey: ['users', role],
     queryFn: () => apiFetch(`/api/users?role=${role}`),
     enabled: ready && !!role,
+  });
+}
+
+// ─── Inventory ──────────────────────────────────────────────
+export function useWarehouses() {
+  const ready = useIsReady();
+  return useQuery<PaginatedResponse<Warehouse> | Warehouse[]>({
+    queryKey: ['warehouses'],
+    queryFn: () => apiFetch('/api/warehouses?limit=100'),
+    enabled: ready,
+  });
+}
+
+export function useGoodsReceipts(params: { page?: number; poId?: string } = {}) {
+  const ready = useIsReady();
+  const qs = new URLSearchParams({ page: String(params.page || 1), limit: '30' });
+  if (params.poId) qs.set('poId', params.poId);
+  return useQuery<PaginatedResponse<GoodsReceipt>>({
+    queryKey: ['goods-receipts', params],
+    queryFn: () => apiFetch(`/api/inventory/receipts?${qs}`),
+    enabled: ready,
+  });
+}
+
+export function useCreateGoodsReceipt() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (data: any) => apiFetch('/api/inventory/receipts', { method: 'POST', body: JSON.stringify(data) }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['goods-receipts'] });
+      qc.invalidateQueries({ queryKey: ['purchase-orders'] });
+    },
+  });
+}
+
+export function usePOsPendingReceive() {
+  const ready = useIsReady();
+  return useQuery<PaginatedResponse<PurchaseOrder>>({
+    queryKey: ['purchase-orders', 'pending-receive'],
+    queryFn: () => apiFetch(`/api/purchase-orders?limit=100`),
+    enabled: ready,
+    select: (data: any) => ({
+      ...data,
+      data: (data?.data || []).filter((po: any) =>
+        po.status === 'Đã duyệt' || po.status === 'Nhận một phần',
+      ),
+    }),
   });
 }
