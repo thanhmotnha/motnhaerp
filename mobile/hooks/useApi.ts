@@ -344,6 +344,28 @@ export function useCreateGoodsReceipt() {
   });
 }
 
+export function useStockIssues(params: { page?: number; projectId?: string } = {}) {
+  const ready = useIsReady();
+  const qs = new URLSearchParams({ page: String(params.page || 1), limit: '30' });
+  if (params.projectId) qs.set('projectId', params.projectId);
+  return useQuery<PaginatedResponse<any>>({
+    queryKey: ['stock-issues', params],
+    queryFn: () => apiFetch(`/api/inventory/issues?${qs}`),
+    enabled: ready,
+  });
+}
+
+export function useCreateStockIssue() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (data: any) => apiFetch('/api/inventory/issues', { method: 'POST', body: JSON.stringify(data) }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['stock-issues'] });
+      qc.invalidateQueries({ queryKey: ['products'] });
+    },
+  });
+}
+
 export function usePOsPendingReceive() {
   const ready = useIsReady();
   return useQuery<PaginatedResponse<PurchaseOrder>>({
