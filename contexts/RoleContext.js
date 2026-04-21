@@ -17,6 +17,7 @@ const PERMISSIONS = {
         canCollectPayment: true, canPrintReceipt: true, canViewFinance: true,
         canViewProjects: true, canViewAll: true,
         canManageContractors: true, canManageSuppliers: true,
+        canReassignCustomer: true, canClaimCustomer: false, canViewAllCustomers: true,
         filterProject: null,
     },
     ke_toan: {
@@ -25,6 +26,7 @@ const PERMISSIONS = {
         canCollectPayment: true, canPrintReceipt: true, canViewFinance: true,
         canViewProjects: true, canViewAll: true,
         canManageContractors: false, canManageSuppliers: true,
+        canReassignCustomer: false, canClaimCustomer: false, canViewAllCustomers: true,
         filterProject: null,
     },
     kinh_doanh: {
@@ -33,6 +35,7 @@ const PERMISSIONS = {
         canCollectPayment: false, canPrintReceipt: false, canViewFinance: false,
         canViewProjects: true, canViewAll: false,
         canManageContractors: false, canManageSuppliers: false,
+        canReassignCustomer: false, canClaimCustomer: true, canViewAllCustomers: false,
         filterProject: null,
     },
     kho: {
@@ -41,6 +44,7 @@ const PERMISSIONS = {
         canCollectPayment: false, canPrintReceipt: false, canViewFinance: false,
         canViewProjects: true, canViewAll: false,
         canManageContractors: false, canManageSuppliers: false,
+        canReassignCustomer: false, canClaimCustomer: false, canViewAllCustomers: true,
         filterProject: null,
     },
     ky_thuat: {
@@ -49,6 +53,7 @@ const PERMISSIONS = {
         canCollectPayment: false, canPrintReceipt: false, canViewFinance: false,
         canViewProjects: true, canViewAll: false,
         canManageContractors: false, canManageSuppliers: false,
+        canReassignCustomer: false, canClaimCustomer: false, canViewAllCustomers: true,
         filterProject: null,
     },
 };
