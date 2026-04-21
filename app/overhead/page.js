@@ -662,6 +662,8 @@ function BatchDetailModal({ batchId, onClose, toast, canManage }) {
     const [allocations, setAllocations] = useState([]);
     const [recalculating, setRecalculating] = useState(false);
     const [confirming, setConfirming] = useState(false);
+    const [projectOptions, setProjectOptions] = useState([]);
+    const [addProjectId, setAddProjectId] = useState('');
 
     const loadBatch = useCallback(async () => {
         try {
@@ -673,6 +675,9 @@ function BatchDetailModal({ batchId, onClose, toast, canManage }) {
     }, [batchId]);
 
     useEffect(() => { loadBatch(); }, [loadBatch]);
+    useEffect(() => {
+        apiFetch('/api/projects?limit=500').then(r => setProjectOptions(r?.data || r || [])).catch(() => { });
+    }, []);
 
     const recalculate = async () => {
         setRecalculating(true);
@@ -692,6 +697,28 @@ function BatchDetailModal({ batchId, onClose, toast, canManage }) {
                 ? { ...a, ratio: newRatio, amount: parseFloat(((newRatio / 100) * totalAmount).toFixed(0)), isOverride: true }
                 : a;
         }));
+    };
+
+    const removeAllocation = (pid) => {
+        setAllocations(prev => prev.filter(a => (a.projectId || a.project?.id) !== pid));
+    };
+
+    const addAllocation = () => {
+        if (!addProjectId) return;
+        const exists = allocations.some(a => (a.projectId || a.project?.id) === addProjectId);
+        if (exists) { toast.error('Dự án đã có trong danh sách'); return; }
+        const proj = projectOptions.find(p => p.id === addProjectId);
+        if (!proj) return;
+        setAllocations(prev => [...prev, {
+            projectId: proj.id,
+            projectName: proj.name,
+            projectCode: proj.code,
+            ratio: 0,
+            amount: 0,
+            isOverride: true,
+            notes: '',
+        }]);
+        setAddProjectId('');
     };
 
     const confirmBatch = async () => {
@@ -762,9 +789,20 @@ function BatchDetailModal({ batchId, onClose, toast, canManage }) {
                         </button>
                     )}
                 </div>
-                <div style={{ maxHeight: 200, overflow: 'auto', border: '1px solid var(--border)', borderRadius: 8, marginBottom: 16 }}>
+                {!isConfirmed && canManage && (
+                    <div style={{ display: 'flex', gap: 6, marginBottom: 6 }}>
+                        <select className="form-select" value={addProjectId} onChange={e => setAddProjectId(e.target.value)} style={{ flex: 1, fontSize: 13 }}>
+                            <option value="">+ Chọn dự án để thêm...</option>
+                            {projectOptions
+                                .filter(p => !allocations.some(a => (a.projectId || a.project?.id) === p.id))
+                                .map(p => <option key={p.id} value={p.id}>{p.code} — {p.name}</option>)}
+                        </select>
+                        <button className="btn btn-sm" onClick={addAllocation} disabled={!addProjectId}>+ Thêm</button>
+                    </div>
+                )}
+                <div style={{ maxHeight: 200, overflow: 'auto', border: '1px solid var(--border)', borderRadius: 8, marginBottom: 8 }}>
                     <table className="data-table">
-                        <thead><tr><th>Dự án</th><th style={{ textAlign: 'right', width: 90 }}>Tỷ lệ %</th><th style={{ textAlign: 'right' }}>Phân bổ (đ)</th><th style={{ width: 24 }}></th></tr></thead>
+                        <thead><tr><th>Dự án</th><th style={{ textAlign: 'right', width: 90 }}>Tỷ lệ %</th><th style={{ textAlign: 'right' }}>Phân bổ (đ)</th><th style={{ width: 40 }}></th></tr></thead>
                         <tbody>
                             {allocations.map(a => {
                                 const pid = a.projectId || a.project?.id;
@@ -783,26 +821,53 @@ function BatchDetailModal({ batchId, onClose, toast, canManage }) {
                                             ) : `${a.ratio}%`}
                                         </td>
                                         <td style={{ textAlign: 'right', fontFamily: 'monospace' }}>{fmt(a.amount)}</td>
-                                        <td style={{ color: '#f59e0b', fontSize: 11 }}>{a.isOverride ? '✏️' : ''}</td>
+                                        <td style={{ textAlign: 'center' }}>
+                                            {a.isOverride && <span style={{ color: '#f59e0b', fontSize: 11, marginRight: 4 }}>✏️</span>}
+                                            {!isConfirmed && canManage && (
+                                                <button onClick={() => removeAllocation(pid)} title="Xóa"
+                                                    style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#ef4444', fontSize: 14, padding: 0 }}>✕</button>
+                                            )}
+                                        </td>
                                     </tr>
                                 );
                             })}
                             {allocations.length === 0 && (
                                 <tr><td colSpan={4} style={{ textAlign: 'center', padding: 16, color: 'var(--text-muted)' }}>
-                                    {isConfirmed ? 'Chưa có phân bổ' : 'Bấm "Tính lại tỷ lệ" để tạo phân bổ'}
+                                    {isConfirmed ? 'Chưa có phân bổ' : 'Bấm "Tính lại tỷ lệ" hoặc chọn dự án ở trên để thêm'}
                                 </td></tr>
                             )}
                         </tbody>
                     </table>
                 </div>
 
+                {(() => {
+                    const totalRatio = allocations.reduce((s, a) => s + Number(a.ratio || 0), 0);
+                    const totalAmount = allocations.reduce((s, a) => s + Number(a.amount || 0), 0);
+                    const ratioOk = Math.abs(totalRatio - 100) < 0.01;
+                    const amountOk = Math.abs(totalAmount - Number(batch?.totalAmount || 0)) < 0.01;
+                    const ok = ratioOk && amountOk;
+                    if (allocations.length === 0) return null;
+                    return (
+                        <div style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 10px', marginBottom: 12, borderRadius: 6, background: ok ? '#dcfce7' : '#fee2e2', color: ok ? '#166534' : '#991b1b', fontSize: 13 }}>
+                            <span>Tổng tỷ lệ: <strong>{totalRatio.toFixed(2)}%</strong> {!ratioOk && <span style={{ marginLeft: 4 }}>(cần 100%)</span>}</span>
+                            <span>Tổng phân bổ: <strong>{fmt(totalAmount)}</strong> / {fmt(batch?.totalAmount)} {!amountOk && <span style={{ marginLeft: 4 }}>(chênh {fmt(Math.abs(totalAmount - batch?.totalAmount))})</span>}</span>
+                        </div>
+                    );
+                })()}
+
                 <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
                     <button className="btn" onClick={onClose}>Đóng</button>
-                    {!isConfirmed && canManage && allocations.length > 0 && (
-                        <button className="btn btn-primary" onClick={confirmBatch} disabled={confirming}>
-                            {confirming ? 'Đang xác nhận...' : '✓ Xác nhận phân bổ'}
-                        </button>
-                    )}
+                    {!isConfirmed && canManage && allocations.length > 0 && (() => {
+                        const totalRatio = allocations.reduce((s, a) => s + Number(a.ratio || 0), 0);
+                        const totalAmount = allocations.reduce((s, a) => s + Number(a.amount || 0), 0);
+                        const ok = Math.abs(totalRatio - 100) < 0.01 && Math.abs(totalAmount - Number(batch?.totalAmount || 0)) < 0.01;
+                        return (
+                            <button className="btn btn-primary" onClick={confirmBatch} disabled={confirming || !ok}
+                                title={!ok ? 'Tổng tỷ lệ phải = 100% và tổng tiền khớp batch' : ''}>
+                                {confirming ? 'Đang xác nhận...' : '✓ Xác nhận phân bổ'}
+                            </button>
+                        );
+                    })()}
                 </div>
             </div>
         </div>
