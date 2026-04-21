@@ -114,7 +114,7 @@ export function useExpenses(params: { status?: string; page?: number } = {}) {
 
   return useQuery<PaginatedResponse<Expense>>({
     queryKey: ['expenses', params],
-    queryFn: () => apiFetch(`/api/expenses?${search}`),
+    queryFn: () => apiFetch(`/api/project-expenses?${search}`),
     enabled: ready,
   });
 }

@@ -39,7 +39,7 @@ export default function DashboardScreen() {
     return <ErrorState message="Không thể tải dashboard" onRetry={refetch} />;
   }
 
-  const isFieldWorker = role === 'ky_thuat' || role === 'nhan_vien' || role === 'quan_ly_du_an';
+  const isFieldWorker = role === 'ky_thuat' || role === 'kho';
 
   return (
     <ScrollView
