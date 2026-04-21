@@ -4,6 +4,7 @@ import { parsePagination, paginatedResponse } from '@/lib/pagination';
 import { generateCode } from '@/lib/generateCode';
 import { NextResponse } from 'next/server';
 import { purchaseOrderCreateSchema } from '@/lib/validations/purchaseOrder';
+import { sendPushToRoles } from '@/lib/pushNotifications';
 
 export const GET = withAuth(async (request) => {
     const { searchParams } = new URL(request.url);
@@ -136,6 +137,13 @@ export const POST = withAuth(async (request) => {
             },
         });
     }
+
+    // Fire-and-forget push notif cho giám đốc (người duyệt PO)
+    sendPushToRoles(['giam_doc'], {
+        title: needsApproval ? '⚠ PO vượt định mức chờ duyệt' : '📦 PO mới chờ duyệt',
+        body: `${order.code} — ${order.supplier} · ${order.totalAmount.toLocaleString('vi-VN')}đ`,
+        data: { type: 'po', id: order.id },
+    }).catch(() => { });
 
     return NextResponse.json({ ...order, warnings, needsApproval });
 });

@@ -9,6 +9,7 @@ import {
 } from '@/lib/auth';
 import { APPROVAL_ROLES, CUSTOMER_ROLES, FINANCE_ROLES, type RoleKey } from '@/lib/constants';
 import type { User, AuthResponse } from '@/lib/types';
+import { registerForPushAsync, clearPushToken } from '@/lib/pushNotifications';
 
 interface AuthContextType {
   user: User | null;
@@ -84,12 +85,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     });
     await saveAuthResponse(response);
     setUser(response.user);
+    // Register push token in background (non-blocking)
+    registerForPushAsync().catch(() => { });
   }, []);
 
   const logout = useCallback(async () => {
+    await clearPushToken().catch(() => { });
     await clearAuth();
     setUser(null);
   }, []);
+
+  // Re-register push token on app start if authenticated (useful after reinstall)
+  useEffect(() => {
+    if (user && !isLoading) {
+      registerForPushAsync().catch(() => { });
+    }
+  }, [user?.id, isLoading]);
 
   const role = user?.role ?? null;
   const canApprove = role ? APPROVAL_ROLES.includes(role) : false;
