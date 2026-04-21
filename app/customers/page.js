@@ -53,7 +53,7 @@ export default function CustomersPage() {
     const [ownerFilter, setOwnerFilter] = useState(isNvkd ? 'mine' : 'all'); // mine | unassigned | all
     const [view, setView] = useState('kanban');
     const [showModal, setShowModal] = useState(false);
-    const [form, setForm] = useState({ name: '', phone: '', email: '', address: '', type: 'Cá nhân', pipelineStage: 'Lead', taxCode: '', representative: '', source: '', notes: '', gender: 'Nam', birthday: '', salesPerson: '', designer: '', projectAddress: '', projectName: '', contactPerson2: '', phone2: '', estimatedValue: 0, salesPersonId: '' });
+    const [form, setForm] = useState({ name: '', phone: '', email: '', address: '', type: 'Cá nhân', pipelineStage: 'Lead', taxCode: '', representative: '', source: '', notes: '', gender: 'Nam', birthday: '', salesPersonNote: '', designer: '', projectAddress: '', projectName: '', contactPerson2: '', phone2: '', estimatedValue: 0, salesPersonId: '' });
     const [salesPeople, setSalesPeople] = useState([]);
     const [dragId, setDragId] = useState(null);
     const [dragOver, setDragOver] = useState(null);
@@ -96,7 +96,7 @@ export default function CustomersPage() {
         const res = await fetch('/api/customers', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
         if (!res.ok) { const err = await res.json(); return alert(err.error || 'Lỗi tạo khách hàng'); }
         setShowModal(false);
-        setForm({ name: '', phone: '', email: '', address: '', type: 'Cá nhân', pipelineStage: 'Lead', taxCode: '', representative: '', source: '', notes: '', gender: 'Nam', birthday: '', salesPerson: '', designer: '', projectAddress: '', projectName: '', contactPerson2: '', phone2: '', estimatedValue: 0, salesPersonId: '' });
+        setForm({ name: '', phone: '', email: '', address: '', type: 'Cá nhân', pipelineStage: 'Lead', taxCode: '', representative: '', source: '', notes: '', gender: 'Nam', birthday: '', salesPersonNote: '', designer: '', projectAddress: '', projectName: '', contactPerson2: '', phone2: '', estimatedValue: 0, salesPersonId: '' });
         fetchCustomers();
     };
 
@@ -380,7 +380,7 @@ export default function CustomersPage() {
 
                             <h4 style={{ color: 'var(--text-accent)', fontSize: 13, margin: '20px 0 12px', borderBottom: '1px solid var(--border-subtle)', paddingBottom: 6 }}>🏠 Thông tin dự án</h4>
                             <div className="form-row">
-                                <div className="form-group"><label className="form-label">NV kinh doanh</label><input className="form-input" value={form.salesPerson} onChange={e => setForm({ ...form, salesPerson: e.target.value })} /></div>
+                                <div className="form-group"><label className="form-label">Ghi chú NVKD (legacy)</label><input className="form-input" value={form.salesPersonNote || ''} onChange={e => setForm({ ...form, salesPersonNote: e.target.value })} placeholder="Dropdown 'Chủ khách' bên dưới là chính" /></div>
                                 <div className="form-group"><label className="form-label">NV thiết kế</label><input className="form-input" value={form.designer} onChange={e => setForm({ ...form, designer: e.target.value })} /></div>
                             </div>
                             <div className="form-group">

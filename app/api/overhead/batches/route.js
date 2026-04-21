@@ -29,10 +29,8 @@ export const POST = withAuth(async (request, _ctx, session) => {
     const { expenseIds, ...batchData } = overheadBatchCreateSchema.parse(body);
 
     // Auto-generate batch code (atomic via generateCode to prevent race conditions)
-    const period = batchData.period || '';
-    const seqCode = await generateCode('overheadBatch', 'CPGB');
-    const seqNum = seqCode.replace('CPGB-', ''); // e.g., "001"
-    const code = period ? `CPGB-${period}-${seqNum}` : seqCode;
+    // Format: CPGB001, CPGB002 — period được lưu riêng ở field `period`, không nhồi vào code
+    const code = await generateCode('overheadBatch', 'CPGB');
 
     // Fetch selected approved expenses to calculate totalAmount
     const expenses = await prisma.overheadExpense.findMany({

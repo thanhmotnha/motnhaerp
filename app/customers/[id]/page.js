@@ -183,7 +183,7 @@ export default function CustomerDetailPage() {
                         <button className="btn btn-primary btn-sm" onClick={() => setShowCheckinModal(true)}>📸 Check-in</button>
                     )}
                     <button className="btn btn-secondary btn-sm" onClick={() => setShowLogModal(true)}>📝 Ghi chú</button>
-                    <button className="btn btn-secondary btn-sm" onClick={() => { setEditForm({ name: c.name, phone: c.phone, email: c.email, address: c.address, type: c.type, pipelineStage: c.pipelineStage || 'Lead', source: c.source, representative: c.representative, taxCode: c.taxCode, estimatedValue: c.estimatedValue || 0, nextFollowUp: c.nextFollowUp ? new Date(c.nextFollowUp).toISOString().split('T')[0] : '', salesPerson: c.salesPerson, designer: c.designer, notes: c.notes }); setShowEditModal(true); }}>✏️ Sửa</button>
+                    <button className="btn btn-secondary btn-sm" onClick={() => { setEditForm({ name: c.name, phone: c.phone, email: c.email, address: c.address, type: c.type, pipelineStage: c.pipelineStage || 'Lead', source: c.source, representative: c.representative, taxCode: c.taxCode, estimatedValue: c.estimatedValue || 0, nextFollowUp: c.nextFollowUp ? new Date(c.nextFollowUp).toISOString().split('T')[0] : '', salesPersonNote: c.salesPersonNote || '', designer: c.designer, notes: c.notes }); setShowEditModal(true); }}>✏️ Sửa</button>
                     <button className="btn btn-secondary btn-sm" onClick={() => router.push('/quotations/create')}>📄 Tạo BG</button>
                     {c.phone && <a href={`tel:${c.phone}`} className="btn btn-secondary btn-sm" style={{ textDecoration: 'none' }}>📞 Gọi</a>}
                     {c.email && <a href={`mailto:${c.email}`} className="btn btn-secondary btn-sm" style={{ textDecoration: 'none' }}>📧 Email</a>}
@@ -517,7 +517,7 @@ export default function CustomerDetailPage() {
                                 <div className="form-group"><label className="form-label">Follow-up</label><input className="form-input" type="date" value={editForm.nextFollowUp || ''} onChange={e => setEditForm({ ...editForm, nextFollowUp: e.target.value })} /></div>
                             </div>
                             <div className="form-row">
-                                <div className="form-group"><label className="form-label">NV kinh doanh</label><input className="form-input" value={editForm.salesPerson || ''} onChange={e => setEditForm({ ...editForm, salesPerson: e.target.value })} /></div>
+                                <div className="form-group"><label className="form-label">Ghi chú NVKD (legacy)</label><input className="form-input" value={editForm.salesPersonNote || ''} onChange={e => setEditForm({ ...editForm, salesPersonNote: e.target.value })} placeholder="Dropdown Chủ khách là chính" /></div>
                                 <div className="form-group"><label className="form-label">NV thiết kế</label><input className="form-input" value={editForm.designer || ''} onChange={e => setEditForm({ ...editForm, designer: e.target.value })} /></div>
                             </div>
                             <div className="form-group"><label className="form-label">Ghi chú</label><textarea className="form-input" rows={2} value={editForm.notes || ''} onChange={e => setEditForm({ ...editForm, notes: e.target.value })} /></div>

@@ -32,7 +32,7 @@ export async function GET(request) {
             deletedAt: null,
             status: { not: 'Đã mất' },
         },
-        select: { id: true, code: true, name: true, phone: true, gender: true, birthday: true, salesPerson: true },
+        select: { id: true, code: true, name: true, phone: true, gender: true, birthday: true, salesPersonNote: true, salesPerson: { select: { id: true, name: true } } },
     });
 
     const birthdayCustomers = customers.filter(c => {
