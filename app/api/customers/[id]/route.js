@@ -30,6 +30,24 @@ export const GET = withAuth(async (request, { params }) => {
     });
     if (!customer) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
+    // Enrich interactions với createdByUser + companions
+    {
+        const userIds = new Set();
+        for (const it of customer.interactions || []) {
+            if (it.createdBy) userIds.add(it.createdBy);
+            for (const c of it.companionIds || []) userIds.add(c);
+        }
+        const users = userIds.size > 0
+            ? await prisma.user.findMany({ where: { id: { in: [...userIds] } }, select: { id: true, name: true } })
+            : [];
+        const userMap = new Map(users.map(u => [u.id, u]));
+        customer.interactions = (customer.interactions || []).map(it => ({
+            ...it,
+            createdByUser: userMap.get(it.createdBy) || null,
+            companions: (it.companionIds || []).map(cid => userMap.get(cid)).filter(Boolean),
+        }));
+    }
+
     // Get tracking logs for all customer's projects + customer-level
     const projectIds = customer.projects.map(p => p.id);
     const trackingLogs = await prisma.trackingLog.findMany({
