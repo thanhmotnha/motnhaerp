@@ -1025,6 +1025,33 @@ function PurchasingContent() {
                                 NCC: <strong>{grnPO.supplier}</strong>
                                 {grnPO.project && <> &nbsp;|&nbsp; Dự án chính: <strong>{grnPO.project.name}</strong></>}
                             </div>
+                            {(() => {
+                                const directReceivedItems = (grnPO.items || []).filter(it => it.projectId && (it.receivedQty || 0) > 0);
+                                if (directReceivedItems.length === 0) return null;
+                                const totalReceived = directReceivedItems.reduce((s, it) => s + (it.receivedQty || 0), 0);
+                                return (
+                                    <div style={{ marginBottom: 12, background: 'rgba(245,158,11,0.08)', border: '1px solid var(--status-warning)', borderRadius: 8, padding: 12 }}>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
+                                            <div style={{ fontSize: 13 }}>
+                                                <strong>📍 Đã giao thẳng dự án:</strong> {directReceivedItems.length} sản phẩm, tổng {totalReceived} đơn vị
+                                            </div>
+                                            <button
+                                                type="button"
+                                                className="btn btn-sm"
+                                                style={{ fontSize: 11, color: 'var(--status-danger)', whiteSpace: 'nowrap' }}
+                                                title="Reset toàn bộ số đã nhận + xóa chi phí chưa chi"
+                                                onClick={async () => {
+                                                    if (!confirm(`Hủy toàn bộ đã nhận giao thẳng của PO ${grnPO.code}? Các chi phí chưa chi sẽ bị xóa.`)) return;
+                                                    const res = await fetch(`/api/purchase-orders/${grnPO.id}/cancel-receive`, { method: 'POST' });
+                                                    if (!res.ok) { const e = await res.json(); return alert(e.error || 'Lỗi hủy nhận'); }
+                                                    openGrn(grnPO.id, { stopPropagation: () => {} });
+                                                    fetchOrders();
+                                                }}
+                                            >↩️ Hủy nhận</button>
+                                        </div>
+                                    </div>
+                                );
+                            })()}
                             {poReceipts.length > 0 && (
                                 <div style={{ marginBottom: 12, background: 'var(--bg-secondary)', borderRadius: 8, padding: 12 }}>
                                     <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 6 }}>Đã nhập trước ({poReceipts.length} lần):</div>
