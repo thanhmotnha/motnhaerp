@@ -114,3 +114,45 @@ export interface ProgressReport {
   createdAt: string;
   createdBy?: string;
 }
+
+export interface Customer {
+  id: string;
+  code: string;
+  name: string;
+  phone: string;
+  email: string;
+  address: string;
+  type: string;
+  pipelineStage: string;
+  status: string;
+  source: string;
+  score: number;
+  lastContactAt: string | null;
+  salesPersonId: string | null;
+  salesPerson: { id: string; name: string; email: string } | null;
+  salesPersonNote: string;
+  nextFollowUp: string | null;
+  estimatedValue: number;
+  createdAt: string;
+  // detail-only
+  interactions?: CustomerInteraction[];
+}
+
+export interface CustomerInteraction {
+  id: string;
+  customerId: string;
+  type: string;
+  content: string;
+  date: string;
+  photos: string[];
+  interestLevel: string;
+  outcome: string;
+  companionIds: string[];
+  createdBy: string;
+  createdByUser?: { id: string; name: string } | null;
+  companions?: { id: string; name: string }[];
+}
+
+export type InterestLevel = '' | 'Nóng' | 'Ấm' | 'Lạnh';
+export type InteractionOutcome = '' | 'Báo giá' | 'Đặt cọc' | 'Từ chối' | 'Cần gặp lại';
+export type InteractionType = 'Gặp trực tiếp' | 'Điện thoại' | 'Zalo' | 'Email' | 'Ghi chú';

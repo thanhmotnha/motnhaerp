@@ -8,6 +8,9 @@ import type {
   PurchaseOrder,
   Expense,
   ContractorPayment,
+  Customer,
+  CustomerInteraction,
+  User,
 } from '@/lib/types';
 
 /** All queries must only fire when user is authenticated */
@@ -248,5 +251,61 @@ export function useUpdateScheduleTask() {
     mutationFn: ({ id, ...data }: any) =>
       apiFetch(`/api/schedule-tasks/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
     onSuccess: (_d, vars) => qc.invalidateQueries({ queryKey: ['schedule-task', vars.id] }),
+  });
+}
+
+// ─── CRM Customers (Phase 1+2) ──────────────────────────────
+export function useCustomers(params: { search?: string; ownerFilter?: 'mine' | 'unassigned' | 'all'; page?: number } = {}) {
+  const ready = useIsReady();
+  const qs = new URLSearchParams({ page: String(params.page || 1), limit: '50' });
+  if (params.search) qs.set('search', params.search);
+  return useQuery<PaginatedResponse<Customer>>({
+    queryKey: ['customers', params],
+    queryFn: () => apiFetch(`/api/customers?${qs}`),
+    enabled: ready,
+  });
+}
+
+export function useCustomer(id: string) {
+  const ready = useIsReady();
+  return useQuery<Customer>({
+    queryKey: ['customer', id],
+    queryFn: () => apiFetch(`/api/customers/${id}`),
+    enabled: ready && !!id,
+  });
+}
+
+export function useClaimCustomer() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => apiFetch(`/api/customers/${id}/claim`, { method: 'POST' }),
+    onSuccess: (_d, id) => {
+      qc.invalidateQueries({ queryKey: ['customers'] });
+      qc.invalidateQueries({ queryKey: ['customer', id] });
+    },
+  });
+}
+
+export function useCreateInteraction() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ customerId, ...data }: Partial<CustomerInteraction> & { customerId: string }) =>
+      apiFetch(`/api/customers/${customerId}/interactions`, {
+        method: 'POST',
+        body: JSON.stringify(data),
+      }),
+    onSuccess: (_d, vars) => {
+      qc.invalidateQueries({ queryKey: ['customer', vars.customerId] });
+      qc.invalidateQueries({ queryKey: ['customers'] });
+    },
+  });
+}
+
+export function useUsersByRole(role: string) {
+  const ready = useIsReady();
+  return useQuery<User[]>({
+    queryKey: ['users', role],
+    queryFn: () => apiFetch(`/api/users?role=${role}`),
+    enabled: ready && !!role,
   });
 }

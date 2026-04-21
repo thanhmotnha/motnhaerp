@@ -1,13 +1,14 @@
 import React from 'react';
 import { View } from 'react-native';
 import { Tabs } from 'expo-router';
-import { LayoutDashboard, FolderKanban, ClipboardCheck, Settings } from 'lucide-react-native';
+import { LayoutDashboard, FolderKanban, ClipboardCheck, Settings, Users } from 'lucide-react-native';
 import { COLORS } from '@/lib/constants';
 import { useAuth } from '@/contexts/AuthContext';
 import { FAB } from '@/components/FAB';
 
 export default function TabsLayout() {
-  const { canApprove } = useAuth();
+  const { canApprove, role } = useAuth();
+  const canManageCustomers = role === 'giam_doc' || role === 'ke_toan' || role === 'kinh_doanh';
 
   return (
     <View style={{ flex: 1 }}>
@@ -32,6 +33,14 @@ export default function TabsLayout() {
           options={{
             title: 'Tổng quan',
             tabBarIcon: ({ color, size }) => <LayoutDashboard size={size} color={color} />,
+          }}
+        />
+        <Tabs.Screen
+          name="customers"
+          options={{
+            title: 'Khách hàng',
+            tabBarIcon: ({ color, size }) => <Users size={size} color={color} />,
+            href: canManageCustomers ? undefined : null,
           }}
         />
         <Tabs.Screen
