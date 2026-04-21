@@ -124,6 +124,10 @@ export const DELETE = withAuth(async (request, { params }) => {
                 });
             }
         }
+        // Xóa InventoryTransaction gắn với phiếu xuất này
+        await tx.inventoryTransaction.deleteMany({
+            where: { note: { contains: `Phiếu xuất ${issue.code}` } },
+        });
         await tx.stockIssue.delete({ where: { id } });
     });
 
