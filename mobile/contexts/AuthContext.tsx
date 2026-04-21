@@ -10,6 +10,7 @@ import {
 import { APPROVAL_ROLES, CUSTOMER_ROLES, FINANCE_ROLES, type RoleKey } from '@/lib/constants';
 import type { User, AuthResponse } from '@/lib/types';
 import { registerForPushAsync, clearPushToken } from '@/lib/pushNotifications';
+import { disableBiometric } from '@/lib/biometric';
 
 interface AuthContextType {
   user: User | null;
@@ -91,6 +92,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const logout = useCallback(async () => {
     await clearPushToken().catch(() => { });
+    await disableBiometric().catch(() => { });
     await clearAuth();
     setUser(null);
   }, []);
