@@ -1,6 +1,8 @@
 'use client';
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
+import CheckinModal from '@/components/CheckinModal';
+import { useRole } from '@/contexts/RoleContext';
 
 const fmt = (n) => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(n);
 const fmtDate = (d) => d ? new Date(d).toLocaleDateString('vi-VN') : '';
@@ -42,6 +44,8 @@ export default function CustomerDetailPage() {
     const [tagInput, setTagInput] = useState('');
     const [interactionForm, setInteractionForm] = useState({ type: 'Ghi chú', content: '', createdBy: '' });
     const [showInteractionForm, setShowInteractionForm] = useState(false);
+    const [showCheckinModal, setShowCheckinModal] = useState(false);
+    const { permissions } = useRole();
 
     const fetchData = () => { fetch(`/api/customers/${id}`).then(r => r.ok ? r.json() : null).then(d => { setData(d); setLoading(false); }); };
     useEffect(fetchData, [id]);
@@ -175,6 +179,9 @@ export default function CustomerDetailPage() {
 
                 {/* Quick Actions */}
                 <div style={{ display: 'flex', gap: 8, marginTop: 16, paddingTop: 16, borderTop: '1px solid var(--border-light)', flexWrap: 'wrap' }}>
+                    {permissions.canCreateCheckin && (
+                        <button className="btn btn-primary btn-sm" onClick={() => setShowCheckinModal(true)}>📸 Check-in</button>
+                    )}
                     <button className="btn btn-secondary btn-sm" onClick={() => setShowLogModal(true)}>📝 Ghi chú</button>
                     <button className="btn btn-secondary btn-sm" onClick={() => { setEditForm({ name: c.name, phone: c.phone, email: c.email, address: c.address, type: c.type, pipelineStage: c.pipelineStage || 'Lead', source: c.source, representative: c.representative, taxCode: c.taxCode, estimatedValue: c.estimatedValue || 0, nextFollowUp: c.nextFollowUp ? new Date(c.nextFollowUp).toISOString().split('T')[0] : '', salesPerson: c.salesPerson, designer: c.designer, notes: c.notes }); setShowEditModal(true); }}>✏️ Sửa</button>
                     <button className="btn btn-secondary btn-sm" onClick={() => router.push('/quotations/create')}>📄 Tạo BG</button>
@@ -363,16 +370,37 @@ export default function CustomerDetailPage() {
                         {(c.interactions || []).map(int => (
                             <div key={int.id} style={{ position: 'relative', paddingBottom: 20, paddingLeft: 24 }}>
                                 <div style={{ position: 'absolute', left: -24, top: 4, width: 32, height: 32, borderRadius: '50%', background: 'var(--bg-card)', border: '2px solid var(--border-light)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, zIndex: 1 }}>
-                                    {{'Cuộc gọi': '📞', 'Họp': '🤝', 'Email': '📧', 'Zalo': '💬', 'Khiếu nại': '⚠️', 'Yêu cầu': '📋'}[int.type] || '📝'}
+                                    {{'Gặp trực tiếp': '🤝', 'Cuộc gọi': '📞', 'Điện thoại': '📞', 'Họp': '🤝', 'Email': '📧', 'Zalo': '💬', 'Khiếu nại': '⚠️', 'Yêu cầu': '📋'}[int.type] || '📝'}
                                 </div>
                                 <div style={{ background: 'var(--bg-secondary)', borderRadius: 10, padding: '12px 16px', border: '1px solid var(--border-light)' }}>
-                                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
-                                        <span style={{ fontWeight: 600, fontSize: 14 }}>{int.content}</span>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6, gap: 8 }}>
+                                        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
+                                            <span className="badge muted" style={{ fontSize: 10 }}>{int.type}</span>
+                                            {int.interestLevel && (
+                                                <span className="badge" style={{
+                                                    background: int.interestLevel === 'Nóng' ? '#fee2e2' : int.interestLevel === 'Ấm' ? '#fef3c7' : '#dbeafe',
+                                                    color: int.interestLevel === 'Nóng' ? '#dc2626' : int.interestLevel === 'Ấm' ? '#d97706' : '#2563eb',
+                                                }}>{int.interestLevel}</span>
+                                            )}
+                                            {int.outcome && <span className="badge" style={{ background: '#e0e7ff', color: '#4338ca' }}>{int.outcome}</span>}
+                                        </div>
                                         <span style={{ fontSize: 11, color: 'var(--text-muted)', flexShrink: 0 }}>{timeAgo(int.date)}</span>
                                     </div>
-                                    <div style={{ fontSize: 12, color: 'var(--text-muted)', display: 'flex', gap: 10 }}>
-                                        {int.createdBy && <span>👤 {int.createdBy}</span>}
-                                        <span className="badge muted" style={{ fontSize: 10 }}>{int.type}</span>
+                                    <div style={{ whiteSpace: 'pre-wrap', fontSize: 14, marginBottom: 8 }}>{int.content}</div>
+                                    {int.photos && int.photos.length > 0 && (
+                                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(90px, 1fr))', gap: 6, marginBottom: 8 }}>
+                                            {int.photos.map((url, i) => (
+                                                <a key={i} href={url} target="_blank" rel="noreferrer">
+                                                    <img src={url} alt="" style={{ width: '100%', aspectRatio: '1/1', objectFit: 'cover', borderRadius: 4, cursor: 'pointer' }} />
+                                                </a>
+                                            ))}
+                                        </div>
+                                    )}
+                                    <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+                                        👤 {int.createdByUser?.name || int.createdBy || 'Ẩn danh'}
+                                        {int.companions && int.companions.length > 0 && (
+                                            <> · Đi cùng: {int.companions.map(cp => cp.name).join(', ')}</>
+                                        )}
                                     </div>
                                 </div>
                             </div>
@@ -498,6 +526,14 @@ export default function CustomerDetailPage() {
                     </div>
                 </div>
             )}
+
+            <CheckinModal
+                customerId={id}
+                customerName={c?.name || ''}
+                open={showCheckinModal}
+                onClose={() => setShowCheckinModal(false)}
+                onDone={fetchData}
+            />
         </div>
     );
 }
