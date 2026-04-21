@@ -1,19 +1,17 @@
 import React from 'react';
 import {
-  TouchableOpacity,
-  Text,
-  ActivityIndicator,
-  StyleSheet,
-  type ViewStyle,
-  type TextStyle,
+  Pressable, Text, ActivityIndicator, View,
+  type ViewStyle, type TextStyle,
 } from 'react-native';
-import { COLORS } from '@/lib/constants';
+import { LinearGradient } from 'expo-linear-gradient';
+import { useTheme } from '@/contexts/ThemeContext';
 
 interface ButtonProps {
   title: string;
   onPress: () => void;
-  variant?: 'primary' | 'secondary' | 'danger' | 'ghost';
+  variant?: 'primary' | 'secondary' | 'danger' | 'ghost' | 'success';
   size?: 'sm' | 'md' | 'lg';
+  gradient?: boolean;
   loading?: boolean;
   disabled?: boolean;
   style?: ViewStyle;
@@ -22,77 +20,85 @@ interface ButtonProps {
 }
 
 export function Button({
-  title,
-  onPress,
-  variant = 'primary',
-  size = 'md',
-  loading,
-  disabled,
-  style,
-  textStyle,
-  icon,
+  title, onPress, variant = 'primary', size = 'md',
+  gradient, loading, disabled, style, textStyle, icon,
 }: ButtonProps) {
+  const { theme } = useTheme();
   const isDisabled = disabled || loading;
 
+  const sizeStyles: Record<string, { padH: number; padV: number; fontSize: number }> = {
+    sm: { padH: 14, padV: 8, fontSize: 13 },
+    md: { padH: 20, padV: 12, fontSize: 15 },
+    lg: { padH: 24, padV: 14, fontSize: 16 },
+  };
+  const s = sizeStyles[size];
+
+  const bgColor: Record<string, string> = {
+    primary: theme.primary,
+    secondary: theme.bgTertiary,
+    danger: theme.danger,
+    success: theme.success,
+    ghost: 'transparent',
+  };
+
+  const textColor: Record<string, string> = {
+    primary: theme.textOnPrimary,
+    secondary: theme.text,
+    danger: theme.textOnPrimary,
+    success: theme.textOnPrimary,
+    ghost: theme.primary,
+  };
+
+  const baseStyle: ViewStyle = {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+    borderRadius: theme.radius.md, gap: 8,
+    paddingHorizontal: s.padH, paddingVertical: s.padV,
+    opacity: isDisabled ? 0.5 : 1,
+    ...(variant === 'secondary' ? { borderWidth: 1, borderColor: theme.border } : {}),
+  };
+
+  const content = loading ? (
+    <ActivityIndicator color={textColor[variant]} size="small" />
+  ) : (
+    <>
+      {icon}
+      <Text style={[{ fontSize: s.fontSize, fontWeight: '600', color: textColor[variant] }, textStyle]}>
+        {title}
+      </Text>
+    </>
+  );
+
+  if (gradient && (variant === 'primary' || variant === 'success' || variant === 'danger')) {
+    const grad = variant === 'primary'
+      ? theme.primaryGradient
+      : variant === 'success'
+        ? ([theme.success, '#059669'] as const)
+        : ([theme.danger, '#DC2626'] as const);
+    return (
+      <Pressable onPress={onPress} disabled={isDisabled} style={[style]}>
+        <LinearGradient
+          colors={grad}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={baseStyle}
+        >
+          {content}
+        </LinearGradient>
+      </Pressable>
+    );
+  }
+
   return (
-    <TouchableOpacity
+    <Pressable
       onPress={onPress}
       disabled={isDisabled}
-      activeOpacity={0.7}
-      style={[
-        styles.base,
-        styles[variant],
-        styles[`size_${size}`],
-        isDisabled && styles.disabled,
+      style={({ pressed }) => [
+        baseStyle,
+        { backgroundColor: bgColor[variant], transform: [{ scale: pressed && !isDisabled ? 0.98 : 1 }] },
         style,
       ]}
     >
-      {loading ? (
-        <ActivityIndicator
-          color={variant === 'ghost' || variant === 'secondary' ? COLORS.primary : COLORS.white}
-          size="small"
-        />
-      ) : (
-        <>
-          {icon}
-          <Text
-            style={[
-              styles.text,
-              styles[`text_${variant}`],
-              styles[`textSize_${size}`],
-              textStyle,
-            ]}
-          >
-            {title}
-          </Text>
-        </>
-      )}
-    </TouchableOpacity>
+      {content}
+    </Pressable>
   );
 }
-
-const styles = StyleSheet.create({
-  base: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: 10,
-    gap: 8,
-  },
-  primary: { backgroundColor: COLORS.primary },
-  secondary: { backgroundColor: COLORS.borderLight, borderWidth: 1, borderColor: COLORS.border },
-  danger: { backgroundColor: COLORS.danger },
-  ghost: { backgroundColor: 'transparent' },
-  size_sm: { paddingHorizontal: 12, paddingVertical: 8 },
-  size_md: { paddingHorizontal: 20, paddingVertical: 14 },
-  size_lg: { paddingHorizontal: 28, paddingVertical: 18 },
-  disabled: { opacity: 0.5 },
-  text: { fontWeight: '600' },
-  text_primary: { color: COLORS.white },
-  text_secondary: { color: COLORS.text },
-  text_danger: { color: COLORS.white },
-  text_ghost: { color: COLORS.primary },
-  textSize_sm: { fontSize: 13 },
-  textSize_md: { fontSize: 15 },
-  textSize_lg: { fontSize: 17 },
-});

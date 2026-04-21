@@ -33,10 +33,22 @@
         }
       ],
       "expo-asset",
-      "expo-font"
+      "expo-font",
+      [
+        "expo-notifications",
+        {
+          "color": "#1e3a5f"
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true
-    }
+    },
+    "extra": {
+      "eas": {
+        "projectId": "8243278a-6e24-429b-9bd2-812534780191"
+      }
+    },
+    "owner": "thanhmotnha"
   }
 }

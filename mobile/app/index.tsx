@@ -16,7 +16,7 @@ export default function Index() {
 
   if (isAuthenticated) {
     if (isCustomer) {
-      return <Redirect href="/customer/index" />;
+      return <Redirect href={"/customer" as any} />;
     }
     return <Redirect href="/(tabs)" />;
   }

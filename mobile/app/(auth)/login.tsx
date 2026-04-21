@@ -4,11 +4,12 @@ import {
     StyleSheet, Alert, Pressable,
 } from 'react-native';
 import { router } from 'expo-router';
-import { Fingerprint } from 'lucide-react-native';
+import { LinearGradient } from 'expo-linear-gradient';
+import { Fingerprint, Building2 } from 'lucide-react-native';
 import { useAuth } from '@/contexts/AuthContext';
+import { useTheme } from '@/contexts/ThemeContext';
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
-import { COLORS } from '@/lib/constants';
 import {
     isBiometricAvailable, isBiometricEnabled, authenticateBiometric,
     enableBiometric, hasStoredCredentials,
@@ -16,6 +17,7 @@ import {
 
 export default function LoginScreen() {
     const { login } = useAuth();
+    const { theme } = useTheme();
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [loading, setLoading] = useState(false);
@@ -32,7 +34,6 @@ export default function LoginScreen() {
             const enabled = await isBiometricEnabled();
             const hasCreds = await hasStoredCredentials();
             setBioEnabled(enabled && hasCreds);
-            // Auto-prompt on mount if enabled
             if (available && enabled && hasCreds) {
                 setTimeout(() => handleBiometricLogin(), 300);
             }
@@ -47,7 +48,7 @@ export default function LoginScreen() {
             await login(creds.email, creds.password);
             router.replace('/(tabs)');
         } catch (err: any) {
-            setError(err.message || 'Đăng nhập sinh trắc học thất bại');
+            setError(err.message || 'Đăng nhập thất bại');
         } finally {
             setLoading(false);
         }
@@ -61,7 +62,6 @@ export default function LoginScreen() {
         setLoading(true); setError('');
         try {
             await login(email.trim(), password);
-            // Offer biometric enrollment
             if (bioAvailable && !bioEnabled) {
                 Alert.alert(
                     'Bật đăng nhập bằng ' + (bioTypes[0] || 'sinh trắc học'),
@@ -88,83 +88,97 @@ export default function LoginScreen() {
     }
 
     return (
-        <KeyboardAvoidingView
-            style={styles.container}
-            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        <LinearGradient
+            colors={theme.primaryGradient}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={{ flex: 1 }}
         >
-            <ScrollView
-                contentContainerStyle={styles.scroll}
-                keyboardShouldPersistTaps="handled"
+            <KeyboardAvoidingView
+                style={{ flex: 1 }}
+                behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
             >
-                <View style={styles.header}>
-                    <Text style={styles.logo}>MOTNHA</Text>
-                    <Text style={styles.subtitle}>Quản lý xây dựng</Text>
-                </View>
+                <ScrollView
+                    contentContainerStyle={styles.scroll}
+                    keyboardShouldPersistTaps="handled"
+                >
+                    <View style={styles.header}>
+                        <View style={styles.logoCircle}>
+                            <Building2 size={36} color="#fff" />
+                        </View>
+                        <Text style={styles.logo}>MOTNHA</Text>
+                        <Text style={styles.subtitle}>Nội thất & Xây dựng</Text>
+                    </View>
 
-                <View style={styles.form}>
-                    <Input
-                        label="Email"
-                        value={email}
-                        onChangeText={setEmail}
-                        keyboardType="email-address"
-                        autoCapitalize="none"
-                        autoCorrect={false}
-                        placeholder="email@congty.vn"
-                    />
+                    <View style={[styles.form, { backgroundColor: theme.surface, ...theme.shadow.lg }]}>
+                        <Text style={[styles.formTitle, { color: theme.text }]}>Đăng nhập</Text>
+                        <Text style={[styles.formSub, { color: theme.textMuted }]}>Chào mừng bạn quay lại</Text>
 
-                    <Input
-                        label="Mật khẩu"
-                        value={password}
-                        onChangeText={setPassword}
-                        secureTextEntry
-                        placeholder="Nhập mật khẩu"
-                    />
+                        <Input
+                            label="Email"
+                            value={email}
+                            onChangeText={setEmail}
+                            keyboardType="email-address"
+                            autoCapitalize="none"
+                            autoCorrect={false}
+                            placeholder="email@congty.vn"
+                        />
 
-                    {error ? <Text style={styles.error}>{error}</Text> : null}
+                        <Input
+                            label="Mật khẩu"
+                            value={password}
+                            onChangeText={setPassword}
+                            secureTextEntry
+                            placeholder="Nhập mật khẩu"
+                        />
 
-                    <Button
-                        title="Đăng nhập"
-                        onPress={handleLogin}
-                        loading={loading}
-                        size="lg"
-                        style={{ marginTop: 8 }}
-                    />
+                        {error ? <Text style={[styles.error, { color: theme.danger }]}>{error}</Text> : null}
 
-                    {bioAvailable && bioEnabled && (
-                        <Pressable style={styles.bioBtn} onPress={handleBiometricLogin}>
-                            <Fingerprint size={18} color={COLORS.primary} />
-                            <Text style={styles.bioBtnText}>
-                                Đăng nhập bằng {bioTypes[0] || 'sinh trắc học'}
-                            </Text>
-                        </Pressable>
-                    )}
-                </View>
-            </ScrollView>
-        </KeyboardAvoidingView>
+                        <Button
+                            title="Đăng nhập"
+                            onPress={handleLogin}
+                            loading={loading}
+                            size="lg"
+                            gradient
+                            style={{ marginTop: 12 }}
+                        />
+
+                        {bioAvailable && bioEnabled && (
+                            <Pressable style={[styles.bioBtn, { borderColor: theme.primary }]} onPress={handleBiometricLogin}>
+                                <Fingerprint size={20} color={theme.primary} />
+                                <Text style={[styles.bioBtnText, { color: theme.primary }]}>
+                                    Dùng {bioTypes[0] || 'sinh trắc học'}
+                                </Text>
+                            </Pressable>
+                        )}
+                    </View>
+
+                    <Text style={styles.footerText}>v1.0 · erp.motnha.vn</Text>
+                </ScrollView>
+            </KeyboardAvoidingView>
+        </LinearGradient>
     );
 }
 
 const styles = StyleSheet.create({
-    container: { flex: 1, backgroundColor: COLORS.primary },
     scroll: { flexGrow: 1, justifyContent: 'center', padding: 24 },
-    header: { alignItems: 'center', marginBottom: 40 },
-    logo: { fontSize: 36, fontWeight: '800', color: COLORS.white, letterSpacing: 2 },
-    subtitle: { fontSize: 16, color: COLORS.white, opacity: 0.7, marginTop: 4 },
-    form: {
-        backgroundColor: COLORS.white,
-        borderRadius: 16,
-        padding: 24,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.15,
-        shadowRadius: 12,
-        elevation: 5,
+    header: { alignItems: 'center', marginBottom: 32 },
+    logoCircle: {
+        width: 72, height: 72, borderRadius: 20,
+        backgroundColor: 'rgba(255,255,255,0.18)',
+        alignItems: 'center', justifyContent: 'center', marginBottom: 16,
+        borderWidth: 1, borderColor: 'rgba(255,255,255,0.3)',
     },
-    error: { color: COLORS.danger, fontSize: 14, textAlign: 'center', marginBottom: 8 },
+    logo: { fontSize: 32, fontWeight: '800', color: '#fff', letterSpacing: 3 },
+    subtitle: { fontSize: 14, color: '#fff', opacity: 0.85, marginTop: 4 },
+    form: { borderRadius: 20, padding: 24 },
+    formTitle: { fontSize: 22, fontWeight: '700', marginBottom: 4 },
+    formSub: { fontSize: 14, marginBottom: 20 },
+    error: { fontSize: 14, textAlign: 'center', marginTop: 10 },
     bioBtn: {
-        marginTop: 14, paddingVertical: 12, borderRadius: 8,
-        borderWidth: 1, borderColor: COLORS.primary,
-        flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
+        marginTop: 14, paddingVertical: 12, borderRadius: 10,
+        borderWidth: 1.5, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10,
     },
-    bioBtnText: { color: COLORS.primary, fontSize: 15, fontWeight: '600' },
+    bioBtnText: { fontSize: 15, fontWeight: '600' },
+    footerText: { color: 'rgba(255,255,255,0.6)', textAlign: 'center', marginTop: 24, fontSize: 12 },
 });
