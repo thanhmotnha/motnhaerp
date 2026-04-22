@@ -336,6 +336,14 @@ export default function HomeScreen() {
             });
         }
 
+        // Workshop worker sees their task list
+        if (userRole === 'kho') {
+            list.unshift({
+                icon: 'clipboard-outline', label: 'Việc của tôi',
+                desc: 'Công việc xưởng hôm nay', color: c.primary, route: '/workshop-tasks',
+            });
+        }
+
         return list;
     }, [userRole, isAdmin, isNvkd]);
 
