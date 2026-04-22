@@ -40,7 +40,42 @@ export const POST = withAuth(async (request, { params }, session) => {
         return NextResponse.json({ error: 'Không đọc được file: ' + e.message }, { status: 400 });
     }
 
-    const sheet = workbook.Sheets[workbook.SheetNames[0]];
+    // Auto-detect format: nếu có sheet "Tổng hợp VT" → file dự toán G8/G9 → parse section VẬT LIỆU
+    // Ngược lại → flat format (sheet đầu tiên)
+    const hasG8G9 = workbook.SheetNames.includes('Tổng hợp VT');
+    const sheet = hasG8G9 ? workbook.Sheets['Tổng hợp VT'] : workbook.Sheets[workbook.SheetNames[0]];
+
+    // Load price map từ "Giá tháng" nếu có (file G8/G9) để auto-fill đơn giá
+    const priceMap = new Map();
+    if (hasG8G9 && workbook.SheetNames.includes('Giá tháng')) {
+        const gtRows = XLSX.utils.sheet_to_json(workbook.Sheets['Giá tháng'], { header: 1, defval: '' });
+        let gtHdr = -1;
+        for (let i = 0; i < Math.min(10, gtRows.length); i++) {
+            const joined = gtRows[i].map(c => String(c || '').toLowerCase()).join('|');
+            if (joined.includes('mã chuẩn') || joined.includes('mã số')) { gtHdr = i; break; }
+        }
+        if (gtHdr >= 0) {
+            const h = gtRows[gtHdr].map(c => String(c || '').trim());
+            const findCol = (regex) => h.findIndex(x => regex.test(x));
+            const nameCol = findCol(/tên vật tư|^tên$/i);
+            const maSoCol = findCol(/mã số/i);
+            const maChuanCol = findCol(/mã chuẩn/i);
+            let giaCol = findCol(/giá sau vat/i);
+            if (giaCol < 0) giaCol = findCol(/giá tháng/i);
+            if (nameCol >= 0) {
+                for (let i = gtHdr + 1; i < gtRows.length; i++) {
+                    const r = gtRows[i];
+                    const name = String(r[nameCol] || '').replace(/\s+/g, ' ').trim();
+                    if (!name) continue;
+                    const maSo = maSoCol >= 0 ? String(r[maSoCol] || '').trim() : '';
+                    const maChuan = maChuanCol >= 0 ? String(r[maChuanCol] || '').trim() : '';
+                    if (!maSo && !maChuan) continue;
+                    const gia = giaCol >= 0 ? Number(r[giaCol]) || 0 : 0;
+                    priceMap.set(name.toLowerCase(), { maSo, maChuan, gia });
+                }
+            }
+        }
+    }
 
     // Auto-detect header row: tìm row trong 10 row đầu có "tên vật tư"/"tên"/"name"
     const raw = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' });
@@ -64,11 +99,36 @@ export const POST = withAuth(async (request, { params }, session) => {
 
     // Convert to object array với header row đã detect
     const headers = raw[headerIdx].map(c => String(c || '').trim());
-    const rows = raw.slice(headerIdx + 1).map(row => {
-        const obj = {};
+
+    // Với G8/G9: giới hạn row trong section "VẬT LIỆU" (skip NHÂN CÔNG + MÁY THI CÔNG)
+    let sliceStart = headerIdx + 1;
+    let sliceEnd = raw.length;
+    if (hasG8G9) {
+        const ROMAN = /^[IVX]+$/i;
+        const SECTION_VATLIEU = /v[ậa]t li[ệe]u/i;
+        const SECTION_OTHER = /nh[âa]n c[ôo]ng|m[áa]y thi c[ôo]ng|^m[áa]y$/i;
+        let vatLieuStart = -1;
+        for (let i = headerIdx + 1; i < raw.length; i++) {
+            const r = raw[i];
+            const stt = String(r[0] || '').trim();
+            if (!ROMAN.test(stt)) continue;
+            const text = r.slice(1).map(c => String(c || '').trim()).join(' ').toUpperCase();
+            if (vatLieuStart < 0 && SECTION_VATLIEU.test(text)) vatLieuStart = i;
+            else if (vatLieuStart >= 0 && SECTION_OTHER.test(text)) { sliceEnd = i; break; }
+        }
+        if (vatLieuStart >= 0) sliceStart = vatLieuStart + 1;
+    }
+
+    const rows = raw.slice(sliceStart, sliceEnd).map((row, k) => {
+        const obj = { __rowNum: sliceStart + k };
         headers.forEach((h, j) => { if (h) obj[h] = row[j] ?? ''; });
         return obj;
-    }).filter(r => Object.values(r).some(v => v !== '' && v != null));
+    }).filter(r => {
+        const stt = r['STT'] !== undefined ? String(r['STT']).trim() : '';
+        // G8/G9: chỉ giữ row STT số (bỏ section header / tổng)
+        if (hasG8G9 && !/^\d+$/.test(stt)) return false;
+        return Object.keys(r).some(k => k !== '__rowNum' && r[k] !== '' && r[k] != null);
+    });
 
     if (rows.length === 0) return NextResponse.json({ error: 'File không có dòng data sau header' }, { status: 400 });
 
@@ -90,18 +150,28 @@ export const POST = withAuth(async (request, { params }, session) => {
         return isNaN(n) ? 0 : n;
     };
 
-    const parsed = rows.map((row, idx) => {
-        const code = String(pick(row, ['mã', 'mã sp', 'ma', 'code', 'product code'])).trim();
+    const parsed = rows.map((row) => {
+        let code = String(pick(row, ['mã', 'mã sp', 'ma', 'code', 'product code', 'mã số'])).trim();
         const name = String(pick(row, ['tên vật tư', 'tên', 'ten', 'name', 'mô tả', 'description'])).trim();
+        // G8/G9: "khối lượng" = số lượng
         const unit = String(pick(row, ['đơn vị', 'don vi', 'unit', 'đvt', 'dvt'])).trim() || 'cái';
-        const quantity = toNumber(pick(row, ['số lượng', 'so luong', 'qty', 'quantity', 'sl']));
-        const unitPrice = toNumber(pick(row, ['đơn giá', 'don gia', 'unit price', 'dg', 'đơn giá dự toán']));
+        const quantity = toNumber(pick(row, ['số lượng', 'so luong', 'qty', 'quantity', 'sl', 'khối lượng', 'khoi luong']));
+        let unitPrice = toNumber(pick(row, ['đơn giá', 'don gia', 'unit price', 'dg', 'đơn giá dự toán']));
         const totalAmount = toNumber(pick(row, ['thành tiền', 'thanh tien', 'total', 'thành tiền dự toán']));
         const category = String(pick(row, ['nhóm', 'nhom', 'category', 'loại', 'loai'])).trim();
         const wastePercent = toNumber(pick(row, ['hao phí', 'hao phi', 'waste', 'hao phí %'])) || 5;
         const notes = String(pick(row, ['ghi chú', 'ghi chu', 'notes', 'note'])).trim();
 
-        return { idx: headerIdx + 2 + idx, code, name, unit, quantity, unitPrice, totalAmount, category, wastePercent, notes };
+        // G8/G9: tra priceMap theo tên → auto-fill đơn giá + mã chuẩn làm code
+        if (hasG8G9 && priceMap.size > 0) {
+            const info = priceMap.get(name.toLowerCase());
+            if (info) {
+                if (!unitPrice && info.gia) unitPrice = info.gia;
+                if (!code) code = info.maChuan || info.maSo || '';
+            }
+        }
+
+        return { idx: (row.__rowNum ?? 0) + 1, code, name, unit, quantity, unitPrice, totalAmount, category, wastePercent, notes };
     });
 
     const errors = [];
