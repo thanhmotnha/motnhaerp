@@ -12,6 +12,48 @@ const ROLES = [
     { key: 'thiet_ke', label: '🎨 Thiết kế' },
 ];
 
+const TEMPLATES = [
+    {
+        id: 'xuong-morning',
+        icon: '🔨',
+        title: 'Giao việc xưởng',
+        target: 'role',
+        role: 'kho',
+        body: () => {
+            const d = new Date().toLocaleDateString('vi-VN');
+            return `🔨 CÔNG VIỆC XƯỞNG — ${d}\n\n1. \n2. \n3. \n\n⏰ Deadline: 17:00\n📞 Thắc mắc gọi quản đốc ngay.\nCố lên anh em!`;
+        },
+    },
+    {
+        id: 'giamsat-morning',
+        icon: '🔍',
+        title: 'Brief giám sát',
+        target: 'role',
+        role: 'ky_thuat',
+        body: () => {
+            const d = new Date().toLocaleDateString('vi-VN');
+            return `🔍 LỊCH GIÁM SÁT — ${d}\n\n🏗️ Dự án sáng:\n- \n\n🏗️ Dự án chiều:\n- \n\n⚠ Điểm cần chú ý:\n- \n\n📸 Ảnh check-in trước 18h hôm nay.`;
+        },
+    },
+    {
+        id: 'daily-report',
+        icon: '📊',
+        title: 'Báo cáo cuối ngày',
+        target: 'all',
+        body: () => {
+            const d = new Date().toLocaleDateString('vi-VN');
+            return `📊 BÁO CÁO NGÀY — ${d}\n\n🏗️ Thi công: \n🔨 Xưởng hoàn thành: \n💰 Thu hôm nay: \n🆕 Khách mới: \n⚠ Vấn đề cần giải quyết: \n\nNgày mai tiếp tục cố gắng!`;
+        },
+    },
+    {
+        id: 'meeting',
+        icon: '📣',
+        title: 'Thông báo họp',
+        target: 'all',
+        body: () => `📣 THÔNG BÁO HỌP\n\n🕐 Thời gian: \n📍 Địa điểm: \n📝 Nội dung: \n\n✅ Có mặt đúng giờ.`,
+    },
+];
+
 export default function ZaloBroadcastPage() {
     const toast = useToast();
     const [target, setTarget] = useState('all');
@@ -45,12 +87,44 @@ export default function ZaloBroadcastPage() {
         setSending(false);
     };
 
+    const applyTemplate = (t) => {
+        setText(t.body());
+        setTarget(t.target);
+        if (t.role) setRole(t.role);
+    };
+
     return (
-        <div style={{ padding: 20, maxWidth: 700 }}>
-            <h1 style={{ fontSize: 22, fontWeight: 700, margin: 0 }}>📢 Gửi thông báo Zalo OA</h1>
+        <div style={{ padding: 20, maxWidth: 760 }}>
+            <h1 style={{ fontSize: 22, fontWeight: 700, margin: 0 }}>📢 Nhắn Zalo OA</h1>
             <p style={{ color: 'var(--text-muted)', fontSize: 13, margin: '6px 0 20px' }}>
-                Gửi tin từ OA công ty đến tất cả nhân viên đã liên kết Zalo
+                Chọn mẫu có sẵn hoặc soạn tự do — gửi cho 1 role hoặc toàn công ty
             </p>
+
+            {/* Template quick pick */}
+            <div style={{ marginBottom: 20 }}>
+                <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-muted)', letterSpacing: 0.5, marginBottom: 8 }}>MẪU NHANH</div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(170px, 1fr))', gap: 8 }}>
+                    {TEMPLATES.map(t => (
+                        <button
+                            key={t.id}
+                            onClick={() => applyTemplate(t)}
+                            style={{
+                                padding: '12px', borderRadius: 10, border: '1px solid var(--border-color)',
+                                background: 'var(--bg-card)', cursor: 'pointer', textAlign: 'left',
+                                display: 'flex', flexDirection: 'column', gap: 4, fontSize: 13,
+                            }}
+                            onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--primary)'; }}
+                            onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border-color)'; }}
+                        >
+                            <span style={{ fontSize: 22 }}>{t.icon}</span>
+                            <span style={{ fontWeight: 600 }}>{t.title}</span>
+                            <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+                                → {t.target === 'all' ? 'Toàn bộ' : ROLES.find(r => r.key === t.role)?.label}
+                            </span>
+                        </button>
+                    ))}
+                </div>
+            </div>
 
             <div className="card" style={{ padding: 20 }}>
                 <div className="form-group">
