@@ -268,7 +268,7 @@ export default function WorkshopChat() {
                         <div style={{ width: 36, height: 36, borderRadius: '50%', background: 'rgba(255,255,255,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18 }}>🏭</div>
                         <div style={{ flex: 1 }}>
                             <div style={{ fontWeight: 700, fontSize: 14 }}>Chat xưởng nội thất</div>
-                            <div style={{ fontSize: 11, opacity: 0.75 }}>Nhóm nội bộ xưởng SCT</div>
+                            <div style={{ fontSize: 11, opacity: 0.75 }}>Nhóm nội bộ xưởng Một Nhà</div>
                         </div>
                     </div>
 

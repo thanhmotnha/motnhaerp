@@ -114,7 +114,7 @@ export default function WorkshopSidebar({ isOpen, onClose }) {
                 </div>
                 <div className="brand-text">
                     <span className="brand-name">Xưởng Nội Thất</span>
-                    <span className="brand-sub">Kiến Trúc Đô Thị SCT</span>
+                    <span className="brand-sub">MỘT NHÀ</span>
                 </div>
                 <button className="mobile-menu-btn" onClick={onClose} aria-label="Đóng menu" style={{ marginLeft: 'auto', color: 'rgba(255,255,255,0.7)' }}>
                     <X size={20} />
