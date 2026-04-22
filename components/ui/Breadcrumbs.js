@@ -25,6 +25,10 @@ const routeLabels = {
     'contractors': 'Thầu phụ',
 
     'workshops': 'Xưởng SX',
+    'workshop': 'Xưởng',
+    'workers': 'Thợ xưởng',
+    'work-log': 'Nhật ký ca làm',
+    'timeline': 'Timeline',
     'schedule-templates': 'Mẫu tiến độ',
     'acceptance': 'Nghiệm thu',
     'admin': 'Quản trị',

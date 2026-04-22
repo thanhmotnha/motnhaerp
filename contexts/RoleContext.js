@@ -23,6 +23,7 @@ const PERMISSIONS = {
         canManageProducts: true, canManageDrawings: true, canManageVariants: true,
         canManageQC: true, canManagePunchList: true, canManageAcceptance: true,
         canManageSettings: true, canManageHR: true, canViewReports: true,
+        canManageWorkshopWorkers: true, canLogWorkshopShift: true, canViewWorkshopTimeline: true,
         filterProject: null,
     },
     ke_toan: {
@@ -36,6 +37,7 @@ const PERMISSIONS = {
         canManageProducts: false, canManageDrawings: false, canManageVariants: false,
         canManageQC: false, canManagePunchList: false, canManageAcceptance: true,
         canManageSettings: true, canManageHR: true, canViewReports: true,
+        canManageWorkshopWorkers: true, canLogWorkshopShift: false, canViewWorkshopTimeline: true,
         filterProject: null,
     },
     kinh_doanh: {
@@ -49,6 +51,7 @@ const PERMISSIONS = {
         canManageProducts: false, canManageDrawings: false, canManageVariants: false,
         canManageQC: false, canManagePunchList: false, canManageAcceptance: false,
         canManageSettings: false, canManageHR: false, canViewReports: false,
+        canManageWorkshopWorkers: false, canLogWorkshopShift: false, canViewWorkshopTimeline: false,
         filterProject: null,
     },
     kho: {
@@ -62,6 +65,7 @@ const PERMISSIONS = {
         canManageProducts: true, canManageDrawings: false, canManageVariants: false,
         canManageQC: false, canManagePunchList: false, canManageAcceptance: false,
         canManageSettings: false, canManageHR: false, canViewReports: false,
+        canManageWorkshopWorkers: true, canLogWorkshopShift: true, canViewWorkshopTimeline: true,
         filterProject: null,
     },
     ky_thuat: {
@@ -75,6 +79,7 @@ const PERMISSIONS = {
         canManageProducts: true, canManageDrawings: true, canManageVariants: false,
         canManageQC: true, canManagePunchList: true, canManageAcceptance: true,
         canManageSettings: false, canManageHR: false, canViewReports: false,
+        canManageWorkshopWorkers: false, canLogWorkshopShift: false, canViewWorkshopTimeline: true,
         filterProject: null,
     },
     thiet_ke: {
@@ -88,6 +93,7 @@ const PERMISSIONS = {
         canManageProducts: true, canManageDrawings: true, canManageVariants: true,
         canManageQC: false, canManagePunchList: false, canManageAcceptance: false,
         canManageSettings: false, canManageHR: false, canViewReports: false,
+        canManageWorkshopWorkers: false, canLogWorkshopShift: false, canViewWorkshopTimeline: false,
         filterProject: null,
     },
 };

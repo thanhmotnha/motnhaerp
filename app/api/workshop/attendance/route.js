@@ -1,0 +1,66 @@
+import { withAuth } from '@/lib/apiHandler';
+import prisma from '@/lib/prisma';
+import { NextResponse } from 'next/server';
+
+const WORKSHOP_WRITE_ROLES = ['giam_doc', 'ke_toan', 'kho'];
+
+export const GET = withAuth(async (req) => {
+    const { searchParams } = new URL(req.url);
+    const workerId = searchParams.get('workerId');
+    const date = searchParams.get('date');   // YYYY-MM-DD
+    const month = searchParams.get('month'); // YYYY-MM
+
+    const where = {};
+    if (workerId) where.workerId = workerId;
+    if (month) {
+        const [y, m] = month.split('-').map(Number);
+        where.date = { gte: new Date(y, m - 1, 1), lt: new Date(y, m, 1) };
+    } else if (date) {
+        const d = new Date(date);
+        const nextDay = new Date(d);
+        nextDay.setDate(nextDay.getDate() + 1);
+        where.date = { gte: d, lt: nextDay };
+    }
+
+    const records = await prisma.workshopAttendance.findMany({
+        where,
+        include: { worker: { select: { id: true, name: true, skill: true, hourlyRate: true } } },
+        orderBy: { date: month ? 'asc' : 'desc' },
+        take: month ? undefined : 100,
+    });
+    return NextResponse.json(records);
+});
+
+export const POST = withAuth(async (req) => {
+    const body = await req.json();
+    const { workerId, date, hoursWorked, notes } = body;
+
+    if (!workerId || !date) {
+        return NextResponse.json({ error: 'Thiếu thông tin' }, { status: 400 });
+    }
+
+    // 0 giờ = xóa chấm công (chấm nhầm)
+    if (Number(hoursWorked) === 0) {
+        await prisma.workshopAttendance.deleteMany({
+            where: { workerId, date: new Date(date) },
+        });
+        return NextResponse.json({ deleted: true });
+    }
+
+    const hours = Number(hoursWorked) > 0 ? Number(hoursWorked) : 8;
+    const record = await prisma.workshopAttendance.upsert({
+        where: { workerId_date: { workerId, date: new Date(date) } },
+        create: {
+            workerId,
+            date: new Date(date),
+            hoursWorked: hours,
+            notes: notes?.trim() || '',
+        },
+        update: {
+            hoursWorked: hours,
+            notes: notes?.trim() || '',
+        },
+        include: { worker: { select: { id: true, name: true } } },
+    });
+    return NextResponse.json(record);
+}, { roles: WORKSHOP_WRITE_ROLES });
