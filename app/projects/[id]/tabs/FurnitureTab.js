@@ -38,9 +38,28 @@ export default function FurnitureTab({ projectId, project }) {
                 setCustomers(res.data || []);
             } catch { setCustomers([]); }
         }
-        // Pre-fill customer from project if available
-        setForm({ name: '', customerId: project?.customerId || '' });
+        // Pre-fill name + customer từ project để tạo 1 phát là xong
+        setForm({
+            name: project?.name ? `Nội thất — ${project.name}` : '',
+            customerId: project?.customerId || '',
+        });
         setShowCreate(true);
+    };
+
+    const quickCreateFromProject = async () => {
+        if (!project?.customerId) return alert('Dự án chưa có khách hàng — cần gán trước khi tạo đơn hàng nội thất');
+        const name = project?.name ? `Nội thất — ${project.name}` : 'Đơn hàng nội thất';
+        if (!confirm(`Tạo đơn hàng "${name}" cho khách ${project?.customer?.name || ''}?`)) return;
+        setCreating(true);
+        try {
+            const order = await apiFetch('/api/furniture-orders', {
+                method: 'POST',
+                body: { name, customerId: project.customerId, projectId },
+            });
+            window.location.href = `/noi-that/${order.id}`;
+        } catch (err) {
+            alert(err.message || 'Lỗi tạo đơn hàng');
+        } finally { setCreating(false); }
     };
 
     const createOrder = async () => {
@@ -65,7 +84,13 @@ export default function FurnitureTab({ projectId, project }) {
         <div className="card">
             <div className="card-header">
                 <span className="card-title">🪵 Đơn hàng Nội thất</span>
-                <button className="btn btn-sm btn-primary" onClick={openCreate}>+ Tạo đơn mới</button>
+                <div style={{ display: 'flex', gap: 6 }}>
+                    <button className="btn btn-sm btn-primary" onClick={quickCreateFromProject} disabled={creating}
+                        title="Tạo ngay với tên = 'Nội thất — {Tên dự án}' và khách hàng = khách của dự án">
+                        {creating ? '⏳' : '⚡ Tạo từ dự án'}
+                    </button>
+                    <button className="btn btn-sm btn-ghost" onClick={openCreate}>+ Tạo tùy chỉnh</button>
+                </div>
             </div>
             {loading ? (
                 <div style={{ padding: 24, textAlign: 'center', color: 'var(--text-muted)' }}>Đang tải...</div>
