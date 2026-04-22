@@ -125,8 +125,15 @@ function SidebarInner({ isOpen, onClose }) {
             <div className="sidebar-brand">
                 <div
                     className="brand-icon"
-                    style={brand.iconBg ? { background: brand.iconBg } : undefined}
-                >{brand.icon}</div>
+                    style={{
+                        ...(brand.iconBg ? { background: brand.iconBg } : {}),
+                        padding: role === 'giam_doc' ? 4 : undefined,
+                    }}
+                >
+                    {role === 'giam_doc' ? (
+                        <img src="/logo-motnha.svg" alt="MỘT NHÀ" style={{ width: '100%', height: '100%' }} />
+                    ) : brand.icon}
+                </div>
                 <div className="brand-text">
                     <span className="brand-name">{brand.name}</span>
                     <span className="brand-sub">{brand.sub}</span>

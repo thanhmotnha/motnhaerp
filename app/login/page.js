@@ -64,14 +64,13 @@ function LoginForm() {
                 boxShadow: '0 20px 60px rgba(0,0,0,0.3)',
             }}>
                 <div style={{ textAlign: 'center', marginBottom: 32 }}>
-                    <div style={{
-                        width: 64, height: 64, borderRadius: 16,
-                        background: 'linear-gradient(135deg, #1C3A6B, #2A5298)',
-                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        margin: '0 auto 16px', color: '#C9A84C', fontSize: 28, fontWeight: 700,
-                    }}>H</div>
-                    <h1 style={{ fontSize: 24, fontWeight: 700, color: '#1C3A6B', margin: 0 }}>HomeERP</h1>
-                    <p style={{ color: '#666', marginTop: 4, fontSize: 14 }}>Nội thất & Xây dựng</p>
+                    <img
+                        src="/logo-motnha.svg"
+                        alt="MỘT NHÀ"
+                        style={{ width: 80, height: 80, margin: '0 auto 12px', display: 'block' }}
+                    />
+                    <h1 style={{ fontSize: 28, fontWeight: 300, color: '#234093', margin: 0, letterSpacing: 3 }}>MỘT NHÀ</h1>
+                    <p style={{ color: '#666', marginTop: 6, fontSize: 13 }}>Quản lý Nội thất & Xây dựng</p>
                 </div>
 
                 <form onSubmit={handleSubmit}>

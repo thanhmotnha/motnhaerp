@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" fill="none">
+  <!-- Left pillar -->
+  <path d="M30 60 L30 170 L70 170 L70 95 Q70 75 60 65 Q52 57 42 60 Z" stroke="#C5A059" stroke-width="6" fill="none" stroke-linejoin="round"/>
+  <!-- Center pillar with peak -->
+  <path d="M80 50 L80 170 L120 170 L120 50 L100 20 Z" stroke="#C5A059" stroke-width="6" fill="none" stroke-linejoin="round"/>
+  <!-- Right pillar -->
+  <path d="M130 60 L130 170 L170 170 L170 95 Q170 75 160 65 Q152 57 142 60 Z" stroke="#C5A059" stroke-width="6" fill="none" stroke-linejoin="round"/>
+  <!-- Center vertical line -->
+  <line x1="100" y1="50" x2="100" y2="170" stroke="#C5A059" stroke-width="4"/>
+</svg>

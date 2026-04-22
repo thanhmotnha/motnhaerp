@@ -433,6 +433,7 @@ export default function Dashboard() {
     }, [selectedYear, canViewFinance]);
 
     if (loading) return <SkeletonDashboard />;
+    if (!data?.stats) return <SkeletonDashboard />;
 
     const s = data.stats;
     const collectionRate = s.totalContractValue > 0 ? Math.round(s.totalPaid / s.totalContractValue * 100) : 0;
