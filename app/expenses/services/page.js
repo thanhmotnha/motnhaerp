@@ -34,6 +34,8 @@ export default function ServiceExpensesPage() {
 
     const [form, setForm] = useState({
         category: SERVICE_CATEGORY_KEYS[0],
+        recipientType: 'NCC',   // 'NCC' | 'Thầu phụ' | 'external'
+        recipientId: '',
         recipientName: '',
         amount: '',
         paidAmount: '0',
@@ -41,17 +43,22 @@ export default function ServiceExpensesPage() {
         date: new Date().toISOString().slice(0, 10),
         notes: '',
     });
+    const [suppliers, setSuppliers] = useState([]);
+    const [contractors, setContractors] = useState([]);
 
     const load = useCallback(async () => {
         try {
-            const [expRes, projRes] = await Promise.all([
+            const [expRes, projRes, supRes, conRes] = await Promise.all([
                 apiFetch('/api/project-expenses?limit=500'),
                 apiFetch('/api/projects?limit=500'),
+                apiFetch('/api/suppliers?limit=500'),
+                apiFetch('/api/contractors?limit=500'),
             ]);
-            // Only show services (filtered client-side by category match)
             const services = (expRes?.data || []).filter(e => SERVICE_CATEGORY_KEYS.includes(e.category));
             setData(services);
             setProjects(projRes?.data || []);
+            setSuppliers(supRes?.data || supRes || []);
+            setContractors(conRes?.data || conRes || []);
         } catch (e) {
             toast.showToast(e.message || 'Lỗi tải dữ liệu', 'error');
         } finally { setLoading(false); }
@@ -62,6 +69,8 @@ export default function ServiceExpensesPage() {
     const resetForm = () => {
         setForm({
             category: SERVICE_CATEGORY_KEYS[0],
+            recipientType: 'NCC',
+            recipientId: '',
             recipientName: '',
             amount: '',
             paidAmount: '0',
@@ -86,7 +95,8 @@ export default function ServiceExpensesPage() {
             expenseType: 'Dịch vụ',
             projectId: form.projectId || null,
             date: form.date ? new Date(form.date).toISOString() : undefined,
-            recipientType: 'external',
+            recipientType: form.recipientType,
+            recipientId: form.recipientId || '',
             recipientName: form.recipientName.trim(),
             notes: form.notes,
             status: paid >= amount ? 'Đã chi' : paid > 0 ? 'Chi 1 phần' : 'Chưa trả',
@@ -112,6 +122,8 @@ export default function ServiceExpensesPage() {
         setEditing(item);
         setForm({
             category: item.category,
+            recipientType: item.recipientType || 'NCC',
+            recipientId: item.recipientId || '',
             recipientName: item.recipientName || '',
             amount: String(item.amount),
             paidAmount: String(item.paidAmount || 0),
@@ -307,13 +319,67 @@ export default function ServiceExpensesPage() {
                             </div>
 
                             <div className="form-group">
-                                <label className="form-label">Nhà cung cấp / Đối tác *</label>
-                                <input
-                                    className="form-input"
-                                    value={form.recipientName}
-                                    onChange={e => setForm({ ...form, recipientName: e.target.value })}
-                                    placeholder="Tên cá nhân / công ty đã thuê"
-                                />
+                                <label className="form-label">Loại đối tác</label>
+                                <div style={{ display: 'flex', gap: 6 }}>
+                                    {[
+                                        { key: 'NCC', label: '🏭 NCC / Công ty' },
+                                        { key: 'Thầu phụ', label: '👷 Thầu phụ' },
+                                        { key: 'external', label: '✏️ Tự nhập (cá nhân)' },
+                                    ].map(t => (
+                                        <button
+                                            key={t.key}
+                                            type="button"
+                                            onClick={() => setForm({ ...form, recipientType: t.key, recipientId: '', recipientName: '' })}
+                                            style={{
+                                                flex: 1, padding: '8px', borderRadius: 6, fontSize: 12,
+                                                background: form.recipientType === t.key ? 'var(--primary)' : 'transparent',
+                                                color: form.recipientType === t.key ? '#fff' : 'var(--text-primary)',
+                                                border: '1px solid var(--border-color)',
+                                                cursor: 'pointer', fontWeight: 500,
+                                            }}
+                                        >{t.label}</button>
+                                    ))}
+                                </div>
+                            </div>
+
+                            <div className="form-group">
+                                <label className="form-label">
+                                    {form.recipientType === 'NCC' ? 'Chọn NCC *' : form.recipientType === 'Thầu phụ' ? 'Chọn thầu phụ *' : 'Tên cá nhân/đối tác *'}
+                                </label>
+                                {form.recipientType === 'NCC' && (
+                                    <select
+                                        className="form-select"
+                                        value={form.recipientId}
+                                        onChange={e => {
+                                            const sup = suppliers.find(s => s.id === e.target.value);
+                                            setForm({ ...form, recipientId: e.target.value, recipientName: sup?.name || '' });
+                                        }}
+                                    >
+                                        <option value="">— Chọn nhà cung cấp —</option>
+                                        {suppliers.map(s => <option key={s.id} value={s.id}>{s.code} — {s.name}</option>)}
+                                    </select>
+                                )}
+                                {form.recipientType === 'Thầu phụ' && (
+                                    <select
+                                        className="form-select"
+                                        value={form.recipientId}
+                                        onChange={e => {
+                                            const con = contractors.find(c => c.id === e.target.value);
+                                            setForm({ ...form, recipientId: e.target.value, recipientName: con?.name || '' });
+                                        }}
+                                    >
+                                        <option value="">— Chọn thầu phụ —</option>
+                                        {contractors.map(co => <option key={co.id} value={co.id}>{co.code} — {co.name}</option>)}
+                                    </select>
+                                )}
+                                {form.recipientType === 'external' && (
+                                    <input
+                                        className="form-input"
+                                        value={form.recipientName}
+                                        onChange={e => setForm({ ...form, recipientName: e.target.value })}
+                                        placeholder="Tên cá nhân / công ty đã thuê"
+                                    />
+                                )}
                             </div>
 
                             <div className="form-row" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
