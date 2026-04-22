@@ -45,10 +45,18 @@ export default function CustomerDetailPage() {
     const [interactionForm, setInteractionForm] = useState({ type: 'Ghi chú', content: '', createdBy: '' });
     const [showInteractionForm, setShowInteractionForm] = useState(false);
     const [showCheckinModal, setShowCheckinModal] = useState(false);
+    const [salesPeople, setSalesPeople] = useState([]);
     const { permissions } = useRole();
 
     const fetchData = () => { fetch(`/api/customers/${id}`).then(r => r.ok ? r.json() : null).then(d => { setData(d); setLoading(false); }); };
     useEffect(fetchData, [id]);
+    useEffect(() => {
+        if (!permissions?.canReassignCustomer) return;
+        fetch('/api/users?role=kinh_doanh').then(r => r.ok ? r.json() : null).then(d => {
+            const arr = Array.isArray(d?.data) ? d.data : (Array.isArray(d) ? d : []);
+            setSalesPeople(arr);
+        }).catch(() => { });
+    }, [permissions?.canReassignCustomer]);
 
     const addTrackingLog = async () => {
         if (!logForm.content.trim()) return alert('Nhập nội dung');
@@ -67,7 +75,10 @@ export default function CustomerDetailPage() {
     };
 
     const saveEdit = async () => {
-        await fetch(`/api/customers/${id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(editForm) });
+        const payload = { ...editForm };
+        payload.salesPersonId = payload.salesPersonId || null;
+        if (!permissions?.canReassignCustomer) delete payload.salesPersonId;
+        await fetch(`/api/customers/${id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
         setShowEditModal(false);
         fetchData();
     };
@@ -183,7 +194,7 @@ export default function CustomerDetailPage() {
                         <button className="btn btn-primary btn-sm" onClick={() => setShowCheckinModal(true)}>📸 Check-in</button>
                     )}
                     <button className="btn btn-secondary btn-sm" onClick={() => setShowLogModal(true)}>📝 Ghi chú</button>
-                    <button className="btn btn-secondary btn-sm" onClick={() => { setEditForm({ name: c.name, phone: c.phone, email: c.email, address: c.address, type: c.type, pipelineStage: c.pipelineStage || 'Lead', source: c.source, representative: c.representative, taxCode: c.taxCode, estimatedValue: c.estimatedValue || 0, nextFollowUp: c.nextFollowUp ? new Date(c.nextFollowUp).toISOString().split('T')[0] : '', salesPersonNote: c.salesPersonNote || '', designer: c.designer, notes: c.notes }); setShowEditModal(true); }}>✏️ Sửa</button>
+                    <button className="btn btn-secondary btn-sm" onClick={() => { setEditForm({ name: c.name, phone: c.phone, email: c.email, address: c.address, type: c.type, pipelineStage: c.pipelineStage || 'Lead', source: c.source, representative: c.representative, taxCode: c.taxCode, estimatedValue: c.estimatedValue || 0, nextFollowUp: c.nextFollowUp ? new Date(c.nextFollowUp).toISOString().split('T')[0] : '', salesPersonNote: c.salesPersonNote || '', salesPersonId: c.salesPersonId || '', designer: c.designer, notes: c.notes }); setShowEditModal(true); }}>✏️ Sửa</button>
                     <button className="btn btn-secondary btn-sm" onClick={() => router.push('/quotations/create')}>📄 Tạo BG</button>
                     {c.phone && <a href={`tel:${c.phone}`} className="btn btn-secondary btn-sm" style={{ textDecoration: 'none' }}>📞 Gọi</a>}
                     {c.email && <a href={`mailto:${c.email}`} className="btn btn-secondary btn-sm" style={{ textDecoration: 'none' }}>📧 Email</a>}
@@ -517,7 +528,23 @@ export default function CustomerDetailPage() {
                                 <div className="form-group"><label className="form-label">Follow-up</label><input className="form-input" type="date" value={editForm.nextFollowUp || ''} onChange={e => setEditForm({ ...editForm, nextFollowUp: e.target.value })} /></div>
                             </div>
                             <div className="form-row">
-                                <div className="form-group"><label className="form-label">Ghi chú NVKD (legacy)</label><input className="form-input" value={editForm.salesPersonNote || ''} onChange={e => setEditForm({ ...editForm, salesPersonNote: e.target.value })} placeholder="Dropdown Chủ khách là chính" /></div>
+                                <div className="form-group">
+                                    <label className="form-label">Chủ khách (NVKD)</label>
+                                    <select
+                                        className="form-select"
+                                        value={editForm.salesPersonId || ''}
+                                        onChange={e => setEditForm({ ...editForm, salesPersonId: e.target.value })}
+                                        disabled={!permissions?.canReassignCustomer}
+                                        title={!permissions?.canReassignCustomer ? 'Chỉ giám đốc được đổi chủ khách' : ''}
+                                    >
+                                        <option value="">— Chưa gán —</option>
+                                        {salesPeople.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
+                                        {data?.salesPerson && !salesPeople.find(u => u.id === data.salesPerson.id) && (
+                                            <option value={data.salesPerson.id}>{data.salesPerson.name}</option>
+                                        )}
+                                    </select>
+                                </div>
+                                <div className="form-group"><label className="form-label">Ghi chú NVKD (legacy)</label><input className="form-input" value={editForm.salesPersonNote || ''} onChange={e => setEditForm({ ...editForm, salesPersonNote: e.target.value })} placeholder="Dropdown Chủ khách bên trên là chính" /></div>
                                 <div className="form-group"><label className="form-label">NV thiết kế</label><input className="form-input" value={editForm.designer || ''} onChange={e => setEditForm({ ...editForm, designer: e.target.value })} /></div>
                             </div>
                             <div className="form-group"><label className="form-label">Ghi chú</label><textarea className="form-input" rows={2} value={editForm.notes || ''} onChange={e => setEditForm({ ...editForm, notes: e.target.value })} /></div>
