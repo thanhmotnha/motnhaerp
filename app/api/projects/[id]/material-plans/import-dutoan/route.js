@@ -6,18 +6,19 @@ import * as XLSX from 'xlsx';
 /**
  * POST /api/projects/[id]/material-plans/import-dutoan
  *
- * Import file dự toán chuẩn G8/G9 (.xls) có 55 sheets. Chỉ đọc 3 sheet:
- *   - "Dự thầu"      → hạng mục thi công (costType='Thi công')
- *   - "Tổng hợp VT"  → vật tư cần mua    (costType='Vật tư')
- *   - "Giá tháng"    → map tên vật tư → Mã chuẩn + Giá sau VAT
+ * Import file dự toán chuẩn G8/G9 (.xls) — chỉ đọc sheet "Dự thầu" để tạo
+ * hạng mục thi công theo dõi tiến độ/budget. KHÔNG import vật tư từ file này
+ * (sheet "Tổng hợp VT" chứa hỗn hợp Vật liệu + Nhân công + Máy thi công, không
+ * phải danh sách vật tư đặt hàng). Vật tư dùng endpoint /import-excel với file
+ * vật tư riêng format 10 cột.
  *
  * Body (multipart):
  *   file       — File .xls/.xlsx
  *   mode       — 'preview' (parse + trả summary) | 'commit' (parse + save DB)
- *   replaceAll — 'true' = xóa MaterialPlan chưa khóa trước khi insert
+ *   replaceAll — 'true' = xóa MaterialPlan chưa khóa (costType='Thi công') trước khi insert
  *
- * Response (preview): { materials: [...], scheduleItems: [...], summary: {...} }
- * Response (commit):  { imported: { materials, scheduleItems }, summary: {...} }
+ * Response (preview): { scheduleItems: [...], summary: {...} }
+ * Response (commit):  { imported: { scheduleItems }, summary: {...} }
  */
 
 const toNumber = (v) => {
@@ -45,82 +46,6 @@ function findHeaderRow(rows, keywords) {
         if (hits >= 2) return i;
     }
     return -1;
-}
-
-/** Parse sheet "Giá tháng" → map { nameLower: { maSo, maChuan, giaThang, unit } } */
-function parseGiaThang(wb) {
-    const rows = readSheet(wb, 'Giá tháng');
-    if (!rows) return new Map();
-    const headerRow = findHeaderRow(rows, ['Mã số', 'Tên vật tư', 'Mã chuẩn']);
-    if (headerRow < 0) return new Map();
-
-    const headers = rows[headerRow].map(clean);
-    let giaCol = headers.findIndex(h => /giá sau vat/i.test(h));
-    if (giaCol < 0) giaCol = headers.findIndex(h => /giá tháng/i.test(h));
-    const idx = {
-        maSo: headers.findIndex(h => /mã số/i.test(h)),
-        name: headers.findIndex(h => /tên vật tư|tên$/i.test(h)),
-        unit: headers.findIndex(h => /^đơn vị|^đv/i.test(h)),
-        giaThang: giaCol,
-        maChuan: headers.findIndex(h => /mã chuẩn/i.test(h)),
-    };
-    if (idx.name < 0) return new Map();
-
-    const map = new Map();
-    for (let i = headerRow + 1; i < rows.length; i++) {
-        const r = rows[i];
-        const name = clean(r[idx.name]);
-        if (!name) continue;
-        const maSo = clean(r[idx.maSo]);
-        const maChuan = clean(r[idx.maChuan]);
-        const giaThang = toNumber(r[idx.giaThang]);
-        const unit = clean(r[idx.unit]);
-        if (!maSo && !maChuan) continue; // skip section rows
-        map.set(name.toLowerCase(), { maSo, maChuan, giaThang, unit, name });
-    }
-    return map;
-}
-
-/** Parse sheet "Tổng hợp VT" → list vật tư */
-function parseTongHopVT(wb, priceMap) {
-    const rows = readSheet(wb, 'Tổng hợp VT');
-    if (!rows) return [];
-    const headerRow = findHeaderRow(rows, ['Tên vật tư', 'Khối lượng']);
-    if (headerRow < 0) return [];
-
-    const headers = rows[headerRow].map(clean);
-    const idx = {
-        stt: headers.findIndex(h => /^stt$/i.test(h)),
-        name: headers.findIndex(h => /tên vật tư|tên$/i.test(h)),
-        unit: headers.findIndex(h => /^đơn vị|^đv/i.test(h)),
-        qty: headers.findIndex(h => /khối lượng|số lượng/i.test(h)),
-    };
-    if (idx.name < 0 || idx.qty < 0) return [];
-
-    const items = [];
-    for (let i = headerRow + 1; i < rows.length; i++) {
-        const r = rows[i];
-        const stt = clean(r[idx.stt]);
-        const name = clean(r[idx.name]);
-        const qty = toNumber(r[idx.qty]);
-        // Skip section rows: STT is roman (I, II) or empty with no qty
-        if (!name) continue;
-        if (!/^\d+$/.test(stt)) continue; // only numeric STT = data row
-        if (qty <= 0) continue;
-
-        const priceInfo = priceMap.get(name.toLowerCase()) || {};
-        items.push({
-            rowIdx: i + 1,
-            stt: Number(stt),
-            name,
-            unit: clean(r[idx.unit]) || priceInfo.unit || 'cái',
-            quantity: qty,
-            unitPrice: priceInfo.giaThang || 0,
-            maSo: priceInfo.maSo || '',
-            maChuan: priceInfo.maChuan || '',
-        });
-    }
-    return items;
 }
 
 /** Parse sheet "Dự thầu" → list hạng mục thi công */
@@ -176,33 +101,6 @@ function parseDuThau(wb) {
     return items;
 }
 
-/** Match vật tư với Product có sẵn */
-async function matchProducts(materials) {
-    const codes = [...new Set(materials.flatMap(m => [m.maSo, m.maChuan].filter(Boolean)))];
-    const names = [...new Set(materials.map(m => m.name).filter(Boolean))];
-
-    const byCode = codes.length > 0
-        ? await prisma.product.findMany({
-            where: { code: { in: codes } },
-            select: { id: true, code: true, name: true, unit: true, importPrice: true },
-        })
-        : [];
-    const byName = names.length > 0
-        ? await prisma.product.findMany({
-            where: { name: { in: names, mode: 'insensitive' } },
-            select: { id: true, code: true, name: true, unit: true, importPrice: true },
-        })
-        : [];
-
-    const codeMap = new Map(byCode.map(p => [p.code, p]));
-    const nameMap = new Map(byName.map(p => [p.name.toLowerCase(), p]));
-
-    return materials.map(m => {
-        const matched = codeMap.get(m.maChuan) || codeMap.get(m.maSo) || nameMap.get(m.name.toLowerCase()) || null;
-        return { ...m, matchedProduct: matched };
-    });
-}
-
 export const POST = withAuth(async (request, { params }, session) => {
     const { id: projectId } = await params;
     const project = await prisma.project.findUnique({ where: { id: projectId }, select: { id: true, name: true } });
@@ -223,82 +121,34 @@ export const POST = withAuth(async (request, { params }, session) => {
     }
 
     const sheetNames = wb.SheetNames;
-    const hasDuThau = sheetNames.includes('Dự thầu');
-    const hasTongHopVT = sheetNames.includes('Tổng hợp VT');
-    if (!hasDuThau && !hasTongHopVT) {
+    if (!sheetNames.includes('Dự thầu')) {
         return NextResponse.json({
-            error: 'File không có sheet "Dự thầu" hoặc "Tổng hợp VT". Kiểm tra đây có phải file dự toán G8/G9 không.',
+            error: 'File không có sheet "Dự thầu". Kiểm tra đây có phải file dự toán G8/G9 không.',
             sheets: sheetNames,
         }, { status: 400 });
     }
 
-    const priceMap = parseGiaThang(wb);
-    const rawMaterials = hasTongHopVT ? parseTongHopVT(wb, priceMap) : [];
-    const scheduleItems = hasDuThau ? parseDuThau(wb) : [];
-    const materials = await matchProducts(rawMaterials);
+    const scheduleItems = parseDuThau(wb);
 
     const summary = {
         project: project.name,
-        sheets: { duThau: hasDuThau, tongHopVT: hasTongHopVT, giaThang: priceMap.size > 0 },
-        materials: {
-            total: materials.length,
-            matched: materials.filter(m => m.matchedProduct).length,
-            new: materials.filter(m => !m.matchedProduct).length,
-            totalValue: materials.reduce((s, m) => s + m.quantity * m.unitPrice, 0),
-        },
         scheduleItems: {
             total: scheduleItems.length,
-            totalValue: scheduleItems.reduce((s, it) => s + it.totalAmount, 0),
+            totalBudget: scheduleItems.reduce((s, it) => s + it.totalAmount, 0),
         },
     };
 
     if (mode === 'preview') {
-        return NextResponse.json({ success: true, summary, materials, scheduleItems });
+        return NextResponse.json({ success: true, summary, scheduleItems });
     }
 
     // ── COMMIT MODE ──
     const result = await prisma.$transaction(async (tx) => {
         if (replaceAll) {
+            // Chỉ xóa hạng mục thi công chưa khóa, giữ nguyên MaterialPlan vật tư (costType='Vật tư')
             await tx.materialPlan.deleteMany({
-                where: { projectId, isLocked: false },
+                where: { projectId, isLocked: false, costType: 'Thi công' },
             });
-        }
-
-        let matCount = 0;
-        for (const m of materials) {
-            let product = m.matchedProduct;
-            if (!product) {
-                const code = m.maChuan || m.maSo || await nextProductCode(tx);
-                product = await tx.product.upsert({
-                    where: { code },
-                    update: {},
-                    create: {
-                        code,
-                        name: m.name,
-                        unit: m.unit,
-                        category: 'Vật tư xây dựng',
-                        importPrice: m.unitPrice,
-                    },
-                });
-            }
-            const totalAmount = m.quantity * m.unitPrice;
-            await tx.materialPlan.create({
-                data: {
-                    projectId,
-                    productId: product.id,
-                    quantity: m.quantity,
-                    unitPrice: m.unitPrice,
-                    budgetUnitPrice: m.unitPrice,
-                    totalAmount,
-                    category: '',
-                    wastePercent: 5,
-                    notes: m.maChuan ? `Mã chuẩn: ${m.maChuan}` : (m.maSo ? `Mã số: ${m.maSo}` : ''),
-                    status: 'Chưa đặt',
-                    costType: 'Vật tư',
-                    type: 'Chính',
-                },
-            });
-            matCount++;
         }
 
         let schedCount = 0;
@@ -307,13 +157,13 @@ export const POST = withAuth(async (request, { params }, session) => {
             const code = `HM-${projectId.slice(-6)}-${it.stt}`;
             const product = await tx.product.upsert({
                 where: { code },
-                update: { name: it.name, unit: it.unit, importPrice: it.unitPrice },
+                update: { name: it.name, unit: it.unit },
                 create: {
                     code,
                     name: it.name,
                     unit: it.unit,
                     category: 'Hạng mục thi công',
-                    importPrice: it.unitPrice,
+                    importPrice: 0,
                     supplyType: 'Dịch vụ',
                 },
             });
@@ -322,8 +172,8 @@ export const POST = withAuth(async (request, { params }, session) => {
                     projectId,
                     productId: product.id,
                     quantity: it.quantity,
-                    unitPrice: it.unitPrice,
-                    budgetUnitPrice: it.unitPrice,
+                    unitPrice: 0, // đơn giá thực tế — user cập nhật sau khi thi công để so chênh lệch
+                    budgetUnitPrice: it.unitPrice, // đơn giá dự toán từ Excel
                     totalAmount: it.totalAmount,
                     category: it.section || 'Thi công',
                     wastePercent: 0,
@@ -336,18 +186,8 @@ export const POST = withAuth(async (request, { params }, session) => {
             schedCount++;
         }
 
-        return { materials: matCount, scheduleItems: schedCount };
+        return { scheduleItems: schedCount };
     }, { timeout: 60000 });
 
     return NextResponse.json({ success: true, summary, imported: result });
 });
-
-async function nextProductCode(tx) {
-    const maxResult = await tx.$queryRawUnsafe(
-        `SELECT COALESCE(MAX(CAST(REPLACE(code, $1, '') AS INTEGER)), 0) as max_num
-         FROM "Product" WHERE code LIKE $2 AND REPLACE(code, $1, '') ~ '^[0-9]+$'`,
-        'SP', 'SP%'
-    );
-    const nextNum = Number(maxResult?.[0]?.max_num ?? 0) + 1;
-    return `SP${String(nextNum).padStart(3, '0')}`;
-}

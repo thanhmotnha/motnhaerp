@@ -82,7 +82,7 @@ export default function MaterialTab({ project: p, projectId, onRefresh }) {
             const res = await fetch(`/api/projects/${projectId}/material-plans/import-dutoan`, { method: 'POST', body: fd });
             const json = await res.json();
             if (!res.ok) throw new Error(json.error || 'Lỗi lưu');
-            alert(`✓ Đã lưu ${json.imported.materials} vật tư + ${json.imported.scheduleItems} hạng mục thi công`);
+            alert(`✓ Đã lưu ${json.imported.scheduleItems} hạng mục thi công`);
             setDutoanPreview(null);
             setDutoanFile(null);
             setDutoanReplaceAll(false);
@@ -459,48 +459,20 @@ export default function MaterialTab({ project: p, projectId, onRefresh }) {
                             <button className="modal-close" onClick={() => !dutoanCommitting && setDutoanPreview(null)}>×</button>
                         </div>
 
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(180px,1fr))', gap: 10, marginBottom: 16 }}>
-                            <div className="stat-card"><div style={{ fontSize: 20, fontWeight: 700, color: 'var(--status-info)' }}>{dutoanPreview.summary.materials.total}</div><div style={{ fontSize: 12 }}>🧱 Vật tư</div></div>
-                            <div className="stat-card"><div style={{ fontSize: 20, fontWeight: 700, color: 'var(--status-success)' }}>{dutoanPreview.summary.materials.matched}</div><div style={{ fontSize: 12 }}>✅ Đã có SP</div></div>
-                            <div className="stat-card"><div style={{ fontSize: 20, fontWeight: 700, color: 'var(--status-warning)' }}>{dutoanPreview.summary.materials.new}</div><div style={{ fontSize: 12 }}>🆕 Sẽ tạo SP mới</div></div>
-                            <div className="stat-card"><div style={{ fontSize: 20, fontWeight: 700, color: 'var(--primary)' }}>{dutoanPreview.summary.scheduleItems.total}</div><div style={{ fontSize: 12 }}>🏗️ Hạng mục thi công</div></div>
-                            <div className="stat-card"><div style={{ fontSize: 16, fontWeight: 700 }}>{fmtVND(dutoanPreview.summary.materials.totalValue)}</div><div style={{ fontSize: 12 }}>💰 Giá trị vật tư</div></div>
-                            <div className="stat-card"><div style={{ fontSize: 16, fontWeight: 700 }}>{fmtVND(dutoanPreview.summary.scheduleItems.totalValue)}</div><div style={{ fontSize: 12 }}>💰 Giá trị thi công</div></div>
+                        <div style={{ padding: 10, background: 'rgba(59,130,246,0.08)', border: '1px solid rgba(59,130,246,0.25)', borderRadius: 8, marginBottom: 12, fontSize: 12 }}>
+                            💡 File dự toán chỉ import <b>hạng mục thi công</b> để theo dõi tiến độ + chênh lệch đơn giá. Sau khi import có thể sửa đơn giá thực tế để so với dự toán. Vật tư đặt hàng dùng nút <b>📂 Import Excel</b> với file vật tư riêng.
                         </div>
 
-                        <details open style={{ marginBottom: 12 }}>
-                            <summary style={{ cursor: 'pointer', fontWeight: 600, padding: '6px 0' }}>🧱 Vật tư ({dutoanPreview.materials.length})</summary>
-                            <div className="table-container" style={{ maxHeight: 320, overflowY: 'auto' }}>
-                                <table className="data-table" style={{ fontSize: 12 }}>
-                                    <thead><tr><th>STT</th><th>Tên vật tư</th><th>ĐV</th><th style={{ textAlign: 'right' }}>SL</th><th style={{ textAlign: 'right' }}>Đơn giá</th><th>Mã chuẩn</th><th>SP hệ thống</th></tr></thead>
-                                    <tbody>
-                                        {dutoanPreview.materials.map((m, i) => (
-                                            <tr key={i}>
-                                                <td>{m.stt}</td>
-                                                <td>{m.name}</td>
-                                                <td>{m.unit}</td>
-                                                <td style={{ textAlign: 'right' }}>{m.quantity}</td>
-                                                <td style={{ textAlign: 'right' }}>{fmtVND(m.unitPrice)}</td>
-                                                <td style={{ fontFamily: 'monospace', fontSize: 11 }}>{m.maChuan || m.maSo || '—'}</td>
-                                                <td>
-                                                    {m.matchedProduct ? (
-                                                        <span style={{ color: 'var(--status-success)', fontSize: 11 }}>✓ {m.matchedProduct.code}</span>
-                                                    ) : (
-                                                        <span style={{ color: 'var(--status-warning)', fontSize: 11 }}>🆕 Tạo mới</span>
-                                                    )}
-                                                </td>
-                                            </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
-                            </div>
-                        </details>
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(180px,1fr))', gap: 10, marginBottom: 16 }}>
+                            <div className="stat-card"><div style={{ fontSize: 22, fontWeight: 700, color: 'var(--primary)' }}>{dutoanPreview.summary.scheduleItems.total}</div><div style={{ fontSize: 12 }}>🏗️ Hạng mục thi công</div></div>
+                            <div className="stat-card"><div style={{ fontSize: 18, fontWeight: 700 }}>{fmtVND(dutoanPreview.summary.scheduleItems.totalBudget)}</div><div style={{ fontSize: 12 }}>💰 Tổng dự toán</div></div>
+                        </div>
 
-                        <details style={{ marginBottom: 16 }}>
+                        <details open style={{ marginBottom: 16 }}>
                             <summary style={{ cursor: 'pointer', fontWeight: 600, padding: '6px 0' }}>🏗️ Hạng mục thi công ({dutoanPreview.scheduleItems.length})</summary>
                             <div className="table-container" style={{ maxHeight: 320, overflowY: 'auto' }}>
                                 <table className="data-table" style={{ fontSize: 12 }}>
-                                    <thead><tr><th>STT</th><th>Hạng mục</th><th>Tên công tác</th><th>ĐV</th><th style={{ textAlign: 'right' }}>KL</th><th style={{ textAlign: 'right' }}>Đơn giá</th><th style={{ textAlign: 'right' }}>Thành tiền</th></tr></thead>
+                                    <thead><tr><th>STT</th><th>Hạng mục</th><th>Tên công tác</th><th>ĐV</th><th style={{ textAlign: 'right' }}>Khối lượng</th><th style={{ textAlign: 'right' }}>Đơn giá dự toán</th><th style={{ textAlign: 'right' }}>Thành tiền</th></tr></thead>
                                     <tbody>
                                         {dutoanPreview.scheduleItems.map((it, i) => (
                                             <tr key={i}>
@@ -518,18 +490,23 @@ export default function MaterialTab({ project: p, projectId, onRefresh }) {
                             </div>
                         </details>
 
-                        <div style={{ padding: 12, background: 'var(--bg-secondary)', borderRadius: 8, marginBottom: 12 }}>
-                            <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, cursor: 'pointer' }}>
-                                <input type="checkbox" checked={dutoanReplaceAll} onChange={e => setDutoanReplaceAll(e.target.checked)} disabled={materials.length === 0} />
-                                <span>🗑️ Xóa {materials.length} vật tư chưa khóa hiện tại trước khi import</span>
-                            </label>
-                            {materials.length === 0 && <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4 }}>Dự án chưa có vật tư nào</div>}
-                        </div>
+                        {(() => {
+                            const existingSchedule = materials.filter(m => m.costType === 'Thi công' && !m.isLocked).length;
+                            return (
+                                <div style={{ padding: 12, background: 'var(--bg-secondary)', borderRadius: 8, marginBottom: 12 }}>
+                                    <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, cursor: 'pointer' }}>
+                                        <input type="checkbox" checked={dutoanReplaceAll} onChange={e => setDutoanReplaceAll(e.target.checked)} disabled={existingSchedule === 0} />
+                                        <span>🗑️ Xóa {existingSchedule} hạng mục thi công chưa khóa hiện tại trước khi import (giữ nguyên vật tư)</span>
+                                    </label>
+                                    {existingSchedule === 0 && <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4 }}>Dự án chưa có hạng mục thi công</div>}
+                                </div>
+                            );
+                        })()}
 
                         <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
                             <button className="btn btn-ghost" onClick={() => setDutoanPreview(null)} disabled={dutoanCommitting}>Hủy</button>
                             <button className="btn btn-primary" onClick={commitDutoan} disabled={dutoanCommitting}>
-                                {dutoanCommitting ? '⏳ Đang lưu...' : `✓ Xác nhận import (${dutoanPreview.summary.materials.total + dutoanPreview.summary.scheduleItems.total} dòng)`}
+                                {dutoanCommitting ? '⏳ Đang lưu...' : `✓ Xác nhận import (${dutoanPreview.summary.scheduleItems.total} hạng mục)`}
                             </button>
                         </div>
                     </div>
