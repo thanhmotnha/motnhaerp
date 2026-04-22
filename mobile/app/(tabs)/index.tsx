@@ -281,6 +281,64 @@ export default function HomeScreen() {
         },
     ];
 
+    // Extra admin/management actions — visible based on role
+    const userRole = user?.role;
+    const isAdmin = userRole === 'giam_doc' || userRole === 'ke_toan';
+    const isNvkd = userRole === 'kinh_doanh';
+    const managementActions = useMemo(() => {
+        const list: Array<{ icon: any; label: string; desc: string; color: string; route: string }> = [];
+
+        if (isAdmin || isNvkd) {
+            list.push({
+                icon: 'people-outline', label: 'Khách hàng',
+                desc: 'CRM + Check-in tại chỗ', color: c.primary, route: '/customers',
+            });
+        }
+
+        if (isAdmin || isNvkd) {
+            list.push({
+                icon: 'document-text-outline', label: 'Hợp đồng',
+                desc: 'Xem + tiến độ thu', color: c.primary, route: '/contracts',
+            });
+            list.push({
+                icon: 'document-outline', label: 'Báo giá',
+                desc: 'Danh sách báo giá', color: c.accent, route: '/quotations',
+            });
+        }
+
+        if (isAdmin) {
+            list.push({
+                icon: 'cash-outline', label: 'Thu tiền',
+                desc: 'Các đợt thu chờ xử lý', color: c.success, route: '/finance',
+            });
+            list.push({
+                icon: 'wallet-outline', label: 'Chi phí chung',
+                desc: 'Duyệt CPG tháng', color: c.warning, route: '/overhead',
+            });
+            list.push({
+                icon: 'trending-down-outline', label: 'Công nợ',
+                desc: 'NCC + Thợ', color: c.danger, route: '/debts',
+            });
+            list.push({
+                icon: 'stats-chart-outline', label: 'Báo cáo lãi lỗ',
+                desc: 'P&L theo dự án', color: c.primary, route: '/pnl',
+            });
+            list.push({
+                icon: 'people-circle-outline', label: 'Nhân sự',
+                desc: 'Chấm công + nghỉ phép', color: c.accent, route: '/hr',
+            });
+        }
+
+        if (userRole === 'kho' || userRole === 'ky_thuat' || isAdmin) {
+            list.push({
+                icon: 'archive-outline', label: 'Kho',
+                desc: 'Nhập / Xuất vật tư', color: c.accent, route: '/inventory',
+            });
+        }
+
+        return list;
+    }, [userRole, isAdmin, isNvkd]);
+
     const activeProject = projects[0];
     const scopedProjectId = activeProject?.id || '';
     const scopedRoutes = {
@@ -583,6 +641,33 @@ export default function HomeScreen() {
                         </TouchableOpacity>
                     ))}
                 </View>
+
+                {/* Management actions — role-gated, grid style */}
+                {managementActions.length > 0 && (
+                    <>
+                        <View style={s.sectionRow}>
+                            <Text style={s.sectionTitle}>
+                                {isAdmin ? 'Quản lý điều hành' : 'Khách hàng & Báo giá'}
+                            </Text>
+                        </View>
+                        <View style={s.mgmtGrid}>
+                            {managementActions.map((a, i) => (
+                                <TouchableOpacity
+                                    key={i}
+                                    style={s.mgmtCard}
+                                    activeOpacity={0.7}
+                                    onPress={() => router.push(a.route as any)}
+                                >
+                                    <View style={[s.mgmtIcon, { backgroundColor: a.color + '15' }]}>
+                                        <Ionicons name={a.icon} size={22} color={a.color} />
+                                    </View>
+                                    <Text style={s.mgmtLabel}>{a.label}</Text>
+                                    <Text style={s.mgmtDesc} numberOfLines={1}>{a.desc}</Text>
+                                </TouchableOpacity>
+                            ))}
+                        </View>
+                    </>
+                )}
 
                 {/* Daily Tasks */}
                 <View style={s.sectionRow}>
@@ -983,6 +1068,37 @@ const s = StyleSheet.create({
         backgroundColor: c.borderP5,
         alignItems: 'center',
         justifyContent: 'center',
+    },
+    mgmtGrid: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        gap: 10,
+        paddingHorizontal: 2,
+    },
+    mgmtCard: {
+        width: '48%',
+        backgroundColor: c.card,
+        borderRadius: radius.card,
+        padding: 14,
+        ...cardShadow,
+    },
+    mgmtIcon: {
+        width: 44,
+        height: 44,
+        borderRadius: radius.iconBox,
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginBottom: 10,
+    },
+    mgmtLabel: {
+        fontSize: 14,
+        fontWeight: fontWeight.title,
+        color: c.text,
+    },
+    mgmtDesc: {
+        fontSize: 11,
+        color: c.textMuted,
+        marginTop: 2,
     },
     taskCard: {
         flexDirection: 'row',
