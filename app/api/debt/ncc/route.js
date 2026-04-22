@@ -27,7 +27,7 @@ export const GET = withAuth(async (request, context, session) => {
         },
     });
 
-    // For each supplier, calculate phatSinh from received PO items
+    // For each supplier, calculate phatSinh from received PO items + service debts
     const results = await Promise.all(
         suppliers.map(async (supplier) => {
             // Sum of received PO item values for this supplier
@@ -41,8 +41,16 @@ export const GET = withAuth(async (request, context, session) => {
                 },
             });
 
-            const phatSinh = phatSinhResult._sum.amount ?? 0;
-            const daTra = supplier.supplierPayments.reduce((acc, p) => acc + p.amount, 0);
+            // Sum of SupplierDebt totalAmount (bao gồm cả service debt có allocationPlan + debt thường)
+            const debtSumResult = await prisma.supplierDebt.aggregate({
+                _sum: { totalAmount: true, paidAmount: true },
+                where: { supplierId: supplier.id },
+            });
+            const debtTotal = debtSumResult._sum.totalAmount ?? 0;
+            const debtPaid = debtSumResult._sum.paidAmount ?? 0;
+            const debtRemaining = debtTotal - debtPaid;
+
+            const phatSinh = (phatSinhResult._sum.amount ?? 0) + debtTotal;
 
             // For daTra we need ALL payments, not just last 10
             const daTraTotalResult = await prisma.supplierPayment.aggregate({
@@ -61,14 +69,15 @@ export const GET = withAuth(async (request, context, session) => {
                 phatSinh,
                 daTra: daTraTotal,
                 soDu,
+                serviceDebtRemaining: debtRemaining,
                 payments: supplier.supplierPayments,
             };
         })
     );
 
-    // Filter out suppliers with no activity
+    // Filter out suppliers with no activity (include suppliers có service/accrual debt)
     const filtered = results.filter(
-        (s) => s.openingBalance > 0 || s.phatSinh > 0
+        (s) => s.openingBalance > 0 || s.phatSinh > 0 || s.serviceDebtRemaining > 0
     );
 
     // Sort by soDu desc

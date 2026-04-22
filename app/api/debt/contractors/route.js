@@ -62,7 +62,17 @@ export const GET = withAuth(async (request, context, session) => {
         });
         const daTra = daTraResult._sum.amount ?? 0;
 
-        const soDu = contractor.openingBalance + phatSinh - daTra - giuLai;
+        // Sum of ContractorDebt (bao gồm service debt có allocationPlan + debt thường)
+        const debtSumResult = await prisma.contractorDebt.aggregate({
+            _sum: { totalAmount: true, paidAmount: true },
+            where: { contractorId: contractor.id },
+        });
+        const debtTotal = debtSumResult._sum.totalAmount ?? 0;
+        const debtPaid = debtSumResult._sum.paidAmount ?? 0;
+        const debtRemaining = debtTotal - debtPaid;
+
+        const phatSinhWithDebt = phatSinh + debtTotal;
+        const soDu = contractor.openingBalance + phatSinhWithDebt - daTra - giuLai;
 
         // Per-project breakdown
         const projectMap = new Map();
@@ -88,18 +98,19 @@ export const GET = withAuth(async (request, context, session) => {
             code: contractor.code,
             name: contractor.name,
             openingBalance: contractor.openingBalance,
-            phatSinh,
+            phatSinh: phatSinhWithDebt,
             giuLai,
             daTra,
             soDu,
+            serviceDebtRemaining: debtRemaining,
             byProject: Array.from(projectMap.values()),
             payments: contractor.paymentLogs,
         };
     }));
 
-    // Only contractors with activity
+    // Only contractors with activity (include cả service/accrual debt)
     const filtered = results.filter(
-        (c) => c.openingBalance > 0 || c.phatSinh > 0
+        (c) => c.openingBalance > 0 || c.phatSinh > 0 || c.serviceDebtRemaining > 0
     );
 
     // Sort by soDu desc
