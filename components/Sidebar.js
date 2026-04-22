@@ -44,7 +44,6 @@ const menuItems = [
         section: 'Dự án', items: [
             { href: '/projects', icon: Building2, label: 'Dự án' },
             { href: '/gantt', icon: CalendarDays, label: 'Gantt Chart' },
-            { href: '/noi-that', icon: Armchair, label: 'Nội thất', roles: ['giam_doc', 'ky_thuat', 'kho', 'thiet_ke'] },
         ]
     },
     {
@@ -53,6 +52,14 @@ const menuItems = [
             { href: '/purchasing', icon: ShoppingCart, label: 'Mua sắm', roles: ['giam_doc', 'ke_toan', 'kinh_doanh', 'kho', 'ky_thuat'] },
             { href: '/inventory', icon: Warehouse, label: 'Kho', roles: ['giam_doc', 'ke_toan', 'kho', 'ky_thuat'] },
             { href: '/warehouses', icon: Warehouse, label: 'Quản lý kho', roles: ['giam_doc', 'ke_toan'] },
+        ]
+    },
+    {
+        section: 'Xưởng', items: [
+            { href: '/noi-that', icon: Armchair, label: 'Dự án có nội thất', roles: ['giam_doc', 'ke_toan', 'kho', 'ky_thuat', 'thiet_ke'] },
+            { href: '/production-batches', icon: Factory, label: 'Lệnh sản xuất', roles: ['giam_doc', 'ke_toan', 'kho', 'thiet_ke'] },
+            { href: '/workshops', icon: Wrench, label: 'Quản lý xưởng', roles: ['giam_doc', 'ke_toan', 'kho'] },
+            { href: '/hr?tab=attendance', icon: ClipboardCheck, label: 'Chấm công xưởng', roles: ['giam_doc', 'ke_toan', 'kho'] },
         ]
     },
     {
