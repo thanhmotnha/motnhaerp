@@ -23,23 +23,23 @@ const menuItems = [
     },
     {
         section: 'Kinh doanh', items: [
-            { href: '/customers', icon: Users, label: 'Khách hàng', roles: ['giam_doc', 'ke_toan', 'kinh_doanh'] },
+            { href: '/customers', icon: Users, label: 'Khách hàng', roles: ['giam_doc', 'ke_toan', 'kinh_doanh', 'kho', 'ky_thuat', 'thiet_ke'] },
             { href: '/customers/activities', icon: Activity, label: 'Hoạt động NVKD', roles: ['giam_doc', 'ke_toan'] },
-            { href: '/quotations', icon: ClipboardList, label: 'Báo giá', roles: ['giam_doc', 'ke_toan', 'kinh_doanh', 'ky_thuat'], quick: '/quotations/create' },
-            { href: '/contracts', icon: FileText, label: 'Hợp đồng', roles: ['giam_doc', 'ke_toan', 'kinh_doanh'], quick: '/contracts/create' },
-            { href: '/warranty', icon: ShieldCheck, label: 'Bảo hành', roles: ['giam_doc', 'ke_toan', 'ky_thuat'] },
+            { href: '/quotations', icon: ClipboardList, label: 'Báo giá', roles: ['giam_doc', 'ke_toan', 'kinh_doanh', 'ky_thuat', 'thiet_ke', 'kho'], quick: '/quotations/create' },
+            { href: '/contracts', icon: FileText, label: 'Hợp đồng', roles: ['giam_doc', 'ke_toan', 'kinh_doanh', 'ky_thuat', 'thiet_ke', 'giam_sat'], quick: '/contracts/create' },
+            { href: '/warranty', icon: ShieldCheck, label: 'Bảo hành', roles: ['giam_doc', 'ke_toan', 'ky_thuat', 'giam_sat'] },
         ]
     },
     {
         section: 'Dự án', items: [
             { href: '/projects', icon: Building2, label: 'Dự án' },
             { href: '/gantt', icon: CalendarDays, label: 'Gantt Chart' },
-            { href: '/noi-that', icon: Armchair, label: 'Nội thất', roles: ['giam_doc', 'ky_thuat', 'kho'] },
+            { href: '/noi-that', icon: Armchair, label: 'Nội thất', roles: ['giam_doc', 'ky_thuat', 'kho', 'thiet_ke', 'giam_sat'] },
         ]
     },
     {
         section: 'Vật tư', items: [
-            { href: '/products', icon: Package, label: 'Sản phẩm' },
+            { href: '/products', icon: Package, label: 'Sản phẩm', roles: ['giam_doc', 'ke_toan', 'kinh_doanh', 'kho', 'ky_thuat', 'thiet_ke'] },
             { href: '/purchasing', icon: ShoppingCart, label: 'Mua sắm', roles: ['giam_doc', 'ke_toan', 'kinh_doanh', 'kho', 'ky_thuat'] },
             { href: '/inventory', icon: Warehouse, label: 'Kho', roles: ['giam_doc', 'ke_toan', 'kho', 'ky_thuat'] },
             { href: '/warehouses', icon: Warehouse, label: 'Quản lý kho', roles: ['giam_doc', 'ke_toan'] },
@@ -65,7 +65,7 @@ const menuItems = [
     },
     {
         section: 'Báo cáo chi tiết', defaultCollapsed: true, items: [
-            { href: '/pipeline', icon: TrendingUp, label: 'Pipeline' },
+            { href: '/pipeline', icon: TrendingUp, label: 'Pipeline', roles: ['giam_doc', 'ke_toan', 'kinh_doanh'] },
             { href: '/reports', icon: BarChart3, label: 'Báo cáo', roles: ['giam_doc', 'ke_toan'] },
             { href: '/reports/pl-by-project', icon: TrendingUp, label: 'P&L Dự án', roles: ['giam_doc', 'ke_toan'] },
         ]

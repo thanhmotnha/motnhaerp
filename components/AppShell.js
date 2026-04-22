@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import Sidebar from '@/components/Sidebar';
 import Header from '@/components/Header';
+import { ImpersonateBanner } from '@/components/RoleSwitcher';
 import Breadcrumbs from '@/components/ui/Breadcrumbs';
 import GlobalSearch from '@/components/ui/GlobalSearch';
 import KeyboardShortcuts from '@/components/ui/KeyboardShortcuts';
@@ -69,6 +70,7 @@ export default function AppShell({ children }) {
                     onSidebarToggle={toggleSidebarCollapsed}
                     sidebarCollapsed={sidebarCollapsed}
                 />
+                <ImpersonateBanner />
                 <main className="page-content">
                     <Breadcrumbs />
                     <ErrorBoundary>{children}</ErrorBoundary>

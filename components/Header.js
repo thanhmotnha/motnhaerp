@@ -4,6 +4,7 @@ import { usePathname } from 'next/navigation';
 import { useSession, signOut } from 'next-auth/react';
 import { Sun, Moon, Settings, LogOut, Search, Menu, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
 import NotificationBell from '@/components/ui/NotificationBell';
+import RoleSwitcher from '@/components/RoleSwitcher';
 
 const pageTitles = {
     '/': 'Dashboard',
@@ -95,6 +96,7 @@ export default function Header({ onMenuToggle, onSearchOpen, onSidebarToggle, si
                 </div>
             </div>
             <div className="header-right">
+                <RoleSwitcher />
                 <button className="header-btn" title={dark ? 'Chuyển sang sáng' : 'Chuyển sang tối'} onClick={toggleTheme} aria-label="Chuyển đổi giao diện">
                     {dark ? <Sun size={20} /> : <Moon size={20} />}
                 </button>

@@ -59,6 +59,20 @@ export const fontWeight = {
   title: '700' as const,
 };
 
+// Role info
+export const ROLE_INFO = {
+  giam_doc:   { label: 'Giám đốc',     icon: '👑', color: '#c0392b' },
+  ke_toan:    { label: 'Kế toán',      icon: '📊', color: '#2980b9' },
+  kinh_doanh: { label: 'Kinh doanh',   icon: '💼', color: '#8e44ad' },
+  kho:        { label: 'Kho',          icon: '📦', color: '#16a085' },
+  ky_thuat:   { label: 'Kỹ thuật',     icon: '🔧', color: '#27ae60' },
+  thiet_ke:   { label: 'Thiết kế',     icon: '🎨', color: '#e67e22' },
+  giam_sat:   { label: 'Giám sát',     icon: '🏗️', color: '#d35400' },
+  khach_hang: { label: 'Khách hàng',   icon: '🏠', color: '#16a085' },
+} as const;
+
+export type RoleKey = keyof typeof ROLE_INFO;
+
 export default {
   light: {
     ...brandColors,
