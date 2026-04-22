@@ -3,6 +3,7 @@ import prisma from '@/lib/prisma';
 import { NextResponse } from 'next/server';
 import { generateCode } from '@/lib/generateCode';
 import { debtPaymentSchema } from '@/lib/validations/debt';
+import { createServiceExpenseFromPayment } from '@/lib/serviceDebtExpense';
 
 export const POST = withAuth(async (request, { params }, session) => {
     const { id } = await params;
@@ -11,7 +12,7 @@ export const POST = withAuth(async (request, { params }, session) => {
 
     const debt = await prisma.supplierDebt.findUnique({
         where: { id },
-        select: { id: true, supplierId: true, totalAmount: true, paidAmount: true, status: true, expenseId: true },
+        include: { supplier: { select: { id: true, name: true } } },
     });
     if (!debt) return NextResponse.json({ error: 'Không tìm thấy công nợ' }, { status: 404 });
 
@@ -55,8 +56,28 @@ export const POST = withAuth(async (request, { params }, session) => {
             }),
         ]);
 
-        // Sync ProjectExpense nếu debt có link
-        if (debt.expenseId) {
+        // Service debt (cash-basis): tự sinh ProjectExpense + allocations pro-rata
+        if (debt.allocationPlan) {
+            const expense = await createServiceExpenseFromPayment(
+                tx,
+                {
+                    ...debt,
+                    recipientType: 'NCC',
+                    recipientId: debt.supplierId,
+                    recipientName: debt.supplier?.name || '',
+                },
+                data.amount,
+                session.user.id,
+                data.date,
+            );
+            if (expense) {
+                await tx.supplierDebtPayment.update({
+                    where: { id: p.id },
+                    data: { expenseId: expense.id },
+                });
+            }
+        } else if (debt.expenseId) {
+            // Debt thường (accrual): sync expense đã tồn tại
             const expense = await tx.projectExpense.findUnique({
                 where: { id: debt.expenseId },
                 select: { status: true, paidAmount: true, amount: true, deletedAt: true },

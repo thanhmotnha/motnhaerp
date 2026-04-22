@@ -4,59 +4,66 @@ import { apiFetch } from '@/lib/fetchClient';
 import { useToast } from '@/components/ui/Toast';
 
 const SERVICE_CATEGORIES = [
-    { key: 'Thiết kế công năng', icon: '📐', color: '#2980b9' },
-    { key: 'Thiết kế KT-KC', icon: '🏛️', color: '#8e44ad' },
-    { key: 'Thiết kế 3D', icon: '🎨', color: '#e67e22' },
-    { key: 'Tư vấn thuê ngoài', icon: '💼', color: '#16a085' },
+    { key: 'Thiết kế công năng', icon: '📐' },
+    { key: 'Thiết kế KT-KC', icon: '🏛️' },
+    { key: 'Thiết kế 3D', icon: '🎨' },
+    { key: 'Tư vấn thuê ngoài', icon: '💼' },
 ];
-
-const SERVICE_CATEGORY_KEYS = SERVICE_CATEGORIES.map(c => c.key);
+const CATEGORY_KEYS = SERVICE_CATEGORIES.map(c => c.key);
 
 const fmt = (n) => new Intl.NumberFormat('vi-VN').format(Math.round(n || 0)) + 'đ';
 const fmtDate = (d) => d ? new Date(d).toLocaleDateString('vi-VN') : '—';
 
-function statusOf(amount, paid) {
-    if (paid >= amount - 0.01) return { key: 'paid', label: 'Đã trả', color: '#22c55e', bg: '#dcfce7' };
-    if (paid > 0) return { key: 'partial', label: 'Trả 1 phần', color: '#d97706', bg: '#fef3c7' };
-    return { key: 'unpaid', label: 'Chưa trả', color: '#dc2626', bg: '#fee2e2' };
+function statusOf(total, paid) {
+    if (paid >= total - 0.01) return { label: 'Đã trả', color: '#22c55e', bg: '#dcfce7' };
+    if (paid > 0) return { label: 'Trả 1 phần', color: '#d97706', bg: '#fef3c7' };
+    return { label: 'Chưa trả', color: '#dc2626', bg: '#fee2e2' };
 }
 
 export default function ServiceExpensesPage() {
     const toast = useToast();
-    const [data, setData] = useState([]);
+    const [tab, setTab] = useState('debts'); // 'debts' | 'expenses'
+    const [debts, setDebts] = useState([]);
+    const [expenses, setExpenses] = useState([]);
     const [projects, setProjects] = useState([]);
-    const [loading, setLoading] = useState(true);
-    const [showModal, setShowModal] = useState(false);
-    const [payModal, setPayModal] = useState(null);
-    const [editing, setEditing] = useState(null);
-    const [filter, setFilter] = useState('all'); // all | unpaid | paid | category
-    const [categoryFilter, setCategoryFilter] = useState('');
-
-    const [form, setForm] = useState({
-        category: SERVICE_CATEGORY_KEYS[0],
-        recipientType: 'NCC',   // 'NCC' | 'Thầu phụ' | 'external'
-        recipientId: '',
-        recipientName: '',
-        amount: '',
-        paidAmount: '0',
-        projectId: '',
-        date: new Date().toISOString().slice(0, 10),
-        notes: '',
-    });
     const [suppliers, setSuppliers] = useState([]);
     const [contractors, setContractors] = useState([]);
+    const [loading, setLoading] = useState(true);
+
+    const [showModal, setShowModal] = useState(false);
+    const [payModal, setPayModal] = useState(null);
+    const [payAmount, setPayAmount] = useState('');
+
+    const [form, setForm] = useState(emptyForm());
+    const [saving, setSaving] = useState(false);
+    const [paying, setPaying] = useState(false);
+
+    function emptyForm() {
+        return {
+            category: CATEGORY_KEYS[0],
+            recipientType: 'NCC', // 'NCC' | 'Thầu phụ'
+            recipientId: '',
+            recipientName: '',
+            amount: '',
+            invoiceNo: '',
+            date: new Date().toISOString().slice(0, 10),
+            notes: '',
+            allocations: [{ projectId: '', ratioPct: 100 }], // {projectId, ratioPct: 0-100}
+        };
+    }
 
     const load = useCallback(async () => {
+        setLoading(true);
         try {
-            const [expRes, projRes, supRes, conRes] = await Promise.all([
-                apiFetch('/api/project-expenses?limit=500'),
+            const [debtRes, projRes, supRes, conRes] = await Promise.all([
+                apiFetch('/api/service-debts'),
                 apiFetch('/api/projects?limit=500'),
                 apiFetch('/api/suppliers?limit=500'),
                 apiFetch('/api/contractors?limit=500'),
             ]);
-            const services = (expRes?.data || []).filter(e => SERVICE_CATEGORY_KEYS.includes(e.category));
-            setData(services);
-            setProjects(projRes?.data || []);
+            setDebts(debtRes?.debts || []);
+            setExpenses(debtRes?.expenses || []);
+            setProjects(projRes?.data || projRes || []);
             setSuppliers(supRes?.data || supRes || []);
             setContractors(conRes?.data || conRes || []);
         } catch (e) {
@@ -66,440 +73,374 @@ export default function ServiceExpensesPage() {
 
     useEffect(() => { load(); }, [load]);
 
-    const resetForm = () => {
-        setForm({
-            category: SERVICE_CATEGORY_KEYS[0],
-            recipientType: 'NCC',
-            recipientId: '',
-            recipientName: '',
-            amount: '',
-            paidAmount: '0',
-            projectId: '',
-            date: new Date().toISOString().slice(0, 10),
-            notes: '',
-        });
-        setEditing(null);
+    const addAllocation = () => {
+        setForm(f => ({ ...f, allocations: [...f.allocations, { projectId: '', ratioPct: 0 }] }));
     };
+    const removeAllocation = (idx) => {
+        setForm(f => ({ ...f, allocations: f.allocations.filter((_, i) => i !== idx) }));
+    };
+    const updateAllocation = (idx, key, value) => {
+        setForm(f => ({ ...f, allocations: f.allocations.map((a, i) => i === idx ? { ...a, [key]: value } : a) }));
+    };
+    const balanceAllocations = () => {
+        // chia đều 100% cho các allocation
+        const n = form.allocations.length;
+        if (n === 0) return;
+        const base = Math.floor(100 / n);
+        const rem = 100 - base * n;
+        const newAllocs = form.allocations.map((a, i) => ({ ...a, ratioPct: base + (i < rem ? 1 : 0) }));
+        setForm(f => ({ ...f, allocations: newAllocs }));
+    };
+
+    const totalRatio = form.allocations.reduce((s, a) => s + (Number(a.ratioPct) || 0), 0);
 
     const submit = async () => {
         const amount = parseFloat(form.amount);
-        const paid = parseFloat(form.paidAmount) || 0;
         if (!amount || amount <= 0) return toast.showToast('Nhập số tiền', 'error');
-        if (!form.recipientName.trim()) return toast.showToast('Nhập nhà cung cấp/thợ', 'error');
-        if (paid > amount) return toast.showToast('Đã trả không được lớn hơn số tiền', 'error');
+        if (!form.recipientId) return toast.showToast('Chọn nhà cung cấp/thầu phụ', 'error');
+        if (form.allocations.length === 0) return toast.showToast('Cần ít nhất 1 dự án', 'error');
+        if (form.allocations.some(a => !a.projectId)) return toast.showToast('Chọn dự án cho mọi dòng phân bổ', 'error');
+        if (Math.abs(totalRatio - 100) > 0.1) return toast.showToast(`Tổng phân bổ phải = 100% (hiện ${totalRatio}%)`, 'error');
+        const ids = form.allocations.map(a => a.projectId);
+        if (new Set(ids).size !== ids.length) return toast.showToast('Mỗi dự án chỉ chọn 1 lần', 'error');
 
         const payload = {
-            description: `${form.category} — ${form.recipientName}`,
-            amount, paidAmount: paid,
-            category: form.category,
-            expenseType: 'Dịch vụ',
-            projectId: form.projectId || null,
-            date: form.date ? new Date(form.date).toISOString() : undefined,
             recipientType: form.recipientType,
-            recipientId: form.recipientId || '',
-            recipientName: form.recipientName.trim(),
-            notes: form.notes,
-            status: paid >= amount ? 'Đã chi' : paid > 0 ? 'Chi 1 phần' : 'Chưa trả',
+            recipientId: form.recipientId,
+            recipientName: form.recipientName,
+            category: form.category,
+            amount,
+            invoiceNo: form.invoiceNo || '',
+            date: form.date ? new Date(form.date).toISOString() : undefined,
+            notes: form.notes || '',
+            allocations: form.allocations.map(a => ({
+                projectId: a.projectId,
+                ratio: Number(a.ratioPct) / 100,
+            })),
         };
-
+        setSaving(true);
         try {
-            if (editing) {
-                await apiFetch(`/api/project-expenses/${editing.id}`, { method: 'PUT', body: JSON.stringify(payload) });
-                toast.showToast('Đã cập nhật', 'success');
-            } else {
-                await apiFetch('/api/project-expenses', { method: 'POST', body: JSON.stringify(payload) });
-                toast.showToast('Đã lưu chi phí dịch vụ', 'success');
-            }
+            await apiFetch('/api/service-debts', { method: 'POST', body: JSON.stringify(payload) });
+            toast.showToast('Đã ghi nhận công nợ dịch vụ', 'success');
             setShowModal(false);
-            resetForm();
+            setForm(emptyForm());
             load();
         } catch (e) {
             toast.showToast(e.message || 'Lỗi lưu', 'error');
-        }
+        } finally { setSaving(false); }
     };
 
-    const openEdit = (item) => {
-        setEditing(item);
-        setForm({
-            category: item.category,
-            recipientType: item.recipientType || 'NCC',
-            recipientId: item.recipientId || '',
-            recipientName: item.recipientName || '',
-            amount: String(item.amount),
-            paidAmount: String(item.paidAmount || 0),
-            projectId: item.projectId || '',
-            date: item.date ? new Date(item.date).toISOString().slice(0, 10) : '',
-            notes: item.notes || '',
-        });
-        setShowModal(true);
-    };
-
-    const pay = async (amount) => {
+    const pay = async () => {
         if (!payModal) return;
-        const n = parseFloat(amount);
-        if (!n || n <= 0) return toast.showToast('Nhập số tiền hợp lệ', 'error');
-        const newPaid = (payModal.paidAmount || 0) + n;
-        if (newPaid > payModal.amount + 0.01) return toast.showToast('Vượt số tiền nợ', 'error');
+        const n = parseFloat(payAmount);
+        if (!n || n <= 0) return toast.showToast('Nhập số tiền', 'error');
+        const remaining = payModal.totalAmount - payModal.paidAmount;
+        if (n > remaining + 0.01) return toast.showToast(`Vượt số còn nợ (${fmt(remaining)})`, 'error');
+        setPaying(true);
         try {
-            await apiFetch(`/api/project-expenses/${payModal.id}`, {
-                method: 'PUT',
-                body: JSON.stringify({
-                    paidAmount: newPaid,
-                    status: newPaid >= payModal.amount ? 'Đã chi' : 'Chi 1 phần',
-                }),
-            });
-            toast.showToast(`Đã trả ${fmt(n)}`, 'success');
+            const isNCC = payModal.recipientType === 'NCC';
+            const url = isNCC
+                ? `/api/debts/supplier/${payModal.id}/pay`
+                : `/api/debts/contractor/${payModal.id}/pay`;
+            await apiFetch(url, { method: 'POST', body: JSON.stringify({ amount: n, date: new Date().toISOString() }) });
+            toast.showToast(`Đã trả ${fmt(n)} — chi phí đã phân bổ vào dự án`, 'success');
             setPayModal(null);
+            setPayAmount('');
             load();
-        } catch (e) { toast.showToast(e.message || 'Lỗi', 'error'); }
+        } catch (e) {
+            toast.showToast(e.message || 'Lỗi thanh toán', 'error');
+        } finally { setPaying(false); }
     };
 
-    const del = async (item) => {
-        if (!confirm(`Xóa "${item.description}"?`)) return;
-        try {
-            await apiFetch(`/api/project-expenses/${item.id}`, { method: 'DELETE' });
-            toast.showToast('Đã xóa', 'success');
-            load();
-        } catch (e) { toast.showToast(e.message || 'Lỗi', 'error'); }
-    };
+    const projectName = (id) => projects.find(p => p.id === id)?.name || id;
 
-    const filtered = data.filter(e => {
-        if (categoryFilter && e.category !== categoryFilter) return false;
-        if (filter === 'unpaid') return (e.paidAmount || 0) < e.amount;
-        if (filter === 'paid') return (e.paidAmount || 0) >= e.amount;
-        return true;
-    });
-
-    const totals = data.reduce((acc, e) => {
-        const paid = e.paidAmount || 0;
-        acc.total += e.amount;
-        acc.paid += paid;
-        acc.unpaid += Math.max(0, e.amount - paid);
-        return acc;
-    }, { total: 0, paid: 0, unpaid: 0 });
+    // Totals
+    const pendingDebts = debts.filter(d => d.status !== 'paid');
+    const totalDebt = pendingDebts.reduce((s, d) => s + (d.totalAmount - d.paidAmount), 0);
+    const totalExpense = expenses.reduce((s, e) => s + (e.amount || 0), 0);
 
     return (
         <div style={{ padding: 20 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, flexWrap: 'wrap', gap: 12 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12, flexWrap: 'wrap', gap: 12 }}>
                 <div>
-                    <h1 style={{ fontSize: 22, fontWeight: 700, margin: 0 }}>💼 Chi phí dịch vụ</h1>
+                    <h1 style={{ fontSize: 22, fontWeight: 700, margin: 0 }}>💼 Chi phí dịch vụ (cash-basis)</h1>
                     <p style={{ color: 'var(--text-muted)', fontSize: 13, margin: '4px 0 0' }}>
-                        Hạch toán các khoản mua dịch vụ phi vật lý: thiết kế, 3D, tư vấn thuê ngoài
+                        Nhập hóa đơn → <b>Công nợ</b>. Khi thanh toán → tự sinh <b>Chi phí dự án</b> phân bổ theo %.
                     </p>
                 </div>
-                <button className="btn btn-primary" onClick={() => { resetForm(); setShowModal(true); }}>
-                    + Thêm chi phí dịch vụ
+                <button className="btn btn-primary" onClick={() => { setForm(emptyForm()); setShowModal(true); }}>
+                    + Ghi nhận công nợ dịch vụ
                 </button>
             </div>
 
-            {/* Summary */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 12, marginBottom: 20 }}>
-                <SummaryCard label="Tổng chi phí" value={fmt(totals.total)} color="#234093" />
-                <SummaryCard label="Đã trả" value={fmt(totals.paid)} color="#22c55e" />
-                <SummaryCard label="Còn nợ" value={fmt(totals.unpaid)} color={totals.unpaid > 0 ? '#dc2626' : '#22c55e'} />
-                <SummaryCard label="Số khoản" value={String(data.length)} color="#6b4fAF" />
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 12, marginBottom: 16 }}>
+                <StatCard label="Còn nợ" value={fmt(totalDebt)} color="#dc2626" hint={`${pendingDebts.length} khoản`} />
+                <StatCard label="Đã chi (thực tế)" value={fmt(totalExpense)} color="#22c55e" hint={`${expenses.length} chi phí`} />
+                <StatCard label="Tổng công nợ" value={fmt(debts.reduce((s, d) => s + d.totalAmount, 0))} color="#234093" hint={`${debts.length} khoản`} />
             </div>
 
-            {/* Filters */}
-            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 16 }}>
-                <FilterPill label="Tất cả" active={filter === 'all'} onClick={() => setFilter('all')} />
-                <FilterPill label={`Chưa trả (${data.filter(e => (e.paidAmount || 0) < e.amount).length})`} active={filter === 'unpaid'} onClick={() => setFilter('unpaid')} />
-                <FilterPill label="Đã trả" active={filter === 'paid'} onClick={() => setFilter('paid')} />
-                <div style={{ width: 1, background: 'var(--border-color)', margin: '0 4px' }} />
-                <FilterPill label="Mọi danh mục" active={!categoryFilter} onClick={() => setCategoryFilter('')} />
-                {SERVICE_CATEGORIES.map(c => (
-                    <FilterPill
-                        key={c.key}
-                        label={`${c.icon} ${c.key}`}
-                        active={categoryFilter === c.key}
-                        onClick={() => setCategoryFilter(categoryFilter === c.key ? '' : c.key)}
-                    />
-                ))}
+            <div style={{ display: 'flex', gap: 8, marginBottom: 12, borderBottom: '1px solid var(--border-color)' }}>
+                <TabBtn label={`📋 Công nợ (${debts.length})`} active={tab === 'debts'} onClick={() => setTab('debts')} />
+                <TabBtn label={`💰 Đã chi (${expenses.length})`} active={tab === 'expenses'} onClick={() => setTab('expenses')} />
             </div>
 
-            {/* Table */}
-            {loading ? (
-                <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-muted)' }}>Đang tải…</div>
-            ) : filtered.length === 0 ? (
-                <div className="card" style={{ padding: 40, textAlign: 'center', color: 'var(--text-muted)' }}>
-                    Chưa có chi phí dịch vụ nào.
-                </div>
-            ) : (
-                <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
-                    <table className="data-table">
-                        <thead>
-                            <tr>
-                                <th>Mã</th>
-                                <th>Danh mục</th>
-                                <th>Nhà cung cấp</th>
-                                <th>Dự án</th>
-                                <th>Ngày</th>
-                                <th style={{ textAlign: 'right' }}>Số tiền</th>
-                                <th style={{ textAlign: 'right' }}>Đã trả</th>
-                                <th style={{ textAlign: 'right' }}>Còn</th>
-                                <th>Trạng thái</th>
-                                <th></th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {filtered.map(e => {
-                                const cat = SERVICE_CATEGORIES.find(c => c.key === e.category);
-                                const paid = e.paidAmount || 0;
-                                const remaining = e.amount - paid;
-                                const st = statusOf(e.amount, paid);
-                                return (
-                                    <tr key={e.id}>
-                                        <td style={{ fontFamily: 'monospace', fontWeight: 600, fontSize: 12 }}>{e.code}</td>
-                                        <td>
-                                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 13 }}>
-                                                <span>{cat?.icon}</span>
-                                                <span style={{ color: cat?.color }}>{e.category}</span>
-                                            </span>
-                                        </td>
-                                        <td style={{ fontWeight: 600 }}>{e.recipientName || '—'}</td>
-                                        <td style={{ fontSize: 12, color: 'var(--text-muted)' }}>
-                                            {e.projectId ? projects.find(p => p.id === e.projectId)?.name || '—' : 'Không gắn dự án'}
-                                        </td>
-                                        <td style={{ fontSize: 12 }}>{fmtDate(e.date)}</td>
-                                        <td style={{ textAlign: 'right', fontFamily: 'monospace', fontWeight: 600 }}>{fmt(e.amount)}</td>
-                                        <td style={{ textAlign: 'right', fontFamily: 'monospace', color: '#22c55e' }}>{fmt(paid)}</td>
-                                        <td style={{ textAlign: 'right', fontFamily: 'monospace', color: remaining > 0 ? '#dc2626' : '#22c55e' }}>{fmt(remaining)}</td>
-                                        <td>
-                                            <span className="badge" style={{ background: st.bg, color: st.color, fontSize: 11 }}>{st.label}</span>
-                                        </td>
-                                        <td>
-                                            <div style={{ display: 'flex', gap: 4 }}>
-                                                {remaining > 0 && (
-                                                    <button className="btn btn-sm btn-primary" onClick={() => setPayModal(e)} title="Thanh toán">
-                                                        💰
-                                                    </button>
-                                                )}
-                                                <button className="btn btn-sm btn-ghost" onClick={() => openEdit(e)} title="Sửa">✏️</button>
-                                                <button className="btn btn-sm" style={{ color: '#ef4444' }} onClick={() => del(e)} title="Xóa">🗑️</button>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                );
-                            })}
-                        </tbody>
-                    </table>
-                </div>
+            {loading ? <div style={{ padding: 40, textAlign: 'center' }}>Đang tải...</div> : (
+                tab === 'debts' ? (
+                    <DebtsTable debts={debts} projectName={projectName} onPay={d => { setPayModal(d); setPayAmount(''); }} />
+                ) : (
+                    <ExpensesTable expenses={expenses} />
+                )
             )}
 
-            {/* Create/Edit modal */}
             {showModal && (
-                <div className="modal-overlay" onClick={() => { setShowModal(false); resetForm(); }}>
-                    <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 540 }}>
+                <div className="modal-overlay" onClick={() => !saving && setShowModal(false)}>
+                    <div className="modal" style={{ maxWidth: 720, maxHeight: '92vh', overflowY: 'auto' }} onClick={e => e.stopPropagation()}>
                         <div className="modal-header">
-                            <h3>{editing ? 'Sửa chi phí dịch vụ' : 'Thêm chi phí dịch vụ'}</h3>
-                            <button className="modal-close" onClick={() => { setShowModal(false); resetForm(); }}>×</button>
+                            <h3 className="modal-title">Ghi nhận công nợ dịch vụ</h3>
+                            <button className="modal-close" onClick={() => !saving && setShowModal(false)}>×</button>
                         </div>
-                        <div className="modal-body">
-                            <div className="form-group">
-                                <label className="form-label">Danh mục *</label>
-                                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 6 }}>
-                                    {SERVICE_CATEGORIES.map(c => (
-                                        <button
-                                            key={c.key}
-                                            type="button"
-                                            onClick={() => setForm({ ...form, category: c.key })}
-                                            style={{
-                                                padding: '10px', border: `1px solid ${form.category === c.key ? c.color : 'var(--border-color)'}`,
-                                                background: form.category === c.key ? c.color + '15' : 'transparent',
-                                                borderRadius: 8, cursor: 'pointer', textAlign: 'left', fontSize: 13,
-                                                display: 'flex', alignItems: 'center', gap: 6,
-                                                color: form.category === c.key ? c.color : 'var(--text-primary)',
-                                                fontWeight: form.category === c.key ? 600 : 400,
-                                            }}
-                                        >
-                                            <span>{c.icon}</span> {c.key}
-                                        </button>
-                                    ))}
-                                </div>
-                            </div>
 
-                            <div className="form-group">
-                                <label className="form-label">Loại đối tác</label>
-                                <div style={{ display: 'flex', gap: 6 }}>
-                                    {[
-                                        { key: 'NCC', label: '🏭 NCC / Công ty' },
-                                        { key: 'Thầu phụ', label: '👷 Thầu phụ' },
-                                        { key: 'external', label: '✏️ Tự nhập (cá nhân)' },
-                                    ].map(t => (
-                                        <button
-                                            key={t.key}
-                                            type="button"
-                                            onClick={() => setForm({ ...form, recipientType: t.key, recipientId: '', recipientName: '' })}
-                                            style={{
-                                                flex: 1, padding: '8px', borderRadius: 6, fontSize: 12,
-                                                background: form.recipientType === t.key ? 'var(--primary)' : 'transparent',
-                                                color: form.recipientType === t.key ? '#fff' : 'var(--text-primary)',
-                                                border: '1px solid var(--border-color)',
-                                                cursor: 'pointer', fontWeight: 500,
-                                            }}
-                                        >{t.label}</button>
-                                    ))}
-                                </div>
-                            </div>
-
-                            <div className="form-group">
-                                <label className="form-label">
-                                    {form.recipientType === 'NCC' ? 'Chọn NCC *' : form.recipientType === 'Thầu phụ' ? 'Chọn thầu phụ *' : 'Tên cá nhân/đối tác *'}
-                                </label>
-                                {form.recipientType === 'NCC' && (
-                                    <select
-                                        className="form-select"
-                                        value={form.recipientId}
-                                        onChange={e => {
-                                            const sup = suppliers.find(s => s.id === e.target.value);
-                                            setForm({ ...form, recipientId: e.target.value, recipientName: sup?.name || '' });
-                                        }}
-                                    >
-                                        <option value="">— Chọn nhà cung cấp —</option>
-                                        {suppliers.map(s => <option key={s.id} value={s.id}>{s.code} — {s.name}</option>)}
-                                    </select>
-                                )}
-                                {form.recipientType === 'Thầu phụ' && (
-                                    <select
-                                        className="form-select"
-                                        value={form.recipientId}
-                                        onChange={e => {
-                                            const con = contractors.find(c => c.id === e.target.value);
-                                            setForm({ ...form, recipientId: e.target.value, recipientName: con?.name || '' });
-                                        }}
-                                    >
-                                        <option value="">— Chọn thầu phụ —</option>
-                                        {contractors.map(co => <option key={co.id} value={co.id}>{co.code} — {co.name}</option>)}
-                                    </select>
-                                )}
-                                {form.recipientType === 'external' && (
-                                    <input
-                                        className="form-input"
-                                        value={form.recipientName}
-                                        onChange={e => setForm({ ...form, recipientName: e.target.value })}
-                                        placeholder="Tên cá nhân / công ty đã thuê"
-                                    />
-                                )}
-                            </div>
-
-                            <div className="form-row" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
                                 <div className="form-group">
-                                    <label className="form-label">Số tiền *</label>
-                                    <input
-                                        className="form-input" type="number"
-                                        value={form.amount}
-                                        onChange={e => setForm({ ...form, amount: e.target.value })}
-                                        placeholder="VND"
-                                    />
+                                    <label className="form-label">Loại dịch vụ *</label>
+                                    <select className="form-select" value={form.category} onChange={e => setForm({ ...form, category: e.target.value })}>
+                                        {SERVICE_CATEGORIES.map(c => <option key={c.key}>{c.icon} {c.key}</option>)}
+                                    </select>
                                 </div>
                                 <div className="form-group">
-                                    <label className="form-label">Đã trả</label>
-                                    <input
-                                        className="form-input" type="number"
-                                        value={form.paidAmount}
-                                        onChange={e => setForm({ ...form, paidAmount: e.target.value })}
-                                        placeholder="0"
-                                    />
+                                    <label className="form-label">Ngày hóa đơn</label>
+                                    <input type="date" className="form-input" value={form.date} onChange={e => setForm({ ...form, date: e.target.value })} />
                                 </div>
                             </div>
 
                             <div className="form-group">
-                                <label className="form-label">Dự án (optional — không chọn = chi phí công ty)</label>
-                                <select className="form-select" value={form.projectId} onChange={e => setForm({ ...form, projectId: e.target.value })}>
-                                    <option value="">— Không gắn dự án —</option>
-                                    {projects.map(p => <option key={p.id} value={p.id}>{p.code} — {p.name}</option>)}
+                                <label className="form-label">Bên cung cấp *</label>
+                                <div style={{ display: 'flex', gap: 6, marginBottom: 6 }}>
+                                    <button type="button" className={`btn btn-sm ${form.recipientType === 'NCC' ? 'btn-primary' : 'btn-ghost'}`}
+                                        onClick={() => setForm({ ...form, recipientType: 'NCC', recipientId: '', recipientName: '' })}>Nhà cung cấp</button>
+                                    <button type="button" className={`btn btn-sm ${form.recipientType === 'Thầu phụ' ? 'btn-primary' : 'btn-ghost'}`}
+                                        onClick={() => setForm({ ...form, recipientType: 'Thầu phụ', recipientId: '', recipientName: '' })}>Thầu phụ</button>
+                                </div>
+                                <select className="form-select" value={form.recipientId}
+                                    onChange={e => {
+                                        const list = form.recipientType === 'NCC' ? suppliers : contractors;
+                                        const item = list.find(x => x.id === e.target.value);
+                                        setForm({ ...form, recipientId: e.target.value, recipientName: item?.name || '' });
+                                    }}>
+                                    <option value="">— Chọn —</option>
+                                    {(form.recipientType === 'NCC' ? suppliers : contractors).map(s => (
+                                        <option key={s.id} value={s.id}>{s.name}</option>
+                                    ))}
                                 </select>
                             </div>
 
-                            <div className="form-row" style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 12 }}>
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
                                 <div className="form-group">
-                                    <label className="form-label">Ngày</label>
-                                    <input
-                                        className="form-input" type="date"
-                                        value={form.date}
-                                        onChange={e => setForm({ ...form, date: e.target.value })}
-                                    />
+                                    <label className="form-label">Số tiền hóa đơn (VND) *</label>
+                                    <input type="number" className="form-input" value={form.amount} onChange={e => setForm({ ...form, amount: e.target.value })} placeholder="0" />
                                 </div>
+                                <div className="form-group">
+                                    <label className="form-label">Số hóa đơn</label>
+                                    <input className="form-input" value={form.invoiceNo} onChange={e => setForm({ ...form, invoiceNo: e.target.value })} />
+                                </div>
+                            </div>
+
+                            <div className="form-group">
+                                <label className="form-label" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                    <span>Phân bổ vào dự án * <span style={{ fontSize: 11, color: totalRatio === 100 ? 'var(--status-success)' : 'var(--status-warning)' }}>({totalRatio}%)</span></span>
+                                    <button type="button" className="btn btn-ghost btn-sm" onClick={balanceAllocations} style={{ fontSize: 11 }}>⚖️ Chia đều</button>
+                                </label>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                                    {form.allocations.map((a, idx) => (
+                                        <div key={idx} style={{ display: 'grid', gridTemplateColumns: '1fr 100px 100px 40px', gap: 6, alignItems: 'center' }}>
+                                            <select className="form-select" value={a.projectId} onChange={e => updateAllocation(idx, 'projectId', e.target.value)}>
+                                                <option value="">— Chọn dự án —</option>
+                                                {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                                            </select>
+                                            <div style={{ position: 'relative' }}>
+                                                <input type="number" className="form-input" value={a.ratioPct}
+                                                    onChange={e => updateAllocation(idx, 'ratioPct', Number(e.target.value) || 0)}
+                                                    style={{ paddingRight: 24 }} />
+                                                <span style={{ position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)', fontSize: 12, color: 'var(--text-muted)' }}>%</span>
+                                            </div>
+                                            <div style={{ fontSize: 12, color: 'var(--text-muted)', textAlign: 'right' }}>
+                                                {fmt((Number(form.amount) || 0) * (Number(a.ratioPct) || 0) / 100)}
+                                            </div>
+                                            <button type="button" className="btn btn-ghost btn-sm" onClick={() => removeAllocation(idx)} disabled={form.allocations.length === 1}>×</button>
+                                        </div>
+                                    ))}
+                                </div>
+                                <button type="button" className="btn btn-ghost btn-sm" onClick={addAllocation} style={{ marginTop: 6 }}>+ Thêm dự án</button>
                             </div>
 
                             <div className="form-group">
                                 <label className="form-label">Ghi chú</label>
-                                <textarea
-                                    className="form-input" rows={2}
-                                    value={form.notes}
-                                    onChange={e => setForm({ ...form, notes: e.target.value })}
-                                    placeholder="Mô tả hạng mục, deadline, điều kiện..."
-                                />
+                                <textarea className="form-input" rows={2} value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })} />
                             </div>
-                        </div>
-                        <div className="modal-footer">
-                            <button className="btn btn-ghost" onClick={() => { setShowModal(false); resetForm(); }}>Hủy</button>
-                            <button className="btn btn-primary" onClick={submit}>{editing ? 'Cập nhật' : 'Lưu'}</button>
+
+                            <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+                                <button className="btn btn-ghost" onClick={() => setShowModal(false)} disabled={saving}>Hủy</button>
+                                <button className="btn btn-primary" onClick={submit} disabled={saving}>
+                                    {saving ? 'Đang lưu...' : 'Lưu công nợ'}
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>
             )}
 
-            {/* Pay modal */}
-            {payModal && <PayModal item={payModal} onClose={() => setPayModal(null)} onPay={pay} />}
-        </div>
-    );
-}
-
-function SummaryCard({ label, value, color }) {
-    return (
-        <div className="card" style={{ padding: 16 }}>
-            <div style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.5 }}>{label}</div>
-            <div style={{ fontSize: 22, fontWeight: 700, color, marginTop: 4 }}>{value}</div>
-        </div>
-    );
-}
-
-function FilterPill({ label, active, onClick }) {
-    return (
-        <button
-            onClick={onClick}
-            style={{
-                padding: '6px 14px', borderRadius: 20, fontSize: 13, fontWeight: 500,
-                background: active ? 'var(--primary)' : 'var(--bg-card)',
-                color: active ? '#fff' : 'var(--text-primary)',
-                border: `1px solid ${active ? 'var(--primary)' : 'var(--border-color)'}`,
-                cursor: 'pointer',
-            }}
-        >{label}</button>
-    );
-}
-
-function PayModal({ item, onClose, onPay }) {
-    const remaining = item.amount - (item.paidAmount || 0);
-    const [amount, setAmount] = useState(String(remaining));
-    return (
-        <div className="modal-overlay" onClick={onClose}>
-            <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 400 }}>
-                <div className="modal-header">
-                    <h3>Thanh toán: {item.recipientName}</h3>
-                    <button className="modal-close" onClick={onClose}>×</button>
-                </div>
-                <div className="modal-body">
-                    <div style={{ marginBottom: 16, padding: 12, background: 'var(--bg-secondary)', borderRadius: 8 }}>
-                        <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>Còn phải trả</div>
-                        <div style={{ fontSize: 22, fontWeight: 700, color: '#dc2626' }}>{fmt(remaining)}</div>
-                    </div>
-                    <div className="form-group">
-                        <label className="form-label">Số tiền thanh toán</label>
-                        <input
-                            className="form-input" type="number"
-                            value={amount}
-                            onChange={e => setAmount(e.target.value)}
-                            style={{ fontSize: 18, fontWeight: 600 }}
-                        />
+            {payModal && (
+                <div className="modal-overlay" onClick={() => !paying && setPayModal(null)}>
+                    <div className="modal" style={{ maxWidth: 480 }} onClick={e => e.stopPropagation()}>
+                        <div className="modal-header">
+                            <h3 className="modal-title">Thanh toán công nợ</h3>
+                            <button className="modal-close" onClick={() => !paying && setPayModal(null)}>×</button>
+                        </div>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                            <div style={{ padding: 12, background: 'var(--bg-secondary)', borderRadius: 8, fontSize: 13 }}>
+                                <div><b>{payModal.description}</b></div>
+                                <div style={{ marginTop: 4, color: 'var(--text-muted)' }}>
+                                    Tổng: {fmt(payModal.totalAmount)} · Đã trả: {fmt(payModal.paidAmount)} · Còn nợ: <b style={{ color: 'var(--status-danger)' }}>{fmt(payModal.totalAmount - payModal.paidAmount)}</b>
+                                </div>
+                                {Array.isArray(payModal.allocationPlan) && (
+                                    <div style={{ marginTop: 6, fontSize: 11 }}>
+                                        Phân bổ: {payModal.allocationPlan.map(a => `${projectName(a.projectId)} (${Math.round(a.ratio * 100)}%)`).join(' · ')}
+                                    </div>
+                                )}
+                            </div>
+                            <div className="form-group">
+                                <label className="form-label">Số tiền trả lần này (VND) *</label>
+                                <input type="number" className="form-input" value={payAmount} onChange={e => setPayAmount(e.target.value)} placeholder="0" />
+                                <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4 }}>
+                                    ⚡ Sau khi trả, chi phí sẽ tự phân bổ vào dự án theo %.
+                                </div>
+                            </div>
+                            <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+                                <button className="btn btn-ghost" onClick={() => setPayModal(null)} disabled={paying}>Hủy</button>
+                                <button className="btn btn-primary" onClick={pay} disabled={paying}>
+                                    {paying ? 'Đang trả...' : 'Xác nhận trả'}
+                                </button>
+                            </div>
+                        </div>
                     </div>
                 </div>
-                <div className="modal-footer">
-                    <button className="btn btn-ghost" onClick={onClose}>Hủy</button>
-                    <button className="btn btn-primary" onClick={() => onPay(amount)}>✓ Xác nhận thanh toán</button>
-                </div>
-            </div>
+            )}
         </div>
+    );
+}
+
+function DebtsTable({ debts, projectName, onPay }) {
+    if (debts.length === 0) {
+        return <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-muted)' }}>Chưa có công nợ dịch vụ</div>;
+    }
+    return (
+        <div className="table-container">
+            <table className="data-table">
+                <thead>
+                    <tr>
+                        <th>Mã</th>
+                        <th>Ngày</th>
+                        <th>Loại</th>
+                        <th>Bên cung cấp</th>
+                        <th>Phân bổ</th>
+                        <th style={{ textAlign: 'right' }}>Tổng</th>
+                        <th style={{ textAlign: 'right' }}>Đã trả</th>
+                        <th style={{ textAlign: 'right' }}>Còn nợ</th>
+                        <th>Trạng thái</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {debts.map(d => {
+                        const remaining = d.totalAmount - d.paidAmount;
+                        const s = statusOf(d.totalAmount, d.paidAmount);
+                        return (
+                            <tr key={d.id}>
+                                <td style={{ fontFamily: 'monospace', fontWeight: 600, fontSize: 12 }}>{d.code}</td>
+                                <td style={{ fontSize: 12 }}>{fmtDate(d.date)}</td>
+                                <td style={{ fontSize: 12 }}>{d.serviceCategory || '—'}</td>
+                                <td>
+                                    <div style={{ fontSize: 13 }}>{d.recipientName}</div>
+                                    <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{d.recipientType}</div>
+                                </td>
+                                <td style={{ fontSize: 11 }}>
+                                    {Array.isArray(d.allocationPlan) && d.allocationPlan.map((a, i) => (
+                                        <div key={i}>• {projectName(a.projectId)} ({Math.round(a.ratio * 100)}%)</div>
+                                    ))}
+                                </td>
+                                <td style={{ textAlign: 'right', fontFamily: 'monospace' }}>{fmt(d.totalAmount)}</td>
+                                <td style={{ textAlign: 'right', fontFamily: 'monospace', color: 'var(--status-success)' }}>{fmt(d.paidAmount)}</td>
+                                <td style={{ textAlign: 'right', fontFamily: 'monospace', color: 'var(--status-danger)', fontWeight: 600 }}>{fmt(remaining)}</td>
+                                <td><span style={{ padding: '2px 8px', borderRadius: 12, fontSize: 11, background: s.bg, color: s.color }}>{s.label}</span></td>
+                                <td>
+                                    {remaining > 0 && (
+                                        <button className="btn btn-primary btn-sm" style={{ fontSize: 11 }} onClick={() => onPay(d)}>💸 Trả</button>
+                                    )}
+                                </td>
+                            </tr>
+                        );
+                    })}
+                </tbody>
+            </table>
+        </div>
+    );
+}
+
+function ExpensesTable({ expenses }) {
+    if (expenses.length === 0) {
+        return <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-muted)' }}>Chưa có chi phí đã chi nào</div>;
+    }
+    return (
+        <div className="table-container">
+            <table className="data-table">
+                <thead>
+                    <tr>
+                        <th>Mã</th>
+                        <th>Ngày</th>
+                        <th>Loại</th>
+                        <th>Mô tả</th>
+                        <th>Phân bổ</th>
+                        <th style={{ textAlign: 'right' }}>Số tiền</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {expenses.map(e => (
+                        <tr key={e.id}>
+                            <td style={{ fontFamily: 'monospace', fontWeight: 600, fontSize: 12 }}>{e.code}</td>
+                            <td style={{ fontSize: 12 }}>{fmtDate(e.date)}</td>
+                            <td style={{ fontSize: 12 }}>{e.category}</td>
+                            <td style={{ fontSize: 13 }}>{e.description}</td>
+                            <td style={{ fontSize: 11 }}>
+                                {(e.allocations || []).map((a, i) => (
+                                    <div key={i}>• {a.project?.name || a.projectId} ({fmt(a.amount)})</div>
+                                ))}
+                            </td>
+                            <td style={{ textAlign: 'right', fontFamily: 'monospace', fontWeight: 600 }}>{fmt(e.amount)}</td>
+                        </tr>
+                    ))}
+                </tbody>
+            </table>
+        </div>
+    );
+}
+
+function StatCard({ label, value, color, hint }) {
+    return (
+        <div className="card" style={{ padding: 14 }}>
+            <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>{label}</div>
+            <div style={{ fontSize: 20, fontWeight: 700, color, marginTop: 4 }}>{value}</div>
+            {hint && <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>{hint}</div>}
+        </div>
+    );
+}
+
+function TabBtn({ label, active, onClick }) {
+    return (
+        <button onClick={onClick} style={{
+            padding: '10px 16px', fontSize: 13, fontWeight: 600,
+            background: 'transparent', border: 'none', borderBottom: active ? '2px solid var(--primary)' : '2px solid transparent',
+            color: active ? 'var(--primary)' : 'var(--text-muted)', cursor: 'pointer',
+        }}>{label}</button>
     );
 }

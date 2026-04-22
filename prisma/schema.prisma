@@ -2400,23 +2400,25 @@ model StockIssueItem {
 }
 
 model SupplierDebt {
-  id          String   @id @default(cuid())
-  code        String   @unique
-  supplierId  String
-  projectId   String?
-  invoiceNo   String   @default("")
-  description String
-  totalAmount Float    @default(0)
-  paidAmount  Float    @default(0)
-  status      String   @default("open")
-  date        DateTime @default(now())
-  dueDate     DateTime?
-  proofUrl    String   @default("")
-  notes       String   @default("")
-  createdById String   @default("")
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  expenseId   String?  @unique
+  id              String   @id @default(cuid())
+  code            String   @unique
+  supplierId      String
+  projectId       String?
+  invoiceNo       String   @default("")
+  description     String
+  totalAmount     Float    @default(0)
+  paidAmount      Float    @default(0)
+  status          String   @default("open")
+  date            DateTime @default(now())
+  dueDate         DateTime?
+  proofUrl        String   @default("")
+  notes           String   @default("")
+  createdById     String   @default("")
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  expenseId       String?  @unique
+  serviceCategory String   @default("")
+  allocationPlan  Json?
 
   supplier Supplier              @relation(fields: [supplierId], references: [id])
   project  Project?              @relation(fields: [projectId], references: [id])
@@ -2447,22 +2449,24 @@ model SupplierDebtPayment {
 }
 
 model ContractorDebt {
-  id           String   @id @default(cuid())
-  code         String   @unique
-  contractorId String
-  projectId    String
-  description  String
-  totalAmount  Float    @default(0)
-  paidAmount   Float    @default(0)
-  status       String   @default("open")
-  date         DateTime @default(now())
-  dueDate      DateTime?
-  proofUrl     String   @default("")
-  notes        String   @default("")
-  createdById  String   @default("")
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-  expenseId    String?  @unique
+  id              String   @id @default(cuid())
+  code            String   @unique
+  contractorId    String
+  projectId       String
+  description     String
+  totalAmount     Float    @default(0)
+  paidAmount      Float    @default(0)
+  status          String   @default("open")
+  date            DateTime @default(now())
+  dueDate         DateTime?
+  proofUrl        String   @default("")
+  notes           String   @default("")
+  createdById     String   @default("")
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  expenseId       String?  @unique
+  serviceCategory String   @default("")
+  allocationPlan  Json?
 
   contractor Contractor              @relation(fields: [contractorId], references: [id])
   project    Project                 @relation(fields: [projectId], references: [id])
