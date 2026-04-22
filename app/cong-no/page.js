@@ -390,7 +390,19 @@ export default function CongNoPage() {
                                                             <div>{d.description}</div>
                                                             {d.invoiceNo && <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>HD: {d.invoiceNo}</div>}
                                                         </td>
-                                                        <td style={{ fontSize: 12, color: 'var(--text-muted)' }}>{d.project?.name || d.project?.code || '—'}</td>
+                                                        <td style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+                                                            {Array.isArray(d.allocationPlan) && d.allocationPlan.length > 0 ? (
+                                                                <div>
+                                                                    <div style={{ fontWeight: 600, color: 'var(--status-info)', fontSize: 11 }}>💼 {d.allocationPlan.length} dự án</div>
+                                                                    {d.allocationPlan.slice(0, 3).map((a, i) => (
+                                                                        <div key={i} style={{ fontSize: 10 }}>
+                                                                            • {projects.find(p => p.id === a.projectId)?.name || a.projectId} ({Math.round(a.ratio * 100)}%)
+                                                                        </div>
+                                                                    ))}
+                                                                    {d.allocationPlan.length > 3 && <div style={{ fontSize: 10, fontStyle: 'italic' }}>… +{d.allocationPlan.length - 3}</div>}
+                                                                </div>
+                                                            ) : (d.project?.name || d.project?.code || '—')}
+                                                        </td>
                                                         <td style={{ fontSize: 12 }}>{d.date ? new Date(d.date).toLocaleDateString('vi-VN') : '—'}</td>
                                                         <td style={{ fontSize: 12 }}>{d.dueDate ? new Date(d.dueDate).toLocaleDateString('vi-VN') : '—'}</td>
                                                         <td style={{ textAlign: 'right', fontFamily: 'monospace' }}>{fmtVND(d.totalAmount)}</td>
@@ -823,6 +835,12 @@ export default function CongNoPage() {
                 <div className="modal-overlay" onClick={() => setShowDebtForm(false)}>
                     <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: 480 }}>
                         <h3 style={{ marginTop: 0 }}>+ Tạo công nợ {selectedType === 'ncc' ? 'NCC' : 'Thầu phụ'}</h3>
+                        <div style={{ padding: 10, background: 'rgba(59,130,246,0.08)', border: '1px solid rgba(59,130,246,0.3)', borderRadius: 8, marginBottom: 12, fontSize: 12 }}>
+                            💡 <b>Công nợ dịch vụ</b> (thiết kế, 3D, tư vấn thuê ngoài) nên nhập ở{' '}
+                            <a href="/expenses/services" style={{ color: 'var(--primary)', fontWeight: 600 }}>💼 Chi phí dịch vụ</a>{' '}
+                            để hỗ trợ phân bổ nhiều dự án + tự sinh chi phí khi thanh toán.<br />
+                            Form này dùng cho công nợ thường (vật tư PO, thầu phụ hợp đồng) — sẽ tạo chi phí ngay.
+                        </div>
                         <div className="form-group">
                             <label className="form-label">Mô tả *</label>
                             <input className="form-input" value={debtForm.description} onChange={e => setDebtForm({ ...debtForm, description: e.target.value })} placeholder="VD: Xi măng tháng 3..." />
