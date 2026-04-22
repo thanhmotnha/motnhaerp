@@ -18,7 +18,7 @@ export const GET = withAuth(async (_request, { params }) => {
 
     // 1. MaterialPlan — dự toán + receivedDirect
     const plans = await prisma.materialPlan.findMany({
-        where: { projectId },
+        where: { projectId, costType: { notIn: ['Thi công', 'Thầu phụ'] } },
         include: {
             product: { select: { id: true, code: true, name: true, unit: true, category: true } },
         },
