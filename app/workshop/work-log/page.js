@@ -537,7 +537,7 @@ export default function WorkLogPage() {
                 {/* Header */}
                 <div style={{ padding: '16px 20px', borderBottom: '2px solid var(--border-color)', background: '#1C3A6B', color: '#fff', textAlign: 'center' }}>
                     <div style={{ fontSize: 16, fontWeight: 800, letterSpacing: 0.5, textTransform: 'uppercase' }}>
-                        Kế hoạch - Nhật ký nhân sự xưởng nội thất SCT
+                        Kế hoạch - Nhật ký nhân sự xưởng nội thất Một Nhà
                     </div>
                     <div style={{ fontSize: 13, marginTop: 4, opacity: 0.85 }}>
                         Từ ngày {fmtShortDate(weekStart)} đến ngày {fmtShortDate(weekEnd)}.{weekEnd.getFullYear()}
