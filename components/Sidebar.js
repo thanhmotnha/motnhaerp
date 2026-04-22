@@ -80,6 +80,7 @@ const menuItems = [
     {
         section: 'Quản lý', items: [
             { href: '/hr', icon: UserCog, label: 'Nhân sự', roles: ['giam_doc', 'ke_toan'] },
+            { href: '/admin/zalo-broadcast', icon: Activity, label: 'Nhắn Zalo OA', roles: ['giam_doc'] },
             { href: '/admin/settings', icon: Settings, label: 'Cài đặt', roles: ['giam_doc', 'ke_toan'] },
         ]
     },

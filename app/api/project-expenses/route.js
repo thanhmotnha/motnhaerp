@@ -4,6 +4,7 @@ import prisma from '@/lib/prisma';
 import { generateCode, withCodeRetry } from '@/lib/generateCode';
 import { NextResponse } from 'next/server';
 import { expenseCreateSchema, expenseUpdateSchema } from '@/lib/validations/expense';
+import { notifyPendingApproval } from '@/lib/zaloNotify';
 
 export const GET = withAuth(async (request) => {
     const { searchParams } = new URL(request.url);
@@ -130,6 +131,18 @@ export const POST = withAuth(async (request, context, session) => {
         } catch (e) {
             console.warn('Auto-create debt failed:', e.message);
         }
+    }
+
+    // Notify giám đốc qua Zalo OA nếu expense ở trạng thái chờ duyệt
+    if (expense.status === 'Chờ duyệt' && expense.amount > 0) {
+        notifyPendingApproval({
+            type: 'Chi phí',
+            code: expense.code,
+            description: expense.description,
+            amount: expense.amount,
+            requestedBy: session.user.name || session.user.email,
+            projectName: expense.allocations?.[0]?.project?.name,
+        }).catch(() => { });
     }
 
     return NextResponse.json(expense, { status: 201 });

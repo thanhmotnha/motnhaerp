@@ -2,6 +2,7 @@ import { withAuth } from '@/lib/apiHandler';
 import prisma from '@/lib/prisma';
 import { NextResponse } from 'next/server';
 import { customerUpdateSchema } from '@/lib/validations/customer';
+import { notifyCustomerAssigned } from '@/lib/zaloNotify';
 
 export const GET = withAuth(async (request, { params }) => {
     const { id } = await params;
@@ -88,11 +89,21 @@ export const PUT = withAuth(async (request, { params }, session) => {
         return NextResponse.json({ error: 'Chỉ giám đốc được đổi chủ khách' }, { status: 403 });
     }
 
+    const prev = data.salesPersonId !== undefined
+        ? await prisma.customer.findUnique({ where: { id }, select: { salesPersonId: true } })
+        : null;
+
     const customer = await prisma.customer.update({
         where: { id },
         data,
         include: { salesPerson: { select: { id: true, name: true, email: true } } },
     });
+
+    // Notify NVKD qua Zalo khi được gán khách mới
+    if (data.salesPersonId && data.salesPersonId !== prev?.salesPersonId) {
+        notifyCustomerAssigned(id, data.salesPersonId).catch(() => { });
+    }
+
     return NextResponse.json(customer);
 });
 
