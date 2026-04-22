@@ -12,12 +12,14 @@ export default function ScheduleTab({ project: p, projectId, onRefresh }) {
     const [editValue, setEditValue] = useState('');
     const [savingId, setSavingId] = useState(null);
 
-    // Import Dự toán G8/G9
+    // Import Dự toán G8/G9 (1 file → 2 phần: hạng mục + vật tư)
     const [importing, setImporting] = useState(false);
     const [dutoanPreview, setDutoanPreview] = useState(null);
     const [dutoanFile, setDutoanFile] = useState(null);
     const [dutoanReplaceAll, setDutoanReplaceAll] = useState(false);
     const [dutoanCommitting, setDutoanCommitting] = useState(false);
+    const [dupeStrategy, setDupeStrategy] = useState('both'); // both | schedule | material
+    const [activePreviewTab, setActivePreviewTab] = useState('schedule'); // schedule | materials | duplicates
 
     const previewDutoan = async (file) => {
         if (!file) return;
@@ -45,13 +47,16 @@ export default function ScheduleTab({ project: p, projectId, onRefresh }) {
             fd.append('file', dutoanFile);
             fd.append('mode', 'commit');
             fd.append('replaceAll', dutoanReplaceAll ? 'true' : 'false');
+            fd.append('dupeStrategy', dupeStrategy);
             const res = await fetch(`/api/projects/${projectId}/material-plans/import-dutoan`, { method: 'POST', body: fd });
             const json = await res.json();
             if (!res.ok) throw new Error(json.error || 'Lỗi lưu');
-            toast.showToast(`Đã lưu ${json.imported.scheduleItems} hạng mục thi công`, 'success');
+            const { scheduleItems: s, materials: m } = json.imported;
+            toast.showToast(`Đã lưu ${s} hạng mục + ${m} vật tư`, 'success');
             setDutoanPreview(null);
             setDutoanFile(null);
             setDutoanReplaceAll(false);
+            setDupeStrategy('both');
             onRefresh();
         } catch (err) {
             toast.showToast(err.message || 'Lỗi', 'error');
@@ -396,26 +401,47 @@ export default function ScheduleTab({ project: p, projectId, onRefresh }) {
 
             {dutoanPreview && (
                 <div className="modal-overlay" onClick={() => !dutoanCommitting && setDutoanPreview(null)}>
-                    <div className="modal" style={{ maxWidth: 960, maxHeight: '92vh', overflowY: 'auto' }} onClick={e => e.stopPropagation()}>
+                    <div className="modal" style={{ maxWidth: 1100, maxHeight: '94vh', overflowY: 'auto' }} onClick={e => e.stopPropagation()}>
                         <div className="modal-header">
-                            <h3 className="modal-title">📥 Xem trước file dự toán</h3>
+                            <h3 className="modal-title">📥 Xem trước file dự toán G8/G9</h3>
                             <button className="modal-close" onClick={() => !dutoanCommitting && setDutoanPreview(null)}>×</button>
                         </div>
 
                         <div style={{ padding: 10, background: 'rgba(59,130,246,0.08)', border: '1px solid rgba(59,130,246,0.25)', borderRadius: 8, marginBottom: 12, fontSize: 12 }}>
-                            💡 File dự toán chỉ tạo <b>hạng mục thi công</b> để theo dõi tiến độ + chênh lệch đơn giá. Vật tư đặt hàng dùng nút <b>📂 Import Excel</b> ở tab Vật tư với file vật tư riêng.
+                            💡 1 file → 2 phần độc lập: <b>hạng mục thi công</b> (từ sheet &quot;Dự thầu&quot;) + <b>vật tư</b> (từ &quot;Tổng hợp VT&quot; mục VẬT LIỆU). Vật tư tự match với Product có sẵn qua Mã chuẩn/Mã số/tên.
                         </div>
 
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(180px,1fr))', gap: 10, marginBottom: 16 }}>
-                            <div className="stat-card"><div style={{ fontSize: 22, fontWeight: 700, color: 'var(--primary)' }}>{dutoanPreview.summary.scheduleItems.total}</div><div style={{ fontSize: 12 }}>🏗️ Hạng mục thi công</div></div>
-                            <div className="stat-card"><div style={{ fontSize: 18, fontWeight: 700 }}>{fmtVND(dutoanPreview.summary.scheduleItems.totalBudget)}</div><div style={{ fontSize: 12 }}>💰 Tổng dự toán</div></div>
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(150px,1fr))', gap: 8, marginBottom: 14 }}>
+                            <div className="stat-card"><div style={{ fontSize: 20, fontWeight: 700, color: 'var(--primary)' }}>{dutoanPreview.summary.scheduleItems.total}</div><div style={{ fontSize: 11 }}>🏗️ Hạng mục</div></div>
+                            <div className="stat-card"><div style={{ fontSize: 20, fontWeight: 700, color: 'var(--status-info)' }}>{dutoanPreview.summary.materials.total}</div><div style={{ fontSize: 11 }}>🧱 Vật tư</div></div>
+                            <div className="stat-card"><div style={{ fontSize: 20, fontWeight: 700, color: 'var(--status-success)' }}>{dutoanPreview.summary.materials.matched}</div><div style={{ fontSize: 11 }}>✅ Đã có SP</div></div>
+                            <div className="stat-card"><div style={{ fontSize: 20, fontWeight: 700, color: 'var(--status-warning)' }}>{dutoanPreview.summary.materials.newToCreate}</div><div style={{ fontSize: 11 }}>🆕 Sẽ tạo SP</div></div>
+                            <div className="stat-card"><div style={{ fontSize: 20, fontWeight: 700, color: dutoanPreview.summary.duplicates > 0 ? 'var(--status-danger)' : 'var(--text-muted)' }}>{dutoanPreview.summary.duplicates}</div><div style={{ fontSize: 11 }}>⚠️ Trùng tên</div></div>
                         </div>
 
-                        <details open style={{ marginBottom: 16 }}>
-                            <summary style={{ cursor: 'pointer', fontWeight: 600, padding: '6px 0' }}>🏗️ Hạng mục thi công ({dutoanPreview.scheduleItems.length})</summary>
-                            <div className="table-container" style={{ maxHeight: 320, overflowY: 'auto' }}>
+                        {/* Tab selector */}
+                        <div style={{ display: 'flex', gap: 4, borderBottom: '1px solid var(--border-color)', marginBottom: 8 }}>
+                            <button onClick={() => setActivePreviewTab('schedule')}
+                                style={{ padding: '8px 14px', border: 'none', background: 'none', borderBottom: activePreviewTab === 'schedule' ? '2px solid var(--primary)' : '2px solid transparent', color: activePreviewTab === 'schedule' ? 'var(--primary)' : 'var(--text-muted)', fontWeight: 600, cursor: 'pointer', fontSize: 13 }}>
+                                🏗️ Hạng mục ({dutoanPreview.scheduleItems.length})
+                            </button>
+                            <button onClick={() => setActivePreviewTab('materials')}
+                                style={{ padding: '8px 14px', border: 'none', background: 'none', borderBottom: activePreviewTab === 'materials' ? '2px solid var(--primary)' : '2px solid transparent', color: activePreviewTab === 'materials' ? 'var(--primary)' : 'var(--text-muted)', fontWeight: 600, cursor: 'pointer', fontSize: 13 }}>
+                                🧱 Vật tư ({dutoanPreview.materials.length})
+                            </button>
+                            {dutoanPreview.duplicates.length > 0 && (
+                                <button onClick={() => setActivePreviewTab('duplicates')}
+                                    style={{ padding: '8px 14px', border: 'none', background: 'none', borderBottom: activePreviewTab === 'duplicates' ? '2px solid var(--status-danger)' : '2px solid transparent', color: activePreviewTab === 'duplicates' ? 'var(--status-danger)' : 'var(--text-muted)', fontWeight: 600, cursor: 'pointer', fontSize: 13 }}>
+                                    ⚠️ Trùng ({dutoanPreview.duplicates.length})
+                                </button>
+                            )}
+                        </div>
+
+                        {/* Tab content */}
+                        <div className="table-container" style={{ maxHeight: 360, overflowY: 'auto', marginBottom: 14 }}>
+                            {activePreviewTab === 'schedule' && (
                                 <table className="data-table" style={{ fontSize: 12 }}>
-                                    <thead><tr><th>STT</th><th>Hạng mục</th><th>Tên công tác</th><th>ĐV</th><th style={{ textAlign: 'right' }}>Khối lượng</th><th style={{ textAlign: 'right' }}>Đơn giá dự toán</th><th style={{ textAlign: 'right' }}>Thành tiền</th></tr></thead>
+                                    <thead><tr><th>STT</th><th>Hạng mục</th><th>Tên công tác</th><th>ĐV</th><th style={{ textAlign: 'right' }}>Khối lượng</th><th style={{ textAlign: 'right' }}>Đơn giá</th><th style={{ textAlign: 'right' }}>Thành tiền</th></tr></thead>
                                     <tbody>
                                         {dutoanPreview.scheduleItems.map((it, i) => (
                                             <tr key={i}>
@@ -430,23 +456,97 @@ export default function ScheduleTab({ project: p, projectId, onRefresh }) {
                                         ))}
                                     </tbody>
                                 </table>
+                            )}
+                            {activePreviewTab === 'materials' && (
+                                <table className="data-table" style={{ fontSize: 12 }}>
+                                    <thead><tr><th>STT</th><th>Tên vật tư</th><th>ĐV</th><th style={{ textAlign: 'right' }}>SL</th><th style={{ textAlign: 'right' }}>Đơn giá</th><th>Mã chuẩn</th><th>SP hệ thống</th></tr></thead>
+                                    <tbody>
+                                        {dutoanPreview.materials.map((m, i) => (
+                                            <tr key={i}>
+                                                <td>{m.stt}</td>
+                                                <td>{m.name}</td>
+                                                <td>{m.unit}</td>
+                                                <td style={{ textAlign: 'right' }}>{m.quantity}</td>
+                                                <td style={{ textAlign: 'right' }}>{fmtVND(m.unitPrice)}</td>
+                                                <td style={{ fontFamily: 'monospace', fontSize: 11 }}>{m.maChuan || m.maSo || '—'}</td>
+                                                <td>
+                                                    {m.matchedProduct ? (
+                                                        <span style={{ color: 'var(--status-success)', fontSize: 11 }}>✓ {m.matchedProduct.code}</span>
+                                                    ) : (
+                                                        <span style={{ color: 'var(--status-warning)', fontSize: 11 }}>🆕 Tạo mới</span>
+                                                    )}
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            )}
+                            {activePreviewTab === 'duplicates' && (
+                                <table className="data-table" style={{ fontSize: 12 }}>
+                                    <thead><tr><th>Tên item</th><th style={{ textAlign: 'right' }}>Hạng mục (SL × đơn giá)</th><th style={{ textAlign: 'right' }}>Vật tư (SL × đơn giá)</th></tr></thead>
+                                    <tbody>
+                                        {dutoanPreview.duplicates.map((d, i) => (
+                                            <tr key={i}>
+                                                <td>{d.name}</td>
+                                                <td style={{ textAlign: 'right' }}>
+                                                    {d.schedule ? <>{d.schedule.quantity} × {fmtVND(d.schedule.unitPrice)}</> : '—'}
+                                                </td>
+                                                <td style={{ textAlign: 'right' }}>
+                                                    {d.material ? <>{d.material.quantity} × {fmtVND(d.material.unitPrice)} {d.material.matched && <span style={{ color: 'var(--status-success)', fontSize: 10 }}>(✓ {d.material.productCode})</span>}</> : '—'}
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            )}
+                        </div>
+
+                        {/* Dupe strategy + replaceAll */}
+                        {dutoanPreview.duplicates.length > 0 && (
+                            <div style={{ padding: 12, background: 'rgba(234,179,8,0.08)', border: '1px solid rgba(234,179,8,0.3)', borderRadius: 8, marginBottom: 10 }}>
+                                <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 6 }}>⚠️ Xử lý {dutoanPreview.duplicates.length} item xuất hiện ở cả 2 sheet</div>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: 4, fontSize: 12 }}>
+                                    <label style={{ display: 'flex', alignItems: 'flex-start', gap: 8, cursor: 'pointer' }}>
+                                        <input type="radio" name="dupe" value="both" checked={dupeStrategy === 'both'} onChange={() => setDupeStrategy('both')} />
+                                        <div><b>Giữ cả 2</b> (mặc định) — hạng mục có vật tư trọn gói + riêng vật tư đầu vào (phản ánh BÁN vs MUA)</div>
+                                    </label>
+                                    <label style={{ display: 'flex', alignItems: 'flex-start', gap: 8, cursor: 'pointer' }}>
+                                        <input type="radio" name="dupe" value="schedule" checked={dupeStrategy === 'schedule'} onChange={() => setDupeStrategy('schedule')} />
+                                        <div><b>Chỉ giữ Hạng mục</b> — bỏ {dutoanPreview.duplicates.length} vật tư trùng (không tính kép)</div>
+                                    </label>
+                                    <label style={{ display: 'flex', alignItems: 'flex-start', gap: 8, cursor: 'pointer' }}>
+                                        <input type="radio" name="dupe" value="material" checked={dupeStrategy === 'material'} onChange={() => setDupeStrategy('material')} />
+                                        <div><b>Chỉ giữ Vật tư</b> — bỏ {dutoanPreview.duplicates.length} hạng mục trùng</div>
+                                    </label>
+                                </div>
                             </div>
-                        </details>
+                        )}
 
-                        <div style={{ padding: 12, background: 'var(--bg-secondary)', borderRadius: 8, marginBottom: 12 }}>
+                        <div style={{ padding: 10, background: 'var(--bg-secondary)', borderRadius: 8, marginBottom: 12 }}>
                             <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, cursor: 'pointer' }}>
-                                <input type="checkbox" checked={dutoanReplaceAll} onChange={e => setDutoanReplaceAll(e.target.checked)} disabled={items.length === 0} />
-                                <span>🗑️ Xóa {items.filter(m => !m.isLocked).length} hạng mục chưa khóa hiện tại trước khi import</span>
+                                <input type="checkbox" checked={dutoanReplaceAll} onChange={e => setDutoanReplaceAll(e.target.checked)} />
+                                <span>🗑️ Xóa toàn bộ hạng mục + vật tư chưa khóa hiện tại trước khi import</span>
                             </label>
-                            {items.length === 0 && <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4 }}>Dự án chưa có hạng mục thi công</div>}
                         </div>
 
-                        <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-                            <button className="btn btn-ghost" onClick={() => setDutoanPreview(null)} disabled={dutoanCommitting}>Hủy</button>
-                            <button className="btn btn-primary" onClick={commitDutoan} disabled={dutoanCommitting}>
-                                {dutoanCommitting ? '⏳ Đang lưu...' : `✓ Xác nhận import (${dutoanPreview.summary.scheduleItems.total} hạng mục)`}
-                            </button>
-                        </div>
+                        {(() => {
+                            const dupeCount = dutoanPreview.duplicates.length;
+                            const schedCount = dutoanPreview.scheduleItems.length - (dupeStrategy === 'material' ? dupeCount : 0);
+                            const matCount = dutoanPreview.materials.length - (dupeStrategy === 'schedule' ? dupeCount : 0);
+                            return (
+                                <div style={{ display: 'flex', gap: 8, justifyContent: 'space-between', alignItems: 'center' }}>
+                                    <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+                                        Sẽ lưu: <b>{schedCount}</b> hạng mục + <b>{matCount}</b> vật tư
+                                    </div>
+                                    <div style={{ display: 'flex', gap: 8 }}>
+                                        <button className="btn btn-ghost" onClick={() => setDutoanPreview(null)} disabled={dutoanCommitting}>Hủy</button>
+                                        <button className="btn btn-primary" onClick={commitDutoan} disabled={dutoanCommitting}>
+                                            {dutoanCommitting ? '⏳ Đang lưu...' : `✓ Xác nhận import`}
+                                        </button>
+                                    </div>
+                                </div>
+                            );
+                        })()}
                     </div>
                 </div>
             )}
