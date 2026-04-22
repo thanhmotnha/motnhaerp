@@ -47,6 +47,31 @@ export default function MaterialTab({ project: p, projectId, onRefresh }) {
         }
     };
 
+    const [importing, setImporting] = useState(false);
+    const importFromExcel = async (file, replaceAll) => {
+        if (!file) return;
+        setImporting(true);
+        try {
+            const fd = new FormData();
+            fd.append('file', file);
+            fd.append('replaceAll', replaceAll ? 'true' : 'false');
+            const res = await fetch(`/api/projects/${projectId}/material-plans/import-excel`, {
+                method: 'POST',
+                body: fd,
+            });
+            const json = await res.json();
+            if (!res.ok) throw new Error(json.error || 'Lỗi import');
+            alert(`✓ Đã import ${json.imported}/${json.total} vật tư` + (json.errors?.length ? `\n\n⚠ Bỏ qua ${json.errors.length} dòng:\n${json.errors.slice(0, 5).join('\n')}` : ''));
+            onRefresh();
+        } catch (err) {
+            alert(err.message || 'Không import được file');
+        } finally { setImporting(false); }
+    };
+
+    const downloadTemplate = () => {
+        window.open(`/api/projects/${projectId}/material-plans/import-excel/template`, '_blank');
+    };
+
     const deletePlan = async (id) => {
         if (!confirm('Xóa hạng mục này?')) return;
         await apiFetch(`/api/material-plans/${id}`, { method: 'DELETE' });
@@ -143,6 +168,27 @@ export default function MaterialTab({ project: p, projectId, onRefresh }) {
                 <div className="card-header">
                     <span className="card-title">🧱 Dự toán vật tư</span>
                     <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                        <button className="btn btn-ghost btn-sm" onClick={downloadTemplate} title="Tải file Excel mẫu">
+                            📥 File mẫu
+                        </button>
+                        <label className="btn btn-sm" style={{ cursor: importing ? 'wait' : 'pointer', opacity: importing ? 0.6 : 1 }}>
+                            {importing ? '⏳ Đang import...' : '📂 Import Excel'}
+                            <input
+                                type="file"
+                                accept=".xlsx,.xls,.csv"
+                                style={{ display: 'none' }}
+                                disabled={importing}
+                                onChange={e => {
+                                    const f = e.target.files?.[0];
+                                    if (!f) return;
+                                    const replaceAll = materials.length > 0 && confirm(
+                                        `Dự án đang có ${materials.length} vật tư.\nBấm OK để XÓA TẤT CẢ vật tư chưa khóa rồi import mới.\nBấm Hủy để CHỈ THÊM vào danh sách hiện tại.`
+                                    );
+                                    importFromExcel(f, replaceAll);
+                                    e.target.value = '';
+                                }}
+                            />
+                        </label>
                         {(p.quotations?.length || 0) > 0 && (
                             <button className="btn btn-ghost btn-sm" onClick={importFromQuotation}>📋 Tạo từ Báo giá</button>
                         )}
