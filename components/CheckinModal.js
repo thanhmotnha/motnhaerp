@@ -24,9 +24,10 @@ export default function CheckinModal({ customerId, customerName, open, onClose, 
 
     useEffect(() => {
         if (!open) return;
-        fetch('/api/users').then(r => r.ok ? r.json() : []).then(arr => {
-            setUsers((arr || []).filter(u => u.id !== session?.user?.id));
-        });
+        fetch('/api/users').then(r => r.ok ? r.json() : { data: [] }).then(d => {
+            const arr = Array.isArray(d) ? d : (d?.data || []);
+            setUsers(arr.filter(u => u.id !== session?.user?.id));
+        }).catch(() => setUsers([]));
     }, [open, session?.user?.id]);
 
     useEffect(() => {

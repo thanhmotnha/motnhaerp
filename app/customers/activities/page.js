@@ -20,7 +20,9 @@ export default function ActivitiesPage() {
     const [lightbox, setLightbox] = useState(null);
 
     useEffect(() => {
-        fetch('/api/users?role=kinh_doanh').then(r => r.ok ? r.json() : []).then(setSalesPeople);
+        fetch('/api/users?role=kinh_doanh')
+            .then(r => r.ok ? r.json() : { data: [] })
+            .then(d => setSalesPeople(Array.isArray(d) ? d : (d.data || [])));
     }, []);
 
     useEffect(() => {
