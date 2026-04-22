@@ -3,13 +3,12 @@ import { createContext, useContext, useEffect, useState } from 'react';
 import { useSession } from 'next-auth/react';
 
 export const ROLES = [
-    { key: 'giam_doc',   label: 'Giám đốc',       icon: '👑', color: '#c0392b' },
-    { key: 'ke_toan',    label: 'Kế toán',        icon: '📊', color: '#2980b9' },
-    { key: 'kinh_doanh', label: 'Kinh doanh',     icon: '💼', color: '#8e44ad' },
-    { key: 'kho',        label: 'Kho',            icon: '📦', color: '#16a085' },
-    { key: 'ky_thuat',   label: 'Kỹ thuật',       icon: '🔧', color: '#27ae60' },
-    { key: 'thiet_ke',   label: 'Thiết kế',       icon: '🎨', color: '#e67e22' },
-    { key: 'giam_sat',   label: 'Giám sát (QC)',  icon: '🏗️', color: '#d35400' },
+    { key: 'giam_doc',   label: 'Ban GĐ',     icon: '👑', color: '#c0392b' },
+    { key: 'kinh_doanh', label: 'Kinh doanh', icon: '💼', color: '#8e44ad' },
+    { key: 'ky_thuat',   label: 'Kỹ thuật',   icon: '🔧', color: '#27ae60' },
+    { key: 'thiet_ke',   label: 'Thiết kế',   icon: '🎨', color: '#e67e22' },
+    { key: 'ke_toan',    label: 'Hành chính', icon: '📋', color: '#2980b9' },
+    { key: 'kho',        label: 'Xưởng',      icon: '🏭', color: '#16a085' },
 ];
 
 const PERMISSIONS = {
@@ -88,19 +87,6 @@ const PERMISSIONS = {
         canCreateCheckin: false, canViewAllActivities: false,
         canManageProducts: true, canManageDrawings: true, canManageVariants: true,
         canManageQC: false, canManagePunchList: false, canManageAcceptance: false,
-        canManageSettings: false, canManageHR: false, canViewReports: false,
-        filterProject: null,
-    },
-    giam_sat: {
-        canApprove: false, canReject: false, canCreateExpense: false,
-        canPayExpense: false, canCompleteExpense: false, canDeleteExpense: false,
-        canCollectPayment: false, canPrintReceipt: false, canViewFinance: false,
-        canViewProjects: true, canViewAll: false,
-        canManageContractors: false, canManageSuppliers: false,
-        canReassignCustomer: false, canClaimCustomer: false, canViewAllCustomers: false,
-        canCreateCheckin: false, canViewAllActivities: false,
-        canManageProducts: false, canManageDrawings: false, canManageVariants: false,
-        canManageQC: true, canManagePunchList: true, canManageAcceptance: true,
         canManageSettings: false, canManageHR: false, canViewReports: false,
         filterProject: null,
     },

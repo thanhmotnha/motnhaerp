@@ -15,6 +15,16 @@ import {
 } from 'lucide-react';
 import { useRole } from '@/contexts/RoleContext';
 
+// Branding per role — shown in sidebar header
+const BRAND_BY_ROLE = {
+    giam_doc:   { icon: 'H', name: 'MỘT NHÀ ERP',     sub: 'Điều hành tổng công ty',      iconBg: 'linear-gradient(135deg,#1C3A6B,#2A5298)' },
+    kinh_doanh: { icon: 'K', name: 'Kinh doanh',       sub: 'Bán hàng · CRM · Pipeline',    iconBg: 'linear-gradient(135deg,#8e44ad,#c0392b)' },
+    ky_thuat:   { icon: 'K', name: 'Kỹ thuật',         sub: 'Thi công & Dự án',             iconBg: 'linear-gradient(135deg,#27ae60,#16a085)' },
+    thiet_ke:   { icon: 'T', name: 'Thiết kế',          sub: 'Bản vẽ · Nội thất · Variant',  iconBg: 'linear-gradient(135deg,#e67e22,#d35400)' },
+    ke_toan:    { icon: 'H', name: 'Hành chính',        sub: 'Kế toán · Tài chính · HR',    iconBg: 'linear-gradient(135deg,#2980b9,#1C3A6B)' },
+    kho:        { icon: 'K', name: 'Xưởng Nội Thất',    sub: 'Kho · Sản xuất · Giao hàng',  iconBg: 'linear-gradient(135deg,#e67e22,#d35400)' },
+};
+
 const menuItems = [
     {
         section: 'Tổng quan', collapsible: false, items: [
@@ -26,15 +36,15 @@ const menuItems = [
             { href: '/customers', icon: Users, label: 'Khách hàng', roles: ['giam_doc', 'ke_toan', 'kinh_doanh', 'kho', 'ky_thuat', 'thiet_ke'] },
             { href: '/customers/activities', icon: Activity, label: 'Hoạt động NVKD', roles: ['giam_doc', 'ke_toan'] },
             { href: '/quotations', icon: ClipboardList, label: 'Báo giá', roles: ['giam_doc', 'ke_toan', 'kinh_doanh', 'ky_thuat', 'thiet_ke', 'kho'], quick: '/quotations/create' },
-            { href: '/contracts', icon: FileText, label: 'Hợp đồng', roles: ['giam_doc', 'ke_toan', 'kinh_doanh', 'ky_thuat', 'thiet_ke', 'giam_sat'], quick: '/contracts/create' },
-            { href: '/warranty', icon: ShieldCheck, label: 'Bảo hành', roles: ['giam_doc', 'ke_toan', 'ky_thuat', 'giam_sat'] },
+            { href: '/contracts', icon: FileText, label: 'Hợp đồng', roles: ['giam_doc', 'ke_toan', 'kinh_doanh', 'ky_thuat', 'thiet_ke'], quick: '/contracts/create' },
+            { href: '/warranty', icon: ShieldCheck, label: 'Bảo hành', roles: ['giam_doc', 'ke_toan', 'ky_thuat'] },
         ]
     },
     {
         section: 'Dự án', items: [
             { href: '/projects', icon: Building2, label: 'Dự án' },
             { href: '/gantt', icon: CalendarDays, label: 'Gantt Chart' },
-            { href: '/noi-that', icon: Armchair, label: 'Nội thất', roles: ['giam_doc', 'ky_thuat', 'kho', 'thiet_ke', 'giam_sat'] },
+            { href: '/noi-that', icon: Armchair, label: 'Nội thất', roles: ['giam_doc', 'ky_thuat', 'kho', 'thiet_ke'] },
         ]
     },
     {
@@ -77,6 +87,7 @@ function SidebarInner({ isOpen, onClose }) {
     const searchParams = useSearchParams();
     const currentTab = searchParams.get('tab');
     const { role, roleInfo } = useRole();
+    const brand = BRAND_BY_ROLE[role] || BRAND_BY_ROLE.giam_doc;
 
     // Collapsed sections — persist in localStorage
     const [collapsed, setCollapsed] = useState({});
@@ -105,10 +116,13 @@ function SidebarInner({ isOpen, onClose }) {
     return (
         <aside className={`sidebar ${isOpen ? 'open' : ''}`} role="navigation" aria-label="Menu chính">
             <div className="sidebar-brand">
-                <div className="brand-icon">H</div>
+                <div
+                    className="brand-icon"
+                    style={brand.iconBg ? { background: brand.iconBg } : undefined}
+                >{brand.icon}</div>
                 <div className="brand-text">
-                    <span className="brand-name">HomeERP</span>
-                    <span className="brand-sub">Nội thất & Xây dựng</span>
+                    <span className="brand-name">{brand.name}</span>
+                    <span className="brand-sub">{brand.sub}</span>
                 </div>
                 <button
                     className="mobile-menu-btn"
