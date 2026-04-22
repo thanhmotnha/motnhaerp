@@ -6,6 +6,7 @@ import OverviewTab from './tabs/OverviewTab';
 import ContractTab from './tabs/ContractTab';
 import MilestoneTab from './tabs/MilestoneTab';
 import MaterialTab from './tabs/MaterialTab';
+import ScheduleTab from './tabs/ScheduleTab';
 import ContractorTab from './tabs/ContractorTab';
 import DocumentTab from './tabs/DocumentTab';
 import WarrantyTab from './tabs/WarrantyTab';
@@ -26,6 +27,7 @@ const TABS = [
     { key: 'contracts', label: 'Hợp đồng', icon: '📝', countKey: 'contracts' },
     { key: 'milestones', label: 'Tiến độ', icon: '📊', countKey: 'milestones' },
     { key: 'materials', label: 'Vật tư', icon: '🧱', countKey: 'materialPlans' },
+    { key: 'schedule', label: 'Hạng mục thi công', icon: '🏗️' },
     { key: 'contractors', label: 'Thầu phụ', icon: '👷', countKey: 'contractorPays' },
     { key: 'documents', label: 'Tài liệu', icon: '📁', countKey: 'documents' },
     { key: 'warranty', label: 'Bảo hành', icon: '🛡️' },
@@ -74,6 +76,7 @@ export default function ProjectDetailPage() {
         contracts: <ContractTab project={p} projectId={p.id} onRefresh={fetchData} />,
         milestones: <MilestoneTab project={p} projectId={p.id} onRefresh={fetchData} />,
         materials: <MaterialTab project={p} projectId={p.id} onRefresh={fetchData} />,
+        schedule: <ScheduleTab project={p} projectId={p.id} onRefresh={fetchData} />,
         contractors: <ContractorTab project={p} projectId={p.id} onRefresh={fetchData} />,
         documents: <DocumentTab project={p} projectId={p.id} onRefresh={fetchData} />,
         warranty: <WarrantyTab project={p} projectId={p.id} onRefresh={fetchData} />,
