@@ -60,9 +60,7 @@ const menuItems = [
             { href: '/workshop/workers', icon: Wrench, label: 'Thợ xưởng', roles: ['giam_doc', 'ke_toan', 'kho'] },
             { href: '/workshop/work-log', icon: ClipboardList, label: 'Nhật ký ca làm', roles: ['giam_doc', 'ke_toan', 'kho'] },
             { href: '/workshop/timeline', icon: ClipboardList, label: 'Timeline xưởng', roles: ['giam_doc', 'ke_toan', 'kho'] },
-            { href: '/noi-that', icon: Armchair, label: 'Dự án có nội thất', roles: ['giam_doc', 'ke_toan', 'kho', 'ky_thuat', 'thiet_ke'] },
-            { href: '/production-batches', icon: Factory, label: 'Lệnh sản xuất', roles: ['giam_doc', 'ke_toan', 'kho', 'thiet_ke'] },
-            { href: '/workshops', icon: Wrench, label: 'Quản lý xưởng (cũ)', roles: ['giam_doc', 'ke_toan', 'kho'] },
+            { href: '/noi-that', icon: Armchair, label: 'Dự án Nội thất', roles: ['giam_doc', 'ke_toan', 'kho', 'ky_thuat', 'thiet_ke'] },
             { href: '/punch-list?source=workshop', icon: Shield, label: 'Sự cố hiện trường', roles: ['giam_doc', 'ke_toan', 'kho', 'ky_thuat'] },
             { href: '/hr?tab=attendance', icon: ClipboardCheck, label: 'Chấm công xưởng', roles: ['giam_doc', 'ke_toan', 'kho'] },
         ]
