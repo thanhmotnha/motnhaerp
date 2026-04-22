@@ -3,6 +3,7 @@ import { parsePagination, paginatedResponse } from '@/lib/pagination';
 import prisma from '@/lib/prisma';
 import { NextResponse } from 'next/server';
 import { workshopTaskCreateSchema, workshopTaskBulkCreateSchema } from '@/lib/validations/workshopTask';
+import { sendTaskNotifyToWorker } from '@/lib/zaloTaskNotify';
 
 // GET — list tasks (filter by worker/date/status)
 export const GET = withAuth(async (request, _ctx, session) => {
@@ -74,6 +75,8 @@ export const POST = withAuth(async (request, _ctx, session) => {
                 })
             )
         );
+        // Fire-and-forget Zalo notifications to workers
+        Promise.all(created.map(t => sendTaskNotifyToWorker(t.id))).catch(() => { });
         return NextResponse.json({ created: created.length }, { status: 201 });
     }
 
@@ -83,5 +86,6 @@ export const POST = withAuth(async (request, _ctx, session) => {
         data: { ...data, assignedById: session.user.id },
         include: { worker: { select: { id: true, name: true } } },
     });
+    sendTaskNotifyToWorker(task.id).catch(() => { });
     return NextResponse.json(task, { status: 201 });
 });

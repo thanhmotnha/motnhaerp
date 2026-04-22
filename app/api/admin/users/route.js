@@ -5,7 +5,7 @@ import { NextResponse } from 'next/server';
 
 export const GET = withAuth(async () => {
     const users = await prisma.user.findMany({
-        select: { id: true, email: true, username: true, name: true, role: true, active: true, createdAt: true },
+        select: { id: true, email: true, username: true, name: true, role: true, active: true, phone: true, zaloUserId: true, createdAt: true },
         orderBy: { createdAt: 'asc' },
     });
     return NextResponse.json(users);
@@ -34,7 +34,7 @@ export const POST = withAuth(async (request) => {
             password: hashed,
             role: role || 'nhan_vien',
         },
-        select: { id: true, email: true, username: true, name: true, role: true, active: true, createdAt: true },
+        select: { id: true, email: true, username: true, name: true, role: true, active: true, phone: true, zaloUserId: true, createdAt: true },
     });
     return NextResponse.json(user, { status: 201 });
 }, { roles: ['giam_doc'] });

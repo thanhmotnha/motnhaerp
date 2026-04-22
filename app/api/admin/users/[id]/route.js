@@ -5,7 +5,7 @@ import { NextResponse } from 'next/server';
 
 export const PUT = withAuth(async (request, { params }) => {
     const { id } = await params;
-    const { name, username, role, active, password } = await request.json();
+    const { name, username, role, active, password, phone, zaloUserId } = await request.json();
 
     const data = {};
     if (name !== undefined) data.name = name.trim();
@@ -20,11 +20,13 @@ export const PUT = withAuth(async (request, { params }) => {
     if (role !== undefined) data.role = role;
     if (active !== undefined) data.active = active;
     if (password) data.password = hashSync(password, 10);
+    if (phone !== undefined) data.phone = phone.trim();
+    if (zaloUserId !== undefined) data.zaloUserId = zaloUserId.trim();
 
     const user = await prisma.user.update({
         where: { id },
         data,
-        select: { id: true, email: true, username: true, name: true, role: true, active: true, createdAt: true },
+        select: { id: true, email: true, username: true, name: true, role: true, active: true, phone: true, zaloUserId: true, createdAt: true },
     });
     return NextResponse.json(user);
 }, { roles: ['giam_doc'] });

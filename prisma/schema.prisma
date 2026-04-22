@@ -24,6 +24,8 @@ model User {
   updatedAt DateTime @updatedAt
   pushToken String   @default("")
   username  String   @default("")
+  phone     String   @default("")
+  zaloUserId String  @default("")
 
   salesCustomers Customer[]     @relation("CustomerSalesPerson")
   workshopTasks  WorkshopTask[] @relation("TaskWorker")
