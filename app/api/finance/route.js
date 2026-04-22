@@ -28,7 +28,7 @@ export const GET = withAuth(async (request) => {
     const sevenDaysFromNow = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
 
     // All summary queries in parallel
-    const [receivables, payables, income, expense, expApproved, expPaid, expPending, upcomingPayments, supplierDebt] = await Promise.all([
+    const [receivables, payables, income, expense, expApproved, expPaid, expPending, upcomingPayments, supplierDebt, supplierDebtAgg, contractorDebtAgg] = await Promise.all([
         prisma.contractPayment.aggregate({ where: { contract: { deletedAt: null } }, _sum: { amount: true, paidAmount: true } }),
         prisma.contractorPayment.aggregate({ _sum: { contractAmount: true, paidAmount: true } }),
         prisma.transaction.aggregate({ where: { type: 'Thu' }, _sum: { amount: true } }),
@@ -71,11 +71,24 @@ export const GET = withAuth(async (request) => {
             orderBy: { orderDate: 'desc' },
             take: 100,
         }),
+        // Tổng SupplierDebt (NCC + service debt) — phát sinh + đã trả
+        prisma.supplierDebt.aggregate({ _sum: { totalAmount: true, paidAmount: true } }),
+        // Tổng ContractorDebt (Thầu phụ + service debt)
+        prisma.contractorDebt.aggregate({ _sum: { totalAmount: true, paidAmount: true } }),
     ]);
 
     const totalExpenseApproved = expApproved._sum.amount || 0;
     const totalExpensePaid = expPaid._sum.amount || 0;
     const totalExpensePending = expPending._sum.amount || 0;
+
+    const supplierDebtTotal = supplierDebtAgg._sum.totalAmount || 0;
+    const supplierDebtPaid = supplierDebtAgg._sum.paidAmount || 0;
+    const contractorDebtTotal = contractorDebtAgg._sum.totalAmount || 0;
+    const contractorDebtPaid = contractorDebtAgg._sum.paidAmount || 0;
+
+    // Tổng công nợ phải trả = tiến độ thầu phụ + NCC debt + Thầu phụ debt (đồng bộ với /cong-no)
+    const totalPayable = (payables._sum.contractAmount || 0) + supplierDebtTotal + contractorDebtTotal;
+    const totalPaidPayable = (payables._sum.paidAmount || 0) + supplierDebtPaid + contractorDebtPaid;
 
     return NextResponse.json({
         transactions,
@@ -85,16 +98,22 @@ export const GET = withAuth(async (request) => {
             totalReceivable: receivables._sum.amount || 0,
             totalReceived: receivables._sum.paidAmount || 0,
             receivableOutstanding: (receivables._sum.amount || 0) - (receivables._sum.paidAmount || 0),
-            totalPayable: payables._sum.contractAmount || 0,
-            totalPaid: payables._sum.paidAmount || 0,
-            payableOutstanding: (payables._sum.contractAmount || 0) - (payables._sum.paidAmount || 0),
+            totalPayable,
+            totalPaid: totalPaidPayable,
+            payableOutstanding: totalPayable - totalPaidPayable,
+            // Chi tiết từng loại công nợ để UI phân tách nếu cần
+            payableBreakdown: {
+                contractorProgress: (payables._sum.contractAmount || 0) - (payables._sum.paidAmount || 0),
+                supplierDebt: supplierDebtTotal - supplierDebtPaid,
+                contractorDebt: contractorDebtTotal - contractorDebtPaid,
+            },
             totalExpenseApproved,
             totalExpensePaid,
             totalExpensePending,
             manualIncome: income._sum.amount || 0,
             manualExpense: expense._sum.amount || 0,
             netCashflow: (receivables._sum.paidAmount || 0) + (income._sum.amount || 0)
-                - (payables._sum.paidAmount || 0) - totalExpensePaid - (expense._sum.amount || 0),
+                - totalPaidPayable - totalExpensePaid - (expense._sum.amount || 0),
         },
     });
 }, { roles: ['giam_doc', 'ke_toan'] });
