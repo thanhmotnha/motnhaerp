@@ -4,16 +4,18 @@ import { useToast } from '@/components/ui/Toast';
 import { apiFetch } from '@/lib/fetchClient';
 
 const ROLES = [
-    { value: 'giam_doc',   label: 'Giám đốc' },
-    { value: 'ke_toan',    label: 'Kế toán' },
-    { value: 'kinh_doanh', label: 'Kinh doanh' },
-    { value: 'kho',        label: 'Kho' },
-    { value: 'ky_thuat',   label: 'Kỹ thuật' },
+    { value: 'giam_doc',   label: '👑 Giám đốc (Ban GĐ)' },
+    { value: 'ke_toan',    label: '📋 Hành chính' },
+    { value: 'kinh_doanh', label: '💼 Kinh doanh' },
+    { value: 'kho',        label: '🏭 Xưởng' },
+    { value: 'ky_thuat',   label: '🔧 Kỹ thuật' },
+    { value: 'thiet_ke',   label: '🎨 Thiết kế' },
 ];
 
 const ROLE_BADGE = {
     giam_doc: 'success', ke_toan: 'warning',
     kinh_doanh: 'primary', kho: 'info', ky_thuat: 'muted',
+    thiet_ke: 'warning',
 };
 
 const emptyForm = { name: '', email: '', username: '', password: '', role: 'ky_thuat' };
@@ -56,13 +58,21 @@ export default function UsersTab() {
 
     const startEdit = (u) => {
         setEditId(u.id);
-        setEditData({ name: u.name, username: u.username || '', role: u.role, active: u.active, password: '' });
+        setEditData({
+            name: u.name, username: u.username || '',
+            role: u.role, active: u.active, password: '',
+            phone: u.phone || '', zaloUserId: u.zaloUserId || '',
+        });
     };
 
     const saveEdit = async (id) => {
         setSaving(true);
         try {
-            const body = { name: editData.name, username: editData.username, role: editData.role, active: editData.active };
+            const body = {
+                name: editData.name, username: editData.username,
+                role: editData.role, active: editData.active,
+                phone: editData.phone, zaloUserId: editData.zaloUserId,
+            };
             if (editData.password) body.password = editData.password;
             await apiFetch(`/api/admin/users/${id}`, { method: 'PUT', body });
             toast.success('Đã cập nhật');
@@ -114,7 +124,7 @@ export default function UsersTab() {
             ) : (
                 <table className="data-table">
                     <thead><tr>
-                        <th>Họ tên</th><th>Username</th><th>Email</th><th>Vai trò</th><th>Trạng thái</th><th>Ngày tạo</th><th></th>
+                        <th>Họ tên</th><th>Username</th><th>Email</th><th>Vai trò</th><th>SĐT</th><th>Zalo ID</th><th>Trạng thái</th><th></th>
                     </tr></thead>
                     <tbody>
                         {users.map(u => (
@@ -147,6 +157,24 @@ export default function UsersTab() {
                                 </td>
                                 <td>
                                     {editId === u.id
+                                        ? <input className="form-input" value={editData.phone}
+                                            onChange={e => setEditData(d => ({ ...d, phone: e.target.value }))}
+                                            style={{ width: 110 }} placeholder="09..." />
+                                        : <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>{u.phone || '—'}</span>
+                                    }
+                                </td>
+                                <td>
+                                    {editId === u.id
+                                        ? <input className="form-input" value={editData.zaloUserId}
+                                            onChange={e => setEditData(d => ({ ...d, zaloUserId: e.target.value }))}
+                                            style={{ width: 140 }} placeholder="Zalo user ID" />
+                                        : (u.zaloUserId
+                                            ? <span style={{ fontSize: 11, color: '#0068FF', fontWeight: 600 }}>💬 {u.zaloUserId.slice(0, 10)}…</span>
+                                            : <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>—</span>)
+                                    }
+                                </td>
+                                <td>
+                                    {editId === u.id
                                         ? <label style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}>
                                             <input type="checkbox" checked={editData.active}
                                                 onChange={e => setEditData(d => ({ ...d, active: e.target.checked }))} />
@@ -156,9 +184,6 @@ export default function UsersTab() {
                                             {u.active ? 'Hoạt động' : 'Tạm khóa'}
                                         </span>
                                     }
-                                </td>
-                                <td style={{ fontSize: 12, color: 'var(--text-muted)' }}>
-                                    {new Date(u.createdAt).toLocaleDateString('vi-VN')}
                                 </td>
                                 <td style={{ display: 'flex', gap: 4 }}>
                                     {editId === u.id ? (
