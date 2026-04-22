@@ -11,7 +11,7 @@ import {
     Activity, ClipboardCheck, Banknote, Settings, ShieldCheck,
     Shield, Plus, ArrowRightLeft,
     CheckCircle, BookOpen, HardHat, PiggyBank, CalendarDays, Landmark,
-    ArrowDownLeft, ArrowUpRight, Armchair
+    ArrowDownLeft, ArrowUpRight, Armchair, Briefcase
 } from 'lucide-react';
 import { useRole } from '@/contexts/RoleContext';
 
@@ -72,6 +72,7 @@ const menuItems = [
             { href: '/budget', icon: PiggyBank, label: 'Ngân sách', roles: ['giam_doc', 'ke_toan'] },
             { href: '/cong-no', icon: Landmark, label: 'Công nợ', roles: ['giam_doc', 'ke_toan'] },
             { href: '/overhead', icon: Building2, label: 'Chi phí chung', roles: ['giam_doc', 'ke_toan'] },
+            { href: '/expenses/services', icon: Briefcase, label: 'Chi phí dịch vụ', roles: ['giam_doc', 'ke_toan'] },
         ]
     },
     {
