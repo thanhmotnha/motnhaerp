@@ -61,7 +61,14 @@ export default function MaterialTab({ project: p, projectId, onRefresh }) {
                 body: fd,
             });
             const json = await res.json();
-            if (!res.ok) throw new Error(json.error || 'Lỗi import');
+            if (!res.ok) {
+                const detail = [
+                    json.error || 'Lỗi import',
+                    json.headerFound ? `\nHeader phát hiện: ${json.headerFound}` : '',
+                    json.details?.length ? '\n\n' + json.details.slice(0, 8).join('\n') : '',
+                ].filter(Boolean).join('');
+                throw new Error(detail);
+            }
             alert(`✓ Đã import ${json.imported}/${json.total} vật tư` + (json.errors?.length ? `\n\n⚠ Bỏ qua ${json.errors.length} dòng:\n${json.errors.slice(0, 5).join('\n')}` : ''));
             onRefresh();
         } catch (err) {

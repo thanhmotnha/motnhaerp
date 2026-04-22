@@ -41,8 +41,36 @@ export const POST = withAuth(async (request, { params }, session) => {
     }
 
     const sheet = workbook.Sheets[workbook.SheetNames[0]];
-    const rows = XLSX.utils.sheet_to_json(sheet, { defval: '' });
-    if (rows.length === 0) return NextResponse.json({ error: 'File trống' }, { status: 400 });
+
+    // Auto-detect header row: tìm row trong 10 row đầu có "tên vật tư"/"tên"/"name"
+    const raw = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' });
+    if (raw.length === 0) return NextResponse.json({ error: 'File trống' }, { status: 400 });
+    const NAME_ALIASES = ['tên vật tư', 'tên', 'ten', 'ten vat tu', 'name', 'mô tả', 'mo ta', 'description', 'sản phẩm', 'san pham'];
+    let headerIdx = -1;
+    for (let i = 0; i < Math.min(10, raw.length); i++) {
+        const cells = raw[i].map(c => String(c || '').toLowerCase().trim());
+        if (cells.some(c => NAME_ALIASES.includes(c))) { headerIdx = i; break; }
+    }
+    if (headerIdx < 0) {
+        const firstRowCells = raw[0].map(c => String(c || '').trim()).filter(Boolean);
+        return NextResponse.json({
+            error: 'Không tìm thấy cột "Tên vật tư" trong file. Cần có 1 cột với header là một trong: Tên vật tư, Tên, Name, Mô tả, Sản phẩm.',
+            details: [
+                'Header file của bạn: ' + (firstRowCells.length ? firstRowCells.join(' | ') : '(trống)'),
+                'Tải "📥 File mẫu" ở trên bảng để xem format chuẩn.',
+            ],
+        }, { status: 400 });
+    }
+
+    // Convert to object array với header row đã detect
+    const headers = raw[headerIdx].map(c => String(c || '').trim());
+    const rows = raw.slice(headerIdx + 1).map(row => {
+        const obj = {};
+        headers.forEach((h, j) => { if (h) obj[h] = row[j] ?? ''; });
+        return obj;
+    }).filter(r => Object.values(r).some(v => v !== '' && v != null));
+
+    if (rows.length === 0) return NextResponse.json({ error: 'File không có dòng data sau header' }, { status: 400 });
 
     // Map column aliases → canonical keys
     function pick(row, aliases) {
@@ -73,20 +101,28 @@ export const POST = withAuth(async (request, { params }, session) => {
         const wastePercent = toNumber(pick(row, ['hao phí', 'hao phi', 'waste', 'hao phí %'])) || 5;
         const notes = String(pick(row, ['ghi chú', 'ghi chu', 'notes', 'note'])).trim();
 
-        return { idx: idx + 2, code, name, unit, quantity, unitPrice, totalAmount, category, wastePercent, notes };
+        return { idx: headerIdx + 2 + idx, code, name, unit, quantity, unitPrice, totalAmount, category, wastePercent, notes };
     });
 
     const errors = [];
     const valid = [];
     for (const row of parsed) {
-        if (!row.name || row.quantity <= 0) {
-            errors.push(`Dòng ${row.idx}: thiếu tên vật tư hoặc số lượng`);
+        if (!row.name) {
+            errors.push(`Dòng ${row.idx}: thiếu tên vật tư (cột "Tên vật tư")`);
+            continue;
+        }
+        if (row.quantity <= 0) {
+            errors.push(`Dòng ${row.idx}: "${row.name}" — thiếu hoặc sai số lượng (cột "Số lượng")`);
             continue;
         }
         valid.push(row);
     }
     if (valid.length === 0) {
-        return NextResponse.json({ error: 'Không có dòng hợp lệ', details: errors }, { status: 400 });
+        return NextResponse.json({
+            error: `Không có dòng hợp lệ trong ${parsed.length} dòng đọc được. Kiểm tra header: cần cột "Tên vật tư" + "Số lượng" > 0.`,
+            details: errors.slice(0, 10),
+            headerFound: headers.filter(Boolean).join(' | '),
+        }, { status: 400 });
     }
 
     // Create/lookup products + create MaterialPlan
