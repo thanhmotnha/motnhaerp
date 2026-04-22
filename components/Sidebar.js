@@ -61,7 +61,6 @@ const menuItems = [
             { href: '/workshop/work-log', icon: ClipboardList, label: 'Nhật ký ca làm', roles: ['giam_doc', 'ke_toan', 'kho'] },
             { href: '/workshop/timeline', icon: ClipboardList, label: 'Timeline xưởng', roles: ['giam_doc', 'ke_toan', 'kho'] },
             { href: '/noi-that', icon: Armchair, label: 'Dự án Nội thất', roles: ['giam_doc', 'ke_toan', 'kho', 'ky_thuat', 'thiet_ke'] },
-            { href: '/punch-list?source=workshop', icon: Shield, label: 'Sự cố hiện trường', roles: ['giam_doc', 'ke_toan', 'kho', 'ky_thuat'] },
             { href: '/workshop/workers', icon: ClipboardCheck, label: 'Chấm công xưởng', roles: ['giam_doc', 'ke_toan', 'kho'] },
         ]
     },
