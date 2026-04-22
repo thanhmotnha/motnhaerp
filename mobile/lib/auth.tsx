@@ -1,5 +1,7 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { getToken, getUser, login as apiLogin, logout as apiLogout, subscribeAuthInvalid } from '@/lib/api';
+import { registerForPushAsync, clearPushToken } from '@/lib/pushNotifications';
+import { disableBiometric } from '@/lib/biometric';
 
 type User = { id: string; name: string; email: string; role: string } | null;
 
@@ -43,12 +45,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const login = async (email: string, password: string) => {
         const data = await apiLogin(email, password);
         setUser(data.user);
+        // Fire-and-forget push token registration
+        registerForPushAsync().catch(() => { });
     };
 
     const logout = async () => {
+        await clearPushToken().catch(() => { });
+        await disableBiometric().catch(() => { });
         await apiLogout();
         setUser(null);
     };
+
+    // Re-register push on app start if authenticated
+    useEffect(() => {
+        if (user && !loading) {
+            registerForPushAsync().catch(() => { });
+        }
+    }, [user?.id, loading]);
 
     return (
         <AuthContext.Provider value={{ user, loading, login, logout }}>

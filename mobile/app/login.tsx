@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
     View,
     Text,
@@ -10,8 +10,13 @@ import {
     ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { Alert } from 'react-native';
 import { useAuth } from '@/lib/auth';
 import Colors, { fontWeight } from '@/constants/Colors';
+import {
+    isBiometricAvailable, isBiometricEnabled, authenticateBiometric,
+    enableBiometric, hasStoredCredentials,
+} from '@/lib/biometric';
 
 const c = Colors.light;
 
@@ -22,25 +27,57 @@ export default function LoginScreen() {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
     const [showPass, setShowPass] = useState(false);
+    const [bioAvailable, setBioAvailable] = useState(false);
+    const [bioEnabled, setBioEnabled] = useState(false);
+    const [bioTypes, setBioTypes] = useState<string[]>([]);
+
+    useEffect(() => {
+        (async () => {
+            const { available, types } = await isBiometricAvailable();
+            setBioAvailable(available);
+            setBioTypes(types);
+            const enabled = await isBiometricEnabled();
+            const hasCreds = await hasStoredCredentials();
+            setBioEnabled(enabled && hasCreds);
+            if (available && enabled && hasCreds) {
+                setTimeout(() => handleBioLogin(), 300);
+            }
+        })();
+    }, []);
+
+    const handleBioLogin = async () => {
+        try {
+            const creds = await authenticateBiometric();
+            if (!creds) return;
+            setLoading(true); setError('');
+            await login(creds.email, creds.password);
+        } catch (e: any) {
+            setError(e.message || 'Đăng nhập thất bại');
+        } finally { setLoading(false); }
+    };
 
     const handleLogin = async () => {
         const resolvedEmail = email.trim();
-
         if (!resolvedEmail || !password) {
             setError('Vui lòng nhập đầy đủ thông tin');
             return;
         }
-
-        setLoading(true);
-        setError('');
-
+        setLoading(true); setError('');
         try {
             await login(resolvedEmail, password);
+            if (bioAvailable && !bioEnabled) {
+                Alert.alert(
+                    `Bật đăng nhập ${bioTypes[0] || 'sinh trắc'}?`,
+                    'Lần sau đăng nhập nhanh không cần gõ mật khẩu',
+                    [
+                        { text: 'Không', style: 'cancel' },
+                        { text: 'Bật', onPress: () => enableBiometric(resolvedEmail, password) },
+                    ]
+                );
+            }
         } catch (e: any) {
             setError(e.message || 'Đăng nhập thất bại');
-        } finally {
-            setLoading(false);
-        }
+        } finally { setLoading(false); }
     };
 
     return (
@@ -120,6 +157,19 @@ export default function LoginScreen() {
                         </View>
                     )}
                 </TouchableOpacity>
+
+                {bioAvailable && bioEnabled && (
+                    <TouchableOpacity
+                        style={[s.btn, { backgroundColor: 'transparent', borderWidth: 1.5, borderColor: c.primary, marginTop: 10 }]}
+                        onPress={handleBioLogin}
+                        activeOpacity={0.85}
+                    >
+                        <View style={s.btnRow}>
+                            <Ionicons name="finger-print" size={20} color={c.primary} />
+                            <Text style={[s.btnText, { color: c.primary }]}>Dùng {bioTypes[0] || 'sinh trắc học'}</Text>
+                        </View>
+                    </TouchableOpacity>
+                )}
 
                 <Text style={s.footer}>Một Nhà Interior © 2026</Text>
             </View>
