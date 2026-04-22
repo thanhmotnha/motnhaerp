@@ -1,5 +1,6 @@
 import { withAuth } from '@/lib/apiHandler';
 import prisma from '@/lib/prisma';
+import { Prisma } from '@prisma/client';
 import { NextResponse } from 'next/server';
 
 // GET /api/projects/[id]/pnl
@@ -13,6 +14,8 @@ export const GET = withAuth(async (request, { params }) => {
         allocatedExpenses,
         contractorPays,
         purchaseOrders,
+        supplierDebts,
+        contractorDebts,
     ] = await Promise.all([
         // Revenue: contract payments received
         prisma.contract.findMany({
@@ -38,6 +41,16 @@ export const GET = withAuth(async (request, { params }) => {
         prisma.purchaseOrder.findMany({
             where: { projectId: id },
             select: { totalAmount: true, paidAmount: true, status: true },
+        }),
+        // Service debt (supplier) chưa thanh toán có phân bổ vào dự án
+        prisma.supplierDebt.findMany({
+            where: { status: { in: ['open', 'partial'] }, allocationPlan: { not: Prisma.JsonNull } },
+            select: { totalAmount: true, paidAmount: true, allocationPlan: true },
+        }),
+        // Service debt (contractor) chưa thanh toán có phân bổ vào dự án
+        prisma.contractorDebt.findMany({
+            where: { status: { in: ['open', 'partial'] }, allocationPlan: { not: Prisma.JsonNull } },
+            select: { totalAmount: true, paidAmount: true, allocationPlan: true },
         }),
     ]);
 
@@ -75,6 +88,18 @@ export const GET = withAuth(async (request, { params }) => {
 
     const totalPOCost = purchaseOrders.reduce((s, o) => s + (o.totalAmount || 0), 0);
     const totalPOPaid = purchaseOrders.reduce((s, o) => s + (o.paidAmount || 0), 0);
+
+    // === Pending service debt (cash-basis chưa trả) phân bổ về dự án này ===
+    const computeShare = (debt) => {
+        const remaining = Math.max(0, (debt.totalAmount || 0) - (debt.paidAmount || 0));
+        const plan = Array.isArray(debt.allocationPlan) ? debt.allocationPlan : [];
+        const entry = plan.find(a => a && a.projectId === id);
+        const ratio = entry && typeof entry.ratio === 'number' ? entry.ratio : 0;
+        return remaining * ratio;
+    };
+    const pendingServiceDebt =
+        supplierDebts.reduce((s, d) => s + computeShare(d), 0) +
+        contractorDebts.reduce((s, d) => s + computeShare(d), 0);
 
     // === P&L ===
     const totalCost = totalExpenses + totalContractorCost + totalPOCost;
@@ -117,5 +142,6 @@ export const GET = withAuth(async (request, { params }) => {
             totalCostPaid,
             cashProfit,
         },
+        pendingServiceDebt,
     });
 }, { roles: ['giam_doc', 'ke_toan'] });

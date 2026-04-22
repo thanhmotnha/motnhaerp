@@ -892,6 +892,23 @@ export default function CongNoPage() {
                         <div style={{ marginBottom: 12, padding: '8px 12px', background: 'var(--bg-secondary)', borderRadius: 6, fontSize: 13 }}>
                             Còn nợ: <strong style={{ color: '#ef4444' }}>{fmtVND(showPayForm.remaining)}</strong>
                         </div>
+                        {Array.isArray(showPayForm.allocationPlan) && showPayForm.allocationPlan.length > 0 && (
+                            <div style={{ marginBottom: 12, padding: '10px 12px', background: 'rgba(59, 130, 246, 0.08)', border: '1px solid rgba(59, 130, 246, 0.25)', borderRadius: 6, fontSize: 12 }}>
+                                <div style={{ fontWeight: 600, marginBottom: 6, color: 'var(--status-info)' }}>📊 Phân bổ chi phí dự kiến</div>
+                                {showPayForm.allocationPlan.map((a, i) => {
+                                    const proRata = Number(payForm.amount || 0) * Number(a.ratio || 0);
+                                    const projName = projects.find(p => p.id === a.projectId)?.name || a.projectId;
+                                    return (
+                                        <div key={i} style={{ padding: '2px 0', fontFamily: 'monospace' }}>
+                                            🏗️ {projName} ({Math.round(Number(a.ratio || 0) * 100)}%) → <strong>{fmtVND(proRata)}</strong>
+                                        </div>
+                                    );
+                                })}
+                                <div style={{ marginTop: 6, fontSize: 11, fontStyle: 'italic', color: 'var(--text-secondary)' }}>
+                                    ⚡ Khi xác nhận, hệ thống tự tạo chi phí tương ứng vào từng dự án
+                                </div>
+                            </div>
+                        )}
                         <div className="form-group">
                             <label className="form-label">Số tiền *</label>
                             <input className="form-input" type="number" min="1" max={showPayForm.remaining} value={payForm.amount} onChange={e => setPayForm({ ...payForm, amount: e.target.value })} />

@@ -179,6 +179,88 @@ function PaymentAlertsCard() {
     );
 }
 
+function ServiceDebtCard({ enabled }) {
+    const [summary, setSummary] = useState(null);
+    const [loadErr, setLoadErr] = useState(false);
+    useEffect(() => {
+        if (!enabled) return;
+        fetch('/api/dashboard/service-summary')
+            .then(r => r.ok ? r.json() : Promise.reject(r.status))
+            .then(setSummary)
+            .catch(() => setLoadErr(true));
+    }, [enabled]);
+    if (!enabled || loadErr) return null;
+    if (!summary) return null;
+    const pendingTotal = summary.pending?.total || 0;
+    const pendingCount = summary.pending?.count || 0;
+    const paidCount = summary.paid?.count || 0;
+    const top = summary.topUnpaidBySupplier || [];
+    const cats = summary.byCategory || [];
+    return (
+        <div className="card" style={{ marginBottom: 16, borderLeft: '4px solid #DC2626' }}>
+            <div className="card-header" style={{ paddingLeft: 12, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <h3 style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    💼 Công nợ dịch vụ
+                    {pendingCount > 0 && (
+                        <span style={{ background: '#DC2626', color: '#fff', fontSize: 11, fontWeight: 700, padding: '1px 8px', borderRadius: 10 }}>{pendingCount}</span>
+                    )}
+                </h3>
+                <a href="/expenses/services" style={{ fontSize: 12, color: '#234093', textDecoration: 'none', fontWeight: 600 }}>Xem chi tiết →</a>
+            </div>
+            <div style={{ padding: '14px 20px 18px' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 12, marginBottom: top.length || cats.length ? 16 : 0 }}>
+                    <div style={{ padding: '14px 16px', background: 'rgba(220,38,38,0.05)', border: '1px solid rgba(220,38,38,0.15)', borderRadius: 10 }}>
+                        <div style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>Tổng còn nợ</div>
+                        <div style={{ fontSize: 26, fontWeight: 800, color: '#DC2626', lineHeight: 1.1 }}>{fmt(pendingTotal)}</div>
+                        <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4 }}>{pendingCount} khoản chưa trả</div>
+                    </div>
+                    <div style={{ padding: '14px 16px', background: 'var(--bg-secondary)', borderRadius: 10 }}>
+                        <div style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>Đã thanh toán (tích lũy)</div>
+                        <div style={{ fontSize: 20, fontWeight: 800, color: '#16A34A', lineHeight: 1.1 }}>{fmt(summary.paid?.total || 0)}</div>
+                        <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4 }}>{paidCount} khoản đã xong</div>
+                    </div>
+                </div>
+                {(top.length > 0 || cats.length > 0) && (
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 16 }}>
+                        {top.length > 0 && (
+                            <div>
+                                <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Top còn nợ theo NCC / Thầu phụ</div>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                                    {top.map((t, i) => (
+                                        <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '7px 10px', borderRadius: 6, background: 'var(--bg-secondary)' }}>
+                                            <div style={{ minWidth: 0 }}>
+                                                <div style={{ fontSize: 13, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.recipientName}</div>
+                                                <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>{t.recipientType} · {t.debtCount} khoản</div>
+                                            </div>
+                                            <span style={{ fontSize: 13, fontWeight: 700, color: '#DC2626', marginLeft: 8, whiteSpace: 'nowrap' }}>{fmtShort(t.remaining)}</span>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+                        {cats.length > 0 && (
+                            <div>
+                                <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Theo hạng mục</div>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                                    {cats.map((c, i) => (
+                                        <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '7px 10px', borderRadius: 6, background: 'var(--bg-secondary)' }}>
+                                            <div style={{ minWidth: 0 }}>
+                                                <div style={{ fontSize: 13, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.category}</div>
+                                                <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>{c.count} khoản</div>
+                                            </div>
+                                            <span style={{ fontSize: 13, fontWeight: 700, color: '#7C3AED', marginLeft: 8, whiteSpace: 'nowrap' }}>{fmtShort(c.totalPending)}</span>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                )}
+            </div>
+        </div>
+    );
+}
+
 function ActivityFeed() {
     const [items, setItems] = useState(null);
     useEffect(() => {
@@ -485,6 +567,9 @@ export default function Dashboard() {
 
             {/* Payment alerts */}
             <PaymentAlertsCard />
+
+            {/* Công nợ dịch vụ (chỉ giam_doc + ke_toan — API tự chặn theo role) */}
+            <ServiceDebtCard enabled={canViewFinance} />
 
             {/* Block 1 — Tài chính tháng này (chỉ giam_doc + ke_toan) */}
             {canViewFinance && (() => {

@@ -4,6 +4,7 @@ import { NextResponse } from 'next/server';
 import { generateCode } from '@/lib/generateCode';
 import { debtPaymentSchema } from '@/lib/validations/debt';
 import { createServiceExpenseFromPayment } from '@/lib/serviceDebtExpense';
+import { notifyServiceDebtPayment } from '@/lib/zaloNotify';
 
 export const POST = withAuth(async (request, { params }, session) => {
     const { id } = await params;
@@ -94,6 +95,38 @@ export const POST = withAuth(async (request, { params }, session) => {
 
         return p;
     });
+
+    // Fire-and-forget Zalo notify cho service debt (có allocationPlan)
+    if (debt.allocationPlan && payment?.expenseId) {
+        (async () => {
+            try {
+                const exp = await prisma.projectExpense.findUnique({
+                    where: { id: payment.expenseId },
+                    include: { allocations: { include: { project: { select: { name: true } } } } },
+                });
+                if (exp) {
+                    const projectAllocations = exp.allocations.map(a => ({
+                        projectName: a.project?.name || a.projectId,
+                        amount: a.amount,
+                        ratio: a.ratio,
+                    }));
+                    const currentAfter = await prisma.supplierDebt.findUnique({
+                        where: { id },
+                        select: { totalAmount: true, paidAmount: true },
+                    });
+                    const remainingAfter = (currentAfter?.totalAmount || 0) - (currentAfter?.paidAmount || 0);
+                    await notifyServiceDebtPayment({
+                        debtCode: debt.code,
+                        recipientName: debt.supplier?.name || '',
+                        serviceCategory: debt.serviceCategory,
+                        amountPaid: data.amount,
+                        remaining: remainingAfter,
+                        projectAllocations,
+                    });
+                }
+            } catch {}
+        })().catch(() => {});
+    }
 
     return NextResponse.json(payment, { status: 201 });
 }, { roles: ['giam_doc', 'ke_toan'] });

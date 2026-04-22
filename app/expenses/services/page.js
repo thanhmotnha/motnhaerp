@@ -37,6 +37,11 @@ export default function ServiceExpensesPage() {
     const [form, setForm] = useState(emptyForm());
     const [saving, setSaving] = useState(false);
     const [paying, setPaying] = useState(false);
+    const [importing, setImporting] = useState(false);
+
+    // Search + filter state
+    const [search, setSearch] = useState('');
+    const [statusFilter, setStatusFilter] = useState('all'); // all | open | partial | paid
 
     function emptyForm() {
         return {
@@ -159,6 +164,79 @@ export default function ServiceExpensesPage() {
     const totalDebt = pendingDebts.reduce((s, d) => s + (d.totalAmount - d.paidAmount), 0);
     const totalExpense = expenses.reduce((s, e) => s + (e.amount || 0), 0);
 
+    // Derive status key for a debt
+    const debtStatusKey = (d) => {
+        if (d.paidAmount >= d.totalAmount - 0.01) return 'paid';
+        if (d.paidAmount > 0) return 'partial';
+        return 'open';
+    };
+
+    // Apply search + status filter to debts
+    const q = search.trim().toLowerCase();
+    const filteredDebts = debts.filter(d => {
+        if (statusFilter !== 'all' && debtStatusKey(d) !== statusFilter) return false;
+        if (!q) return true;
+        const hay = `${d.recipientName || ''} ${d.description || ''}`.toLowerCase();
+        return hay.includes(q);
+    });
+
+    // Apply search to expenses (by description/recipient in case present)
+    const filteredExpenses = expenses.filter(e => {
+        if (!q) return true;
+        const hay = `${e.description || ''} ${e.recipientName || ''} ${e.category || ''}`.toLowerCase();
+        return hay.includes(q);
+    });
+
+    const handleImportExcel = async (e) => {
+        const file = e.target.files?.[0];
+        e.target.value = ''; // cho phép chọn lại cùng file
+        if (!file) return;
+        setImporting(true);
+        try {
+            const fd = new FormData();
+            fd.append('file', file);
+            const res = await fetch('/api/service-debts/import-excel', {
+                method: 'POST',
+                body: fd,
+                credentials: 'include',
+            });
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok) {
+                throw new Error(data?.error || data?.message || 'Lỗi import');
+            }
+            const imported = data.imported ?? 0;
+            const total = data.total ?? 0;
+            const errs = Array.isArray(data.errors) ? data.errors : [];
+            if (errs.length > 0) {
+                toast.showToast(`Đã import ${imported}/${total} dòng · ${errs.length} lỗi`, 'warning');
+                console.warn('Import errors:', errs);
+            } else {
+                toast.showToast(`Đã import ${imported}/${total} dòng`, 'success');
+            }
+            load();
+        } catch (err) {
+            toast.showToast(err.message || 'Lỗi import Excel', 'error');
+        } finally {
+            setImporting(false);
+        }
+    };
+
+    const handleDeleteDebt = async (d) => {
+        if (d.paidAmount > 0) {
+            toast.showToast('Debt đã có thanh toán — không xóa được', 'error');
+            return;
+        }
+        const ok = window.confirm(`Xóa công nợ ${d.code || ''}?\nBên: ${d.recipientName}\nSố tiền: ${fmt(d.totalAmount)}\n\nHành động này không thể hoàn tác.`);
+        if (!ok) return;
+        try {
+            await apiFetch(`/api/service-debts/${d.id}`, { method: 'DELETE' });
+            toast.showToast('Đã xóa công nợ', 'success');
+            load();
+        } catch (e) {
+            toast.showToast(e.message || 'Lỗi xóa', 'error');
+        }
+    };
+
     return (
         <div style={{ padding: 20 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12, flexWrap: 'wrap', gap: 12 }}>
@@ -168,9 +246,39 @@ export default function ServiceExpensesPage() {
                         Nhập hóa đơn → <b>Công nợ</b>. Khi thanh toán → tự sinh <b>Chi phí dự án</b> phân bổ theo %.
                     </p>
                 </div>
-                <button className="btn btn-primary" onClick={() => { setForm(emptyForm()); setShowModal(true); }}>
-                    + Ghi nhận công nợ dịch vụ
-                </button>
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                    <button
+                        className="btn btn-ghost"
+                        onClick={() => window.open('/api/service-debts/import-excel/template', '_blank')}
+                        title="Tải file Excel mẫu để nhập công nợ dịch vụ"
+                    >
+                        📥 File mẫu
+                    </button>
+                    <label
+                        className="btn btn-ghost"
+                        style={{ cursor: importing ? 'wait' : 'pointer', opacity: importing ? 0.6 : 1 }}
+                        title="Import công nợ từ file Excel"
+                    >
+                        {importing ? '⏳ Đang import...' : '📂 Import Excel'}
+                        <input
+                            type="file"
+                            accept=".xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"
+                            style={{ display: 'none' }}
+                            onChange={handleImportExcel}
+                            disabled={importing}
+                        />
+                    </label>
+                    <button
+                        className="btn btn-ghost"
+                        onClick={() => window.open('/api/service-debts/export', '_blank')}
+                        title="Xuất báo cáo Excel"
+                    >
+                        📊 Export Excel
+                    </button>
+                    <button className="btn btn-primary" onClick={() => { setForm(emptyForm()); setShowModal(true); }}>
+                        + Ghi nhận công nợ dịch vụ
+                    </button>
+                </div>
             </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 12, marginBottom: 16 }}>
@@ -184,11 +292,61 @@ export default function ServiceExpensesPage() {
                 <TabBtn label={`💰 Đã chi (${expenses.length})`} active={tab === 'expenses'} onClick={() => setTab('expenses')} />
             </div>
 
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 10, flexWrap: 'wrap' }}>
+                <input
+                    type="search"
+                    className="form-input"
+                    placeholder="🔍 Tìm theo bên cung cấp / mô tả..."
+                    value={search}
+                    onChange={e => setSearch(e.target.value)}
+                    style={{ flex: '1 1 260px', maxWidth: 380 }}
+                />
+                {tab === 'debts' && (
+                    <select
+                        className="form-select"
+                        value={statusFilter}
+                        onChange={e => setStatusFilter(e.target.value)}
+                        style={{ maxWidth: 180 }}
+                        title="Lọc theo trạng thái"
+                    >
+                        <option value="all">Tất cả trạng thái</option>
+                        <option value="open">Còn nợ (chưa trả)</option>
+                        <option value="partial">Trả 1 phần</option>
+                        <option value="paid">Đã trả</option>
+                    </select>
+                )}
+                {(search || statusFilter !== 'all') && (
+                    <button
+                        className="btn btn-ghost btn-sm"
+                        onClick={() => { setSearch(''); setStatusFilter('all'); }}
+                        style={{ fontSize: 12 }}
+                    >
+                        ✕ Xóa lọc
+                    </button>
+                )}
+                <div style={{ marginLeft: 'auto', fontSize: 12, color: 'var(--text-muted)' }}>
+                    {tab === 'debts'
+                        ? `${filteredDebts.length}/${debts.length} công nợ`
+                        : `${filteredExpenses.length}/${expenses.length} chi phí`}
+                </div>
+            </div>
+
+            {tab === 'debts' && (
+                <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 8 }}>
+                    🗑️ Chỉ xóa được debt chưa thanh toán đồng nào. Nếu cần xóa debt đã trả → liên hệ admin.
+                </div>
+            )}
+
             {loading ? <div style={{ padding: 40, textAlign: 'center' }}>Đang tải...</div> : (
                 tab === 'debts' ? (
-                    <DebtsTable debts={debts} projectName={projectName} onPay={d => { setPayModal(d); setPayAmount(''); }} />
+                    <DebtsTable
+                        debts={filteredDebts}
+                        projectName={projectName}
+                        onPay={d => { setPayModal(d); setPayAmount(''); }}
+                        onDelete={handleDeleteDebt}
+                    />
                 ) : (
-                    <ExpensesTable expenses={expenses} />
+                    <ExpensesTable expenses={filteredExpenses} />
                 )
             )}
 
@@ -330,9 +488,9 @@ export default function ServiceExpensesPage() {
     );
 }
 
-function DebtsTable({ debts, projectName, onPay }) {
+function DebtsTable({ debts, projectName, onPay, onDelete }) {
     if (debts.length === 0) {
-        return <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-muted)' }}>Chưa có công nợ dịch vụ</div>;
+        return <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-muted)' }}>Không có công nợ phù hợp</div>;
     }
     return (
         <div className="table-container">
@@ -374,9 +532,21 @@ function DebtsTable({ debts, projectName, onPay }) {
                                 <td style={{ textAlign: 'right', fontFamily: 'monospace', color: 'var(--status-danger)', fontWeight: 600 }}>{fmt(remaining)}</td>
                                 <td><span style={{ padding: '2px 8px', borderRadius: 12, fontSize: 11, background: s.bg, color: s.color }}>{s.label}</span></td>
                                 <td>
-                                    {remaining > 0 && (
-                                        <button className="btn btn-primary btn-sm" style={{ fontSize: 11 }} onClick={() => onPay(d)}>💸 Trả</button>
-                                    )}
+                                    <div style={{ display: 'flex', gap: 4, justifyContent: 'flex-end' }}>
+                                        {remaining > 0 && (
+                                            <button className="btn btn-primary btn-sm" style={{ fontSize: 11 }} onClick={() => onPay(d)}>💸 Trả</button>
+                                        )}
+                                        {d.paidAmount === 0 && onDelete && (
+                                            <button
+                                                className="btn btn-ghost btn-sm"
+                                                style={{ fontSize: 12, color: 'var(--status-danger)', padding: '2px 6px' }}
+                                                onClick={() => onDelete(d)}
+                                                title="Xóa công nợ (chưa thanh toán)"
+                                            >
+                                                🗑️
+                                            </button>
+                                        )}
+                                    </div>
                                 </td>
                             </tr>
                         );
@@ -389,7 +559,7 @@ function DebtsTable({ debts, projectName, onPay }) {
 
 function ExpensesTable({ expenses }) {
     if (expenses.length === 0) {
-        return <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-muted)' }}>Chưa có chi phí đã chi nào</div>;
+        return <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-muted)' }}>Không có chi phí phù hợp</div>;
     }
     return (
         <div className="table-container">
