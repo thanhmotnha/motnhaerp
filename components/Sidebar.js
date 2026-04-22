@@ -56,9 +56,11 @@ const menuItems = [
     },
     {
         section: 'Xưởng', items: [
+            { href: '/workshops/tasks', icon: ClipboardList, label: 'Công việc xưởng', roles: ['giam_doc', 'ke_toan', 'kho'] },
             { href: '/noi-that', icon: Armchair, label: 'Dự án có nội thất', roles: ['giam_doc', 'ke_toan', 'kho', 'ky_thuat', 'thiet_ke'] },
             { href: '/production-batches', icon: Factory, label: 'Lệnh sản xuất', roles: ['giam_doc', 'ke_toan', 'kho', 'thiet_ke'] },
             { href: '/workshops', icon: Wrench, label: 'Quản lý xưởng', roles: ['giam_doc', 'ke_toan', 'kho'] },
+            { href: '/punch-list?source=workshop', icon: Shield, label: 'Sự cố hiện trường', roles: ['giam_doc', 'ke_toan', 'kho', 'ky_thuat'] },
             { href: '/hr?tab=attendance', icon: ClipboardCheck, label: 'Chấm công xưởng', roles: ['giam_doc', 'ke_toan', 'kho'] },
         ]
     },

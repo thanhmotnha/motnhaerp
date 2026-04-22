@@ -25,9 +25,38 @@ model User {
   pushToken String   @default("")
   username  String   @default("")
 
-  salesCustomers Customer[] @relation("CustomerSalesPerson")
+  salesCustomers Customer[]     @relation("CustomerSalesPerson")
+  workshopTasks  WorkshopTask[] @relation("TaskWorker")
+  assignedTasks  WorkshopTask[] @relation("TaskAssigner")
 
   @@index([username])
+}
+
+model WorkshopTask {
+  id                String           @id @default(cuid())
+  title             String
+  description       String           @default("")
+  workerId          String
+  worker            User             @relation("TaskWorker", fields: [workerId], references: [id])
+  assignedById      String
+  assignedBy        User             @relation("TaskAssigner", fields: [assignedById], references: [id])
+  dueDate           DateTime
+  status            String           @default("Chưa làm")
+  priority          String           @default("Bình thường")
+  productionBatchId String?
+  productionBatch   ProductionBatch? @relation(fields: [productionBatchId], references: [id])
+  projectId         String?
+  project           Project?         @relation("WorkshopTaskProject", fields: [projectId], references: [id])
+  completedPhotos   String[]         @default([])
+  completedNotes    String           @default("")
+  completedAt       DateTime?
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+
+  @@index([workerId])
+  @@index([dueDate])
+  @@index([status])
+  @@index([projectId])
 }
 
 model Customer {
@@ -149,6 +178,7 @@ model Project {
   stockIssues           StockIssue[]
   supplierDebts         SupplierDebt[]
   contractorDebts       ContractorDebt[]
+  workshopTasks         WorkshopTask[]       @relation("WorkshopTaskProject")
 
   @@index([customerId])
 }
@@ -1797,6 +1827,7 @@ model ProductionBatch {
   workshop         Workshop               @relation(fields: [workshopId], references: [id])
   batchItems       ProductionBatchItem[]
   costs            ProductionCost[]
+  workshopTasks    WorkshopTask[]
 
   @@index([furnitureOrderId])
   @@index([workshopId])
