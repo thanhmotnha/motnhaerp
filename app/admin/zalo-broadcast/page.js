@@ -52,6 +52,34 @@ const TEMPLATES = [
         target: 'all',
         body: () => `📣 THÔNG BÁO HỌP\n\n🕐 Thời gian: \n📍 Địa điểm: \n📝 Nội dung: \n\n✅ Có mặt đúng giờ.`,
     },
+    {
+        id: 'payroll',
+        icon: '💰',
+        title: 'Thanh toán lương',
+        target: 'all',
+        body: () => {
+            const now = new Date();
+            const month = `${String(now.getMonth() + 1).padStart(2, '0')}/${now.getFullYear()}`;
+            return `💰 LƯƠNG THÁNG ${month}\n\nLương đã chuyển vào tài khoản ngân hàng.\n\n📄 Chi tiết công + thưởng xem trong ứng dụng (Nhân sự → Bảng lương).\n❓ Thắc mắc liên hệ: Hành chính.\n\nCảm ơn anh em đã cố gắng!`;
+        },
+    },
+    {
+        id: 'holiday',
+        icon: '🎉',
+        title: 'Thông báo nghỉ lễ',
+        target: 'all',
+        body: () => `🎉 THÔNG BÁO NGHỈ LỄ\n\n📅 Dịp: \n🗓️ Nghỉ từ ngày ... đến ngày ...\n🏢 Đi làm lại: ngày ...\n\n⚠ Công trình đang thi công: vui lòng sắp xếp bảo vệ + khóa vật tư.\n\nChúc anh em kỳ nghỉ vui vẻ!`,
+    },
+    {
+        id: 'alert',
+        icon: '🚨',
+        title: 'Cảnh báo khẩn',
+        target: 'all',
+        body: () => {
+            const d = new Date().toLocaleString('vi-VN', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit' });
+            return `🚨 CẢNH BÁO KHẨN — ${d}\n\n⚠ Nội dung:\n\n\n📞 Liên hệ ngay nếu phát hiện thêm thông tin.\n🛑 Cần hành động ngay.`;
+        },
+    },
 ];
 
 export default function ZaloBroadcastPage() {
