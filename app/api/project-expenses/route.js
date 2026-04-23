@@ -333,6 +333,21 @@ export const DELETE = withAuth(async (request) => {
     });
     if (!expense) return NextResponse.json({ error: 'Không tìm thấy' }, { status: 404 });
 
+    // Service debt (cash-basis): expense sinh ra TỪ SupplierDebtPayment/ContractorDebtPayment
+    // Link qua Payment.expenseId (không qua debt.expenseId). Tìm các payment đã sinh expense này.
+    const [supplierPays, contractorPays] = await Promise.all([
+        prisma.supplierDebtPayment.findMany({
+            where: { expenseId: id },
+            include: { debt: { select: { id: true, code: true, totalAmount: true, paidAmount: true, allocationPlan: true } } },
+        }),
+        prisma.contractorDebtPayment.findMany({
+            where: { expenseId: id },
+            include: { debt: { select: { id: true, code: true, totalAmount: true, paidAmount: true, allocationPlan: true } } },
+        }),
+    ]);
+
+    const isServiceExpense = supplierPays.length > 0 || contractorPays.length > 0;
+
     if (expense.supplierDebt && expense.supplierDebt.paidAmount > 0) {
         return NextResponse.json({
             error: `Công nợ NCC ${expense.supplierDebt.code} đã có thanh toán ${expense.supplierDebt.paidAmount}. Hủy thanh toán trước khi xóa.`,
@@ -345,22 +360,55 @@ export const DELETE = withAuth(async (request) => {
     }
 
     await prisma.$transaction(async (tx) => {
+        // Service debt (cash-basis): revert paidAmount của debt + xóa payment
+        for (const p of supplierPays) {
+            const newPaid = Math.max(0, (p.debt?.paidAmount || 0) - p.amount);
+            const newStatus = newPaid <= 0 ? 'open' : (newPaid >= (p.debt?.totalAmount || 0) ? 'paid' : 'partial');
+            await tx.supplierDebt.update({
+                where: { id: p.debtId },
+                data: { paidAmount: newPaid, status: newStatus },
+            });
+            await tx.supplierDebtPayment.delete({ where: { id: p.id } });
+        }
+        for (const p of contractorPays) {
+            const newPaid = Math.max(0, (p.debt?.paidAmount || 0) - p.amount);
+            const newStatus = newPaid <= 0 ? 'open' : (newPaid >= (p.debt?.totalAmount || 0) ? 'paid' : 'partial');
+            await tx.contractorDebt.update({
+                where: { id: p.debtId },
+                data: { paidAmount: newPaid, status: newStatus },
+            });
+            await tx.contractorDebtPayment.delete({ where: { id: p.id } });
+        }
+
+        // Accrual (debt.expenseId = expense.id): xóa debt luôn
         if (expense.supplierDebt) {
             await tx.supplierDebt.delete({ where: { id: expense.supplierDebt.id } });
         }
         if (expense.contractorDebt) {
             await tx.contractorDebt.delete({ where: { id: expense.contractorDebt.id } });
         }
+
         if (expense.expenseType === 'Xuất kho') {
             await tx.inventoryTransaction.deleteMany({
                 where: { note: { contains: `Phiếu xuất kho ${expense.code}` } },
             });
         }
-        await tx.projectExpense.update({
-            where: { id },
-            data: { deletedAt: new Date() },
-        });
+
+        // Service expense: xóa allocations + hard delete (bypass soft-delete) để khớp behavior
+        // của endpoint /api/service-debts/[id]
+        if (isServiceExpense) {
+            await tx.expenseAllocation.deleteMany({ where: { expenseId: id } });
+            await tx.$executeRaw`DELETE FROM "ProjectExpense" WHERE id = ${id}`;
+        } else {
+            await tx.projectExpense.update({
+                where: { id },
+                data: { deletedAt: new Date() },
+            });
+        }
     });
 
-    return NextResponse.json({ ok: true });
+    return NextResponse.json({
+        ok: true,
+        revertedPayments: supplierPays.length + contractorPays.length,
+    });
 }, { roles: ['giam_doc', 'ke_toan'] });
