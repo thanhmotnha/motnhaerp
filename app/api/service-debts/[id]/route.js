@@ -147,19 +147,32 @@ export const DELETE = withAuth(
                 deletedExpenses = await tx.$executeRaw`DELETE FROM "ProjectExpense" WHERE id = ANY(${expenseIds})`;
             }
 
-            // 3. Xóa payments (cascade sẽ tự chạy khi xóa debt, nhưng làm explicit
-            //    để response có count chính xác và để chắc chắn nếu FK constraint bị
-            //    cấu hình lại sau này)
+            // 3. Xóa payments + ledger log đồng bộ
             let deletedPayments = 0;
+            const payments = debt.payments || [];
             if (kind === 'supplier') {
-                const res = await tx.supplierDebtPayment.deleteMany({
-                    where: { debtId: debt.id },
-                });
+                for (const p of payments) {
+                    const dayStart = new Date(p.date); dayStart.setHours(0, 0, 0, 0);
+                    const dayEnd = new Date(p.date); dayEnd.setHours(23, 59, 59, 999);
+                    const ledger = await tx.supplierPayment.findFirst({
+                        where: { supplierId: debt.supplierId, amount: p.amount, date: { gte: dayStart, lte: dayEnd } },
+                        orderBy: { createdAt: 'desc' },
+                    });
+                    if (ledger) await tx.supplierPayment.delete({ where: { id: ledger.id } });
+                }
+                const res = await tx.supplierDebtPayment.deleteMany({ where: { debtId: debt.id } });
                 deletedPayments = res.count;
             } else {
-                const res = await tx.contractorDebtPayment.deleteMany({
-                    where: { debtId: debt.id },
-                });
+                for (const p of payments) {
+                    const dayStart = new Date(p.date); dayStart.setHours(0, 0, 0, 0);
+                    const dayEnd = new Date(p.date); dayEnd.setHours(23, 59, 59, 999);
+                    const ledger = await tx.contractorPaymentLog.findFirst({
+                        where: { contractorId: debt.contractorId, amount: p.amount, date: { gte: dayStart, lte: dayEnd } },
+                        orderBy: { createdAt: 'desc' },
+                    });
+                    if (ledger) await tx.contractorPaymentLog.delete({ where: { id: ledger.id } });
+                }
+                const res = await tx.contractorDebtPayment.deleteMany({ where: { debtId: debt.id } });
                 deletedPayments = res.count;
             }
 

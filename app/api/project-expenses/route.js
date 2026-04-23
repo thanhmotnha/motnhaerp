@@ -360,24 +360,45 @@ export const DELETE = withAuth(async (request) => {
     }
 
     await prisma.$transaction(async (tx) => {
-        // Service debt (cash-basis): revert paidAmount của debt + xóa payment
+        // Service debt (cash-basis): revert paidAmount + xóa debt payment + ledger log
         for (const p of supplierPays) {
             const newPaid = Math.max(0, (p.debt?.paidAmount || 0) - p.amount);
             const newStatus = newPaid <= 0 ? 'open' : (newPaid >= (p.debt?.totalAmount || 0) ? 'paid' : 'partial');
+            const supplierId = (await tx.supplierDebt.findUnique({ where: { id: p.debtId }, select: { supplierId: true } }))?.supplierId;
             await tx.supplierDebt.update({
                 where: { id: p.debtId },
                 data: { paidAmount: newPaid, status: newStatus },
             });
             await tx.supplierDebtPayment.delete({ where: { id: p.id } });
+            // Xóa SupplierPayment đồng bộ sổ cái (tạo song song lúc pay) — match theo supplier+amount+date gần đúng
+            if (supplierId) {
+                const dayStart = new Date(p.date); dayStart.setHours(0, 0, 0, 0);
+                const dayEnd = new Date(p.date); dayEnd.setHours(23, 59, 59, 999);
+                const ledger = await tx.supplierPayment.findFirst({
+                    where: { supplierId, amount: p.amount, date: { gte: dayStart, lte: dayEnd } },
+                    orderBy: { createdAt: 'desc' },
+                });
+                if (ledger) await tx.supplierPayment.delete({ where: { id: ledger.id } });
+            }
         }
         for (const p of contractorPays) {
             const newPaid = Math.max(0, (p.debt?.paidAmount || 0) - p.amount);
             const newStatus = newPaid <= 0 ? 'open' : (newPaid >= (p.debt?.totalAmount || 0) ? 'paid' : 'partial');
+            const contractorId = (await tx.contractorDebt.findUnique({ where: { id: p.debtId }, select: { contractorId: true } }))?.contractorId;
             await tx.contractorDebt.update({
                 where: { id: p.debtId },
                 data: { paidAmount: newPaid, status: newStatus },
             });
             await tx.contractorDebtPayment.delete({ where: { id: p.id } });
+            if (contractorId) {
+                const dayStart = new Date(p.date); dayStart.setHours(0, 0, 0, 0);
+                const dayEnd = new Date(p.date); dayEnd.setHours(23, 59, 59, 999);
+                const ledger = await tx.contractorPaymentLog.findFirst({
+                    where: { contractorId, amount: p.amount, date: { gte: dayStart, lte: dayEnd } },
+                    orderBy: { createdAt: 'desc' },
+                });
+                if (ledger) await tx.contractorPaymentLog.delete({ where: { id: ledger.id } });
+            }
         }
 
         // Accrual (debt.expenseId = expense.id): xóa debt luôn
