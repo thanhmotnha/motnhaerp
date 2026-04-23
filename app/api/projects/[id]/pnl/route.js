@@ -1,5 +1,6 @@
 import { withAuth } from '@/lib/apiHandler';
 import prisma from '@/lib/prisma';
+import { Prisma } from '@prisma/client';
 import { NextResponse } from 'next/server';
 
 // GET /api/projects/[id]/pnl
@@ -55,12 +56,12 @@ export const GET = withAuth(async (request, { params }) => {
         }),
         // Service debt (supplier) chưa thanh toán có phân bổ vào dự án
         prisma.supplierDebt.findMany({
-            where: { status: { in: ['open', 'partial'] }, allocationPlan: { not: null } },
+            where: { status: { in: ['open', 'partial'] }, allocationPlan: { not: Prisma.DbNull } },
             select: { totalAmount: true, paidAmount: true, allocationPlan: true },
         }),
         // Service debt (contractor) chưa thanh toán có phân bổ vào dự án
         prisma.contractorDebt.findMany({
-            where: { status: { in: ['open', 'partial'] }, allocationPlan: { not: null } },
+            where: { status: { in: ['open', 'partial'] }, allocationPlan: { not: Prisma.DbNull } },
             select: { totalAmount: true, paidAmount: true, allocationPlan: true },
         }),
     ]);

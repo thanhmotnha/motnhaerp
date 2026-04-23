@@ -72,7 +72,7 @@ export default function ServiceExpensesPage() {
             setSuppliers(supRes?.data || supRes || []);
             setContractors(conRes?.data || conRes || []);
         } catch (e) {
-            toast.showToast(e.message || 'Lỗi tải dữ liệu', 'error');
+            toast.error(e.message || 'Lỗi tải dữ liệu');
         } finally { setLoading(false); }
     }, []);
 
@@ -101,13 +101,13 @@ export default function ServiceExpensesPage() {
 
     const submit = async () => {
         const amount = parseFloat(form.amount);
-        if (!amount || amount <= 0) return toast.showToast('Nhập số tiền', 'error');
-        if (!form.recipientId) return toast.showToast('Chọn nhà cung cấp/thầu phụ', 'error');
-        if (form.allocations.length === 0) return toast.showToast('Cần ít nhất 1 dự án', 'error');
-        if (form.allocations.some(a => !a.projectId)) return toast.showToast('Chọn dự án cho mọi dòng phân bổ', 'error');
-        if (Math.abs(totalRatio - 100) > 0.1) return toast.showToast(`Tổng phân bổ phải = 100% (hiện ${totalRatio}%)`, 'error');
+        if (!amount || amount <= 0) return toast.error('Nhập số tiền');
+        if (!form.recipientId) return toast.error('Chọn nhà cung cấp/thầu phụ');
+        if (form.allocations.length === 0) return toast.error('Cần ít nhất 1 dự án');
+        if (form.allocations.some(a => !a.projectId)) return toast.error('Chọn dự án cho mọi dòng phân bổ');
+        if (Math.abs(totalRatio - 100) > 0.1) return toast.error(`Tổng phân bổ phải = 100% (hiện ${totalRatio}%)`);
         const ids = form.allocations.map(a => a.projectId);
-        if (new Set(ids).size !== ids.length) return toast.showToast('Mỗi dự án chỉ chọn 1 lần', 'error');
+        if (new Set(ids).size !== ids.length) return toast.error('Mỗi dự án chỉ chọn 1 lần');
 
         const payload = {
             recipientType: form.recipientType,
@@ -126,21 +126,21 @@ export default function ServiceExpensesPage() {
         setSaving(true);
         try {
             await apiFetch('/api/service-debts', { method: 'POST', body: JSON.stringify(payload) });
-            toast.showToast('Đã ghi nhận công nợ dịch vụ', 'success');
+            toast.success('Đã ghi nhận công nợ dịch vụ');
             setShowModal(false);
             setForm(emptyForm());
             load();
         } catch (e) {
-            toast.showToast(e.message || 'Lỗi lưu', 'error');
+            toast.error(e.message || 'Lỗi lưu');
         } finally { setSaving(false); }
     };
 
     const pay = async () => {
         if (!payModal) return;
         const n = parseFloat(payAmount);
-        if (!n || n <= 0) return toast.showToast('Nhập số tiền', 'error');
+        if (!n || n <= 0) return toast.error('Nhập số tiền');
         const remaining = payModal.totalAmount - payModal.paidAmount;
-        if (n > remaining + 0.01) return toast.showToast(`Vượt số còn nợ (${fmt(remaining)})`, 'error');
+        if (n > remaining + 0.01) return toast.error(`Vượt số còn nợ (${fmt(remaining)})`);
         setPaying(true);
         try {
             const isNCC = payModal.recipientType === 'NCC';
@@ -148,12 +148,12 @@ export default function ServiceExpensesPage() {
                 ? `/api/debts/supplier/${payModal.id}/pay`
                 : `/api/debts/contractor/${payModal.id}/pay`;
             await apiFetch(url, { method: 'POST', body: JSON.stringify({ amount: n, date: new Date().toISOString() }) });
-            toast.showToast(`Đã trả ${fmt(n)} — chi phí đã phân bổ vào dự án`, 'success');
+            toast.success(`Đã trả ${fmt(n)} — chi phí đã phân bổ vào dự án`);
             setPayModal(null);
             setPayAmount('');
             load();
         } catch (e) {
-            toast.showToast(e.message || 'Lỗi thanh toán', 'error');
+            toast.error(e.message || 'Lỗi thanh toán');
         } finally { setPaying(false); }
     };
 
@@ -208,14 +208,14 @@ export default function ServiceExpensesPage() {
             const total = data.total ?? 0;
             const errs = Array.isArray(data.errors) ? data.errors : [];
             if (errs.length > 0) {
-                toast.showToast(`Đã import ${imported}/${total} dòng · ${errs.length} lỗi`, 'warning');
+                toast.warning(`Đã import ${imported}/${total} dòng · ${errs.length} lỗi`);
                 console.warn('Import errors:', errs);
             } else {
-                toast.showToast(`Đã import ${imported}/${total} dòng`, 'success');
+                toast.success(`Đã import ${imported}/${total} dòng`);
             }
             load();
         } catch (err) {
-            toast.showToast(err.message || 'Lỗi import Excel', 'error');
+            toast.error(err.message || 'Lỗi import Excel');
         } finally {
             setImporting(false);
         }
@@ -236,15 +236,14 @@ export default function ServiceExpensesPage() {
         try {
             const res = await apiFetch(`/api/project-expenses?id=${e.id}`, { method: 'DELETE' });
             const reverted = res?.revertedPayments || 0;
-            toast.showToast(
-                reverted > 0
+            toast.success(
+    reverted > 0
                     ? `Đã xóa chứng từ — revert ${reverted} khoản thanh toán, công nợ đã cập nhật`
                     : 'Đã xóa chứng từ',
-                'success',
-            );
+);
             load();
         } catch (err) {
-            toast.showToast(err.message || 'Lỗi xóa chứng từ', 'error');
+            toast.error(err.message || 'Lỗi xóa chứng từ');
         }
     };
 
@@ -270,10 +269,10 @@ export default function ServiceExpensesPage() {
             const msg2 = res?.deletedExpenses || res?.deletedPayments
                 ? `Đã xóa công nợ — revert ${res.deletedPayments || 0} thanh toán + ${res.deletedExpenses || 0} chứng từ`
                 : 'Đã xóa công nợ';
-            toast.showToast(msg2, 'success');
+            toast.success(msg2);
             load();
         } catch (e) {
-            toast.showToast(e.message || 'Lỗi xóa', 'error');
+            toast.error(e.message || 'Lỗi xóa');
         }
     };
 

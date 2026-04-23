@@ -1,5 +1,6 @@
 import { withAuth } from '@/lib/apiHandler';
 import prisma from '@/lib/prisma';
+import { Prisma } from '@prisma/client';
 import { parsePagination, paginatedResponse } from '@/lib/pagination';
 import { generateCode } from '@/lib/generateCode';
 import { NextResponse } from 'next/server';
@@ -89,22 +90,22 @@ export const GET = withAuth(async (request) => {
         }),
         // SupplierDebt accrual (debt thường, allocationPlan = null)
         prisma.supplierDebt.aggregate({
-            where: { allocationPlan: null },
+            where: { allocationPlan: { equals: Prisma.DbNull } },
             _sum: { totalAmount: true, paidAmount: true },
         }),
         // SupplierDebt service (cash-basis, có allocationPlan)
         prisma.supplierDebt.aggregate({
-            where: { allocationPlan: { not: null } },
+            where: { allocationPlan: { not: Prisma.DbNull } },
             _sum: { totalAmount: true, paidAmount: true },
         }),
         // ContractorDebt accrual
         prisma.contractorDebt.aggregate({
-            where: { allocationPlan: null },
+            where: { allocationPlan: { equals: Prisma.DbNull } },
             _sum: { totalAmount: true, paidAmount: true },
         }),
         // ContractorDebt service
         prisma.contractorDebt.aggregate({
-            where: { allocationPlan: { not: null } },
+            where: { allocationPlan: { not: Prisma.DbNull } },
             _sum: { totalAmount: true, paidAmount: true },
         }),
     ]);
