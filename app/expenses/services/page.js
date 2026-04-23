@@ -222,13 +222,29 @@ export default function ServiceExpensesPage() {
     };
 
     const handleDeleteExpense = async (e) => {
-        if (!window.confirm(`Xóa chứng từ ${e.code}? Công nợ sẽ được revert.`)) return;
+        const msg = [
+            `Xóa chứng từ ${e.code} (${fmt(e.amount)})?`,
+            '',
+            'Hệ thống sẽ tự động:',
+            '  • Giảm "Đã trả" của công nợ tương ứng',
+            '  • Cập nhật trạng thái công nợ (open/partial)',
+            '  • Xóa dòng chi phí ở các dự án được phân bổ',
+            '',
+            'Thao tác KHÔNG thể undo. Tiếp tục?',
+        ].join('\n');
+        if (!window.confirm(msg)) return;
         try {
-            await apiFetch(`/api/project-expenses?id=${e.id}`, { method: 'DELETE' });
-            toast.showToast('Đã xóa chứng từ — công nợ đã revert', 'success');
+            const res = await apiFetch(`/api/project-expenses?id=${e.id}`, { method: 'DELETE' });
+            const reverted = res?.revertedPayments || 0;
+            toast.showToast(
+                reverted > 0
+                    ? `Đã xóa chứng từ — revert ${reverted} khoản thanh toán, công nợ đã cập nhật`
+                    : 'Đã xóa chứng từ',
+                'success',
+            );
             load();
         } catch (err) {
-            toast.showToast(err.message || 'Lỗi xóa', 'error');
+            toast.showToast(err.message || 'Lỗi xóa chứng từ', 'error');
         }
     };
 
@@ -600,10 +616,11 @@ function ExpensesTable({ expenses, onDelete }) {
                             </td>
                             <td style={{ textAlign: 'right', fontFamily: 'monospace', fontWeight: 600 }}>{fmt(e.amount)}</td>
                             <td>
-                                {(e.paidAmount || 0) === 0 ? null : (
-                                    <button className="btn btn-ghost btn-sm" style={{ color: 'var(--status-danger)', fontSize: 11 }}
-                                        onClick={() => onDelete?.(e)}>🗑️ Xóa</button>
-                                )}
+                                <button className="btn btn-ghost btn-sm" style={{ color: 'var(--status-danger)', fontSize: 11 }}
+                                    onClick={() => onDelete?.(e)}
+                                    title="Xóa chứng từ lập sai — công nợ + số đã trả sẽ được revert tự động">
+                                    🗑️ Xóa
+                                </button>
                             </td>
                         </tr>
                     ))}
