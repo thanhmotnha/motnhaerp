@@ -249,15 +249,28 @@ export default function ServiceExpensesPage() {
     };
 
     const handleDeleteDebt = async (d) => {
-        if (d.paidAmount > 0) {
-            toast.showToast('Debt đã có thanh toán — không xóa được', 'error');
-            return;
-        }
-        const ok = window.confirm(`Xóa công nợ ${d.code || ''}?\nBên: ${d.recipientName}\nSố tiền: ${fmt(d.totalAmount)}\n\nHành động này không thể hoàn tác.`);
-        if (!ok) return;
+        const hasPaid = (d.paidAmount || 0) > 0;
+        const msg = [
+            `Xóa công nợ ${d.code || ''}?`,
+            `Bên: ${d.recipientName}`,
+            `Số tiền: ${fmt(d.totalAmount)}`,
+            hasPaid ? `Đã trả: ${fmt(d.paidAmount)} (sẽ revert)` : '',
+            '',
+            'Hệ thống sẽ tự động:',
+            '  • Xóa tất cả chứng từ chi phí đã sinh ra',
+            '  • Xóa tất cả allocations vào dự án',
+            '  • Xóa ghi chép thanh toán + sổ cái ledger',
+            '  • Xóa công nợ',
+            '',
+            'Thao tác KHÔNG thể undo. Tiếp tục?',
+        ].filter(Boolean).join('\n');
+        if (!window.confirm(msg)) return;
         try {
-            await apiFetch(`/api/service-debts/${d.id}`, { method: 'DELETE' });
-            toast.showToast('Đã xóa công nợ', 'success');
+            const res = await apiFetch(`/api/service-debts/${d.id}`, { method: 'DELETE' });
+            const msg2 = res?.deletedExpenses || res?.deletedPayments
+                ? `Đã xóa công nợ — revert ${res.deletedPayments || 0} thanh toán + ${res.deletedExpenses || 0} chứng từ`
+                : 'Đã xóa công nợ';
+            toast.showToast(msg2, 'success');
             load();
         } catch (e) {
             toast.showToast(e.message || 'Lỗi xóa', 'error');
@@ -360,7 +373,7 @@ export default function ServiceExpensesPage() {
 
             {tab === 'debts' && (
                 <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 8 }}>
-                    🗑️ Chỉ xóa được debt chưa thanh toán đồng nào. Nếu cần xóa debt đã trả → liên hệ admin.
+                    🗑️ Xóa công nợ lập sai — kể cả đã thanh toán 1 phần. Hệ thống tự revert ghi chép thanh toán, chứng từ + allocations.
                 </div>
             )}
 
@@ -563,12 +576,12 @@ function DebtsTable({ debts, projectName, onPay, onDelete }) {
                                         {remaining > 0 && (
                                             <button className="btn btn-primary btn-sm" style={{ fontSize: 11 }} onClick={() => onPay(d)}>💸 Trả</button>
                                         )}
-                                        {d.paidAmount === 0 && onDelete && (
+                                        {onDelete && (
                                             <button
                                                 className="btn btn-ghost btn-sm"
                                                 style={{ fontSize: 12, color: 'var(--status-danger)', padding: '2px 6px' }}
                                                 onClick={() => onDelete(d)}
-                                                title="Xóa công nợ (chưa thanh toán)"
+                                                title={d.paidAmount > 0 ? 'Xóa công nợ lập sai (sẽ revert đã trả)' : 'Xóa công nợ'}
                                             >
                                                 🗑️
                                             </button>
