@@ -3,8 +3,10 @@ import { useState, useEffect, useCallback, Fragment } from 'react';
 import { apiFetch } from '@/lib/fetchClient';
 import { fmtVND, fmtDate } from '@/lib/financeUtils';
 import { agingStatus, matchesAgingFilter, agingBadgeStyle } from '@/lib/debtAging';
+import { useToast } from '@/components/ui/Toast';
 
 export default function CongNoPage() {
+    const toast = useToast();
     const [activeTab, setActiveTab] = useState('ncc'); // 'ncc' | 'contractor'
     const [nccList, setNccList] = useState([]);
     const [contractorList, setContractorList] = useState([]);
@@ -53,9 +55,15 @@ export default function CongNoPage() {
             setContractorList(contractorRes.contractors || []);
         } catch (err) {
             console.error('Failed to load debt lists:', err);
+            const msg = 'Không tải được danh sách công nợ: ' + (err?.message || 'Lỗi');
+            if (toast && typeof toast.error === 'function') {
+                toast.error(msg);
+            } else {
+                alert(msg);
+            }
         }
         setLoadingList(false);
-    }, []);
+    }, [toast]);
 
     useEffect(() => { loadLists(); }, [loadLists]);
 
@@ -167,7 +175,7 @@ export default function CongNoPage() {
         const matchSearch = !search
             || s.name.toLowerCase().includes(search.toLowerCase())
             || (s.code || '').toLowerCase().includes(search.toLowerCase());
-        const matchFilter = filter === 'tat_ca' || s.soDu > 0;
+        const matchFilter = filter === 'tat_ca' || s.soDu > 0 || (s.serviceDebtRemaining || 0) > 0;
         return matchSearch && matchFilter;
     });
 
@@ -175,7 +183,7 @@ export default function CongNoPage() {
         const matchSearch = !search
             || c.name.toLowerCase().includes(search.toLowerCase())
             || (c.code || '').toLowerCase().includes(search.toLowerCase());
-        const matchFilter = filter === 'tat_ca' || c.soDu > 0;
+        const matchFilter = filter === 'tat_ca' || c.soDu > 0 || (c.serviceDebtRemaining || 0) > 0;
         return matchSearch && matchFilter;
     });
 
@@ -292,6 +300,7 @@ export default function CongNoPage() {
                                 <div style={{ minWidth: 0, flex: 1 }}>
                                     <div style={{ fontWeight: 500, fontSize: 13, color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                                         {item.name}
+                                        {item.serviceDebtRemaining > 0 && <span style={{ fontSize: 10, padding: '1px 6px', background: 'rgba(59,130,246,0.15)', color: 'var(--status-info)', borderRadius: 8, marginLeft: 4 }}>Dịch vụ: {fmtVND(item.serviceDebtRemaining)}</span>}
                                     </div>
                                     <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{item.code}</div>
                                 </div>

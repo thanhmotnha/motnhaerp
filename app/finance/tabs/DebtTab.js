@@ -113,7 +113,7 @@ export default function DebtTab({ summary, retentions, supplierDebt, onGhiNhanTT
 
     // Feature B — filtered NCC list
     const filteredNcc = (nccData.suppliers || []).filter(s => {
-        if (nccFilter === 'debt' && s.soDu <= 0) return false;
+        if (nccFilter === 'debt' && s.soDu <= 0 && (s.serviceDebtRemaining || 0) <= 0) return false;
         if (nccSearch && !s.name.toLowerCase().includes(nccSearch.toLowerCase()) && !s.code.toLowerCase().includes(nccSearch.toLowerCase())) return false;
         return true;
     });
@@ -199,6 +199,7 @@ export default function DebtTab({ summary, retentions, supplierDebt, onGhiNhanTT
                                             >
                                                 {s.name}
                                             </button>
+                                            {s.serviceDebtRemaining > 0 && <span style={{ fontSize: 10, padding: '1px 6px', background: 'rgba(59,130,246,0.15)', color: 'var(--status-info)', borderRadius: 8, marginLeft: 4 }}>Dịch vụ: {fmtVND(s.serviceDebtRemaining)}</span>}
                                         </td>
                                         <td style={{ textAlign: 'right' }}>
                                             <span style={{ marginRight: 4 }}>{fmtVND(s.openingBalance)}</span>
@@ -304,6 +305,7 @@ export default function DebtTab({ summary, retentions, supplierDebt, onGhiNhanTT
                                             >
                                                 {c.name}
                                             </span>
+                                            {c.serviceDebtRemaining > 0 && <span style={{ fontSize: 10, padding: '1px 6px', background: 'rgba(59,130,246,0.15)', color: 'var(--status-info)', borderRadius: 8, marginLeft: 4 }}>Dịch vụ: {fmtVND(c.serviceDebtRemaining)}</span>}
                                         </td>
                                         <td style={{ textAlign: 'right' }}>
                                             <span style={{ marginRight: 4 }}>{fmtVND(c.openingBalance)}</span>

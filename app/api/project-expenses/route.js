@@ -5,6 +5,7 @@ import { generateCode, withCodeRetry } from '@/lib/generateCode';
 import { NextResponse } from 'next/server';
 import { expenseCreateSchema, expenseUpdateSchema } from '@/lib/validations/expense';
 import { notifyPendingApproval } from '@/lib/zaloNotify';
+import { logActivity } from '@/lib/activityLogger';
 
 export const GET = withAuth(async (request) => {
     const { searchParams } = new URL(request.url);
@@ -133,6 +134,23 @@ export const POST = withAuth(async (request, context, session) => {
         }
     }
 
+    logActivity({
+        action: 'CREATE',
+        entityType: 'ProjectExpense',
+        entityId: expense.id,
+        entityLabel: expense.code,
+        actor: session.user.name,
+        actorId: session.user.id,
+        metadata: {
+            amount: expense.amount,
+            expenseType: expense.expenseType,
+            recipientType: expense.recipientType || null,
+            recipientId: expense.recipientId || null,
+            projectId: expense.projectId || null,
+            status: expense.status,
+        },
+    }).catch(() => { });
+
     // Notify giám đốc qua Zalo OA nếu expense ở trạng thái chờ duyệt
     if (expense.status === 'Chờ duyệt' && expense.amount > 0) {
         notifyPendingApproval({
@@ -174,12 +192,55 @@ export const PUT = withAuth(async (request, context, session) => {
 
     const existing = await prisma.projectExpense.findUnique({
         where: { id },
-        select: { recipientType: true, recipientId: true, amount: true, date: true, description: true, paymentAccount: true, proofUrl: true },
+        select: { recipientType: true, recipientId: true, amount: true, date: true, description: true, paymentAccount: true, proofUrl: true, status: true },
     });
 
     if (!existing) return NextResponse.json({ error: 'Không tìm thấy lệnh chi' }, { status: 404 });
 
+    // Idempotent guard: nếu expense đã ở trạng thái "Đã chi" và request muốn set lại "Đã chi",
+    // chỉ update metadata cơ bản — skip toàn bộ sync debt/payment để tránh double-pay.
+    const isAlreadyPaidIdempotent =
+        updateData.status === 'Đã chi' && existing.status === 'Đã chi';
+
+    // Pre-check: số tiền mới không được nhỏ hơn paidAmount của debt đã liên kết.
+    // Check ngoài transaction để có thể trả NextResponse 422.
+    const [preLinkedSupplierDebt, preLinkedContractorDebt] = await Promise.all([
+        prisma.supplierDebt.findUnique({ where: { expenseId: id }, select: { paidAmount: true } }),
+        prisma.contractorDebt.findUnique({ where: { expenseId: id }, select: { paidAmount: true } }),
+    ]);
+    const preNewTotal = updateData.amount ?? existing.amount;
+    if (preLinkedSupplierDebt && preNewTotal < preLinkedSupplierDebt.paidAmount) {
+        return NextResponse.json({
+            error: `Không thể giảm số tiền (${preNewTotal}) xuống dưới số đã trả (${preLinkedSupplierDebt.paidAmount})`,
+        }, { status: 422 });
+    }
+    if (preLinkedContractorDebt && preNewTotal < preLinkedContractorDebt.paidAmount) {
+        return NextResponse.json({
+            error: `Không thể giảm số tiền xuống dưới số đã trả thầu phụ`,
+        }, { status: 422 });
+    }
+
+    // Pre-generate codes NGOÀI transaction (generateCode dùng connection riêng, không chạy
+    // trong tx được) — theo pattern withCodeRetry. Chỉ gen nếu thực sự cần, tránh tốn sequence.
+    const needSupplierPayment =
+        !isAlreadyPaidIdempotent &&
+        updateData.status === 'Đã chi' &&
+        existing.recipientType === 'NCC' &&
+        !!existing.recipientId;
+    const needSupplierDebtPayment =
+        !isAlreadyPaidIdempotent && updateData.status === 'Đã chi' && !!preLinkedSupplierDebt;
+    const needContractorDebtPayment =
+        !isAlreadyPaidIdempotent && updateData.status === 'Đã chi' && !!preLinkedContractorDebt;
+
+    const [preSupplierPaymentCode, preSupplierDebtPaymentCode, preContractorDebtPaymentCode] =
+        await Promise.all([
+            needSupplierPayment ? generateCode('supplierPayment', 'SP') : Promise.resolve(null),
+            needSupplierDebtPayment ? generateCode('supplierDebtPayment', 'TTNCC') : Promise.resolve(null),
+            needContractorDebtPayment ? generateCode('contractorDebtPayment', 'TTTP') : Promise.resolve(null),
+        ]);
+
     const expense = await prisma.$transaction(async (tx) => {
+        // 1. Allocations sync
         if (allocations !== undefined) {
             await tx.expenseAllocation.deleteMany({ where: { expenseId: id } });
             if (allocations.length > 0) {
@@ -211,17 +272,44 @@ export const PUT = withAuth(async (request, context, session) => {
                 // Else: sum đã mismatch từ trước → không auto-scale, user phải tự fix
             }
         }
-        return tx.projectExpense.update({ where: { id }, data: updateData });
-    });
 
-    // Auto-create SupplierPayment khi status → "Đã chi" và là NCC
-    if (updateData.status === 'Đã chi' && existing?.recipientType === 'NCC' && existing?.recipientId) {
-        const alreadyLinked = await prisma.supplierPayment.findUnique({ where: { expenseId: id } });
-        if (!alreadyLinked) {
-            await withCodeRetry('supplierPayment', 'SP', (spCode) =>
-                prisma.supplierPayment.create({
+        // 2. Update expense chính
+        const updated = await tx.projectExpense.update({ where: { id }, data: updateData });
+
+        // Idempotent: đã "Đã chi" → "Đã chi", skip toàn bộ sync debt/payment để tránh double-pay
+        if (isAlreadyPaidIdempotent) {
+            return updated;
+        }
+
+        // 3. Re-read debts TRONG transaction để có snapshot nhất quán
+        const linkedSupplierDebt = await tx.supplierDebt.findUnique({ where: { expenseId: id } });
+        const linkedContractorDebt = await tx.contractorDebt.findUnique({ where: { expenseId: id } });
+
+        const newTotal = updateData.amount ?? existing.amount;
+        const newDesc = updateData.description ?? existing.description;
+        const newDate = updateData.date ? new Date(updateData.date) : existing.date;
+
+        // 4. Sync metadata của debt (totalAmount/description/date)
+        if (linkedSupplierDebt) {
+            await tx.supplierDebt.update({
+                where: { id: linkedSupplierDebt.id },
+                data: { totalAmount: newTotal, description: newDesc, date: newDate },
+            });
+        }
+        if (linkedContractorDebt) {
+            await tx.contractorDebt.update({
+                where: { id: linkedContractorDebt.id },
+                data: { totalAmount: newTotal, description: newDesc, date: newDate },
+            });
+        }
+
+        // 5. Auto-create SupplierPayment khi status → "Đã chi" và là NCC
+        if (needSupplierPayment) {
+            const alreadyLinked = await tx.supplierPayment.findUnique({ where: { expenseId: id } });
+            if (!alreadyLinked) {
+                await tx.supplierPayment.create({
                     data: {
-                        code: spCode,
+                        code: preSupplierPaymentCode,
                         supplierId: existing.recipientId,
                         amount: updateData.amount ?? existing.amount,
                         date: updateData.date ? new Date(updateData.date) : existing.date,
@@ -230,94 +318,63 @@ export const PUT = withAuth(async (request, context, session) => {
                         expenseId: id,
                         createdById: session.user.id,
                     },
-                })
-            );
+                });
+            }
         }
-    }
 
-    // Sync linked debt totalAmount/description/date khi expense bị sửa
-    const linkedSupplierDebt = await prisma.supplierDebt.findUnique({ where: { expenseId: id } });
-    const linkedContractorDebt = await prisma.contractorDebt.findUnique({ where: { expenseId: id } });
+        // 6. Auto-tạo DebtPayment khi status → 'Đã chi'
+        if (updateData.status === 'Đã chi') {
+            const payAmount = updateData.amount ?? existing.amount;
+            const payDate = updateData.date ? new Date(updateData.date) : existing.date;
+            const payProofUrl = updateData.proofUrl ?? existing.proofUrl ?? '';
+            const payAccount = updateData.paymentAccount ?? existing.paymentAccount ?? '';
 
-    const newTotal = updateData.amount ?? existing.amount;
-    const newDesc = updateData.description ?? existing.description;
-    const newDate = updateData.date ? new Date(updateData.date) : existing.date;
-
-    if (linkedSupplierDebt) {
-        if (newTotal < linkedSupplierDebt.paidAmount) {
-            return NextResponse.json({
-                error: `Không thể giảm số tiền (${newTotal}) xuống dưới số đã trả (${linkedSupplierDebt.paidAmount})`,
-            }, { status: 422 });
+            if (linkedSupplierDebt && linkedSupplierDebt.paidAmount < newTotal) {
+                await tx.supplierDebtPayment.create({
+                    data: {
+                        code: preSupplierDebtPaymentCode,
+                        debtId: linkedSupplierDebt.id,
+                        amount: payAmount,
+                        date: payDate,
+                        notes: existing.description || '',
+                        proofUrl: payProofUrl,
+                        paymentAccount: payAccount,
+                        createdById: session.user.id,
+                    },
+                });
+                const newPaid = (linkedSupplierDebt.paidAmount || 0) + payAmount;
+                const newStatus = newPaid >= newTotal ? 'paid'
+                    : newPaid > 0 ? 'partial' : 'open';
+                await tx.supplierDebt.update({
+                    where: { id: linkedSupplierDebt.id },
+                    data: { paidAmount: newPaid, status: newStatus },
+                });
+            }
+            if (linkedContractorDebt && linkedContractorDebt.paidAmount < newTotal) {
+                await tx.contractorDebtPayment.create({
+                    data: {
+                        code: preContractorDebtPaymentCode,
+                        debtId: linkedContractorDebt.id,
+                        amount: payAmount,
+                        date: payDate,
+                        notes: existing.description || '',
+                        proofUrl: payProofUrl,
+                        paymentAccount: payAccount,
+                        createdById: session.user.id,
+                    },
+                });
+                const newPaid = (linkedContractorDebt.paidAmount || 0) + payAmount;
+                const newStatus = newPaid >= newTotal ? 'paid'
+                    : newPaid > 0 ? 'partial' : 'open';
+                await tx.contractorDebt.update({
+                    where: { id: linkedContractorDebt.id },
+                    data: { paidAmount: newPaid, status: newStatus },
+                });
+            }
         }
-        await prisma.supplierDebt.update({
-            where: { id: linkedSupplierDebt.id },
-            data: { totalAmount: newTotal, description: newDesc, date: newDate },
-        });
-    }
-    if (linkedContractorDebt) {
-        if (newTotal < linkedContractorDebt.paidAmount) {
-            return NextResponse.json({
-                error: `Không thể giảm số tiền xuống dưới số đã trả thầu phụ`,
-            }, { status: 422 });
-        }
-        await prisma.contractorDebt.update({
-            where: { id: linkedContractorDebt.id },
-            data: { totalAmount: newTotal, description: newDesc, date: newDate },
-        });
-    }
 
-    // Auto-tạo DebtPayment khi status → 'Đã chi'
-    if (updateData.status === 'Đã chi') {
-        const payAmount = updateData.amount ?? existing.amount;
-        const payDate = updateData.date ? new Date(updateData.date) : existing.date;
-        const payProofUrl = updateData.proofUrl ?? existing.proofUrl ?? '';
-        const payAccount = updateData.paymentAccount ?? existing.paymentAccount ?? '';
-
-        if (linkedSupplierDebt && linkedSupplierDebt.paidAmount < linkedSupplierDebt.totalAmount) {
-            const pCode = await generateCode('supplierDebtPayment', 'TTNCC');
-            await prisma.supplierDebtPayment.create({
-                data: {
-                    code: pCode,
-                    debtId: linkedSupplierDebt.id,
-                    amount: payAmount,
-                    date: payDate,
-                    notes: existing.description || '',
-                    proofUrl: payProofUrl,
-                    paymentAccount: payAccount,
-                    createdById: session.user.id,
-                },
-            });
-            const newPaid = (linkedSupplierDebt.paidAmount || 0) + payAmount;
-            const newStatus = newPaid >= linkedSupplierDebt.totalAmount ? 'paid'
-                : newPaid > 0 ? 'partial' : 'open';
-            await prisma.supplierDebt.update({
-                where: { id: linkedSupplierDebt.id },
-                data: { paidAmount: newPaid, status: newStatus },
-            });
-        }
-        if (linkedContractorDebt && linkedContractorDebt.paidAmount < linkedContractorDebt.totalAmount) {
-            const pCode = await generateCode('contractorDebtPayment', 'TTTP');
-            await prisma.contractorDebtPayment.create({
-                data: {
-                    code: pCode,
-                    debtId: linkedContractorDebt.id,
-                    amount: payAmount,
-                    date: payDate,
-                    notes: existing.description || '',
-                    proofUrl: payProofUrl,
-                    paymentAccount: payAccount,
-                    createdById: session.user.id,
-                },
-            });
-            const newPaid = (linkedContractorDebt.paidAmount || 0) + payAmount;
-            const newStatus = newPaid >= linkedContractorDebt.totalAmount ? 'paid'
-                : newPaid > 0 ? 'partial' : 'open';
-            await prisma.contractorDebt.update({
-                where: { id: linkedContractorDebt.id },
-                data: { paidAmount: newPaid, status: newStatus },
-            });
-        }
-    }
+        return updated;
+    });
 
     return NextResponse.json(expense);
 });
@@ -361,44 +418,32 @@ export const DELETE = withAuth(async (request) => {
 
     await prisma.$transaction(async (tx) => {
         // Service debt (cash-basis): revert paidAmount + xóa debt payment + ledger log
+        // Ledger (SupplierPayment/ContractorPaymentLog) gắn FK `expenseId` = expense đang xóa
+        // → xóa thẳng bằng deleteMany thay vì match mò supplier+amount+date.
         for (const p of supplierPays) {
             const newPaid = Math.max(0, (p.debt?.paidAmount || 0) - p.amount);
             const newStatus = newPaid <= 0 ? 'open' : (newPaid >= (p.debt?.totalAmount || 0) ? 'paid' : 'partial');
-            const supplierId = (await tx.supplierDebt.findUnique({ where: { id: p.debtId }, select: { supplierId: true } }))?.supplierId;
             await tx.supplierDebt.update({
                 where: { id: p.debtId },
                 data: { paidAmount: newPaid, status: newStatus },
             });
             await tx.supplierDebtPayment.delete({ where: { id: p.id } });
-            // Xóa SupplierPayment đồng bộ sổ cái (tạo song song lúc pay) — match theo supplier+amount+date gần đúng
-            if (supplierId) {
-                const dayStart = new Date(p.date); dayStart.setHours(0, 0, 0, 0);
-                const dayEnd = new Date(p.date); dayEnd.setHours(23, 59, 59, 999);
-                const ledger = await tx.supplierPayment.findFirst({
-                    where: { supplierId, amount: p.amount, date: { gte: dayStart, lte: dayEnd } },
-                    orderBy: { createdAt: 'desc' },
-                });
-                if (ledger) await tx.supplierPayment.delete({ where: { id: ledger.id } });
-            }
         }
         for (const p of contractorPays) {
             const newPaid = Math.max(0, (p.debt?.paidAmount || 0) - p.amount);
             const newStatus = newPaid <= 0 ? 'open' : (newPaid >= (p.debt?.totalAmount || 0) ? 'paid' : 'partial');
-            const contractorId = (await tx.contractorDebt.findUnique({ where: { id: p.debtId }, select: { contractorId: true } }))?.contractorId;
             await tx.contractorDebt.update({
                 where: { id: p.debtId },
                 data: { paidAmount: newPaid, status: newStatus },
             });
             await tx.contractorDebtPayment.delete({ where: { id: p.id } });
-            if (contractorId) {
-                const dayStart = new Date(p.date); dayStart.setHours(0, 0, 0, 0);
-                const dayEnd = new Date(p.date); dayEnd.setHours(23, 59, 59, 999);
-                const ledger = await tx.contractorPaymentLog.findFirst({
-                    where: { contractorId, amount: p.amount, date: { gte: dayStart, lte: dayEnd } },
-                    orderBy: { createdAt: 'desc' },
-                });
-                if (ledger) await tx.contractorPaymentLog.delete({ where: { id: ledger.id } });
-            }
+        }
+
+        // Xóa ledger bằng FK expenseId (bao gồm cả ledger từ supplierPays/contractorPays ở trên
+        // và bất kỳ ledger nào khác cùng expense)
+        if (isServiceExpense) {
+            await tx.supplierPayment.deleteMany({ where: { expenseId: id } });
+            await tx.contractorPaymentLog.deleteMany({ where: { expenseId: id } });
         }
 
         // Accrual (debt.expenseId = expense.id): xóa debt luôn

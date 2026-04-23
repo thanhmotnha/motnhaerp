@@ -221,6 +221,17 @@ export default function ServiceExpensesPage() {
         }
     };
 
+    const handleDeleteExpense = async (e) => {
+        if (!window.confirm(`Xóa chứng từ ${e.code}? Công nợ sẽ được revert.`)) return;
+        try {
+            await apiFetch(`/api/project-expenses?id=${e.id}`, { method: 'DELETE' });
+            toast.showToast('Đã xóa chứng từ — công nợ đã revert', 'success');
+            load();
+        } catch (err) {
+            toast.showToast(err.message || 'Lỗi xóa', 'error');
+        }
+    };
+
     const handleDeleteDebt = async (d) => {
         if (d.paidAmount > 0) {
             toast.showToast('Debt đã có thanh toán — không xóa được', 'error');
@@ -310,7 +321,7 @@ export default function ServiceExpensesPage() {
                         title="Lọc theo trạng thái"
                     >
                         <option value="all">Tất cả trạng thái</option>
-                        <option value="open">Còn nợ (chưa trả)</option>
+                        <option value="open">Chưa trả</option>
                         <option value="partial">Trả 1 phần</option>
                         <option value="paid">Đã trả</option>
                     </select>
@@ -346,7 +357,7 @@ export default function ServiceExpensesPage() {
                         onDelete={handleDeleteDebt}
                     />
                 ) : (
-                    <ExpensesTable expenses={filteredExpenses} />
+                    <ExpensesTable expenses={filteredExpenses} onDelete={handleDeleteExpense} />
                 )
             )}
 
@@ -363,7 +374,7 @@ export default function ServiceExpensesPage() {
                                 <div className="form-group">
                                     <label className="form-label">Loại dịch vụ *</label>
                                     <select className="form-select" value={form.category} onChange={e => setForm({ ...form, category: e.target.value })}>
-                                        {SERVICE_CATEGORIES.map(c => <option key={c.key}>{c.icon} {c.key}</option>)}
+                                        {SERVICE_CATEGORIES.map(c => <option key={c.key} value={c.key}>{c.icon} {c.key}</option>)}
                                     </select>
                                 </div>
                                 <div className="form-group">
@@ -557,7 +568,7 @@ function DebtsTable({ debts, projectName, onPay, onDelete }) {
     );
 }
 
-function ExpensesTable({ expenses }) {
+function ExpensesTable({ expenses, onDelete }) {
     if (expenses.length === 0) {
         return <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-muted)' }}>Không có chi phí phù hợp</div>;
     }
@@ -572,6 +583,7 @@ function ExpensesTable({ expenses }) {
                         <th>Mô tả</th>
                         <th>Phân bổ</th>
                         <th style={{ textAlign: 'right' }}>Số tiền</th>
+                        <th></th>
                     </tr>
                 </thead>
                 <tbody>
@@ -587,6 +599,12 @@ function ExpensesTable({ expenses }) {
                                 ))}
                             </td>
                             <td style={{ textAlign: 'right', fontFamily: 'monospace', fontWeight: 600 }}>{fmt(e.amount)}</td>
+                            <td>
+                                {(e.paidAmount || 0) === 0 ? null : (
+                                    <button className="btn btn-ghost btn-sm" style={{ color: 'var(--status-danger)', fontSize: 11 }}
+                                        onClick={() => onDelete?.(e)}>🗑️ Xóa</button>
+                                )}
+                            </td>
                         </tr>
                     ))}
                 </tbody>

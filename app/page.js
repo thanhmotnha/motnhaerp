@@ -484,10 +484,14 @@ export default function Dashboard() {
     const [pnlAlerts, setPnlAlerts] = useState([]);
     const [monthlyData, setMonthlyData] = useState(null);
     const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
+    const [refreshTick, setRefreshTick] = useState(0);
     const { widgets, showConfig, setShowConfig, toggleWidget, moveWidget, resetConfig } = useDashboardWidgets();
 
     const load = useCallback((showRefresh = false) => {
-        if (showRefresh) setRefreshing(true);
+        if (showRefresh) {
+            setRefreshing(true);
+            setRefreshTick(t => t + 1);
+        }
         const requests = [fetch('/api/dashboard').then(r => r.json())];
         if (canViewFinance) {
             requests.push(fetch('/api/reports/debt').then(r => r.json()));
@@ -569,7 +573,7 @@ export default function Dashboard() {
             <PaymentAlertsCard />
 
             {/* Công nợ dịch vụ (chỉ giam_doc + ke_toan — API tự chặn theo role) */}
-            <ServiceDebtCard enabled={canViewFinance} />
+            <ServiceDebtCard key={refreshTick} enabled={canViewFinance} />
 
             {/* Block 1 — Tài chính tháng này (chỉ giam_doc + ke_toan) */}
             {canViewFinance && (() => {

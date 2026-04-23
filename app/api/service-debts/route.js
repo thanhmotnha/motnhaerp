@@ -1,6 +1,7 @@
 import { withAuth } from '@/lib/apiHandler';
 import prisma from '@/lib/prisma';
 import { generateCode } from '@/lib/generateCode';
+import { logActivity } from '@/lib/activityLogger';
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 
@@ -126,6 +127,21 @@ export const POST = withAuth(async (request, _ctx, session) => {
             },
             include: { supplier: { select: { id: true, name: true } } },
         });
+        logActivity({
+            action: 'CREATE',
+            entityType: 'ServiceDebt',
+            entityId: debt.id,
+            entityLabel: debt.code,
+            actor: session.user.name,
+            actorId: session.user.id,
+            metadata: {
+                recipientType: 'NCC',
+                recipientId: data.recipientId,
+                amount: data.amount,
+                category: data.category,
+                allocations: allocationPlan,
+            },
+        }).catch(() => { });
         return NextResponse.json({ ...debt, recipientType: 'NCC', recipientName: debt.supplier?.name || '' }, { status: 201 });
     } else {
         // Thầu phụ: schema yêu cầu projectId NOT NULL → dùng project đầu tiên
@@ -147,6 +163,21 @@ export const POST = withAuth(async (request, _ctx, session) => {
             },
             include: { contractor: { select: { id: true, name: true } } },
         });
+        logActivity({
+            action: 'CREATE',
+            entityType: 'ServiceDebt',
+            entityId: debt.id,
+            entityLabel: debt.code,
+            actor: session.user.name,
+            actorId: session.user.id,
+            metadata: {
+                recipientType: 'Thầu phụ',
+                recipientId: data.recipientId,
+                amount: data.amount,
+                category: data.category,
+                allocations: allocationPlan,
+            },
+        }).catch(() => { });
         return NextResponse.json({ ...debt, recipientType: 'Thầu phụ', recipientName: debt.contractor?.name || '' }, { status: 201 });
     }
 }, { roles: ['giam_doc', 'ke_toan'] });

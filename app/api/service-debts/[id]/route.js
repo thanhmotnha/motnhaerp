@@ -148,10 +148,20 @@ export const DELETE = withAuth(
             }
 
             // 3. Xóa payments + ledger log đồng bộ
+            //    Ưu tiên xóa theo FK `expenseId` (chính xác). Fallback match
+            //    supplier/contractor + amount + date ±1 ngày cho ledger cũ trước migration.
             let deletedPayments = 0;
             const payments = debt.payments || [];
             if (kind === 'supplier') {
+                // Xóa ledger theo FK trước
+                if (expenseIds.length > 0) {
+                    await tx.supplierPayment.deleteMany({
+                        where: { expenseId: { in: expenseIds } },
+                    });
+                }
+                // Fallback cho payments không có expenseId (dữ liệu cũ)
                 for (const p of payments) {
+                    if (p.expenseId) continue;
                     const dayStart = new Date(p.date); dayStart.setHours(0, 0, 0, 0);
                     const dayEnd = new Date(p.date); dayEnd.setHours(23, 59, 59, 999);
                     const ledger = await tx.supplierPayment.findFirst({
@@ -163,7 +173,13 @@ export const DELETE = withAuth(
                 const res = await tx.supplierDebtPayment.deleteMany({ where: { debtId: debt.id } });
                 deletedPayments = res.count;
             } else {
+                if (expenseIds.length > 0) {
+                    await tx.contractorPaymentLog.deleteMany({
+                        where: { expenseId: { in: expenseIds } },
+                    });
+                }
                 for (const p of payments) {
+                    if (p.expenseId) continue;
                     const dayStart = new Date(p.date); dayStart.setHours(0, 0, 0, 0);
                     const dayEnd = new Date(p.date); dayEnd.setHours(23, 59, 59, 999);
                     const ledger = await tx.contractorPaymentLog.findFirst({
