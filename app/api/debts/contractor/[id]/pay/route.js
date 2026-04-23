@@ -36,6 +36,9 @@ export const POST = withAuth(async (request, { params }, session) => {
                 where: { id },
                 select: { totalAmount: true, paidAmount: true },
             });
+            if (!current) {
+                throw new Error('DEBT_DELETED');
+            }
             const newPaid = current.paidAmount + data.amount;
             const newStatus = newPaid >= current.totalAmount ? 'paid' : 'partial';
 
@@ -112,6 +115,12 @@ export const POST = withAuth(async (request, { params }, session) => {
         if (err?.message === RACE_ERROR) {
             return NextResponse.json(
                 { error: 'Công nợ vừa được cập nhật bởi người khác, vui lòng thử lại' },
+                { status: 409 },
+            );
+        }
+        if (err?.message === 'DEBT_DELETED') {
+            return NextResponse.json(
+                { error: 'Công nợ đã bị xóa trong lúc bạn thao tác' },
                 { status: 409 },
             );
         }

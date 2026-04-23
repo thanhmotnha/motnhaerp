@@ -5,6 +5,8 @@ import { generateCode } from '@/lib/generateCode';
 import { NextResponse } from 'next/server';
 import { transactionCreateSchema } from '@/lib/validations/transaction';
 
+export const dynamic = 'force-dynamic';
+
 export const GET = withAuth(async (request) => {
     const { searchParams } = new URL(request.url);
     const { page, limit, skip } = parsePagination(searchParams);
@@ -28,7 +30,21 @@ export const GET = withAuth(async (request) => {
     const sevenDaysFromNow = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
 
     // All summary queries in parallel
-    const [receivables, payables, income, expense, expApproved, expPaid, expPending, upcomingPayments, supplierDebt, supplierDebtAgg, contractorDebtAgg] = await Promise.all([
+    const [
+        receivables,
+        payables,
+        income,
+        expense,
+        expApproved,
+        expPaid,
+        expPending,
+        upcomingPayments,
+        supplierDebt,
+        supplierDebtAccrualAgg,
+        supplierDebtServiceAgg,
+        contractorDebtAccrualAgg,
+        contractorDebtServiceAgg,
+    ] = await Promise.all([
         prisma.contractPayment.aggregate({ where: { contract: { deletedAt: null } }, _sum: { amount: true, paidAmount: true } }),
         prisma.contractorPayment.aggregate({ _sum: { contractAmount: true, paidAmount: true } }),
         prisma.transaction.aggregate({ where: { type: 'Thu' }, _sum: { amount: true } }),
@@ -71,20 +87,45 @@ export const GET = withAuth(async (request) => {
             orderBy: { orderDate: 'desc' },
             take: 100,
         }),
-        // Tổng SupplierDebt (NCC + service debt) — phát sinh + đã trả
-        prisma.supplierDebt.aggregate({ _sum: { totalAmount: true, paidAmount: true } }),
-        // Tổng ContractorDebt (Thầu phụ + service debt)
-        prisma.contractorDebt.aggregate({ _sum: { totalAmount: true, paidAmount: true } }),
+        // SupplierDebt accrual (debt thường, allocationPlan = null)
+        prisma.supplierDebt.aggregate({
+            where: { allocationPlan: null },
+            _sum: { totalAmount: true, paidAmount: true },
+        }),
+        // SupplierDebt service (cash-basis, có allocationPlan)
+        prisma.supplierDebt.aggregate({
+            where: { allocationPlan: { not: null } },
+            _sum: { totalAmount: true, paidAmount: true },
+        }),
+        // ContractorDebt accrual
+        prisma.contractorDebt.aggregate({
+            where: { allocationPlan: null },
+            _sum: { totalAmount: true, paidAmount: true },
+        }),
+        // ContractorDebt service
+        prisma.contractorDebt.aggregate({
+            where: { allocationPlan: { not: null } },
+            _sum: { totalAmount: true, paidAmount: true },
+        }),
     ]);
 
     const totalExpenseApproved = expApproved._sum.amount || 0;
     const totalExpensePaid = expPaid._sum.amount || 0;
     const totalExpensePending = expPending._sum.amount || 0;
 
-    const supplierDebtTotal = supplierDebtAgg._sum.totalAmount || 0;
-    const supplierDebtPaid = supplierDebtAgg._sum.paidAmount || 0;
-    const contractorDebtTotal = contractorDebtAgg._sum.totalAmount || 0;
-    const contractorDebtPaid = contractorDebtAgg._sum.paidAmount || 0;
+    const supplierDebtAccrualTotal = supplierDebtAccrualAgg._sum.totalAmount || 0;
+    const supplierDebtAccrualPaid = supplierDebtAccrualAgg._sum.paidAmount || 0;
+    const supplierDebtServiceTotal = supplierDebtServiceAgg._sum.totalAmount || 0;
+    const supplierDebtServicePaid = supplierDebtServiceAgg._sum.paidAmount || 0;
+    const contractorDebtAccrualTotal = contractorDebtAccrualAgg._sum.totalAmount || 0;
+    const contractorDebtAccrualPaid = contractorDebtAccrualAgg._sum.paidAmount || 0;
+    const contractorDebtServiceTotal = contractorDebtServiceAgg._sum.totalAmount || 0;
+    const contractorDebtServicePaid = contractorDebtServiceAgg._sum.paidAmount || 0;
+
+    const supplierDebtTotal = supplierDebtAccrualTotal + supplierDebtServiceTotal;
+    const supplierDebtPaid = supplierDebtAccrualPaid + supplierDebtServicePaid;
+    const contractorDebtTotal = contractorDebtAccrualTotal + contractorDebtServiceTotal;
+    const contractorDebtPaid = contractorDebtAccrualPaid + contractorDebtServicePaid;
 
     // Tổng công nợ phải trả = tiến độ thầu phụ + NCC debt + Thầu phụ debt (đồng bộ với /cong-no)
     const totalPayable = (payables._sum.contractAmount || 0) + supplierDebtTotal + contractorDebtTotal;
@@ -104,8 +145,14 @@ export const GET = withAuth(async (request) => {
             // Chi tiết từng loại công nợ để UI phân tách nếu cần
             payableBreakdown: {
                 contractorProgress: (payables._sum.contractAmount || 0) - (payables._sum.paidAmount || 0),
+                // Backward-compat: tổng gộp (accrual + service)
                 supplierDebt: supplierDebtTotal - supplierDebtPaid,
                 contractorDebt: contractorDebtTotal - contractorDebtPaid,
+                // Tách theo allocationPlan — accrual (debt thường) vs service (cash-basis)
+                supplierDebtAccrual: supplierDebtAccrualTotal - supplierDebtAccrualPaid,
+                supplierDebtService: supplierDebtServiceTotal - supplierDebtServicePaid,
+                contractorDebtAccrual: contractorDebtAccrualTotal - contractorDebtAccrualPaid,
+                contractorDebtService: contractorDebtServiceTotal - contractorDebtServicePaid,
             },
             totalExpenseApproved,
             totalExpensePaid,

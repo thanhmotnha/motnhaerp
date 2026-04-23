@@ -99,6 +99,21 @@ export const POST = withAuth(async (request, _ctx, session) => {
         return NextResponse.json({ error: 'Có dự án không tồn tại' }, { status: 400 });
     }
 
+    // Validate recipientId FK tồn tại + chưa soft-delete (tránh Prisma FK error khó debug)
+    if (data.recipientType === 'NCC') {
+        const s = await prisma.supplier.findFirst({
+            where: { id: data.recipientId, deletedAt: null },
+            select: { id: true, name: true },
+        });
+        if (!s) return NextResponse.json({ error: 'NCC không tồn tại hoặc đã xóa' }, { status: 400 });
+    } else {
+        const c = await prisma.contractor.findFirst({
+            where: { id: data.recipientId, deletedAt: null },
+            select: { id: true, name: true },
+        });
+        if (!c) return NextResponse.json({ error: 'Thầu phụ không tồn tại hoặc đã xóa' }, { status: 400 });
+    }
+
     const allocationPlan = data.allocations.map(a => ({
         projectId: a.projectId,
         ratio: a.ratio,
@@ -108,7 +123,7 @@ export const POST = withAuth(async (request, _ctx, session) => {
     const description = `${data.category} — ${data.recipientName}`;
 
     if (data.recipientType === 'NCC') {
-        const code = await generateCode('supplierDebt', 'CN');
+        const code = await generateCode('supplierDebt', 'SCN');
         const debt = await prisma.supplierDebt.create({
             data: {
                 code,
@@ -145,7 +160,7 @@ export const POST = withAuth(async (request, _ctx, session) => {
         return NextResponse.json({ ...debt, recipientType: 'NCC', recipientName: debt.supplier?.name || '' }, { status: 201 });
     } else {
         // Thầu phụ: schema yêu cầu projectId NOT NULL → dùng project đầu tiên
-        const code = await generateCode('contractorDebt', 'CNT');
+        const code = await generateCode('contractorDebt', 'SCT');
         const debt = await prisma.contractorDebt.create({
             data: {
                 code,

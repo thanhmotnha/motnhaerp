@@ -55,17 +55,35 @@ export const GET = withAuth(async (_request, { params }, session) => {
     const totalContractorCost = project.contractorPays.reduce((s, p) => s + (p.contractAmount ?? 0), 0);
 
     // Fetch allocation-aware expense totals in parallel
-    const [directExpenseAgg, allocatedExpenseAgg] = await Promise.all([
+    const [directExpenseAgg, directExpensePaidAgg, allocatedExpenseAgg, allocatedExpenses] = await Promise.all([
         prisma.projectExpense.aggregate({
             where: { projectId: project.id, deletedAt: null, status: { not: 'Từ chối' }, allocations: { none: {} } },
             _sum: { amount: true },
+        }),
+        prisma.projectExpense.aggregate({
+            where: { projectId: project.id, deletedAt: null, status: { not: 'Từ chối' }, allocations: { none: {} } },
+            _sum: { paidAmount: true },
         }),
         prisma.expenseAllocation.aggregate({
             where: { projectId: project.id, expense: { status: { not: 'Từ chối' }, deletedAt: null } },
             _sum: { amount: true },
         }),
+        // Service expense (projectId = null) được phân bổ vào project qua ExpenseAllocation — cần tính paidAmount pro-rata
+        prisma.expenseAllocation.findMany({
+            where: { projectId: project.id, expense: { deletedAt: null, status: { not: 'Từ chối' } } },
+            include: { expense: { select: { amount: true, paidAmount: true } } },
+        }),
     ]);
     const totalExpenses = Number(directExpenseAgg._sum.amount || 0) + Number(allocatedExpenseAgg._sum.amount || 0);
+
+    // Pro-rata paid amount từ service expense allocation (expense có projectId = null, phân bổ qua ExpenseAllocation)
+    const allocatedPaid = allocatedExpenses.reduce((s, a) => {
+        const exp = a.expense;
+        if (!exp || !exp.amount) return s;
+        const ratio = (a.amount ?? 0) / exp.amount;
+        return s + (exp.paidAmount ?? 0) * ratio;
+    }, 0);
+    const directExpensePaid = Number(directExpensePaidAgg._sum.paidAmount || 0);
 
     const totalCostB = totalPurchase + totalStockIssue + totalExpenses + totalContractorCost;
 
@@ -77,7 +95,8 @@ export const GET = withAuth(async (_request, { params }, session) => {
     const debtFromCustomer = totalA - totalCollected;
     const debtToContractors = project.contractorPays.reduce((s, p) => s + ((p.contractAmount ?? 0) - (p.paidAmount ?? 0)), 0);
     const totalPaidB = project.purchaseOrders.reduce((s, po) => s + (po.paidAmount ?? 0), 0)
-        + project.expenses.reduce((s, e) => s + (e.paidAmount ?? 0), 0)
+        + directExpensePaid // chi phí direct (projectId = project.id, không có allocations)
+        + allocatedPaid // chi phí service phân bổ pro-rata (projectId = null, qua ExpenseAllocation)
         + project.contractorPays.reduce((s, p) => s + (p.paidAmount ?? 0), 0)
         + totalStockIssue; // vật tư xuất kho: đã thanh toán khi nhập kho
 

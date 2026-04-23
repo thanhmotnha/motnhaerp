@@ -1,7 +1,7 @@
 import { withAuth } from '@/lib/apiHandler';
 import { parsePagination, paginatedResponse } from '@/lib/pagination';
 import prisma from '@/lib/prisma';
-import { generateCode, withCodeRetry } from '@/lib/generateCode';
+import { generateCode } from '@/lib/generateCode';
 import { NextResponse } from 'next/server';
 import { expenseCreateSchema, expenseUpdateSchema } from '@/lib/validations/expense';
 import { notifyPendingApproval } from '@/lib/zaloNotify';
@@ -54,6 +54,8 @@ export const POST = withAuth(async (request, context, session) => {
     const { allocations, ...data } = expenseCreateSchema.parse(body);
     const code = await generateCode('projectExpense', 'CP');
 
+    const SKIP_AUTO_DEBT_TYPES = new Set(['Xuất kho', 'Nội bộ']);
+
     const expense = await prisma.$transaction(async (tx) => {
         const exp = await tx.projectExpense.create({
             data: { code, ...data },
@@ -72,67 +74,63 @@ export const POST = withAuth(async (request, context, session) => {
             });
         }
 
-        return tx.projectExpense.findFirst({
+        const fullExp = await tx.projectExpense.findFirst({
             where: { id: exp.id },
             include: {
                 expenseCategory: { select: { id: true, name: true, code: true } },
                 allocations: { include: { project: { select: { id: true, name: true, code: true } } } },
             },
         });
-    });
 
-    // Auto-tạo Debt nếu expense là công nợ NCC/Thầu phụ
-    const SKIP_AUTO_DEBT_TYPES = new Set(['Xuất kho', 'Nội bộ']);
-    if (
-        expense.recipientType &&
-        expense.recipientId &&
-        !SKIP_AUTO_DEBT_TYPES.has(expense.expenseType) &&
-        (expense.recipientType === 'NCC' || expense.recipientType === 'Thầu phụ')
-    ) {
-        try {
-            if (expense.recipientType === 'NCC') {
-                await withCodeRetry('supplierDebt', 'CN', (dbtCode) =>
-                    prisma.supplierDebt.create({
-                        data: {
-                            code: dbtCode,
-                            supplierId: expense.recipientId,
-                            projectId: expense.projectId || null,
-                            description: expense.description,
-                            totalAmount: expense.amount,
-                            paidAmount: 0,
-                            status: 'open',
-                            date: expense.date,
-                            notes: expense.notes || '',
-                            proofUrl: expense.proofUrl || '',
-                            createdById: session.user.id,
-                            expenseId: expense.id,
-                        },
-                    })
-                );
-            } else if (expense.recipientType === 'Thầu phụ' && expense.projectId) {
-                await withCodeRetry('contractorDebt', 'CNT', (dbtCode) =>
-                    prisma.contractorDebt.create({
-                        data: {
-                            code: dbtCode,
-                            contractorId: expense.recipientId,
-                            projectId: expense.projectId,
-                            description: expense.description,
-                            totalAmount: expense.amount,
-                            paidAmount: 0,
-                            status: 'open',
-                            date: expense.date,
-                            notes: expense.notes || '',
-                            proofUrl: expense.proofUrl || '',
-                            createdById: session.user.id,
-                            expenseId: expense.id,
-                        },
-                    })
-                );
+        // Auto-tạo Debt TRONG CÙNG transaction — nếu fail thì rollback toàn bộ
+        // (expense + allocations + debt) để đảm bảo data consistency.
+        if (
+            fullExp.recipientType &&
+            fullExp.recipientId &&
+            !SKIP_AUTO_DEBT_TYPES.has(fullExp.expenseType) &&
+            (fullExp.recipientType === 'NCC' || fullExp.recipientType === 'Thầu phụ')
+        ) {
+            if (fullExp.recipientType === 'NCC') {
+                const dbtCode = await generateCode('supplierDebt', 'CNCC');
+                await tx.supplierDebt.create({
+                    data: {
+                        code: dbtCode,
+                        supplierId: fullExp.recipientId,
+                        projectId: fullExp.projectId || null,
+                        description: fullExp.description,
+                        totalAmount: fullExp.amount,
+                        paidAmount: 0,
+                        status: 'open',
+                        date: fullExp.date,
+                        notes: fullExp.notes || '',
+                        proofUrl: fullExp.proofUrl || '',
+                        createdById: session.user.id,
+                        expenseId: fullExp.id,
+                    },
+                });
+            } else if (fullExp.recipientType === 'Thầu phụ' && fullExp.projectId) {
+                const dbtCode = await generateCode('contractorDebt', 'CNTH');
+                await tx.contractorDebt.create({
+                    data: {
+                        code: dbtCode,
+                        contractorId: fullExp.recipientId,
+                        projectId: fullExp.projectId,
+                        description: fullExp.description,
+                        totalAmount: fullExp.amount,
+                        paidAmount: 0,
+                        status: 'open',
+                        date: fullExp.date,
+                        notes: fullExp.notes || '',
+                        proofUrl: fullExp.proofUrl || '',
+                        createdById: session.user.id,
+                        expenseId: fullExp.id,
+                    },
+                });
             }
-        } catch (e) {
-            console.warn('Auto-create debt failed:', e.message);
         }
-    }
+
+        return fullExp;
+    }, { timeout: 30000 });
 
     logActivity({
         action: 'CREATE',

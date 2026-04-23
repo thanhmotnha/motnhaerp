@@ -3,6 +3,8 @@ import prisma from '@/lib/prisma';
 import { withAuth } from '@/lib/apiHandler';
 import { generateCode } from '@/lib/generateCode';
 
+export const dynamic = 'force-dynamic';
+
 // GET — Contractor debt summary
 export const GET = withAuth(async (request, context, session) => {
     const contractors = await prisma.contractor.findMany({

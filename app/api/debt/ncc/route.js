@@ -3,6 +3,8 @@ import prisma from '@/lib/prisma';
 import { withAuth } from '@/lib/apiHandler';
 import { generateCode } from '@/lib/generateCode';
 
+export const dynamic = 'force-dynamic';
+
 // GET — Supplier debt summary
 export const GET = withAuth(async (request, context, session) => {
     // Fetch all active suppliers with their payments
