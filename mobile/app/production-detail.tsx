@@ -25,10 +25,19 @@ export default function ProductionDetailScreen() {
     };
 
     const updateProgress = async (itemId: string, progress: number) => {
+        if (!itemId) return Alert.alert('Lỗi', 'Thiếu mã sản phẩm');
         try {
-            // This would update the specific item's progress
-            Alert.alert('✅ Cập nhật tiến độ');
-        } catch (e: any) { Alert.alert('Lỗi', e.message); }
+            await apiFetch(`/api/furniture-orders/${id}/items/${itemId}`, {
+                method: 'PATCH',
+                body: JSON.stringify({ progress }),
+            });
+            Alert.alert('✅ Đã cập nhật', `Tiến độ: ${progress}%`);
+            // Refresh order data để UI phản ánh progress mới
+            const updated = await apiFetch(`/api/furniture-orders/${id}`);
+            setOrder(updated);
+        } catch (e: any) {
+            Alert.alert('Lỗi', e.message || 'Không cập nhật được tiến độ');
+        }
     };
 
     if (!order) return <View style={s.container}><Text style={s.loading}>Đang tải...</Text></View>;
